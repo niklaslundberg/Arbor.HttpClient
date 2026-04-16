@@ -40,6 +40,7 @@ public partial class App : Application
             };
 
             window.Opened += async (_, _) => await InitializeAsync(repository, viewModel);
+            window.Closed += (_, _) => viewModel.Dispose();
             desktop.MainWindow = window;
         }
 

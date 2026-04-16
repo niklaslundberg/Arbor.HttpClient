@@ -42,7 +42,12 @@
             <TextBlock Grid.Row="1" Text="{Binding ErrorMessage}" Foreground="Tomato" />
 
             <StackPanel Grid.Row="2" Spacing="6">
-                <TextBlock Text="Request Body" FontWeight="SemiBold" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="Request Body" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Button Grid.Column="1"
+                            Content="Open in editor"
+                            Command="{Binding OpenRequestBodyInExternalEditorCommand}" />
+                </Grid>
                 <TextBox AcceptsReturn="True"
                          Height="170"
                          TextWrapping="Wrap"
@@ -52,7 +57,12 @@
             <TextBlock x:Name="ResponseStatusText" Grid.Row="3" Text="{Binding ResponseStatus}" FontWeight="SemiBold" />
 
             <StackPanel Grid.Row="4" Spacing="6">
-                <TextBlock Text="Response Body" FontWeight="SemiBold" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="Response Body" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Button Grid.Column="1"
+                            Content="Open in editor"
+                            Command="{Binding OpenResponseBodyInExternalEditorCommand}" />
+                </Grid>
                 <TextBox x:Name="ResponseBodyText"
                          AcceptsReturn="True"
                          IsReadOnly="True"
