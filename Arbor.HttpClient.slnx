@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj" />
+    <Project Path="src/Arbor.HttpClient.Core/Arbor.HttpClient.Core.csproj" />
+    <Project Path="src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj" />
+    <Project Path="src/Arbor.HttpClient.Desktop/Arbor.HttpClient.Desktop.csproj" />
+    <Project Path="src/Arbor.HttpClient.Storage.Sqlite/Arbor.HttpClient.Storage.Sqlite.csproj" />
+  </Folder>
+</Solution>

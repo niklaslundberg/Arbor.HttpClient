@@ -1,0 +1,65 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Arbor.HttpClient.Desktop.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="760"
+        x:Class="Arbor.HttpClient.Desktop.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="Arbor.HttpClient"
+        Width="1200"
+        Height="760">
+
+    <Grid ColumnDefinitions="300,*" RowDefinitions="Auto,*" Margin="16" ColumnSpacing="16" RowSpacing="12">
+        <TextBlock Grid.ColumnSpan="2" Text="Arbor Http Client" FontSize="24" FontWeight="Bold" />
+
+        <Border Grid.Row="1" Background="#12212F" Padding="12" CornerRadius="8">
+            <StackPanel Spacing="8">
+                <TextBlock Text="History" FontWeight="SemiBold" FontSize="16" />
+                <ListBox x:Name="HistoryList" ItemsSource="{Binding History}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,4">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Method}" />
+                                <TextBlock Text="{Binding Url}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1" Grid.Column="1" RowDefinitions="Auto,Auto,*,Auto,*" RowSpacing="10">
+            <Grid ColumnDefinitions="120,130,*,120" ColumnSpacing="8">
+                <TextBox Grid.Column="0" PlaceholderText="Request name" Text="{Binding RequestName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <ComboBox Grid.Column="1" ItemsSource="{Binding Methods}" SelectedItem="{Binding SelectedMethod, Mode=TwoWay}" />
+                <TextBox x:Name="RequestUrlTextBox" Grid.Column="2" PlaceholderText="https://api.example.com" Text="{Binding RequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <Button x:Name="SendButton" Grid.Column="3" Content="Send" Command="{Binding SendRequestCommand}" />
+            </Grid>
+
+            <TextBlock Grid.Row="1" Text="{Binding ErrorMessage}" Foreground="Tomato" />
+
+            <StackPanel Grid.Row="2" Spacing="6">
+                <TextBlock Text="Request Body" FontWeight="SemiBold" />
+                <TextBox AcceptsReturn="True"
+                         Height="170"
+                         TextWrapping="Wrap"
+                         Text="{Binding RequestBody, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <TextBlock x:Name="ResponseStatusText" Grid.Row="3" Text="{Binding ResponseStatus}" FontWeight="SemiBold" />
+
+            <StackPanel Grid.Row="4" Spacing="6">
+                <TextBlock Text="Response Body" FontWeight="SemiBold" />
+                <TextBox x:Name="ResponseBodyText"
+                         AcceptsReturn="True"
+                         IsReadOnly="True"
+                         TextWrapping="Wrap"
+                         Height="280"
+                         Text="{Binding ResponseBody}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
