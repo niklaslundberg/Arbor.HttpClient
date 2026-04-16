@@ -51,6 +51,29 @@ Do **not** add packages under these licenses without explicit approval:
 **License:** MIT
 ```
 
+## MSIX Packaging and Releases
+
+The desktop application (`Arbor.HttpClient.Desktop`) is distributed as a signed MSIX package.
+
+### How it works
+
+- The MSIX manifest template lives at `src/Arbor.HttpClient.Desktop/packaging/AppxManifest.xml`.
+- `VERSION_PLACEHOLDER` in the manifest is substituted at build time with the 4-part version derived from the GitHub Actions run number (`1.0.{run_number}.0`).
+- The release workflow (`.github/workflows/release.yml`) runs automatically on every push to `main`. It:
+  1. Builds and runs unit tests on `windows-latest`.
+  2. Publishes a `win-x64` self-contained executable via `dotnet publish`.
+  3. Generates required MSIX logo assets using ImageMagick.
+  4. Packages the publish output with `makeappx.exe` (Windows SDK, pre-installed on the runner).
+  5. Creates a self-signed certificate and signs the MSIX with `signtool.exe`.
+  6. Creates a GitHub Release with auto-generated release notes and uploads the MSIX and the `.cer` sideloading certificate as assets.
+
+### When modifying the desktop app
+
+- Keep the `AppxManifest.xml` consistent with the app identity (`NiklasLundberg.ArborHttpClient`, Publisher `CN=Arbor.HttpClient`).
+- Do **not** change `ProcessorArchitecture` in the manifest without also changing the `-r` runtime identifier in the release workflow's `dotnet publish` step.
+- The `Publisher` value in `AppxManifest.xml` must exactly match the `Subject` of the signing certificate. If you change the publisher, update both.
+- Required MSIX logo sizes: `Square44x44Logo` (44×44), `Square150x150Logo` (150×150), `Wide310x150Logo` (310×150), `StoreLogo` (50×50), `SplashScreen` (620×300). Update the workflow if real brand assets replace the generated placeholders.
+
 ## Central Package Management
 
 All NuGet package versions are managed centrally in `Directory.Packages.props`.  
