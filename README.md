@@ -14,11 +14,11 @@ Cross-platform desktop HTTP client built with **.NET 10**, **Avalonia 12**, and 
 ## Run
 
 ```bash
-dotnet run --project /home/runner/work/Arbor.HttpClient/Arbor.HttpClient/src/Arbor.HttpClient.Desktop/Arbor.HttpClient.Desktop.csproj
+dotnet run --project src/Arbor.HttpClient.Desktop/Arbor.HttpClient.Desktop.csproj
 ```
 
 ## Test
 
 ```bash
-dotnet test /home/runner/work/Arbor.HttpClient/Arbor.HttpClient/Arbor.HttpClient.slnx
+dotnet test Arbor.HttpClient.slnx
 ```

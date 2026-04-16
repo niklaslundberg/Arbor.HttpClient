@@ -6,6 +6,7 @@ namespace Arbor.HttpClient.Storage.Sqlite;
 
 public sealed class SqliteRequestHistoryRepository(string databasePath) : IRequestHistoryRepository
 {
+    private readonly string _databasePath = databasePath;
     private readonly string _connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -84,7 +85,7 @@ public sealed class SqliteRequestHistoryRepository(string databasePath) : IReque
 
     private void EnsureDirectoryExists()
     {
-        var databaseDirectory = Path.GetDirectoryName(new SqliteConnectionStringBuilder(_connectionString).DataSource);
+        var databaseDirectory = Path.GetDirectoryName(_databasePath);
         if (!string.IsNullOrWhiteSpace(databaseDirectory))
         {
             Directory.CreateDirectory(databaseDirectory);

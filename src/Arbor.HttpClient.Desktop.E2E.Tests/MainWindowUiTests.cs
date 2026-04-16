@@ -52,7 +52,8 @@ public class MainWindowUiTests
             viewModel.ResponseBody.Should().Contain("ok");
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
             var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            screenshot?.Save("/tmp/arbor-httpclient-ui.png");
+            var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-ui.png");
+            screenshot?.Save(screenshotPath);
 
             window.Close();
             return true;
