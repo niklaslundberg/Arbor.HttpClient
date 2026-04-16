@@ -19,6 +19,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly HttpRequestService _httpRequestService;
     private readonly IRequestHistoryRepository _requestHistoryRepository;
     private readonly List<string> _tempFiles = [];
+    private readonly List<SavedRequest> _allHistory = [];
     private FileSystemWatcher? _requestBodyWatcher;
     private int _requestBodyReadPending;
 
@@ -43,6 +44,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _errorMessage = string.Empty;
 
+    [ObservableProperty]
+    private string _historySearchQuery = string.Empty;
+
     public MainWindowViewModel(HttpRequestService httpRequestService, IRequestHistoryRepository requestHistoryRepository)
     {
         _httpRequestService = httpRequestService;
@@ -60,6 +64,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public IAsyncRelayCommand SendRequestCommand { get; }
 
     public IAsyncRelayCommand LoadHistoryCommand { get; }
+
+    partial void OnHistorySearchQueryChanged(string value) => ApplyHistoryFilter(value);
 
     [RelayCommand]
     private void OpenRequestBodyInExternalEditor()
@@ -152,6 +158,30 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private void ApplyHistoryFilter(string query)
+    {
+        History.Clear();
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            foreach (var item in _allHistory)
+            {
+                History.Add(item);
+            }
+            return;
+        }
+
+        var lower = query.ToLowerInvariant();
+        foreach (var item in _allHistory)
+        {
+            if (item.Name.Contains(lower, StringComparison.OrdinalIgnoreCase)
+                || item.Url.Contains(lower, StringComparison.OrdinalIgnoreCase)
+                || item.Method.Contains(lower, StringComparison.OrdinalIgnoreCase))
+            {
+                History.Add(item);
+            }
+        }
+    }
+
     private async Task SendRequestAsync()
     {
         try
@@ -173,12 +203,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private async Task LoadHistoryAsync()
     {
-        var requests = await _requestHistoryRepository.GetRecentAsync(20);
+        var requests = await _requestHistoryRepository.GetRecentAsync(100);
 
-        History.Clear();
-        foreach (var request in requests)
-        {
-            History.Add(request);
-        }
+        _allHistory.Clear();
+        _allHistory.AddRange(requests);
+
+        ApplyHistoryFilter(HistorySearchQuery);
     }
 }

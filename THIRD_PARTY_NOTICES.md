@@ -16,6 +16,17 @@ This project makes use of third-party packages. Their licenses and attribution d
 
 ---
 
+## Avalonia.AvaloniaEdit
+
+**Package:** Avalonia.AvaloniaEdit  
+**Version:** 12.0.0  
+**Authors:** AvaloniaUI, ICSharpCode  
+**Copyright:** Copyright © ICSharpCode and AvaloniaUI contributors  
+**Project URL:** https://github.com/AvaloniaUI/AvaloniaEdit  
+**License:** MIT  
+
+---
+
 ## AvaloniaUI.DiagnosticsSupport
 
 **Package:** AvaloniaUI.DiagnosticsSupport  

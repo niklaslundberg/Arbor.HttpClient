@@ -1,6 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Arbor.HttpClient.Desktop.ViewModels"
+        xmlns:conv="using:Arbor.HttpClient.Desktop.Converters"
+        xmlns:models="using:Arbor.HttpClient.Core.Models"
+        xmlns:aedit="using:AvaloniaEdit"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="760"
@@ -11,65 +14,106 @@
         Width="1200"
         Height="760">
 
+    <Window.Resources>
+        <conv:MethodToColorConverter x:Key="MethodToColorConverter" />
+    </Window.Resources>
+
     <Grid ColumnDefinitions="300,*" RowDefinitions="Auto,*" Margin="16" ColumnSpacing="16" RowSpacing="12">
         <TextBlock Grid.ColumnSpan="2" Text="Arbor Http Client" FontSize="24" FontWeight="Bold" />
 
+        <!-- History panel -->
         <Border Grid.Row="1" Background="#12212F" Padding="12" CornerRadius="8">
-            <StackPanel Spacing="8">
+            <Grid RowDefinitions="Auto,Auto,*">
                 <TextBlock Text="History" FontWeight="SemiBold" FontSize="16" />
-                <ListBox x:Name="HistoryList" ItemsSource="{Binding History}">
+                <TextBox Grid.Row="1"
+                         Margin="0,6,0,4"
+                         PlaceholderText="Search history…"
+                         Text="{Binding HistorySearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <ListBox x:Name="HistoryList" Grid.Row="2" ItemsSource="{Binding History}">
                     <ListBox.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate x:DataType="models:SavedRequest">
                             <StackPanel Margin="0,4">
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                <TextBlock Text="{Binding Method}" />
+                                <TextBlock Text="{Binding Method}"
+                                           Foreground="{Binding Method, Converter={StaticResource MethodToColorConverter}}"
+                                           FontWeight="SemiBold" />
                                 <TextBlock Text="{Binding Url}" TextWrapping="Wrap" />
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
-            </StackPanel>
+            </Grid>
         </Border>
 
+        <!-- Main request/response panel -->
         <Grid Grid.Row="1" Grid.Column="1" RowDefinitions="Auto,Auto,*,Auto,*" RowSpacing="10">
-            <Grid ColumnDefinitions="120,130,*,120" ColumnSpacing="8">
-                <TextBox Grid.Column="0" PlaceholderText="Request name" Text="{Binding RequestName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                <ComboBox Grid.Column="1" ItemsSource="{Binding Methods}" SelectedItem="{Binding SelectedMethod, Mode=TwoWay}" />
-                <TextBox x:Name="RequestUrlTextBox" Grid.Column="2" PlaceholderText="https://api.example.com" Text="{Binding RequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                <Button x:Name="SendButton" Grid.Column="3" Content="Send" Command="{Binding SendRequestCommand}" />
+
+            <!-- URL bar -->
+            <Grid ColumnDefinitions="120,Auto,*,120" ColumnSpacing="8">
+                <TextBox Grid.Column="0" PlaceholderText="Request name"
+                         Text="{Binding RequestName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                <!-- Method ComboBox with coloured items -->
+                <ComboBox x:Name="MethodComboBox"
+                          Grid.Column="1"
+                          MinWidth="100"
+                          ItemsSource="{Binding Methods}"
+                          SelectedItem="{Binding SelectedMethod, Mode=TwoWay}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}"
+                                       Foreground="{Binding Converter={StaticResource MethodToColorConverter}}"
+                                       FontWeight="SemiBold" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+
+                <TextBox x:Name="RequestUrlTextBox" Grid.Column="2"
+                         PlaceholderText="https://api.example.com"
+                         Text="{Binding RequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <Button x:Name="SendButton" Grid.Column="3" Content="Send"
+                        Command="{Binding SendRequestCommand}" />
             </Grid>
 
             <TextBlock Grid.Row="1" Text="{Binding ErrorMessage}" Foreground="Tomato" />
 
-            <StackPanel Grid.Row="2" Spacing="6">
+            <!-- Request Body -->
+            <Grid Grid.Row="2" RowDefinitions="Auto,*">
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Text="Request Body" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <Button Grid.Column="1"
-                            Content="Open in editor"
+                    <Button Grid.Column="1" Content="Open in editor"
                             Command="{Binding OpenRequestBodyInExternalEditorCommand}" />
                 </Grid>
-                <TextBox AcceptsReturn="True"
-                         Height="170"
-                         TextWrapping="Wrap"
-                         Text="{Binding RequestBody, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-            </StackPanel>
+                <Border Grid.Row="1" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4">
+                    <aedit:TextEditor x:Name="RequestBodyEditor"
+                                      ShowLineNumbers="True"
+                                      WordWrap="True"
+                                      FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                      FontSize="13"
+                                      MinHeight="150" />
+                </Border>
+            </Grid>
 
-            <TextBlock x:Name="ResponseStatusText" Grid.Row="3" Text="{Binding ResponseStatus}" FontWeight="SemiBold" />
+            <TextBlock x:Name="ResponseStatusText" Grid.Row="3"
+                       Text="{Binding ResponseStatus}" FontWeight="SemiBold" />
 
-            <StackPanel Grid.Row="4" Spacing="6">
+            <!-- Response Body -->
+            <Grid Grid.Row="4" RowDefinitions="Auto,*">
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Text="Response Body" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <Button Grid.Column="1"
-                            Content="Open in editor"
+                    <Button Grid.Column="1" Content="Open in editor"
                             Command="{Binding OpenResponseBodyInExternalEditorCommand}" />
                 </Grid>
-                <TextBox x:Name="ResponseBodyText"
-                         AcceptsReturn="True"
-                         IsReadOnly="True"
-                         TextWrapping="Wrap"
-                         Height="280"
-                         Text="{Binding ResponseBody}" />
-            </StackPanel>
+                <Border Grid.Row="1" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4">
+                    <aedit:TextEditor x:Name="ResponseBodyEditor"
+                                      ShowLineNumbers="True"
+                                      WordWrap="True"
+                                      IsReadOnly="True"
+                                      FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                      FontSize="13"
+                                      MinHeight="200" />
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </Window>
