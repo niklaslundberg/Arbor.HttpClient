@@ -18,7 +18,6 @@ public partial class MainWindow : Window
 
     private void OnDataContextChanged(object? sender, System.EventArgs e)
     {
-        // Unsubscribe from old VM
         if (_viewModel is not null)
         {
             _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
@@ -26,7 +25,6 @@ public partial class MainWindow : Window
 
         _viewModel = DataContext as MainWindowViewModel;
 
-        // Locate the named editors now that the AXAML tree is built
         _requestBodyEditor = this.FindControl<TextEditor>("RequestBodyEditor");
         _responseBodyEditor = this.FindControl<TextEditor>("ResponseBodyEditor");
 
@@ -37,13 +35,18 @@ public partial class MainWindow : Window
 
         if (_viewModel is not null)
         {
+            _viewModel.StorageProvider = StorageProvider;
             _viewModel.PropertyChanged += OnViewModelPropertyChanged;
 
-            // Sync initial values
             if (_requestBodyEditor is not null)
+            {
                 _requestBodyEditor.Text = _viewModel.RequestBody;
+            }
+
             if (_responseBodyEditor is not null)
+            {
                 _responseBodyEditor.Text = _viewModel.ResponseBody;
+            }
         }
     }
 

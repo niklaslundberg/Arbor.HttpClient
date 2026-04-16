@@ -23,23 +23,29 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var databasePath = Path.Combine(
+            var dbPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "Arbor.HttpClient",
                 "requests.db");
 
-            var repository = new SqliteRequestHistoryRepository(databasePath);
+            var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
+
+            var historyRepository = new SqliteRequestHistoryRepository(dbPath);
+            var collectionRepository = new SqliteCollectionRepository(connectionString);
+            var environmentRepository = new SqliteEnvironmentRepository(connectionString);
 
             var viewModel = new MainWindowViewModel(
-                new HttpRequestService(new global::System.Net.Http.HttpClient(), repository),
-                repository);
+                new HttpRequestService(new global::System.Net.Http.HttpClient(), historyRepository),
+                historyRepository,
+                collectionRepository,
+                environmentRepository);
 
             var window = new MainWindow
             {
                 DataContext = viewModel,
             };
 
-            window.Opened += async (_, _) => await InitializeAsync(repository, viewModel);
+            window.Opened += async (_, _) => await InitializeAsync(historyRepository, collectionRepository, environmentRepository, viewModel);
             window.Closed += (_, _) => viewModel.Dispose();
             desktop.MainWindow = window;
         }
@@ -47,12 +53,18 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    private static async Task InitializeAsync(IRequestHistoryRepository repository, MainWindowViewModel viewModel)
+    private static async Task InitializeAsync(
+        IRequestHistoryRepository historyRepository,
+        ICollectionRepository collectionRepository,
+        IEnvironmentRepository environmentRepository,
+        MainWindowViewModel viewModel)
     {
         try
         {
-            await repository.InitializeAsync();
-            await viewModel.LoadHistoryCommand.ExecuteAsync(null);
+            await historyRepository.InitializeAsync();
+            await collectionRepository.InitializeAsync();
+            await environmentRepository.InitializeAsync();
+            await viewModel.InitializeAsync();
         }
         catch (Exception exception)
         {

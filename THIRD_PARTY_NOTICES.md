@@ -27,6 +27,17 @@ This project makes use of third-party packages. Their licenses and attribution d
 
 ---
 
+## Microsoft.OpenApi.Readers
+
+**Package:** Microsoft.OpenApi.Readers  
+**Version:** 1.6.29  
+**Authors:** Microsoft  
+**Copyright:** © Microsoft Corporation. All rights reserved.  
+**Project URL:** https://github.com/microsoft/OpenAPI.NET  
+**License:** MIT  
+
+---
+
 ## AvaloniaUI.DiagnosticsSupport
 
 **Package:** AvaloniaUI.DiagnosticsSupport  

@@ -32,7 +32,11 @@ public class MainWindowUiTests
                     Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
                 });
 
-            var viewModel = new MainWindowViewModel(new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository), repository)
+            var viewModel = new MainWindowViewModel(
+                new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository),
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository())
             {
                 RequestName = "UI Test",
                 RequestUrl = "https://example.com/api",
@@ -86,6 +90,37 @@ public class MainWindowUiTests
 
         public Task<IReadOnlyList<SavedRequest>> GetRecentAsync(int limit, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<SavedRequest>>(_items.Take(limit).ToList());
+    }
+
+    private sealed class InMemoryCollectionRepository : ICollectionRepository
+    {
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<int> SaveAsync(string name, string? sourcePath, string? baseUrl, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken = default)
+            => Task.FromResult(1);
+
+        public Task<IReadOnlyList<Collection>> GetAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Collection>>([]);
+
+        public Task DeleteAsync(int collectionId, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+    }
+
+    private sealed class InMemoryEnvironmentRepository : IEnvironmentRepository
+    {
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<int> SaveAsync(string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default)
+            => Task.FromResult(1);
+
+        public Task UpdateAsync(int environmentId, string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task<IReadOnlyList<RequestEnvironment>> GetAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<RequestEnvironment>>([]);
+
+        public Task DeleteAsync(int environmentId, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class StubMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> send)

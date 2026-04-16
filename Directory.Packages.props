@@ -22,6 +22,7 @@
   <!-- Storage -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.OpenApi.Readers" Version="1.6.29" />
   </ItemGroup>
 
   <!-- Testing -->
