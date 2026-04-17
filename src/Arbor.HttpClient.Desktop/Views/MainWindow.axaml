@@ -251,7 +251,7 @@
             </Grid>
 
             <!-- Main request/response panel -->
-            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*,Auto,*" RowSpacing="10">
+            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,*" RowSpacing="10">
 
                 <!-- URL bar -->
                 <Grid ColumnDefinitions="120,Auto,*,120" ColumnSpacing="8">
@@ -282,10 +282,13 @@
                 <!-- Headers -->
                 <Border Grid.Row="2" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4" Padding="8,6">
                     <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
-                        <!-- Section title + Add Header button -->
-                        <Grid ColumnDefinitions="*,Auto">
+                        <!-- Section title + Preview toggle + Add Header button -->
+                        <Grid ColumnDefinitions="*,Auto,Auto">
                             <TextBlock Text="Headers" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Content="+ Add Header"
+                            <Button Grid.Column="1" Content="{Binding RequestHeadersPreviewLabel}"
+                                    Command="{Binding ToggleRequestHeadersPreviewCommand}"
+                                    Margin="4,0" Padding="6,2" FontSize="12" />
+                            <Button Grid.Column="2" Content="+ Add Header"
                                     Command="{Binding AddHeaderCommand}" />
                         </Grid>
 
@@ -324,8 +327,30 @@
                     </Grid>
                 </Border>
 
-                <!-- Request Body -->
-                <Grid Grid.Row="3" RowDefinitions="Auto,*">
+                <!-- Request Headers Preview (Row 3, collapsible) -->
+                <Border Grid.Row="3"
+                        IsVisible="{Binding IsRequestHeadersPreviewVisible}"
+                        Background="#0D1B2A" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4"
+                        Padding="8,6">
+                    <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
+                        <TextBlock Text="Request headers (as sent)"
+                                   FontWeight="SemiBold" FontSize="12" Opacity="0.7" />
+                        <ItemsControl Grid.Row="1" ItemsSource="{Binding RequestHeadersPreview}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}"
+                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               FontSize="12"
+                                               Opacity="0.9"
+                                               Margin="0,1,0,0" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </Border>
+
+                <!-- Request Body (Row 4) -->
+                <Grid Grid.Row="4" RowDefinitions="Auto,*">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Text="Request Body" FontWeight="SemiBold" VerticalAlignment="Center" />
                         <Button Grid.Column="1" Content="Open in editor"
@@ -341,11 +366,36 @@
                     </Border>
                 </Grid>
 
-                <TextBlock x:Name="ResponseStatusText" Grid.Row="4"
+                <TextBlock x:Name="ResponseStatusText" Grid.Row="5"
                            Text="{Binding ResponseStatus}" FontWeight="SemiBold" />
 
-                <!-- Response Body -->
-                <Grid Grid.Row="5" RowDefinitions="Auto,*">
+                <!-- Response Headers (Row 6, shown after a request) -->
+                <Border Grid.Row="6"
+                        IsVisible="{Binding HasResponseHeaders}"
+                        Background="#0D1B2A" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4"
+                        Padding="8,6">
+                    <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
+                        <TextBlock Text="Response headers"
+                                   FontWeight="SemiBold" FontSize="12" Opacity="0.7" />
+                        <ScrollViewer Grid.Row="1" MaxHeight="130">
+                            <ItemsControl ItemsSource="{Binding ResponseHeaders}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}"
+                                                   FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                                   FontSize="12"
+                                                   Opacity="0.9"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,1,0,0" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- Response Body (Row 7) -->
+                <Grid Grid.Row="7" RowDefinitions="Auto,*">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Text="Response Body" FontWeight="SemiBold" VerticalAlignment="Center" />
                         <Button Grid.Column="1" Content="Open in editor"

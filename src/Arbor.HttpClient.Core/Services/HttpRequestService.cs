@@ -54,6 +54,11 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
         using var response = await _httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
+        var responseHeaders = response.Headers
+            .Concat(response.Content.Headers)
+            .SelectMany(h => h.Value.Select(v => (h.Key, v)))
+            .ToList();
+
         await _requestHistoryRepository.SaveAsync(
             new SavedRequest(
                 string.IsNullOrWhiteSpace(requestDraft.Name) ? requestDraft.Url : requestDraft.Name,
@@ -63,6 +68,6 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
                 _timeProvider.GetUtcNow()),
             cancellationToken).ConfigureAwait(false);
 
-        return new HttpResponseDetails((int)response.StatusCode, response.ReasonPhrase ?? string.Empty, responseBody);
+        return new HttpResponseDetails((int)response.StatusCode, response.ReasonPhrase ?? string.Empty, responseBody, responseHeaders);
     }
 }

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -113,10 +115,29 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // Request headers preview panel (collapsible, live-updating)
+    [ObservableProperty]
+    private bool _isRequestHeadersPreviewVisible;
+
+    public string RequestHeadersPreviewLabel =>
+        IsRequestHeadersPreviewVisible ? "▼ Preview" : "▶ Preview";
+
+    partial void OnIsRequestHeadersPreviewVisibleChanged(bool value) =>
+        OnPropertyChanged(nameof(RequestHeadersPreviewLabel));
+
+    public ObservableCollection<string> RequestHeadersPreview { get; } = [];
+
+    // Response headers panel (populated after each successful request)
+    public ObservableCollection<string> ResponseHeaders { get; } = [];
+
+    [ObservableProperty]
+    private bool _hasResponseHeaders;
+
     partial void OnSelectedContentTypeOptionChanged(string value)
     {
         OnPropertyChanged(nameof(IsCustomContentType));
         OnPropertyChanged(nameof(ContentType));
+        UpdateRequestHeadersPreview();
     }
 
     partial void OnCustomContentTypeChanged(string value)
@@ -124,6 +145,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (IsCustomContentType)
         {
             OnPropertyChanged(nameof(ContentType));
+            UpdateRequestHeadersPreview();
         }
     }
 
@@ -167,6 +189,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         RequestHeaders = [];
         ScheduledJobs = [];
 
+        RequestHeaders.CollectionChanged += OnRequestHeadersCollectionChanged;
+
         SendRequestCommand = new AsyncRelayCommand(SendRequestAsync);
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
     }
@@ -194,6 +218,49 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (header is not null)
         {
             RequestHeaders.Remove(header);
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleRequestHeadersPreview() =>
+        IsRequestHeadersPreviewVisible = !IsRequestHeadersPreviewVisible;
+
+    private void OnRequestHeadersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems is not null)
+        {
+            foreach (RequestHeaderViewModel h in e.NewItems)
+            {
+                h.PropertyChanged += OnRequestHeaderPropertyChanged;
+            }
+        }
+
+        if (e.OldItems is not null)
+        {
+            foreach (RequestHeaderViewModel h in e.OldItems)
+            {
+                h.PropertyChanged -= OnRequestHeaderPropertyChanged;
+            }
+        }
+
+        UpdateRequestHeadersPreview();
+    }
+
+    private void OnRequestHeaderPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        UpdateRequestHeadersPreview();
+
+    private void UpdateRequestHeadersPreview()
+    {
+        RequestHeadersPreview.Clear();
+
+        if (!string.IsNullOrEmpty(ContentType))
+        {
+            RequestHeadersPreview.Add($"Content-Type: {ContentType}");
+        }
+
+        foreach (var h in RequestHeaders.Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name)))
+        {
+            RequestHeadersPreview.Add($"{h.Name}: {h.Value}");
         }
     }
 
@@ -607,6 +674,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
             ResponseBody = response.Body;
+
+            ResponseHeaders.Clear();
+            foreach (var (name, value) in response.Headers)
+            {
+                ResponseHeaders.Add($"{name}: {value}");
+            }
+
+            HasResponseHeaders = ResponseHeaders.Count > 0;
 
             await LoadHistoryAsync();
         }
