@@ -1,0 +1,258 @@
+using System.Net;
+using System.Net.Http;
+using System.Text;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Skia;
+using Arbor.HttpClient.Core.Abstractions;
+using Arbor.HttpClient.Core.Models;
+using Arbor.HttpClient.Core.Services;
+using Arbor.HttpClient.Desktop;
+using Arbor.HttpClient.Desktop.Logging;
+using Arbor.HttpClient.Desktop.Services;
+using Arbor.HttpClient.Desktop.ViewModels;
+using Arbor.HttpClient.Desktop.Views;
+using Serilog;
+
+namespace Arbor.HttpClient.Desktop.E2E.Tests;
+
+/// <summary>
+/// Generates documentation screenshots using Avalonia's headless rendering.
+/// Run with: dotnet test --filter "Category=Screenshots"
+/// The output directory is controlled by the SCREENSHOT_OUTPUT_DIR environment variable
+/// (defaults to the system temp folder).
+/// </summary>
+[Collection("HeadlessAvalonia")]
+[Trait("Category", "Screenshots")]
+public class ScreenshotGenerator
+{
+    [Fact]
+    public async Task GenerateMainWindowScreenshot()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var (viewModel, window) = CreateWindow(
+                BuildHandler("""
+                    {
+                      "args": { "hello": "world" },
+                      "headers": {
+                        "host": "postman-echo.com",
+                        "user-agent": "Arbor.HttpClient/1.0"
+                      },
+                      "url": "https://postman-echo.com/get?hello=world"
+                    }
+                    """),
+                requestName: "Echo GET",
+                method: "GET",
+                url: "https://postman-echo.com/get?hello=world");
+
+            window.Show();
+            viewModel.SendRequestCommand.Execute(null);
+            await viewModel.SendRequestCommand.ExecutionTask!;
+
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            frame?.Save(Path.Combine(outputDir, "main-window.png"));
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task GenerateVariablesScreenshot()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var (viewModel, window) = CreateWindow(
+                BuildHandler("""
+                    {
+                      "args": { "env": "production" },
+                      "headers": { "host": "postman-echo.com" },
+                      "url": "https://postman-echo.com/get?env=production"
+                    }
+                    """),
+                requestName: "Echo with variable",
+                method: "GET",
+                url: "https://postman-echo.com/get?env={{environment}}");
+
+            // Pre-populate an environment so the panel shows real variables
+            viewModel.NewEnvironmentName = "Production";
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("environment", "production"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "https://postman-echo.com"));
+            viewModel.IsEnvironmentPanelVisible = true;
+
+            window.Show();
+
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            frame?.Save(Path.Combine(outputDir, "variables.png"));
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task GenerateScheduledJobsScreenshot()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var (viewModel, window) = CreateWindow(
+                BuildHandler("{}"),
+                requestName: "Health check",
+                method: "GET",
+                url: "https://postman-echo.com/get");
+
+            // Add a scheduled job so the tab looks populated
+            var jobVm = new ScheduledJobViewModel(new InMemoryScheduledJobRepo(), new ScheduledJobService(
+                new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryHistoryRepo()),
+                new LoggerConfiguration().WriteTo.Sink(new InMemorySink()).CreateLogger()))
+            {
+                Name = "Health check every 60 s",
+                Method = "GET",
+                Url = "https://postman-echo.com/get",
+                IntervalSeconds = 60,
+                AutoStart = true
+            };
+            viewModel.ScheduledJobs.Add(jobVm);
+            viewModel.LeftPanelTab = "ScheduledJobs";
+
+            window.Show();
+
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            frame?.Save(Path.Combine(outputDir, "scheduled-jobs.png"));
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    private static HttpMessageHandler BuildHandler(string body) =>
+        new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            ReasonPhrase = "OK",
+            Content = new StringContent(body, Encoding.UTF8, "application/json")
+        });
+
+    private static (MainWindowViewModel ViewModel, MainWindow Window) CreateWindow(
+        HttpMessageHandler handler,
+        string requestName,
+        string method,
+        string url)
+    {
+        var historyRepo = new InMemoryHistoryRepo();
+        var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), historyRepo);
+        var sink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(sink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowVm = new LogWindowViewModel(sink);
+
+        var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            historyRepo,
+            new InMemoryCollectionRepo(),
+            new InMemoryEnvironmentRepo(),
+            new InMemoryScheduledJobRepo(),
+            scheduledJobService,
+            logWindowVm)
+        {
+            RequestName = requestName,
+            SelectedMethod = method,
+            RequestUrl = url
+        };
+
+        return (viewModel, new MainWindow { DataContext = viewModel });
+    }
+
+    // -------------------------------------------------------------------------
+    // Stubs
+    // -------------------------------------------------------------------------
+
+    private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> send)
+        : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(send(request));
+    }
+
+    private sealed class InMemoryHistoryRepo : IRequestHistoryRepository
+    {
+        private readonly List<SavedRequest> _items = [];
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task SaveAsync(SavedRequest request, CancellationToken cancellationToken = default) { _items.Add(request); return Task.CompletedTask; }
+        public Task<IReadOnlyList<SavedRequest>> GetRecentAsync(int limit, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<SavedRequest>>(_items.Take(limit).ToList());
+    }
+
+    private sealed class InMemoryCollectionRepo : ICollectionRepository
+    {
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> SaveAsync(string name, string? sourcePath, string? baseUrl, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken = default) => Task.FromResult(1);
+        public Task<IReadOnlyList<Collection>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Collection>>([]);
+        public Task DeleteAsync(int collectionId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class InMemoryEnvironmentRepo : IEnvironmentRepository
+    {
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> SaveAsync(string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default) => Task.FromResult(1);
+        public Task UpdateAsync(int environmentId, string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<RequestEnvironment>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<RequestEnvironment>>([]);
+        public Task DeleteAsync(int environmentId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class InMemoryScheduledJobRepo : IScheduledJobRepository
+    {
+        private readonly List<ScheduledJobConfig> _items = [];
+        private int _nextId = 1;
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> SaveAsync(ScheduledJobConfig config, CancellationToken cancellationToken = default)
+        {
+            var id = _nextId++;
+            _items.Add(config with { Id = id });
+            return Task.FromResult(id);
+        }
+        public Task UpdateAsync(ScheduledJobConfig config, CancellationToken cancellationToken = default)
+        {
+            var idx = _items.FindIndex(x => x.Id == config.Id);
+            if (idx >= 0) _items[idx] = config;
+            return Task.CompletedTask;
+        }
+        public Task DeleteAsync(int id, CancellationToken cancellationToken = default) { _items.RemoveAll(x => x.Id == id); return Task.CompletedTask; }
+        public Task<IReadOnlyList<ScheduledJobConfig>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ScheduledJobConfig>>(_items.ToList());
+    }
+
+    private sealed class ScreenshotEntryPoint
+    {
+        public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
+            .UseSkia()
+            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
+            .WithInterFont()
+            .LogToTrace();
+    }
+}

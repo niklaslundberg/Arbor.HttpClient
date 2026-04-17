@@ -18,6 +18,7 @@ using Serilog;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
+[Collection("HeadlessAvalonia")]
 public class MainWindowUiTests
 {
     [Fact]
