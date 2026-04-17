@@ -27,6 +27,28 @@ This project makes use of third-party packages. Their licenses and attribution d
 
 ---
 
+## AvaloniaEdit.TextMate
+
+**Package:** AvaloniaEdit.TextMate  
+**Version:** 12.0.0  
+**Authors:** AvaloniaUI, danipen  
+**Copyright:** Copyright © AvaloniaUI and TextMateSharp contributors  
+**Project URL:** https://github.com/AvaloniaUI/AvaloniaEdit  
+**License:** MIT  
+
+---
+
+## TextMateSharp.Grammars
+
+**Package:** TextMateSharp.Grammars  
+**Version:** 2.0.3  
+**Authors:** danipen  
+**Copyright:** Copyright © Daniel Penido and contributors  
+**Project URL:** https://github.com/danipen/TextMateSharp  
+**License:** MIT  
+
+---
+
 ## Microsoft.OpenApi.Readers
 
 **Package:** Microsoft.OpenApi.Readers  
