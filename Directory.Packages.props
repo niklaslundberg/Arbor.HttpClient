@@ -18,6 +18,10 @@
   <ItemGroup>
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.1" />
   </ItemGroup>
+  <!-- Logging -->
+  <ItemGroup>
+    <PackageVersion Include="Serilog" Version="4.3.1" />
+  </ItemGroup>
   <!-- Storage -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.0" />

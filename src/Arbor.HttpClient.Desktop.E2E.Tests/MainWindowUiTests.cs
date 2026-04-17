@@ -9,9 +9,12 @@ using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Desktop;
+using Arbor.HttpClient.Desktop.Logging;
+using Arbor.HttpClient.Desktop.Services;
 using Arbor.HttpClient.Desktop.ViewModels;
 using Arbor.HttpClient.Desktop.Views;
 using AwesomeAssertions;
+using Serilog;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
@@ -32,11 +35,20 @@ public class MainWindowUiTests
                     Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
                 });
 
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
             var viewModel = new MainWindowViewModel(
-                new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository),
+                httpRequestService,
                 repository,
                 new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository())
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel)
             {
                 RequestName = "UI Test",
                 RequestUrl = "https://example.com/api",
@@ -121,6 +133,37 @@ public class MainWindowUiTests
 
         public Task DeleteAsync(int environmentId, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+    }
+
+    private sealed class InMemoryScheduledJobRepository : IScheduledJobRepository
+    {
+        private readonly List<ScheduledJobConfig> _items = [];
+        private int _nextId = 1;
+
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<int> SaveAsync(ScheduledJobConfig config, CancellationToken cancellationToken = default)
+        {
+            var id = _nextId++;
+            _items.Add(config with { Id = id });
+            return Task.FromResult(id);
+        }
+
+        public Task UpdateAsync(ScheduledJobConfig config, CancellationToken cancellationToken = default)
+        {
+            var idx = _items.FindIndex(x => x.Id == config.Id);
+            if (idx >= 0) _items[idx] = config;
+            return Task.CompletedTask;
+        }
+
+        public Task DeleteAsync(int id, CancellationToken cancellationToken = default)
+        {
+            _items.RemoveAll(x => x.Id == id);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<ScheduledJobConfig>> GetAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ScheduledJobConfig>>(_items.ToList());
     }
 
     private sealed class StubMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> send)

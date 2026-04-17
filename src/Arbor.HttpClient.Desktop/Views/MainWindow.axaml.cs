@@ -1,3 +1,4 @@
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -56,6 +57,7 @@ public partial class MainWindow : Window
         {
             _viewModel.StorageProvider = StorageProvider;
             _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            _viewModel.OpenLogWindowAction = OpenLogWindow;
 
             if (_requestBodyEditor is not null)
             {
@@ -69,6 +71,27 @@ public partial class MainWindow : Window
                 ApplyGrammarForContent(_responseTextMate, _viewModel.ResponseBody, ref _responseGrammarScope);
             }
         }
+    }
+
+    private void OpenLogWindow()
+    {
+        if (DataContext is not MainWindowViewModel vm)
+        {
+            return;
+        }
+
+        // Look for an already-open log window
+        if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime lifetime)
+        {
+            var existing = lifetime.Windows.OfType<LogWindow>().FirstOrDefault();
+            if (existing is not null)
+            {
+                existing.Activate();
+                return;
+            }
+        }
+
+        new LogWindow { DataContext = vm.LogWindowViewModel }.Show(this);
     }
 
     private static void ApplyThemeColorsToEditor(TextEditor editor, TextMate.Installation installation)

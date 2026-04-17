@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
+using Arbor.HttpClient.Desktop.Services;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -22,6 +23,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IRequestHistoryRepository _requestHistoryRepository;
     private readonly ICollectionRepository _collectionRepository;
     private readonly IEnvironmentRepository _environmentRepository;
+    private readonly IScheduledJobRepository _scheduledJobRepository;
+    private readonly ScheduledJobService _scheduledJobService;
+    private readonly LogWindowViewModel _logWindowViewModel;
     private readonly OpenApiImportService _openApiImportService;
     private readonly VariableResolver _variableResolver;
     private readonly List<string> _tempFiles = [];
@@ -139,12 +143,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         HttpRequestService httpRequestService,
         IRequestHistoryRepository requestHistoryRepository,
         ICollectionRepository collectionRepository,
-        IEnvironmentRepository environmentRepository)
+        IEnvironmentRepository environmentRepository,
+        IScheduledJobRepository scheduledJobRepository,
+        ScheduledJobService scheduledJobService,
+        LogWindowViewModel logWindowViewModel)
     {
         _httpRequestService = httpRequestService;
         _requestHistoryRepository = requestHistoryRepository;
         _collectionRepository = collectionRepository;
         _environmentRepository = environmentRepository;
+        _scheduledJobRepository = scheduledJobRepository;
+        _scheduledJobService = scheduledJobService;
+        _logWindowViewModel = logWindowViewModel;
         _openApiImportService = new OpenApiImportService();
         _variableResolver = new VariableResolver();
 
@@ -155,6 +165,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         Environments = [];
         ActiveEnvironmentVariables = [];
         RequestHeaders = [];
+        ScheduledJobs = [];
 
         SendRequestCommand = new AsyncRelayCommand(SendRequestAsync);
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
@@ -168,6 +179,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public ObservableCollection<RequestEnvironment> Environments { get; }
     public ObservableCollection<EnvironmentVariableViewModel> ActiveEnvironmentVariables { get; }
     public ObservableCollection<RequestHeaderViewModel> RequestHeaders { get; }
+    public ObservableCollection<ScheduledJobViewModel> ScheduledJobs { get; }
+    public LogWindowViewModel LogWindowViewModel => _logWindowViewModel;
 
     public IAsyncRelayCommand SendRequestCommand { get; }
     public IAsyncRelayCommand LoadHistoryCommand { get; }
@@ -182,6 +195,30 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             RequestHeaders.Remove(header);
         }
+    }
+
+    [RelayCommand]
+    private void AddScheduledJob()
+    {
+        ScheduledJobs.Add(new ScheduledJobViewModel(_scheduledJobRepository, _scheduledJobService));
+        LeftPanelTab = "ScheduledJobs";
+    }
+
+    [RelayCommand]
+    private async Task RemoveScheduledJobAsync(ScheduledJobViewModel? job)
+    {
+        if (job is null)
+        {
+            return;
+        }
+
+        _scheduledJobService.Stop(job.Id);
+        if (job.Id != 0)
+        {
+            await _scheduledJobRepository.DeleteAsync(job.Id);
+        }
+
+        ScheduledJobs.Remove(job);
     }
 
     partial void OnHistorySearchQueryChanged(string value) => ApplyHistoryFilter(value);
@@ -203,6 +240,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [RelayCommand]
     private void ShowCollectionsTab() => LeftPanelTab = "Collections";
+
+    [RelayCommand]
+    private void ShowScheduledJobsTab() => LeftPanelTab = "ScheduledJobs";
+
+    /// <summary>Set by the view layer to open the log window.</summary>
+    public Action? OpenLogWindowAction { get; set; }
+
+    [RelayCommand]
+    private void OpenLogWindow() => OpenLogWindowAction?.Invoke();
 
     [RelayCommand]
     private void ToggleEnvironmentPanel() => IsEnvironmentPanelVisible = !IsEnvironmentPanelVisible;
@@ -412,6 +458,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        _scheduledJobService.Dispose();
         _requestBodyWatcher?.Dispose();
         _requestBodyWatcher = null;
 
@@ -427,7 +474,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         await Task.WhenAll(
             LoadHistoryAsync(cancellationToken),
             LoadCollectionsAsync(cancellationToken),
-            LoadEnvironmentsAsync(cancellationToken)).ConfigureAwait(false);
+            LoadEnvironmentsAsync(cancellationToken),
+            LoadScheduledJobsAsync(cancellationToken)).ConfigureAwait(false);
     }
 
     private void OnRequestBodyFileChanged(object sender, FileSystemEventArgs e)
@@ -603,6 +651,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (previousId.HasValue)
         {
             ActiveEnvironment = Environments.FirstOrDefault(e => e.Id == previousId.Value);
+        }
+    }
+
+    private async Task LoadScheduledJobsAsync(CancellationToken cancellationToken = default)
+    {
+        var all = await _scheduledJobRepository.GetAllAsync(cancellationToken);
+
+        ScheduledJobs.Clear();
+        foreach (var config in all)
+        {
+            var vm = ScheduledJobViewModel.FromConfig(config, _scheduledJobRepository, _scheduledJobService);
+            ScheduledJobs.Add(vm);
+
+            if (config.AutoStart && !_scheduledJobService.IsRunning(config.Id))
+            {
+                _scheduledJobService.Start(config);
+                vm.IsRunning = true;
+            }
         }
     }
 }

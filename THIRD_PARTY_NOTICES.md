@@ -94,6 +94,18 @@ This project makes use of third-party packages. Their licenses and attribution d
 
 ---
 
+## Serilog
+
+**Package:** Serilog  
+**Version:** 4.3.1  
+**Authors:** Serilog Contributors  
+**Copyright:** Copyright © 2013-2020 Serilog Contributors  
+**Project URL:** https://serilog.net/  
+**Source:** https://github.com/serilog/serilog  
+**License:** Apache-2.0  
+
+---
+
 ## AwesomeAssertions
 
 **Package:** AwesomeAssertions  

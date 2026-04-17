@@ -22,7 +22,7 @@
 
         <!-- Top toolbar -->
         <Border DockPanel.Dock="Top" Padding="16,10" BorderBrush="#2A2A2A" BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
                 <TextBlock Text="Arbor Http Client" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" />
 
                 <!-- Environment selector -->
@@ -41,8 +41,10 @@
 
                 <Button Grid.Column="2" Content="Manage Envs" Margin="6,0"
                         Command="{Binding ToggleEnvironmentPanelCommand}" />
-                <Button Grid.Column="3" Content="Import OpenAPI"
+                <Button Grid.Column="3" Content="Import OpenAPI" Margin="0,0,6,0"
                         Command="{Binding ImportCollectionCommand}" />
+                <Button Grid.Column="4" Content="📋 Logs"
+                        Command="{Binding OpenLogWindowCommand}" />
             </Grid>
         </Border>
 
@@ -108,7 +110,7 @@
         <!-- Main content area -->
         <Grid ColumnDefinitions="300,*" Margin="16" ColumnSpacing="16">
 
-            <!-- Left panel: History / Collections tabs -->
+            <!-- Left panel: History / Collections / Scheduled Jobs tabs -->
             <Grid RowDefinitions="Auto,*">
                 <!-- Tab bar -->
                 <StackPanel Orientation="Horizontal" Spacing="4">
@@ -116,6 +118,8 @@
                             FontWeight="{Binding LeftPanelTab, Converter={x:Static conv:TabFontWeightConverter.Instance}, ConverterParameter=History}" />
                     <Button Content="Collections" Command="{Binding ShowCollectionsTabCommand}"
                             FontWeight="{Binding LeftPanelTab, Converter={x:Static conv:TabFontWeightConverter.Instance}, ConverterParameter=Collections}" />
+                    <Button Content="Scheduled" Command="{Binding ShowScheduledJobsTabCommand}"
+                            FontWeight="{Binding LeftPanelTab, Converter={x:Static conv:TabFontWeightConverter.Instance}, ConverterParameter=ScheduledJobs}" />
                 </StackPanel>
 
                 <!-- History tab -->
@@ -184,6 +188,64 @@
                                 </Style>
                             </ListBox.Styles>
                         </ListBox>
+                    </Grid>
+                </Border>
+
+                <!-- Scheduled Jobs tab -->
+                <Border Grid.Row="1" Background="#12212F" Padding="12" CornerRadius="8"
+                        IsVisible="{Binding LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=ScheduledJobs}">
+                    <Grid RowDefinitions="Auto,*">
+                        <Button Content="+ Add Job" Command="{Binding AddScheduledJobCommand}" />
+                        <ScrollViewer Grid.Row="1" Margin="0,6,0,0">
+                            <ItemsControl ItemsSource="{Binding ScheduledJobs}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ScheduledJobViewModel">
+                                        <Border BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4"
+                                                Padding="8,6" Margin="0,4,0,0">
+                                            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
+                                                <!-- Name -->
+                                                <TextBox PlaceholderText="Job name"
+                                                         Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                <!-- Method + URL -->
+                                                <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                                                    <ComboBox ItemsSource="{Binding Methods}"
+                                                              SelectedItem="{Binding Method, Mode=TwoWay}"
+                                                              MinWidth="80" />
+                                                    <TextBox Grid.Column="1" PlaceholderText="URL"
+                                                             Text="{Binding Url, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                </Grid>
+                                                <!-- Body -->
+                                                <TextBox Grid.Row="2" PlaceholderText="Body (optional)"
+                                                         Text="{Binding Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                <!-- Interval -->
+                                                <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                                    <TextBox PlaceholderText="Interval (seconds)"
+                                                             Text="{Binding IntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                    <CheckBox Grid.Column="1" Content="Auto-start"
+                                                              IsChecked="{Binding AutoStart, Mode=TwoWay}" />
+                                                </Grid>
+                                                <!-- Save button -->
+                                                <Button Grid.Row="4" Content="Save"
+                                                        Command="{Binding SaveCommand}"
+                                                        HorizontalAlignment="Stretch" />
+                                                <!-- Start / Stop / Delete -->
+                                                <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="6">
+                                                    <Button Content="▶ Start"
+                                                            Command="{Binding StartCommand}"
+                                                            IsEnabled="{Binding !IsRunning}" />
+                                                    <Button Content="■ Stop"
+                                                            Command="{Binding StopCommand}"
+                                                            IsEnabled="{Binding IsRunning}" />
+                                                    <Button Content="🗑 Delete"
+                                                            Command="{Binding $parent[Window].DataContext.RemoveScheduledJobCommand}"
+                                                            CommandParameter="{Binding}" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
                     </Grid>
                 </Border>
             </Grid>
