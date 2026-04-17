@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Arbor.HttpClient.Desktop.ViewModels;
 using AvaloniaEdit;
 using AvaloniaEdit.TextMate;
@@ -40,12 +42,14 @@ public partial class MainWindow : Window
         if (_requestBodyEditor is not null)
         {
             _requestTextMate = _requestBodyEditor.InstallTextMate(_registryOptions);
+            _requestTextMate.AppliedTheme += (_, installation) => ApplyThemeColorsToEditor(_requestBodyEditor, installation);
             _requestBodyEditor.Document.TextChanged += OnRequestEditorTextChanged;
         }
 
         if (_responseBodyEditor is not null)
         {
             _responseTextMate = _responseBodyEditor.InstallTextMate(_registryOptions);
+            _responseTextMate.AppliedTheme += (_, installation) => ApplyThemeColorsToEditor(_responseBodyEditor, installation);
         }
 
         if (_viewModel is not null)
@@ -65,6 +69,65 @@ public partial class MainWindow : Window
                 ApplyGrammarForContent(_responseTextMate, _viewModel.ResponseBody, ref _responseGrammarScope);
             }
         }
+    }
+
+    private static void ApplyThemeColorsToEditor(TextEditor editor, TextMate.Installation installation)
+    {
+        if (TryGetThemeBrush(installation, "editor.background", out var background))
+        {
+            editor.Background = background;
+            editor.TextArea.Background = background;
+        }
+
+        if (TryGetThemeBrush(installation, "editor.foreground", out var foreground))
+        {
+            editor.Foreground = foreground;
+        }
+
+        if (TryGetThemeBrush(installation, "editor.selectionBackground", out var selectionBrush))
+        {
+            editor.TextArea.SelectionBrush = selectionBrush;
+        }
+        else if (Application.Current!.TryGetResource("TextAreaSelectionBrush", out var resourceObj) && resourceObj is IBrush brush)
+        {
+            editor.TextArea.SelectionBrush = brush;
+        }
+
+        if (TryGetThemeBrush(installation, "editor.lineHighlightBackground", out var lineHighlight))
+        {
+            editor.TextArea.TextView.CurrentLineBackground = lineHighlight;
+            editor.TextArea.TextView.CurrentLineBorder = new Pen(lineHighlight);
+        }
+        else
+        {
+            editor.TextArea.TextView.SetDefaultHighlightLineColors();
+        }
+
+        if (TryGetThemeBrush(installation, "editorLineNumber.foreground", out var lineNumberForeground))
+        {
+            editor.LineNumbersForeground = lineNumberForeground;
+        }
+        else
+        {
+            editor.LineNumbersForeground = editor.Foreground;
+        }
+    }
+
+    private static bool TryGetThemeBrush(TextMate.Installation installation, string key, out IBrush brush)
+    {
+        brush = Brushes.Transparent;
+        if (!installation.TryGetThemeColor(key, out var colorString))
+        {
+            return false;
+        }
+
+        if (!Color.TryParse(colorString, out var color))
+        {
+            return false;
+        }
+
+        brush = new SolidColorBrush(color);
+        return true;
     }
 
     protected override void OnClosed(System.EventArgs e)
