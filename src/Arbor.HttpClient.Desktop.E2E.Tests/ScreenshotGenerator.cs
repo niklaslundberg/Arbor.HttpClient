@@ -28,6 +28,72 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 public class ScreenshotGenerator
 {
     [Fact]
+    public async Task GenerateInitialStateScreenshot()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
+
+        await session.Dispatch(() =>
+        {
+            // App as it looks when first opened — URL field empty, no response yet
+            var (_, window) = CreateWindow(
+                BuildHandler("{}"),
+                requestName: "Demo Request",
+                method: "GET",
+                url: string.Empty);   // start with empty URL to enable typing animation
+
+            window.Show();
+
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            frame?.Save(Path.Combine(outputDir, "state-initial.png"));
+
+            window.Close();
+            return Task.FromResult(true);
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task GenerateAfterResponseScreenshot()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var (viewModel, window) = CreateWindow(
+                BuildHandler("""
+                    {
+                      "status": "ok",
+                      "path": "/get",
+                      "params": { "hello": "world" },
+                      "message": "Hello from Arbor.HttpClient demo!"
+                    }
+                    """),
+                requestName: "Demo Request",
+                method: "GET",
+                url: "https://postman-echo.com/get?hello=world");
+
+            window.Show();
+            viewModel.SendRequestCommand.Execute(null);
+            await viewModel.SendRequestCommand.ExecutionTask!;
+
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            frame?.Save(Path.Combine(outputDir, "state-response.png"));
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task GenerateMainWindowScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")

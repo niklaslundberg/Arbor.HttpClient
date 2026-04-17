@@ -2,6 +2,14 @@
 
 Cross-platform desktop HTTP client built with **.NET 10**, **Avalonia 12**, and **SQLite**.
 
+## Demo
+
+<video src="docs/demo.mp4" controls width="100%"></video>
+
+[![Demo walkthrough](docs/screenshots/state-response.png)](docs/demo.mp4)
+
+*Click the image above or [download docs/demo.mp4](docs/demo.mp4) to watch the demo.*
+
 ## Screenshots
 
 ![Main window after a GET request](docs/screenshots/main-window.png)
@@ -119,4 +127,15 @@ To regenerate the documentation screenshots locally (no display required):
 ```
 
 Screenshots are written to `docs/screenshots/` and should be committed to the repository.
+
+## Regenerating the Demo Video
+
+To regenerate the demo video from the latest headless screenshots (no display required):
+
+```bash
+./scripts/record-demo.sh
+```
+
+The script requires `ffmpeg` and `python3` in addition to the .NET 10 SDK.
+It regenerates the screenshots, assembles video segments with animated text overlays, and writes `docs/demo.mp4`.
 
