@@ -88,7 +88,7 @@ public partial class MainWindow : Window
         {
             editor.TextArea.SelectionBrush = selectionBrush;
         }
-        else if (Application.Current!.TryGetResource("TextAreaSelectionBrush", out var resourceObj) && resourceObj is IBrush brush)
+        else if (Application.Current?.TryGetResource("TextAreaSelectionBrush", out var resourceObj) == true && resourceObj is IBrush brush)
         {
             editor.TextArea.SelectionBrush = brush;
         }
@@ -100,6 +100,7 @@ public partial class MainWindow : Window
         }
         else
         {
+            // Restore the built-in default highlight colors defined by AvaloniaEdit
             editor.TextArea.TextView.SetDefaultHighlightLineColors();
         }
 
