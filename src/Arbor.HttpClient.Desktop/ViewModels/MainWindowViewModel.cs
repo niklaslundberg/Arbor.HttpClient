@@ -16,6 +16,8 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Dock.Model.Controls;
+using Dock.Model.Core;
 
 namespace Arbor.HttpClient.Desktop.ViewModels;
 
@@ -34,9 +36,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly List<SavedRequest> _allHistory = [];
     private FileSystemWatcher? _requestBodyWatcher;
     private int _requestBodyReadPending;
+    private DockFactory? _dockFactory;
 
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
+
+    /// <summary>Dock layout root; bound to DockControl.Layout in MainWindow.</summary>
+    public IRootDock? Layout { get; private set; }
+
+    /// <summary>Dock factory; bound to DockControl.Factory in MainWindow.</summary>
+    public IFactory? Factory => _dockFactory;
 
     [ObservableProperty]
     private string _requestName = "Sample Request";
@@ -193,6 +202,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         SendRequestCommand = new AsyncRelayCommand(SendRequestAsync);
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
+
+        _dockFactory = new DockFactory(this);
+        Layout = _dockFactory.CreateLayout();
+        _dockFactory.InitLayout(Layout);
     }
 
     public IReadOnlyList<string> Methods { get; }

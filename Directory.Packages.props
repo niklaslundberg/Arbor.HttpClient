@@ -14,6 +14,12 @@
     <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.1" />
     <PackageVersion Include="TextMateSharp.Grammars" Version="2.0.3" />
   </ItemGroup>
+  <!-- Dock -->
+  <ItemGroup>
+    <PackageVersion Include="Dock.Avalonia" Version="12.0.0.1" />
+    <PackageVersion Include="Dock.Avalonia.Themes.Fluent" Version="12.0.0.1" />
+    <PackageVersion Include="Dock.Model.Mvvm" Version="12.0.0.1" />
+  </ItemGroup>
   <!-- MVVM -->
   <ItemGroup>
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.1" />

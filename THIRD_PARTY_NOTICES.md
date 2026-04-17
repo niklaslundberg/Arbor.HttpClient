@@ -173,3 +173,14 @@ The `Avalonia.Fonts.Inter` package bundles the **Inter** typeface.
 **License:** SIL Open Font License 1.1 (OFL-1.1)  
 
 The SIL Open Font License 1.1 permits the font to be used, studied, modified, and redistributed freely as long as the font is not sold by itself and derivative fonts retain the original license.
+
+---
+
+## Dock
+
+**Packages:** Dock.Avalonia, Dock.Avalonia.Themes.Fluent, Dock.Model.Mvvm  
+**Version:** 12.0.0.1  
+**Authors:** Wiesław Šoltés  
+**Copyright:** Copyright © Wiesław Šoltés 2026  
+**Project URL:** https://github.com/wieslawsoltes/Dock  
+**License:** MIT

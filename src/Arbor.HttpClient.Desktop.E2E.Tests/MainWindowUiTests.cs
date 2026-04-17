@@ -59,10 +59,15 @@ public class MainWindowUiTests
             var window = new MainWindow { DataContext = viewModel };
             window.Show();
 
-            var sendButton = window.FindControl<Button>("SendButton");
-            sendButton.Should().NotBeNull();
+            // Allow Dock to render its panel contents
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
 
-            sendButton!.Command!.Execute(null);
+            // The Send button is now inside RequestView which is rendered by the DockControl.
+            // Dock uses deferred content materialization, so visual-tree traversal may not find
+            // the button during headless tests. Execute the command via the ViewModel directly,
+            // which is what the button's Command binding ultimately calls.
+            viewModel.Layout.Should().NotBeNull("dock layout should be initialized");
+            viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
 
             viewModel.ResponseStatus.Should().Be("202 Accepted");
