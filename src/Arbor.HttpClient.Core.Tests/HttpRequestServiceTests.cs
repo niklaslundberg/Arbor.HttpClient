@@ -41,6 +41,76 @@ public class HttpRequestServiceTests
         await action.Should().ThrowAsync<ArgumentException>();
     }
 
+    [Fact]
+    public async Task SendAsync_ShouldSendContentTypeHeader()
+    {
+        HttpRequestMessage? capturedRequest = null;
+        var handler = new StubMessageHandler(req =>
+        {
+            capturedRequest = req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent(string.Empty)
+            };
+        });
+
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+
+        var headers = new[] { new RequestHeader("Content-Type", "application/json") };
+        await service.SendAsync(new HttpRequestDraft("Test", "POST", "https://example.com", "{}", headers));
+
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.Content.Should().NotBeNull();
+        capturedRequest.Content!.Headers.ContentType!.MediaType.Should().Be("application/json");
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldSendCustomRequestHeader()
+    {
+        HttpRequestMessage? capturedRequest = null;
+        var handler = new StubMessageHandler(req =>
+        {
+            capturedRequest = req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent(string.Empty)
+            };
+        });
+
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+
+        var headers = new[] { new RequestHeader("X-Api-Key", "secret") };
+        await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null, headers));
+
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.Headers.Should().Contain(h => h.Key == "X-Api-Key" && h.Value.Contains("secret"));
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldSkipDisabledHeaders()
+    {
+        HttpRequestMessage? capturedRequest = null;
+        var handler = new StubMessageHandler(req =>
+        {
+            capturedRequest = req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent(string.Empty)
+            };
+        });
+
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+
+        var headers = new[] { new RequestHeader("X-Disabled", "value", IsEnabled: false) };
+        await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null, headers));
+
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.Headers.Should().NotContain(h => h.Key == "X-Disabled");
+    }
+
     private sealed class InMemoryRequestHistoryRepository : IRequestHistoryRepository
     {
         public List<SavedRequest> Items { get; } = [];

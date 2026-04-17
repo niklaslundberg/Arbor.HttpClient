@@ -23,9 +23,32 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
 
         using var requestMessage = new global::System.Net.Http.HttpRequestMessage(new global::System.Net.Http.HttpMethod(requestDraft.Method), uri);
 
+        var contentTypeHeader = requestDraft.Headers?
+            .FirstOrDefault(h => h.IsEnabled && string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase));
+
         if (!string.IsNullOrWhiteSpace(requestDraft.Body))
         {
-            requestMessage.Content = new global::System.Net.Http.StringContent(requestDraft.Body);
+            requestMessage.Content = contentTypeHeader is not null
+                ? new global::System.Net.Http.StringContent(requestDraft.Body, System.Text.Encoding.UTF8, contentTypeHeader.Value)
+                : new global::System.Net.Http.StringContent(requestDraft.Body);
+        }
+
+        if (requestDraft.Headers is not null)
+        {
+            foreach (var header in requestDraft.Headers)
+            {
+                if (!header.IsEnabled || string.IsNullOrWhiteSpace(header.Name))
+                {
+                    continue;
+                }
+
+                if (string.Equals(header.Name, "Content-Type", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                requestMessage.Headers.TryAddWithoutValidation(header.Name, header.Value);
+            }
         }
 
         using var response = await _httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);

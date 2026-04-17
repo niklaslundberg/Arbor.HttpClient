@@ -168,6 +168,13 @@ public partial class MainWindow : Window
             _responseBodyEditor.Text = _viewModel.ResponseBody;
             ApplyGrammarForContent(_responseTextMate, _viewModel.ResponseBody, ref _responseGrammarScope);
         }
+
+        if (e.PropertyName == nameof(MainWindowViewModel.ContentType))
+        {
+            // ContentType changed explicitly — force grammar re-detection for the request editor
+            _requestGrammarScope = string.Empty;
+            ApplyGrammarForContent(_requestTextMate, _requestBodyEditor?.Text ?? string.Empty, ref _requestGrammarScope);
+        }
     }
 
     private void ApplyGrammarForContent(TextMate.Installation? installation, string content, ref string currentScope)
@@ -177,7 +184,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        var ext = DetectExtension(content);
+        // Prefer explicit ContentType from ViewModel; fall back to body heuristics
+        var explicitContentType = _viewModel?.ContentType ?? string.Empty;
+        var ext = !string.IsNullOrEmpty(explicitContentType)
+            ? MainWindowViewModel.ExtensionFromContentType(explicitContentType)
+            : DetectExtension(content);
+
         var language = _registryOptions.GetLanguageByExtension(ext);
         var newScope = language is not null ? _registryOptions.GetScopeByLanguageId(language.Id) : string.Empty;
 

@@ -71,6 +71,58 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private Collection? _selectedCollection;
 
+    // Content-Type selector
+    public const string NoneContentTypeOption = "(none)";
+    public const string CustomContentTypeOption = "Custom...";
+
+    public IReadOnlyList<string> ContentTypeOptions { get; } =
+    [
+        NoneContentTypeOption,
+        "application/json",
+        "application/xml",
+        "text/plain",
+        "text/html",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data",
+        CustomContentTypeOption
+    ];
+
+    [ObservableProperty]
+    private string _selectedContentTypeOption = NoneContentTypeOption;
+
+    [ObservableProperty]
+    private string _customContentType = string.Empty;
+
+    public bool IsCustomContentType => SelectedContentTypeOption == CustomContentTypeOption;
+
+    /// <summary>The actual Content-Type value to send (empty string means no Content-Type header).</summary>
+    public string ContentType
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(SelectedContentTypeOption) || SelectedContentTypeOption == NoneContentTypeOption)
+            {
+                return string.Empty;
+            }
+
+            return IsCustomContentType ? CustomContentType : SelectedContentTypeOption;
+        }
+    }
+
+    partial void OnSelectedContentTypeOptionChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsCustomContentType));
+        OnPropertyChanged(nameof(ContentType));
+    }
+
+    partial void OnCustomContentTypeChanged(string value)
+    {
+        if (IsCustomContentType)
+        {
+            OnPropertyChanged(nameof(ContentType));
+        }
+    }
+
     partial void OnSelectedCollectionChanged(Collection? value)
     {
         CollectionItems.Clear();
@@ -102,6 +154,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         CollectionItems = [];
         Environments = [];
         ActiveEnvironmentVariables = [];
+        RequestHeaders = [];
 
         SendRequestCommand = new AsyncRelayCommand(SendRequestAsync);
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
@@ -114,9 +167,22 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public ObservableCollection<CollectionItemViewModel> CollectionItems { get; }
     public ObservableCollection<RequestEnvironment> Environments { get; }
     public ObservableCollection<EnvironmentVariableViewModel> ActiveEnvironmentVariables { get; }
+    public ObservableCollection<RequestHeaderViewModel> RequestHeaders { get; }
 
     public IAsyncRelayCommand SendRequestCommand { get; }
     public IAsyncRelayCommand LoadHistoryCommand { get; }
+
+    [RelayCommand]
+    private void AddHeader() => RequestHeaders.Add(new RequestHeaderViewModel());
+
+    [RelayCommand]
+    private void RemoveHeader(RequestHeaderViewModel? header)
+    {
+        if (header is not null)
+        {
+            RequestHeaders.Remove(header);
+        }
+    }
 
     partial void OnHistorySearchQueryChanged(string value) => ApplyHistoryFilter(value);
 
@@ -389,11 +455,25 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private string WriteTempFile(string prefix, string content)
     {
-        var ext = DetectExtension(content);
+        var ext = !string.IsNullOrEmpty(ContentType)
+            ? ExtensionFromContentType(ContentType)
+            : DetectExtension(content);
         var path = Path.Combine(Path.GetTempPath(), $"{prefix}-{Guid.NewGuid():N}{ext}");
         File.WriteAllText(path, content);
         _tempFiles.Add(path);
         return path;
+    }
+
+    internal static string ExtensionFromContentType(string contentType)
+    {
+        var mediaType = contentType.Split(';')[0].Trim().ToLowerInvariant();
+        return mediaType switch
+        {
+            "application/json" => ".json",
+            "application/xml" or "text/xml" => ".xml",
+            "text/html" => ".html",
+            _ => ".txt"
+        };
     }
 
     private static string DetectExtension(string content)
@@ -464,8 +544,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
             var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
 
+            var headers = RequestHeaders
+                .Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name))
+                .Select(h => new RequestHeader(h.Name, _variableResolver.Resolve(h.Value, variables)))
+                .ToList();
+
+            if (!string.IsNullOrEmpty(ContentType))
+            {
+                headers.Insert(0, new RequestHeader("Content-Type", ContentType));
+            }
+
             var response = await _httpRequestService.SendAsync(
-                new HttpRequestDraft(RequestName, SelectedMethod, resolvedUrl, resolvedBody));
+                new HttpRequestDraft(RequestName, SelectedMethod, resolvedUrl, resolvedBody, headers));
 
             ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
             ResponseBody = response.Body;

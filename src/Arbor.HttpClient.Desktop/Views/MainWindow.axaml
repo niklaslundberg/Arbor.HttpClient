@@ -189,7 +189,7 @@
             </Grid>
 
             <!-- Main request/response panel -->
-            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*,Auto,*" RowSpacing="10">
+            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*,Auto,*" RowSpacing="10">
 
                 <!-- URL bar -->
                 <Grid ColumnDefinitions="120,Auto,*,120" ColumnSpacing="8">
@@ -217,8 +217,53 @@
 
                 <TextBlock Grid.Row="1" Text="{Binding ErrorMessage}" Foreground="Tomato" />
 
+                <!-- Headers -->
+                <Border Grid.Row="2" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4" Padding="8,6">
+                    <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
+                        <!-- Section title + Add Header button -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="Headers" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Content="+ Add Header"
+                                    Command="{Binding AddHeaderCommand}" />
+                        </Grid>
+
+                        <!-- Content-Type special row -->
+                        <Grid Grid.Row="1" ColumnDefinitions="110,*,*" ColumnSpacing="6">
+                            <TextBlock Text="Content-Type" VerticalAlignment="Center" Opacity="0.8" />
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding ContentTypeOptions}"
+                                      SelectedItem="{Binding SelectedContentTypeOption, Mode=TwoWay}"
+                                      HorizontalAlignment="Stretch" />
+                            <TextBox Grid.Column="2"
+                                     PlaceholderText="e.g. application/vnd.api+json"
+                                     Text="{Binding CustomContentType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     IsVisible="{Binding IsCustomContentType}" />
+                        </Grid>
+
+                        <!-- Additional headers list -->
+                        <ItemsControl Grid.Row="2" ItemsSource="{Binding RequestHeaders}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RequestHeaderViewModel">
+                                    <Grid ColumnDefinitions="Auto,*,*,Auto" ColumnSpacing="6" Margin="0,2,0,0">
+                                        <CheckBox Grid.Column="0"
+                                                  IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                                  VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1" PlaceholderText="Name"
+                                                 Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBox Grid.Column="2" PlaceholderText="Value"
+                                                 Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <Button Grid.Column="3" Content="✕"
+                                                Command="{Binding $parent[Window].DataContext.RemoveHeaderCommand}"
+                                                CommandParameter="{Binding}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </Border>
+
                 <!-- Request Body -->
-                <Grid Grid.Row="2" RowDefinitions="Auto,*">
+                <Grid Grid.Row="3" RowDefinitions="Auto,*">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Text="Request Body" FontWeight="SemiBold" VerticalAlignment="Center" />
                         <Button Grid.Column="1" Content="Open in editor"
@@ -234,11 +279,11 @@
                     </Border>
                 </Grid>
 
-                <TextBlock x:Name="ResponseStatusText" Grid.Row="3"
+                <TextBlock x:Name="ResponseStatusText" Grid.Row="4"
                            Text="{Binding ResponseStatus}" FontWeight="SemiBold" />
 
                 <!-- Response Body -->
-                <Grid Grid.Row="4" RowDefinitions="Auto,*">
+                <Grid Grid.Row="5" RowDefinitions="Auto,*">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Text="Response Body" FontWeight="SemiBold" VerticalAlignment="Center" />
                         <Button Grid.Column="1" Content="Open in editor"
