@@ -10,7 +10,7 @@
         <conv:MethodToColorConverter x:Key="MethodToColorConverter" />
     </UserControl.Resources>
 
-    <Grid RowDefinitions="Auto,*" Margin="8">
+    <Grid RowDefinitions="Auto,*" Margin="8" Background="{DynamicResource PanelBackgroundBrush}">
         <!-- Tab bar -->
         <StackPanel Orientation="Horizontal" Spacing="4">
             <Button Content="History" Command="{Binding App.ShowHistoryTabCommand}"
@@ -27,7 +27,8 @@
             <Grid RowDefinitions="Auto,*">
                 <TextBox PlaceholderText="Search history…"
                          Text="{Binding App.HistorySearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                <ListBox Grid.Row="1" ItemsSource="{Binding App.History}" Margin="0,6,0,0">
+                <ListBox Grid.Row="1" ItemsSource="{Binding App.History}" Margin="0,6,0,0"
+                         Background="{DynamicResource PanelBackgroundBrush}">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="models:SavedRequest">
                             <StackPanel Margin="0,4">
@@ -64,7 +65,8 @@
 
                 <ListBox Grid.Row="2" Margin="0,6,0,0"
                          ItemsSource="{Binding App.CollectionItems}"
-                         SelectionMode="Single">
+                         SelectionMode="Single"
+                         Background="{DynamicResource PanelBackgroundBrush}">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:CollectionItemViewModel">
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0,3">

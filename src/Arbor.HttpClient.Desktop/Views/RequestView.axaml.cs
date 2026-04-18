@@ -60,7 +60,6 @@ public partial class RequestView : UserControl
             _appliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_requestBodyEditor, inst);
             _requestTextMate = _requestBodyEditor.InstallTextMate(_registryOptions);
             _requestTextMate.AppliedTheme += _appliedThemeHandler;
-            ApplyTextMateTheme();
             _requestBodyEditor.Document.TextChanged += OnRequestEditorTextChanged;
         }
 
@@ -242,14 +241,8 @@ public partial class RequestView : UserControl
             return;
         }
 
-        // DarkPlus is already applied when the TextMate installation is created.
-        // In headless test runs, re-applying non-light themes can fail inside TextMate theme parsing.
-        if (ActualThemeVariant != ThemeVariant.Light)
-        {
-            return;
-        }
-
-        var theme = _registryOptions.GetTheme(ThemeName.LightPlus.ToString());
+        var themeName = ActualThemeVariant == ThemeVariant.Light ? ThemeName.LightPlus : ThemeName.DarkPlus;
+        var theme = _registryOptions.GetTheme(themeName.ToString());
         if (theme is null)
         {
             return;
