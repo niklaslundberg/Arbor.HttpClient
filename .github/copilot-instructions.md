@@ -78,7 +78,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - Any new or changed production code must include test coverage. Prefer isolated unit tests first, then integration/E2E tests when unit tests are not sufficient.
 - Maintain reasonably high coverage in the changed area. If code can be tested, add tests.
 - For feature work, generate coverage reports and review them. CI must publish test and coverage outputs so they are visible during code review.
-- When feasible, run profiling-oriented validation (for example with JetBrains dotMemory Unit) to catch memory leaks, performance bottlenecks, or resource leaks.
+- When feasible (for example when changing hot paths, long-running loops, background jobs, or disposable/resource-heavy code), run profiling-oriented validation such as JetBrains dotMemory Unit to catch memory leaks, performance bottlenecks, or resource leaks.
 - For UI-related changes, attach updated screenshots in the pull request so reviewers can verify visual impact.
 
 ---
