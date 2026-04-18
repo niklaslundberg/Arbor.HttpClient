@@ -139,15 +139,16 @@ public sealed class VariableTextBox : UserControl
 
     private void ApplyBrushes()
     {
+        var theme = ActualThemeVariant;
         IBrush bracketBrush = Brushes.Orange;
         IBrush nameBrush = Brushes.MediumPurple;
 
-        if (Application.Current?.TryGetResource("VariableBracketBrush", out var b) == true && b is IBrush bb)
+        if (Application.Current?.TryGetResource("VariableBracketBrush", theme, out var b) == true && b is IBrush bb)
         {
             bracketBrush = bb;
         }
 
-        if (Application.Current?.TryGetResource("VariableNameBrush", out var n) == true && n is IBrush nb)
+        if (Application.Current?.TryGetResource("VariableNameBrush", theme, out var n) == true && n is IBrush nb)
         {
             nameBrush = nb;
         }
@@ -155,13 +156,13 @@ public sealed class VariableTextBox : UserControl
         _colorizer.SetBrushes(bracketBrush, nameBrush);
         _editor.TextArea.TextView.Redraw();
 
-        if (Application.Current?.TryGetResource("PanelBorderBrush", out var borderResource) == true &&
+        if (Application.Current?.TryGetResource("PanelBorderBrush", theme, out var borderResource) == true &&
             borderResource is IBrush borderBrush)
         {
             _border.BorderBrush = borderBrush;
         }
 
-        if (Application.Current?.TryGetResource("SurfaceBackgroundBrush", out var bgResource) == true &&
+        if (Application.Current?.TryGetResource("SurfaceBackgroundBrush", theme, out var bgResource) == true &&
             bgResource is IBrush bgBrush)
         {
             _border.Background = bgBrush;

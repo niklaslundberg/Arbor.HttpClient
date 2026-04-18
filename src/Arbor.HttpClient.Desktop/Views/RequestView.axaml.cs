@@ -336,15 +336,16 @@ public partial class RequestView : UserControl
 
     private void ApplyVariableColorTheme()
     {
+        var theme = ActualThemeVariant;
         IBrush bracketBrush = Brushes.Orange;
-        if (Application.Current?.TryGetResource("VariableBracketBrush", out var bracketResource) == true &&
+        if (Application.Current?.TryGetResource("VariableBracketBrush", theme, out var bracketResource) == true &&
             bracketResource is IBrush b)
         {
             bracketBrush = b;
         }
 
         IBrush nameBrush = Brushes.MediumPurple;
-        if (Application.Current?.TryGetResource("VariableNameBrush", out var nameResource) == true &&
+        if (Application.Current?.TryGetResource("VariableNameBrush", theme, out var nameResource) == true &&
             nameResource is IBrush n)
         {
             nameBrush = n;
