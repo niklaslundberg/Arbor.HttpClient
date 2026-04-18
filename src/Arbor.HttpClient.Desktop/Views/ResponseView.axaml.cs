@@ -54,7 +54,7 @@ public partial class ResponseView : UserControl
             _appliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_responseBodyEditor, inst);
             _responseTextMate = _responseBodyEditor.InstallTextMate(_registryOptions);
             _responseTextMate.AppliedTheme += _appliedThemeHandler;
-            _responseTextMate.SetTheme(GetTextMateThemeName());
+            ApplyTextMateTheme();
         }
 
         if (_appVm is not null)
@@ -80,7 +80,7 @@ public partial class ResponseView : UserControl
     }
 
     private void OnActualThemeVariantChanged(object? sender, EventArgs e) =>
-        _responseTextMate?.SetTheme(GetTextMateThemeName());
+        ApplyTextMateTheme();
 
     protected override void OnUnloaded(Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -165,7 +165,17 @@ public partial class ResponseView : UserControl
         return true;
     }
 
-    private ThemeName GetTextMateThemeName() =>
-        ActualThemeVariant == ThemeVariant.Light ? ThemeName.LightPlus : ThemeName.DarkPlus;
+    private string GetTextMateThemeName() =>
+        (ActualThemeVariant == ThemeVariant.Light ? ThemeName.LightPlus : ThemeName.DarkPlus).ToString();
+
+    private void ApplyTextMateTheme()
+    {
+        if (_responseTextMate is null || _registryOptions is null)
+        {
+            return;
+        }
+
+        _responseTextMate.SetTheme(_registryOptions.GetTheme(GetTextMateThemeName()));
+    }
 }
 

@@ -60,7 +60,7 @@ public partial class RequestView : UserControl
             _appliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_requestBodyEditor, inst);
             _requestTextMate = _requestBodyEditor.InstallTextMate(_registryOptions);
             _requestTextMate.AppliedTheme += _appliedThemeHandler;
-            _requestTextMate.SetTheme(GetTextMateThemeName());
+            ApplyTextMateTheme();
             _requestBodyEditor.Document.TextChanged += OnRequestEditorTextChanged;
         }
 
@@ -106,7 +106,7 @@ public partial class RequestView : UserControl
     }
 
     private void OnActualThemeVariantChanged(object? sender, EventArgs e) =>
-        _requestTextMate?.SetTheme(GetTextMateThemeName());
+        ApplyTextMateTheme();
 
     protected override void OnUnloaded(Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -235,7 +235,17 @@ public partial class RequestView : UserControl
         return ".txt";
     }
 
-    private ThemeName GetTextMateThemeName() =>
-        ActualThemeVariant == ThemeVariant.Light ? ThemeName.LightPlus : ThemeName.DarkPlus;
+    private string GetTextMateThemeName() =>
+        (ActualThemeVariant == ThemeVariant.Light ? ThemeName.LightPlus : ThemeName.DarkPlus).ToString();
+
+    private void ApplyTextMateTheme()
+    {
+        if (_requestTextMate is null || _registryOptions is null)
+        {
+            return;
+        }
+
+        _requestTextMate.SetTheme(_registryOptions.GetTheme(GetTextMateThemeName()));
+    }
 }
 

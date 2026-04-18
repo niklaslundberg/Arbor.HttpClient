@@ -33,7 +33,7 @@ public sealed class MethodToColorConverter : IValueConverter
     private static bool TryGetBrush(string key, out IBrush brush)
     {
         brush = Brushes.Transparent;
-        if (Application.Current?.TryGetResource(key, out var resource) != true)
+        if (Application.Current?.TryGetResource(key, Application.Current.ActualThemeVariant, out var resource) != true)
         {
             return false;
         }
