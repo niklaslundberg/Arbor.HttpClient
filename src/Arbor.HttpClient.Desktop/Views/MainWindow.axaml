@@ -136,8 +136,6 @@
                         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6">
                             <Button Content="+ Add Variable"
                                     Command="{Binding AddEnvironmentVariableCommand}" />
-                            <Button Content="Save Environment"
-                                    Command="{Binding SaveEnvironmentCommand}" />
                         </StackPanel>
                     </Grid>
                 </Border>

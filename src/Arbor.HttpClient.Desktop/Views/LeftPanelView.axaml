@@ -107,7 +107,7 @@
                             <DataTemplate x:DataType="vm:ScheduledJobViewModel">
                                 <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4"
                                         Padding="8,6" Margin="0,4,0,0">
-                                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
+                                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
                                         <TextBox PlaceholderText="Job name"
                                                  Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                         <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="6">
@@ -128,10 +128,7 @@
                                         </Grid>
                                         <CheckBox Grid.Row="4" Content="Follow redirects"
                                                   IsChecked="{Binding FollowRedirects, Mode=TwoWay}" />
-                                        <Button Grid.Row="5" Content="Save"
-                                                Command="{Binding SaveCommand}"
-                                                HorizontalAlignment="Stretch" />
-                                        <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="6">
+                                        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="6">
                                             <Button Content="▶ Start"
                                                     Command="{Binding StartCommand}"
                                                     IsEnabled="{Binding !IsRunning}" />

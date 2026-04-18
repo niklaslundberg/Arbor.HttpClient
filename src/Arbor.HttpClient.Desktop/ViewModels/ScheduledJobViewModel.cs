@@ -1,6 +1,7 @@
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Desktop.Services;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -10,6 +11,9 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
 {
     private readonly IScheduledJobRepository _repository;
     private readonly ScheduledJobService _jobService;
+    private bool _suppressAutoSave;
+    private bool _isSaving;
+    private CancellationTokenSource? _autoSaveCancellationTokenSource;
 
     [ObservableProperty]
     private int _id;
@@ -52,17 +56,17 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
         ScheduledJobService jobService,
         bool defaultFollowRedirects)
     {
-        var vm = new ScheduledJobViewModel(repository, jobService)
-        {
-            Id = config.Id,
-            Name = config.Name,
-            Method = config.Method,
-            Url = config.Url,
-            Body = config.Body ?? string.Empty,
-            IntervalSeconds = config.IntervalSeconds,
-            AutoStart = config.AutoStart,
-            FollowRedirects = config.FollowRedirects ?? defaultFollowRedirects
-        };
+        var vm = new ScheduledJobViewModel(repository, jobService);
+        vm._suppressAutoSave = true;
+        vm.Id = config.Id;
+        vm.Name = config.Name;
+        vm.Method = config.Method;
+        vm.Url = config.Url;
+        vm.Body = config.Body ?? string.Empty;
+        vm.IntervalSeconds = config.IntervalSeconds;
+        vm.AutoStart = config.AutoStart;
+        vm.FollowRedirects = config.FollowRedirects ?? defaultFollowRedirects;
+        vm._suppressAutoSave = false;
         vm.IsRunning = jobService.IsRunning(config.Id);
         return vm;
     }
@@ -92,14 +96,67 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     [RelayCommand]
     private async Task SaveAsync()
     {
-        var config = ToConfig();
-        if (Id == 0)
+        if (_isSaving)
         {
-            Id = await _repository.SaveAsync(config);
+            return;
         }
-        else
+
+        _isSaving = true;
+        var config = ToConfig();
+        try
         {
-            await _repository.UpdateAsync(config with { Id = Id });
+            if (Id == 0)
+            {
+                Id = await _repository.SaveAsync(config);
+            }
+            else
+            {
+                await _repository.UpdateAsync(config with { Id = Id });
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    partial void OnNameChanged(string value) => QueueAutoSave();
+
+    partial void OnMethodChanged(string value) => QueueAutoSave();
+
+    partial void OnUrlChanged(string value) => QueueAutoSave();
+
+    partial void OnBodyChanged(string value) => QueueAutoSave();
+
+    partial void OnIntervalSecondsChanged(int value) => QueueAutoSave();
+
+    partial void OnAutoStartChanged(bool value) => QueueAutoSave();
+
+    partial void OnFollowRedirectsChanged(bool value) => QueueAutoSave();
+
+    private void QueueAutoSave()
+    {
+        if (_suppressAutoSave || _isSaving || string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(Url))
+        {
+            return;
+        }
+
+        _autoSaveCancellationTokenSource?.Cancel();
+        _autoSaveCancellationTokenSource?.Dispose();
+        _autoSaveCancellationTokenSource = new CancellationTokenSource();
+        _ = TriggerAutoSaveAsync(_autoSaveCancellationTokenSource.Token);
+    }
+
+    private async Task TriggerAutoSaveAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(450), cancellationToken).ConfigureAwait(false);
+            await Dispatcher.UIThread.InvokeAsync(async () => await SaveAsync());
+        }
+        catch (OperationCanceledException)
+        {
+            // Debounced auto-save was superseded by a newer edit.
         }
     }
 }
