@@ -59,3 +59,7 @@ For multi-step tasks, state a brief plan:
 ```
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+*Behavioral guidelines adapted from [vlad-ko/claude-wizard](https://github.com/vlad-ko/claude-wizard), used under the [MIT License](https://github.com/vlad-ko/claude-wizard/blob/main/LICENSE) (Copyright 2026 Vlad Ko).*
