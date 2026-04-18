@@ -13,6 +13,12 @@
 
     <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
 
+        <Grid.KeyBindings>
+            <!-- Standard across Hoppscotch / Insomnia / Postman: Ctrl+Enter (or Cmd+Enter) sends the request -->
+            <KeyBinding Gesture="Ctrl+Return" Command="{Binding App.SendRequestCommand}" />
+            <KeyBinding Gesture="Cmd+Return" Command="{Binding App.SendRequestCommand}" />
+        </Grid.KeyBindings>
+
         <Grid ColumnDefinitions="120,Auto,*,120" ColumnSpacing="8">
             <TextBox Grid.Column="0" PlaceholderText="Request name"
                      Text="{Binding App.RequestName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
@@ -29,15 +35,29 @@
             </ComboBox>
             <Border Grid.Column="2" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="3"
                     Background="{DynamicResource SurfaceBackgroundBrush}">
-                <aedit:TextEditor x:Name="RequestUrlEditor"
-                                  ShowLineNumbers="False"
-                                  WordWrap="False"
-                                  HorizontalScrollBarVisibility="Hidden"
-                                  VerticalScrollBarVisibility="Hidden"
-                                  Padding="5,6,5,6"
-                                  Background="Transparent" />
+                <Grid>
+                    <aedit:TextEditor x:Name="RequestUrlEditor"
+                                      ShowLineNumbers="False"
+                                      WordWrap="False"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Hidden"
+                                      Padding="5,6,5,6"
+                                      Background="Transparent" />
+                    <!-- Placeholder overlay: AvaloniaEdit.TextEditor has no native PlaceholderText,
+                         so we render one in parallel that hides as soon as the URL has any content. -->
+                    <TextBlock Text="Enter request URL"
+                               IsHitTestVisible="False"
+                               Opacity="0.5"
+                               Padding="7,6,5,6"
+                               VerticalAlignment="Center"
+                               IsVisible="{Binding App.RequestUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                </Grid>
             </Border>
             <Button x:Name="SendButton" Grid.Column="3" Content="Send"
+                    Classes="accent"
+                    HorizontalContentAlignment="Center"
+                    HorizontalAlignment="Stretch"
+                    ToolTip.Tip="Send request (Ctrl+Enter)"
                     Command="{Binding App.SendRequestCommand}" />
         </Grid>
 

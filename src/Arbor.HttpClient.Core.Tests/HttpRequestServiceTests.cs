@@ -28,6 +28,7 @@ public class HttpRequestServiceTests
         response.StatusCode.Should().Be(200);
         response.Body.Should().Be("hello");
         response.BodyBytes.Should().Equal(Encoding.UTF8.GetBytes("hello"));
+        response.ElapsedMilliseconds.Should().BeGreaterThanOrEqualTo(0);
         repository.Items.Should().ContainSingle();
         repository.Items[0].Name.Should().Be("Test");
         repository.Items[0].CreatedAtUtc.Should().Be(new DateTimeOffset(2026, 4, 16, 0, 0, 0, TimeSpan.Zero));

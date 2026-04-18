@@ -96,6 +96,28 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _responseStatus = string.Empty;
 
+    /// <summary>
+    /// Numeric HTTP status code for the last completed response (0 when no response yet
+    /// or the request failed before receiving one). Used by the UI to color-code the
+    /// response status by family (1xx/2xx/3xx/4xx/5xx).
+    /// </summary>
+    [ObservableProperty]
+    private int _responseStatusCode;
+
+    /// <summary>
+    /// Human-readable elapsed time for the last response, e.g. "142 ms" or "1.23 s".
+    /// Empty when no response has been received.
+    /// </summary>
+    [ObservableProperty]
+    private string _responseTimeDisplay = string.Empty;
+
+    /// <summary>
+    /// Human-readable size of the last response body, e.g. "512 B", "1.3 KB", "4.7 MB".
+    /// Empty when no response has been received.
+    /// </summary>
+    [ObservableProperty]
+    private string _responseSizeDisplay = string.Empty;
+
     [ObservableProperty]
     private string _responseBody = string.Empty;
 
@@ -2121,6 +2143,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                     FollowRedirectsForRequest));
 
             ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
+            ResponseStatusCode = response.StatusCode;
+            ResponseTimeDisplay = FormatElapsedMilliseconds(response.ElapsedMilliseconds);
+            ResponseSizeDisplay = FormatByteSize(response.BodyBytes?.LongLength ?? 0);
             _lastResponseBodyBytes = response.BodyBytes ?? Array.Empty<byte>();
             RawResponseBody = response.Body;
 
@@ -2140,7 +2165,54 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             _httpRequestsLogger.Error(exception, "Manual request failed");
             ErrorMessage = exception.Message;
+            ResponseStatusCode = 0;
+            ResponseTimeDisplay = string.Empty;
+            ResponseSizeDisplay = string.Empty;
         }
+    }
+
+    public static string FormatElapsedMilliseconds(double milliseconds)
+    {
+        if (milliseconds < 0)
+        {
+            milliseconds = 0;
+        }
+
+        if (milliseconds < 1000)
+        {
+            return $"{Math.Round(milliseconds)} ms";
+        }
+
+        var seconds = milliseconds / 1000.0;
+        return seconds < 60
+            ? $"{seconds.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)} s"
+            : $"{((long)seconds) / 60} min {((long)seconds) % 60} s";
+    }
+
+    public static string FormatByteSize(long byteCount)
+    {
+        if (byteCount < 0)
+        {
+            byteCount = 0;
+        }
+
+        const double kilobyte = 1024.0;
+        const double megabyte = kilobyte * 1024.0;
+        const double gigabyte = megabyte * 1024.0;
+
+        if (byteCount < kilobyte)
+        {
+            return $"{byteCount} B";
+        }
+        if (byteCount < megabyte)
+        {
+            return $"{(byteCount / kilobyte).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)} KB";
+        }
+        if (byteCount < gigabyte)
+        {
+            return $"{(byteCount / megabyte).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)} MB";
+        }
+        return $"{(byteCount / gigabyte).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)} GB";
     }
 
     private async Task LoadHistoryAsync(CancellationToken cancellationToken = default)
