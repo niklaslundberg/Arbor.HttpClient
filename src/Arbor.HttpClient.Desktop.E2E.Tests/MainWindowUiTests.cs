@@ -506,6 +506,134 @@ public class MainWindowUiTests
         }, CancellationToken.None);
     }
 
+    [Fact]
+    public async Task FloatingWindow_PositionShouldPersistAcrossAppRestarts()
+    {
+        // Verifies the full save→reload lifecycle:
+        // 1st "run": float a window, move it, call the OnClosing sequence
+        // 2nd "run": start with the saved layout, verify window is at the saved position
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            // ── First "application run" ──────────────────────────────────────
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            var leftPanel = FindDockById<IDockable>(viewModel.Layout!, "left-panel");
+            leftPanel.Should().NotBeNull("left-panel dockable must exist");
+            viewModel.Factory!.FloatDockable(leftPanel!);
+
+            viewModel.Layout!.Windows.Should().HaveCount(1);
+            var floatWin = viewModel.Layout.Windows![0];
+            floatWin.X = 123;
+            floatWin.Y = 456;
+            floatWin.Width = 600;
+            floatWin.Height = 450;
+
+            // Simulate MainWindow.OnClosing: persist first, then close floating windows
+            viewModel.PersistCurrentLayout();
+            var savedLayout = viewModel.CaptureCurrentLayout();
+            viewModel.CloseFloatingWindows();
+
+            // Floating windows should be gone from the model after close
+            viewModel.Layout.Windows.Should().BeEmpty("CloseFloatingWindows should remove all floating windows");
+
+            // ── Second "application run" ─────────────────────────────────────
+            var handler2 = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService2 = new HttpRequestService(new global::System.Net.Http.HttpClient(handler2), repository);
+            var inMemorySink2 = new InMemorySink();
+            var logger2 = new LoggerConfiguration().WriteTo.Sink(inMemorySink2).CreateLogger();
+            var scheduledJobService2 = new ScheduledJobService(httpRequestService2, logger2);
+            var logWindowViewModel2 = new LogWindowViewModel(inMemorySink2);
+
+            using var viewModel2 = new MainWindowViewModel(
+                httpRequestService2,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService2,
+                logWindowViewModel2,
+                initialOptions: new ApplicationOptions { Layouts = savedLayout });
+
+            viewModel2.Layout!.Windows.Should().HaveCount(1, "floating window should be restored on next startup");
+            var restoredWin = viewModel2.Layout.Windows![0];
+            restoredWin.X.Should().BeApproximately(123, 0.001);
+            restoredWin.Y.Should().BeApproximately(456, 0.001);
+            restoredWin.Width.Should().BeApproximately(600, 0.001);
+            restoredWin.Height.Should().BeApproximately(450, 0.001);
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task MainWindowViewModel_CloseFloatingWindowsThenDispose_ShouldNotThrow()
+    {
+        // Regression test for the NullReferenceException that occurred when:
+        // 1. Main window closed (OnClosing fires – persist + close floating windows)
+        // 2. Dispose called (OnClosed fires via App.axaml.cs window.Closed handler)
+        // Previously, Dispose also called PersistCurrentLayout, which triggered
+        // CaptureLayoutSnapshot on an already-cleaned-up layout.
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            var leftPanel = FindDockById<IDockable>(viewModel.Layout!, "left-panel");
+            leftPanel.Should().NotBeNull();
+            viewModel.Factory!.FloatDockable(leftPanel!);
+            viewModel.Layout!.Windows.Should().HaveCount(1);
+
+            // Simulate the OnClosing handler sequence – must not throw
+            var onClosingException = Record.Exception(() =>
+            {
+                viewModel.PersistCurrentLayout();
+                viewModel.CloseFloatingWindows();
+            });
+            onClosingException.Should().BeNull("OnClosing sequence must not throw");
+
+            viewModel.Layout.Windows.Should().BeEmpty("floating windows removed by CloseFloatingWindows");
+
+            // Simulate the window.Closed handler sequence – must not throw
+            var onClosedException = Record.Exception(() => viewModel.Dispose());
+            onClosedException.Should().BeNull("Dispose after CloseFloatingWindows must not throw");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
 
     private sealed class TestEntryPoint
     {

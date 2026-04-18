@@ -98,7 +98,7 @@ public partial class App : Application
             window.Opened += async (_, _) => await InitializeAsync(historyRepository, collectionRepository, environmentRepository, scheduledJobRepository, viewModel);
             window.Closed += (_, _) =>
             {
-                viewModel.PersistCurrentLayout();
+                // Layout was already persisted and floating windows closed in MainWindow.OnClosing.
                 viewModel.Dispose();
                 logWindowViewModel.Dispose();
                 configuredHttpClient.Dispose();

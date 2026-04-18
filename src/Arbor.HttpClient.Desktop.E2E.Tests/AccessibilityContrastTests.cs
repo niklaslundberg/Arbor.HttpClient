@@ -15,6 +15,16 @@ public class AccessibilityContrastTests
     private const string DarkSurface = "#1E1E1E";
     private const string DarkPanel = "#12212F";
 
+    // SecondaryPanelBackgroundBrush — used by the layout-selector panel and the
+    // environment panel in MainWindow.axaml.  TextBlock controls on these panels
+    // render with Avalonia Fluent's dark-mode text (near-white).
+    private const string DarkSecondaryPanel = "#1A1A2E";
+
+    // ─── Dark-theme foreground (Avalonia Fluent default text in dark mode) ───
+
+    // Avalonia Fluent dark theme renders TextBlock with SystemControlForegroundBaseHighBrush ≈ #FFFFFF.
+    private const string DarkDefaultText = "#FFFFFF";
+
     // ─── Dark-theme method foreground colors ─────────────────────────────────
 
     private const string DarkMethodGet = "#4FC3F7";
@@ -29,6 +39,15 @@ public class AccessibilityContrastTests
 
     private const string LightSurface = "#FFFFFF";
     private const string LightPanel = "#F3F6FA";
+
+    // SecondaryPanelBackgroundBrush — light variant.  TextBlock controls render
+    // with Avalonia Fluent's light-mode text (near-black).
+    private const string LightSecondaryPanel = "#F5F8FC";
+
+    // ─── Light-theme foreground (Avalonia Fluent default text in light mode) ─
+
+    // Avalonia Fluent light theme renders TextBlock with SystemControlForegroundBaseHighBrush ≈ #000000.
+    private const string LightDefaultText = "#000000";
 
     // ─── Light-theme method foreground colors ────────────────────────────────
 
@@ -61,6 +80,7 @@ public class AccessibilityContrastTests
     [InlineData(DarkMethodFallback, DarkPanel, "Fallback / dark panel")]
     [InlineData(DarkError, DarkSurface, "Error / dark surface")]
     [InlineData(DarkError, DarkPanel, "Error / dark panel")]
+    [InlineData(DarkDefaultText, DarkSecondaryPanel, "Default text / dark secondary panel")]
     public void DarkTheme_ColorPair_MeetsWcagAA(string foreground, string background, string label)
     {
         var ratio = ContrastRatio(foreground, background);
@@ -85,6 +105,7 @@ public class AccessibilityContrastTests
     [InlineData(LightMethodFallback, LightPanel, "Fallback / light panel")]
     [InlineData(LightError, LightSurface, "Error / light surface")]
     [InlineData(LightError, LightPanel, "Error / light panel")]
+    [InlineData(LightDefaultText, LightSecondaryPanel, "Default text / light secondary panel")]
     public void LightTheme_ColorPair_MeetsWcagAA(string foreground, string background, string label)
     {
         var ratio = ContrastRatio(foreground, background);

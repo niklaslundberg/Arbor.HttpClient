@@ -995,7 +995,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
-        PersistCurrentLayout();
         _scheduledJobService.Dispose();
         _requestBodyWatcher?.Dispose();
         _requestBodyWatcher = null;
@@ -1008,6 +1007,35 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     public void PersistCurrentLayout() => PersistLayoutOptions();
+
+    /// <summary>
+    /// Returns a snapshot of the current layout options (including floating windows).
+    /// Exposed for testing the save/restore cycle without a real ApplicationOptionsStore.
+    /// </summary>
+    public LayoutOptions CaptureCurrentLayout() => BuildLayoutOptions();
+
+    /// <summary>
+    /// Closes all floating dock windows via the factory so they are removed from
+    /// <see cref="Layout"/>.Windows before the main window tears down.
+    /// Call this from <c>OnClosing</c> (after <see cref="PersistCurrentLayout"/>) so
+    /// positions are captured before teardown and no NPE occurs when Avalonia later
+    /// tries to close the already-gone owned windows.
+    /// </summary>
+    public void CloseFloatingWindows()
+    {
+        if (Layout?.Windows is not { Count: > 0 } || _dockFactory is null)
+        {
+            return;
+        }
+
+        // Take a snapshot of the list: RemoveWindow modifies it during iteration.
+        // RemoveWindow sets window.Owner = null after the first call, so any
+        // re-entrant call from HostWindow.Closed is a safe no-op.
+        foreach (var win in Layout.Windows.ToList())
+        {
+            _dockFactory.RemoveWindow(win);
+        }
+    }
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {

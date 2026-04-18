@@ -243,6 +243,37 @@ public class ScreenshotGenerator
         }, CancellationToken.None);
     }
 
+    [Fact]
+    public async Task GenerateLayoutPanelScreenshot()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var (viewModel, window) = CreateWindow(
+                BuildHandler("{}"),
+                requestName: "Layout demo",
+                method: "GET",
+                url: "https://postman-echo.com/get");
+
+            // Open the layout panel so it appears in the screenshot
+            viewModel.IsLayoutPanelVisible = true;
+
+            window.Show();
+
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            frame?.Save(Path.Combine(outputDir, "layout-panel.png"));
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
