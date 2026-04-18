@@ -18,11 +18,11 @@ public class VariableResolverTests
     }
 
     [Fact]
-    public void Resolve_ShouldLeaveUnknownTokenUnchanged()
+    public void Resolve_ShouldReplaceUnknownTokenWithEmptyString()
     {
         var variables = new List<EnvironmentVariable> { new("other", "x") };
         var result = _resolver.Resolve("{{baseUrl}}/users", variables);
-        result.Should().Be("{{baseUrl}}/users");
+        result.Should().Be("/users");
     }
 
     [Fact]
@@ -46,10 +46,10 @@ public class VariableResolverTests
     }
 
     [Fact]
-    public void Resolve_ShouldReturnInputWhenNoVariables()
+    public void Resolve_ShouldReplaceTokenWithEmptyStringWhenNoVariables()
     {
         var result = _resolver.Resolve("{{baseUrl}}/path", []);
-        result.Should().Be("{{baseUrl}}/path");
+        result.Should().Be("/path");
     }
 
     [Fact]
@@ -62,8 +62,36 @@ public class VariableResolverTests
     // --- additional coverage for stated requirements ---
 
     /// <summary>
-    /// Exact scenario from the problem statement: key=abc value=123, url contains {{abc}}.
+    /// Exact scenario from the problem statement: {{hello}} is used in the URL but the environment
+    /// has no such variable, so it should evaluate to an empty string.
     /// </summary>
+    [Fact]
+    public void Resolve_UndefinedVariableInUrl_ShouldEvaluateToEmptyString()
+    {
+        var result = _resolver.Resolve("http://local/{{hello}}", []);
+        result.Should().Be("http://local/");
+    }
+
+    /// <summary>
+    /// Same scenario but with a non-empty environment that simply doesn't contain the token.
+    /// </summary>
+    [Fact]
+    public void Resolve_UndefinedVariableWithOtherVariablesDefined_ShouldEvaluateToEmptyString()
+    {
+        var variables = new List<EnvironmentVariable> { new("world", "earth") };
+        var result = _resolver.Resolve("http://local/{{hello}}", variables);
+        result.Should().Be("http://local/");
+    }
+
+    /// <summary>
+    /// All tokens in the URL are undefined — the entire path collapses to empty strings.
+    /// </summary>
+    [Fact]
+    public void Resolve_AllTokensUndefined_ShouldReplaceAllWithEmptyString()
+    {
+        var result = _resolver.Resolve("http://{{host}}/{{path}}", []);
+        result.Should().Be("http:///");
+    }
     [Fact]
     public void Resolve_ProblemStatementScenario_ShouldEvaluateVariableInQueryString()
     {
@@ -144,14 +172,14 @@ public class VariableResolverTests
     }
 
     /// <summary>
-    /// A mix of known and unknown tokens: known ones are replaced, unknown ones stay intact.
+    /// A mix of known and unknown tokens: known ones are replaced, unknown ones become empty strings.
     /// </summary>
     [Fact]
-    public void Resolve_ShouldReplaceKnownAndLeaveUnknownTokensInSameInput()
+    public void Resolve_ShouldReplaceKnownAndCollapseUnknownTokensInSameInput()
     {
         var variables = new List<EnvironmentVariable> { new("host", "api.example.com") };
         var result = _resolver.Resolve("https://{{host}}/{{version}}/users", variables);
-        result.Should().Be("https://api.example.com/{{version}}/users");
+        result.Should().Be("https://api.example.com//users");
     }
 }
 
