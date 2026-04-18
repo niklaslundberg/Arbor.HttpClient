@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 
@@ -13,19 +14,36 @@ public sealed class MethodToColorConverter : IValueConverter
     {
         var method = value as string;
 
-        IBrush brush = method switch
+        var brushKey = method switch
         {
-            "GET" => new SolidColorBrush(Color.FromRgb(0x61, 0xAF, 0xEF)),    // blue
-            "POST" => new SolidColorBrush(Color.FromRgb(0x98, 0xC3, 0x79)),   // green
-            "PUT" => new SolidColorBrush(Color.FromRgb(0xE5, 0xC0, 0x7B)),    // yellow/amber
-            "PATCH" => new SolidColorBrush(Color.FromRgb(0xC6, 0x78, 0xDD)), // purple
-            "DELETE" => new SolidColorBrush(Color.FromRgb(0xE0, 0x6C, 0x75)), // red
-            _ => Brushes.White
+            "GET" => "MethodGetBrush",
+            "POST" => "MethodPostBrush",
+            "PUT" => "MethodPutBrush",
+            "PATCH" => "MethodPatchBrush",
+            "DELETE" => "MethodDeleteBrush",
+            _ => "MethodFallbackBrush"
         };
 
-        return brush;
+        return TryGetBrush(brushKey, out var brush) ? brush : Brushes.Gray;
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
+
+    private static bool TryGetBrush(string key, out IBrush brush)
+    {
+        brush = Brushes.Transparent;
+        if (Application.Current?.TryGetResource(key, Application.Current.ActualThemeVariant, out var resource) != true)
+        {
+            return false;
+        }
+
+        if (resource is not IBrush foundBrush)
+        {
+            return false;
+        }
+
+        brush = foundBrush;
+        return true;
+    }
 }

@@ -34,10 +34,10 @@
                     Command="{Binding App.SendRequestCommand}" />
         </Grid>
 
-        <TextBlock Grid.Row="1" Text="{Binding App.ErrorMessage}" Foreground="Tomato" />
+        <TextBlock Grid.Row="1" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
 
         <!-- Headers -->
-        <Border Grid.Row="2" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4" Padding="8,6">
+        <Border Grid.Row="2" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8,6">
             <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
                 <Grid ColumnDefinitions="*,Auto,Auto">
                     <TextBlock Text="Headers" FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -86,7 +86,7 @@
         <!-- Request Headers Preview (collapsible) -->
         <Border Grid.Row="3"
                 IsVisible="{Binding App.IsRequestHeadersPreviewVisible}"
-                Background="#0D1B2A" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4"
+                Background="{DynamicResource PreviewPanelBackgroundBrush}" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4"
                 Padding="8,6">
             <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
                 <TextBlock Text="Request headers (as sent)"
@@ -110,7 +110,7 @@
                 <Button Grid.Column="1" Content="Open in editor"
                         Command="{Binding App.OpenRequestBodyInExternalEditorCommand}" />
             </Grid>
-            <Border Grid.Row="1" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4">
+            <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
                 <aedit:TextEditor x:Name="RequestBodyEditor"
                                   ShowLineNumbers="True"
                                   WordWrap="True"

@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Arbor.HttpClient.Desktop.ViewModels;
 using AvaloniaEdit;
 using AvaloniaEdit.TextMate;
@@ -21,6 +22,7 @@ public partial class RequestView : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        ActualThemeVariantChanged += OnActualThemeVariantChanged;
     }
 
     private MainWindowViewModel? GetAppVm() => (DataContext as RequestViewModel)?.App;
@@ -57,6 +59,10 @@ public partial class RequestView : UserControl
         {
             _appliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_requestBodyEditor, inst);
             _requestTextMate = _requestBodyEditor.InstallTextMate(_registryOptions);
+            // ApplyThemeColorsToEditor is called via the AppliedTheme event when InstallTextMate
+            // fires its initial theme application using the DarkPlus default above.
+            // The correct variant (LightPlus or DarkPlus) is then applied via OnActualThemeVariantChanged
+            // once this view is attached to the visual tree and the effective theme is resolved.
             _requestTextMate.AppliedTheme += _appliedThemeHandler;
             _requestBodyEditor.Document.TextChanged += OnRequestEditorTextChanged;
         }
@@ -101,6 +107,9 @@ public partial class RequestView : UserControl
             ApplyGrammarForContent(_requestTextMate, _requestBodyEditor?.Text ?? string.Empty, ref _requestGrammarScope);
         }
     }
+
+    private void OnActualThemeVariantChanged(object? sender, EventArgs e) =>
+        ApplyTextMateTheme();
 
     protected override void OnUnloaded(Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -227,6 +236,23 @@ public partial class RequestView : UserControl
         }
 
         return ".txt";
+    }
+
+    private void ApplyTextMateTheme()
+    {
+        if (_requestTextMate is null || _registryOptions is null)
+        {
+            return;
+        }
+
+        var themeName = ActualThemeVariant == ThemeVariant.Light ? ThemeName.LightPlus : ThemeName.DarkPlus;
+        var theme = _registryOptions.GetTheme(themeName.ToString());
+        if (theme is null)
+        {
+            return;
+        }
+
+        _requestTextMate.SetTheme(theme);
     }
 }
 

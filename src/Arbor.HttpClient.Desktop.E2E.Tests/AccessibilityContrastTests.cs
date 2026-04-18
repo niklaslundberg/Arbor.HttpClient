@@ -1,0 +1,123 @@
+using AwesomeAssertions;
+
+namespace Arbor.HttpClient.Desktop.E2E.Tests;
+
+/// <summary>
+/// Verifies that the color pairs defined in App.axaml meet WCAG 2.1 AA contrast requirements
+/// (≥ 4.5:1 for normal text; ≥ 3:1 for large/bold text).
+/// Method labels (bold) qualify as large text, so a 4.5:1 target is used here for additional safety.
+/// Reference: https://www.w3.org/WAI/standards-guidelines/wcag/
+/// </summary>
+public class AccessibilityContrastTests
+{
+    // ─── Dark-theme backgrounds ──────────────────────────────────────────────
+
+    private const string DarkSurface = "#1E1E1E";
+    private const string DarkPanel = "#12212F";
+
+    // ─── Dark-theme method foreground colors ─────────────────────────────────
+
+    private const string DarkMethodGet = "#4FC3F7";
+    private const string DarkMethodPost = "#6FCF97";
+    private const string DarkMethodPut = "#FFB74D";
+    private const string DarkMethodPatch = "#CE93D8";
+    private const string DarkMethodDelete = "#EF5350";
+    private const string DarkMethodFallback = "#F5F5F5";
+    private const string DarkError = "#FF6347";
+
+    // ─── Light-theme backgrounds ─────────────────────────────────────────────
+
+    private const string LightSurface = "#FFFFFF";
+    private const string LightPanel = "#F3F6FA";
+
+    // ─── Light-theme method foreground colors ────────────────────────────────
+
+    private const string LightMethodGet = "#0065BD";
+    private const string LightMethodPost = "#107C10";
+    private const string LightMethodPut = "#875F09";
+    private const string LightMethodPatch = "#744DA9";
+    private const string LightMethodDelete = "#C50F1F";
+    private const string LightMethodFallback = "#1F2328";
+    private const string LightError = "#B42318";
+
+    // WCAG AA minimum for normal text (≥ 4.5:1).
+    // Method labels are bold, so 3:1 (large-text AA) would suffice, but 4.5:1 is used for safety.
+    private const double MinContrastRatio = 4.5;
+
+    // ─── Dark theme ──────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(DarkMethodGet, DarkSurface, "GET / dark surface")]
+    [InlineData(DarkMethodGet, DarkPanel, "GET / dark panel")]
+    [InlineData(DarkMethodPost, DarkSurface, "POST / dark surface")]
+    [InlineData(DarkMethodPost, DarkPanel, "POST / dark panel")]
+    [InlineData(DarkMethodPut, DarkSurface, "PUT / dark surface")]
+    [InlineData(DarkMethodPut, DarkPanel, "PUT / dark panel")]
+    [InlineData(DarkMethodPatch, DarkSurface, "PATCH / dark surface")]
+    [InlineData(DarkMethodPatch, DarkPanel, "PATCH / dark panel")]
+    [InlineData(DarkMethodDelete, DarkSurface, "DELETE / dark surface")]
+    [InlineData(DarkMethodDelete, DarkPanel, "DELETE / dark panel")]
+    [InlineData(DarkMethodFallback, DarkSurface, "Fallback / dark surface")]
+    [InlineData(DarkMethodFallback, DarkPanel, "Fallback / dark panel")]
+    [InlineData(DarkError, DarkSurface, "Error / dark surface")]
+    [InlineData(DarkError, DarkPanel, "Error / dark panel")]
+    public void DarkTheme_ColorPair_MeetsWcagAA(string foreground, string background, string label)
+    {
+        var ratio = ContrastRatio(foreground, background);
+        ratio.Should().BeGreaterThanOrEqualTo(MinContrastRatio,
+            $"WCAG AA requires ≥{MinContrastRatio}:1 contrast for '{label}' (actual: {ratio:F2}:1)");
+    }
+
+    // ─── Light theme ─────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(LightMethodGet, LightSurface, "GET / light surface")]
+    [InlineData(LightMethodGet, LightPanel, "GET / light panel")]
+    [InlineData(LightMethodPost, LightSurface, "POST / light surface")]
+    [InlineData(LightMethodPost, LightPanel, "POST / light panel")]
+    [InlineData(LightMethodPut, LightSurface, "PUT / light surface")]
+    [InlineData(LightMethodPut, LightPanel, "PUT / light panel")]
+    [InlineData(LightMethodPatch, LightSurface, "PATCH / light surface")]
+    [InlineData(LightMethodPatch, LightPanel, "PATCH / light panel")]
+    [InlineData(LightMethodDelete, LightSurface, "DELETE / light surface")]
+    [InlineData(LightMethodDelete, LightPanel, "DELETE / light panel")]
+    [InlineData(LightMethodFallback, LightSurface, "Fallback / light surface")]
+    [InlineData(LightMethodFallback, LightPanel, "Fallback / light panel")]
+    [InlineData(LightError, LightSurface, "Error / light surface")]
+    [InlineData(LightError, LightPanel, "Error / light panel")]
+    public void LightTheme_ColorPair_MeetsWcagAA(string foreground, string background, string label)
+    {
+        var ratio = ContrastRatio(foreground, background);
+        ratio.Should().BeGreaterThanOrEqualTo(MinContrastRatio,
+            $"WCAG AA requires ≥{MinContrastRatio}:1 contrast for '{label}' (actual: {ratio:F2}:1)");
+    }
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Calculates the WCAG 2.1 contrast ratio between two hex colors.
+    /// </summary>
+    private static double ContrastRatio(string hexForeground, string hexBackground)
+    {
+        var l1 = RelativeLuminance(hexForeground);
+        var l2 = RelativeLuminance(hexBackground);
+        var lighter = Math.Max(l1, l2);
+        var darker = Math.Min(l1, l2);
+        return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    /// <summary>
+    /// Computes WCAG 2.1 relative luminance for a hex color string (e.g. "#RRGGBB").
+    /// </summary>
+    private static double RelativeLuminance(string hex)
+    {
+        var color = hex.TrimStart('#');
+        var r = int.Parse(color[..2], System.Globalization.NumberStyles.HexNumber) / 255.0;
+        var g = int.Parse(color[2..4], System.Globalization.NumberStyles.HexNumber) / 255.0;
+        var b = int.Parse(color[4..6], System.Globalization.NumberStyles.HexNumber) / 255.0;
+        return 0.2126 * Linearize(r) + 0.7152 * Linearize(g) + 0.0722 * Linearize(b);
+    }
+
+    private static double Linearize(double c) =>
+        c <= 0.04045 ? c / 12.92 : Math.Pow((c + 0.055) / 1.055, 2.4);
+}

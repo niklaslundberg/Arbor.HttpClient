@@ -10,7 +10,7 @@
         <conv:MethodToColorConverter x:Key="MethodToColorConverter" />
     </UserControl.Resources>
 
-    <Grid RowDefinitions="Auto,*" Margin="8">
+    <Grid RowDefinitions="Auto,*" Margin="8" Background="{DynamicResource PanelBackgroundBrush}">
         <!-- Tab bar -->
         <StackPanel Orientation="Horizontal" Spacing="4">
             <Button Content="History" Command="{Binding App.ShowHistoryTabCommand}"
@@ -22,12 +22,13 @@
         </StackPanel>
 
         <!-- History tab -->
-        <Border Grid.Row="1" Background="#12212F" Padding="12" CornerRadius="8"
+        <Border Grid.Row="1" Background="{DynamicResource PanelBackgroundBrush}" Padding="12" CornerRadius="8"
                 IsVisible="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=History}">
             <Grid RowDefinitions="Auto,*">
                 <TextBox PlaceholderText="Search history…"
                          Text="{Binding App.HistorySearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                <ListBox Grid.Row="1" ItemsSource="{Binding App.History}" Margin="0,6,0,0">
+                <ListBox Grid.Row="1" ItemsSource="{Binding App.History}" Margin="0,6,0,0"
+                         Background="{DynamicResource PanelBackgroundBrush}">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="models:SavedRequest">
                             <StackPanel Margin="0,4">
@@ -44,7 +45,7 @@
         </Border>
 
         <!-- Collections tab -->
-        <Border Grid.Row="1" Background="#12212F" Padding="12" CornerRadius="8"
+        <Border Grid.Row="1" Background="{DynamicResource PanelBackgroundBrush}" Padding="12" CornerRadius="8"
                 IsVisible="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=Collections}">
             <Grid RowDefinitions="Auto,Auto,*">
                 <ComboBox ItemsSource="{Binding App.Collections}"
@@ -64,7 +65,8 @@
 
                 <ListBox Grid.Row="2" Margin="0,6,0,0"
                          ItemsSource="{Binding App.CollectionItems}"
-                         SelectionMode="Single">
+                         SelectionMode="Single"
+                         Background="{DynamicResource PanelBackgroundBrush}">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:CollectionItemViewModel">
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0,3">
@@ -80,7 +82,7 @@
                     </ListBox.ItemTemplate>
                     <ListBox.Styles>
                         <Style Selector="ListBoxItem:selected">
-                            <Setter Property="Background" Value="#1E3A5F" />
+                            <Setter Property="Background" Value="{DynamicResource CollectionSelectionBrush}" />
                         </Style>
                     </ListBox.Styles>
                 </ListBox>
@@ -88,7 +90,7 @@
         </Border>
 
         <!-- Scheduled Jobs tab -->
-        <Border Grid.Row="1" Background="#12212F" Padding="12" CornerRadius="8"
+        <Border Grid.Row="1" Background="{DynamicResource PanelBackgroundBrush}" Padding="12" CornerRadius="8"
                 IsVisible="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=ScheduledJobs}">
             <Grid RowDefinitions="Auto,*">
                 <Button Content="+ Add Job" Command="{Binding App.AddScheduledJobCommand}" />
@@ -96,7 +98,7 @@
                     <ItemsControl ItemsSource="{Binding App.ScheduledJobs}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:ScheduledJobViewModel">
-                                <Border BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4"
+                                <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4"
                                         Padding="8,6" Margin="0,4,0,0">
                                     <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
                                         <TextBox PlaceholderText="Job name"

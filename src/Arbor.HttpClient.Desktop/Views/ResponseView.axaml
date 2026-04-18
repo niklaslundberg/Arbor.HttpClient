@@ -11,7 +11,7 @@
         <!-- Response headers (shown after a request) -->
         <Border Grid.Row="1"
                 IsVisible="{Binding App.HasResponseHeaders}"
-                Background="#0D1B2A" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4"
+                Background="{DynamicResource PreviewPanelBackgroundBrush}" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4"
                 Padding="8,6">
             <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
                 <TextBlock Text="Response headers"
@@ -38,7 +38,7 @@
                 <Button Grid.Column="1" Content="Open in editor"
                         Command="{Binding App.OpenResponseBodyInExternalEditorCommand}" />
             </Grid>
-            <Border Grid.Row="1" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4">
+            <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
                 <aedit:TextEditor x:Name="ResponseBodyEditor"
                                   ShowLineNumbers="True"
                                   WordWrap="True"

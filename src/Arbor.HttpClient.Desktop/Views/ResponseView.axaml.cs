@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Arbor.HttpClient.Desktop.ViewModels;
 using AvaloniaEdit;
 using AvaloniaEdit.TextMate;
@@ -20,6 +21,7 @@ public partial class ResponseView : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        ActualThemeVariantChanged += OnActualThemeVariantChanged;
     }
 
     private MainWindowViewModel? GetAppVm() => (DataContext as ResponseViewModel)?.App;
@@ -51,6 +53,10 @@ public partial class ResponseView : UserControl
         {
             _appliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_responseBodyEditor, inst);
             _responseTextMate = _responseBodyEditor.InstallTextMate(_registryOptions);
+            // ApplyThemeColorsToEditor is called via the AppliedTheme event when InstallTextMate
+            // fires its initial theme application using the DarkPlus default above.
+            // The correct variant (LightPlus or DarkPlus) is then applied via OnActualThemeVariantChanged
+            // once this view is attached to the visual tree and the effective theme is resolved.
             _responseTextMate.AppliedTheme += _appliedThemeHandler;
         }
 
@@ -75,6 +81,9 @@ public partial class ResponseView : UserControl
             _responseBodyEditor.Text = _appVm.ResponseBody;
         }
     }
+
+    private void OnActualThemeVariantChanged(object? sender, EventArgs e) =>
+        ApplyTextMateTheme();
 
     protected override void OnUnloaded(Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -157,6 +166,23 @@ public partial class ResponseView : UserControl
 
         brush = new SolidColorBrush(color);
         return true;
+    }
+
+    private void ApplyTextMateTheme()
+    {
+        if (_responseTextMate is null || _registryOptions is null)
+        {
+            return;
+        }
+
+        var themeName = ActualThemeVariant == ThemeVariant.Light ? ThemeName.LightPlus : ThemeName.DarkPlus;
+        var theme = _registryOptions.GetTheme(themeName.ToString());
+        if (theme is null)
+        {
+            return;
+        }
+
+        _responseTextMate.SetTheme(theme);
     }
 }
 
