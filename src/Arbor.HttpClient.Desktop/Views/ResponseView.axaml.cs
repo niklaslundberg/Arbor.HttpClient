@@ -53,6 +53,10 @@ public partial class ResponseView : UserControl
         {
             _appliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_responseBodyEditor, inst);
             _responseTextMate = _responseBodyEditor.InstallTextMate(_registryOptions);
+            // ApplyThemeColorsToEditor is called via the AppliedTheme event when InstallTextMate
+            // fires its initial theme application using the DarkPlus default above.
+            // The correct variant (LightPlus or DarkPlus) is then applied via OnActualThemeVariantChanged
+            // once this view is attached to the visual tree and the effective theme is resolved.
             _responseTextMate.AppliedTheme += _appliedThemeHandler;
         }
 

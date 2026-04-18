@@ -59,6 +59,10 @@ public partial class RequestView : UserControl
         {
             _appliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_requestBodyEditor, inst);
             _requestTextMate = _requestBodyEditor.InstallTextMate(_registryOptions);
+            // ApplyThemeColorsToEditor is called via the AppliedTheme event when InstallTextMate
+            // fires its initial theme application using the DarkPlus default above.
+            // The correct variant (LightPlus or DarkPlus) is then applied via OnActualThemeVariantChanged
+            // once this view is attached to the visual tree and the effective theme is resolved.
             _requestTextMate.AppliedTheme += _appliedThemeHandler;
             _requestBodyEditor.Document.TextChanged += OnRequestEditorTextChanged;
         }
