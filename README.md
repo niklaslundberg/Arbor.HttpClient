@@ -20,6 +20,10 @@ Cross-platform desktop HTTP client built with **.NET 10**, **Avalonia 12**, and 
 
 *Environment panel – define reusable variables and apply them across requests.*
 
+![Request preview with resolved variables](docs/screenshots/variables-preview.png)
+
+*Preview tab – verify the exact request sent after resolving variables from the active environment.*
+
 ![Scheduled jobs panel](docs/screenshots/scheduled-jobs.png)
 
 *Scheduled jobs – run any saved request on a repeating interval in the background.*
@@ -72,7 +76,7 @@ Every subsequent request will resolve variables using that environment's values.
 
 ### 3 – Reference variables in requests
 
-Use `{{variableName}}` in the **URL**, **request body**, or any **header value**:
+Use `{{variableName}}` in the **URL**, **request body**, **header key/value**, and **query key/value**:
 
 **URL**
 ```

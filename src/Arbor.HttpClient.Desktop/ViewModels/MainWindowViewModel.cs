@@ -410,6 +410,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         RequestHeaders.CollectionChanged += OnRequestHeadersCollectionChanged;
         RequestQueryParameters.CollectionChanged += OnRequestQueryParametersCollectionChanged;
+        ActiveEnvironmentVariables.CollectionChanged += OnActiveEnvironmentVariablesCollectionChanged;
 
         SendRequestCommand = new AsyncRelayCommand(SendRequestAsync);
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
@@ -523,6 +524,30 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         SyncRequestUrlFromQueryParameters();
         RefreshRequestPreview();
     }
+
+    private void OnActiveEnvironmentVariablesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems is not null)
+        {
+            foreach (EnvironmentVariableViewModel variable in e.NewItems)
+            {
+                variable.PropertyChanged += OnActiveEnvironmentVariablePropertyChanged;
+            }
+        }
+
+        if (e.OldItems is not null)
+        {
+            foreach (EnvironmentVariableViewModel variable in e.OldItems)
+            {
+                variable.PropertyChanged -= OnActiveEnvironmentVariablePropertyChanged;
+            }
+        }
+
+        RefreshRequestPreview();
+    }
+
+    private void OnActiveEnvironmentVariablePropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        RefreshRequestPreview();
 
     private void UpdateRequestHeadersPreview()
     {
@@ -718,7 +743,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void RefreshRequestPreview()
     {
-        var variables = ActiveEnvironment?.Variables ?? [];
+        var variables = GetResolvedVariables();
         var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
         var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
 
@@ -750,6 +775,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         RequestPreview = builder.ToString();
     }
+
+    private List<EnvironmentVariable> GetResolvedVariables() =>
+        ActiveEnvironmentVariables
+            .Where(v => !string.IsNullOrWhiteSpace(v.Name))
+            .Select(v => new EnvironmentVariable(v.Name, v.Value))
+            .ToList();
 
     private static (string Prefix, string Query, string Fragment) SplitUrl(string url)
     {
@@ -1117,7 +1148,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         SelectedMethod = item.Method;
 
         var baseUrl = ActiveEnvironment is not null
-            ? _variableResolver.Resolve(SelectedCollection?.BaseUrl ?? string.Empty, ActiveEnvironment.Variables)
+            ? _variableResolver.Resolve(SelectedCollection?.BaseUrl ?? string.Empty, GetResolvedVariables())
             : (SelectedCollection?.BaseUrl ?? string.Empty);
 
         RequestUrl = baseUrl.TrimEnd('/') + item.Path;
@@ -1933,13 +1964,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             ErrorMessage = string.Empty;
 
-            var variables = ActiveEnvironment?.Variables ?? [];
+            var variables = GetResolvedVariables();
             var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
             var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
 
             var headers = RequestHeaders
                 .Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name))
-                .Select(h => new RequestHeader(h.Name, _variableResolver.Resolve(h.Value, variables)))
+                .Select(h => new RequestHeader(
+                    _variableResolver.Resolve(h.Name, variables),
+                    _variableResolver.Resolve(h.Value, variables)))
                 .ToList();
 
             var effectiveContentType = ResolveContentType(resolvedBody);

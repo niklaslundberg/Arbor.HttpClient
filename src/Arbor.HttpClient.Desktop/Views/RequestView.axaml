@@ -26,9 +26,14 @@
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
             </ComboBox>
-            <TextBox Grid.Column="2"
-                     PlaceholderText="https://api.example.com or {{baseUrl}}/path"
-                     Text="{Binding App.RequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <Border Grid.Column="2" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
+                <aedit:TextEditor x:Name="RequestUrlEditor"
+                                  ShowLineNumbers="False"
+                                  WordWrap="False"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Hidden"
+                                  MinHeight="32" />
+            </Border>
             <Button x:Name="SendButton" Grid.Column="3" Content="Send"
                     Command="{Binding App.SendRequestCommand}" />
         </Grid>
