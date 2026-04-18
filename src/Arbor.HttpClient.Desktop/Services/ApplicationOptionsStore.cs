@@ -181,6 +181,17 @@ public sealed class ApplicationOptionsStore(string optionsPath)
         {
             throw new InvalidDataException("Layout proportions must be positive values.");
         }
+
+        if (layout.LeftToolDockableOrder is null || layout.DocumentDockableOrder is null)
+        {
+            throw new InvalidDataException("Layout dockable order collections are required.");
+        }
+
+        if (layout.LeftToolDockableOrder.Any(string.IsNullOrWhiteSpace)
+            || layout.DocumentDockableOrder.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new InvalidDataException("Layout dockable order entries cannot be empty.");
+        }
     }
 
     private static ApplicationOptions DeserializeAndValidate(string json)

@@ -1132,8 +1132,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             DocumentProportion = documentDock.Proportion,
             ActiveToolDockableId = leftToolDock.ActiveDockable?.Id,
             ActiveDocumentDockableId = documentDock.ActiveDockable?.Id,
-            LeftToolDockableOrder = leftToolDock.VisibleDockables?.Select(d => d.Id).Where(id => !string.IsNullOrWhiteSpace(id)).Cast<string>().ToList() ?? [],
-            DocumentDockableOrder = documentDock.VisibleDockables?.Select(d => d.Id).Where(id => !string.IsNullOrWhiteSpace(id)).Cast<string>().ToList() ?? []
+            LeftToolDockableOrder = GetDockableOrder(leftToolDock.VisibleDockables),
+            DocumentDockableOrder = GetDockableOrder(documentDock.VisibleDockables)
         };
     }
 
@@ -1239,13 +1239,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         return null;
     }
 
+    private static List<string> GetDockableOrder(IList<IDockable>? dockables) =>
+        dockables?
+            .Select(d => d.Id)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Cast<string>()
+            .ToList() ?? [];
+
     private string GenerateNextLayoutName()
     {
-        while (_savedLayouts.ContainsKey($"Layout {_layoutNameCounter}"))
-        {
-            _layoutNameCounter++;
-        }
-
+        UpdateLayoutNameCounter();
         return $"Layout {_layoutNameCounter++}";
     }
 
