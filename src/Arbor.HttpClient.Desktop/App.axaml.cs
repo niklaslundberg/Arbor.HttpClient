@@ -4,6 +4,7 @@ using Avalonia.Markup.Xaml;
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Desktop.Logging;
+using Arbor.HttpClient.Desktop.Models;
 using Arbor.HttpClient.Desktop.Services;
 using Arbor.HttpClient.Desktop.ViewModels;
 using Arbor.HttpClient.Desktop.Views;
@@ -11,6 +12,8 @@ using Arbor.HttpClient.Storage.Sqlite;
 using Serilog;
 using System;
 using System.IO;
+using System.Net.Security;
+using System.Security.Authentication;
 using System.Threading.Tasks;
 
 namespace Arbor.HttpClient.Desktop;
@@ -32,6 +35,10 @@ public partial class App : Application
                 "requests.db");
 
             var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
+            var optionsPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Arbor.HttpClient",
+                "options.json");
 
             // Logging
             var inMemorySink = new InMemorySink();
@@ -45,10 +52,21 @@ public partial class App : Application
             var collectionRepository = new SqliteCollectionRepository(connectionString);
             var environmentRepository = new SqliteEnvironmentRepository(connectionString);
             var scheduledJobRepository = new SqliteScheduledJobRepository(connectionString);
+            var optionsStore = new ApplicationOptionsStore(optionsPath);
+            ApplicationOptions currentOptions;
+            try
+            {
+                currentOptions = optionsStore.Load();
+            }
+            catch
+            {
+                currentOptions = new ApplicationOptions();
+            }
 
             // Services
             var httpClient = new global::System.Net.Http.HttpClient();
             var httpRequestService = new HttpRequestService(httpClient, historyRepository);
+            httpRequestService.SetHttpClientFactory(() => CreateHttpClient(currentOptions.Http));
             var scheduledJobService = new ScheduledJobService(httpRequestService, Log.Logger);
 
             // ViewModels
@@ -60,7 +78,10 @@ public partial class App : Application
                 environmentRepository,
                 scheduledJobRepository,
                 scheduledJobService,
-                logWindowViewModel);
+                logWindowViewModel,
+                optionsStore,
+                currentOptions,
+                updatedOptions => currentOptions = updatedOptions);
 
             var window = new MainWindow
             {
@@ -99,5 +120,29 @@ public partial class App : Application
         {
             viewModel.ErrorMessage = exception.Message;
         }
+    }
+
+    private static global::System.Net.Http.HttpClient CreateHttpClient(HttpOptions options)
+    {
+        const SslProtocols tls10 = (SslProtocols)192;
+        const SslProtocols tls11 = (SslProtocols)768;
+
+        var handler = new SocketsHttpHandler
+        {
+            AllowAutoRedirect = options.FollowRedirects,
+            SslOptions = new SslClientAuthenticationOptions
+            {
+                EnabledSslProtocols = options.TlsVersion switch
+                {
+                    "Tls10" => tls10,
+                    "Tls11" => tls11,
+                    "Tls12" => SslProtocols.Tls12,
+                    "Tls13" => SslProtocols.Tls13,
+                    _ => SslProtocols.None
+                }
+            }
+        };
+
+        return new global::System.Net.Http.HttpClient(handler, disposeHandler: true);
     }
 }

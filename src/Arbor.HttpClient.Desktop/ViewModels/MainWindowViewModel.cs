@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -11,6 +12,7 @@ using System.Threading.Tasks;
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
+using Arbor.HttpClient.Desktop.Models;
 using Arbor.HttpClient.Desktop.Services;
 using Avalonia;
 using Avalonia.Platform.Storage;
@@ -34,11 +36,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly LogWindowViewModel _logWindowViewModel;
     private readonly OpenApiImportService _openApiImportService;
     private readonly VariableResolver _variableResolver;
+    private readonly ApplicationOptionsStore? _applicationOptionsStore;
+    private readonly Action<ApplicationOptions>? _onApplicationOptionsChanged;
     private readonly List<string> _tempFiles = [];
     private readonly List<SavedRequest> _allHistory = [];
     private FileSystemWatcher? _requestBodyWatcher;
     private int _requestBodyReadPending;
     private DockFactory? _dockFactory;
+    private ApplicationOptions _applicationOptions = new();
 
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
@@ -101,6 +106,56 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private string _selectedThemeOption = SystemThemeOption;
+
+    public IReadOnlyList<string> HttpVersionOptions { get; } =
+    [
+        "1.0",
+        "1.1",
+        "2.0",
+        "3.0"
+    ];
+
+    [ObservableProperty]
+    private string _selectedHttpVersionOption = "1.1";
+
+    public IReadOnlyList<string> TlsVersionOptions { get; } =
+    [
+        "SystemDefault",
+        "Tls10",
+        "Tls11",
+        "Tls12",
+        "Tls13"
+    ];
+
+    [ObservableProperty]
+    private string _selectedTlsVersionOption = "SystemDefault";
+
+    [ObservableProperty]
+    private bool _followHttpRedirects = true;
+
+    [ObservableProperty]
+    private string _defaultRequestUrl = "https://postman-echo.com/get?hello=world";
+
+    [ObservableProperty]
+    private string _defaultContentType = "application/json";
+
+    public IReadOnlyList<string> FontFamilyOptions { get; } =
+    [
+        "Cascadia Code,Consolas,Menlo,monospace",
+        "Consolas,Menlo,monospace",
+        "JetBrains Mono,Cascadia Code,Consolas,monospace"
+    ];
+
+    [ObservableProperty]
+    private string _uiFontFamily = "Cascadia Code,Consolas,Menlo,monospace";
+
+    [ObservableProperty]
+    private string _uiFontSizeText = "13";
+
+    public double UiFontSize =>
+        double.TryParse(UiFontSizeText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : 13d;
 
     // Content-Type selector
     public const string NoneContentTypeOption = "(none)";
@@ -174,6 +229,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    partial void OnRequestBodyChanged(string value) =>
+        UpdateRequestHeadersPreview();
+
+    partial void OnDefaultContentTypeChanged(string value) =>
+        UpdateRequestHeadersPreview();
+
+    partial void OnUiFontSizeTextChanged(string value) =>
+        OnPropertyChanged(nameof(UiFontSize));
+
     partial void OnSelectedCollectionChanged(Collection? value)
     {
         CollectionItems.Clear();
@@ -208,7 +272,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IEnvironmentRepository environmentRepository,
         IScheduledJobRepository scheduledJobRepository,
         ScheduledJobService scheduledJobService,
-        LogWindowViewModel logWindowViewModel)
+        LogWindowViewModel logWindowViewModel,
+        ApplicationOptionsStore? applicationOptionsStore = null,
+        ApplicationOptions? initialOptions = null,
+        Action<ApplicationOptions>? onApplicationOptionsChanged = null)
     {
         _httpRequestService = httpRequestService;
         _requestHistoryRepository = requestHistoryRepository;
@@ -219,6 +286,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _logWindowViewModel = logWindowViewModel;
         _openApiImportService = new OpenApiImportService();
         _variableResolver = new VariableResolver();
+        _applicationOptionsStore = applicationOptionsStore;
+        _onApplicationOptionsChanged = onApplicationOptionsChanged;
 
         Methods = ["GET", "POST", "PUT", "PATCH", "DELETE"];
         History = [];
@@ -237,6 +306,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _dockFactory = new DockFactory(this);
         Layout = _dockFactory.CreateLayout();
         _dockFactory.InitLayout(Layout);
+
+        ApplyOptions(initialOptions ?? new ApplicationOptions());
     }
 
     public IReadOnlyList<string> Methods { get; }
@@ -297,9 +368,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         RequestHeadersPreview.Clear();
 
-        if (!string.IsNullOrEmpty(ContentType))
+        var effectiveContentType = ResolveContentType(RequestBody);
+        if (!string.IsNullOrEmpty(effectiveContentType))
         {
-            RequestHeadersPreview.Add($"Content-Type: {ContentType}");
+            RequestHeadersPreview.Add($"Content-Type: {effectiveContentType}");
         }
 
         foreach (var h in RequestHeaders.Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name)))
@@ -307,6 +379,79 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             RequestHeadersPreview.Add($"{h.Name}: {h.Value}");
         }
     }
+
+    private ApplicationOptions BuildOptionsFromCurrentState()
+    {
+        if (!double.TryParse(UiFontSizeText, NumberStyles.Float, CultureInfo.InvariantCulture, out var fontSize))
+        {
+            throw new InvalidDataException("Font size must be a number.");
+        }
+
+        var options = new ApplicationOptions
+        {
+            Http = new HttpOptions
+            {
+                HttpVersion = SelectedHttpVersionOption,
+                TlsVersion = SelectedTlsVersionOption,
+                DefaultContentType = DefaultContentType,
+                FollowRedirects = FollowHttpRedirects,
+                DefaultRequestUrl = DefaultRequestUrl
+            },
+            Appearance = new AppearanceOptions
+            {
+                Theme = SelectedThemeOption,
+                FontFamily = UiFontFamily,
+                FontSize = fontSize
+            }
+        };
+
+        ApplicationOptionsStore.Validate(options);
+        return options;
+    }
+
+    private void ApplyOptions(ApplicationOptions options, bool updateCurrentRequestUrl = true)
+    {
+        var previousDefaultUrl = _applicationOptions.Http.DefaultRequestUrl;
+        _applicationOptions = options;
+
+        SelectedThemeOption = options.Appearance.Theme;
+        SelectedHttpVersionOption = options.Http.HttpVersion;
+        SelectedTlsVersionOption = options.Http.TlsVersion;
+        FollowHttpRedirects = options.Http.FollowRedirects;
+        DefaultRequestUrl = options.Http.DefaultRequestUrl;
+        DefaultContentType = options.Http.DefaultContentType;
+        UiFontFamily = options.Appearance.FontFamily;
+        UiFontSizeText = options.Appearance.FontSize.ToString("0.##", CultureInfo.InvariantCulture);
+
+        if (updateCurrentRequestUrl || string.IsNullOrWhiteSpace(RequestUrl) || string.Equals(RequestUrl, previousDefaultUrl, StringComparison.Ordinal))
+        {
+            RequestUrl = options.Http.DefaultRequestUrl;
+        }
+    }
+
+    private string ResolveContentType(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return string.Empty;
+        }
+
+        if (!string.IsNullOrWhiteSpace(ContentType))
+        {
+            return ContentType;
+        }
+
+        return DefaultContentType;
+    }
+
+    private static Version? ParseHttpVersion(string value) => value switch
+    {
+        "1.0" => global::System.Net.HttpVersion.Version10,
+        "1.1" => global::System.Net.HttpVersion.Version11,
+        "2.0" => global::System.Net.HttpVersion.Version20,
+        "3.0" => global::System.Net.HttpVersion.Version30,
+        _ => null
+    };
 
     [RelayCommand]
     private void AddScheduledJob()
@@ -357,9 +502,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     /// <summary>Set by the view layer to open the log window.</summary>
     public Action? OpenLogWindowAction { get; set; }
+    public Action? OpenOptionsWindowAction { get; set; }
 
     [RelayCommand]
     private void OpenLogWindow() => OpenLogWindowAction?.Invoke();
+
+    [RelayCommand]
+    private void OpenOptions() => OpenOptionsWindowAction?.Invoke();
 
     [RelayCommand]
     private void ToggleEnvironmentPanel() => IsEnvironmentPanelVisible = !IsEnvironmentPanelVisible;
@@ -453,6 +602,101 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         await LoadCollectionsAsync();
+    }
+
+    [RelayCommand]
+    private void SaveOptions()
+    {
+        try
+        {
+            ErrorMessage = string.Empty;
+            var options = BuildOptionsFromCurrentState();
+            _applicationOptionsStore?.Save(options);
+            ApplyOptions(options, updateCurrentRequestUrl: false);
+            _onApplicationOptionsChanged?.Invoke(options);
+        }
+        catch (Exception exception)
+        {
+            ErrorMessage = $"Options could not be saved: {exception.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExportOptionsAsync()
+    {
+        if (StorageProvider is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ErrorMessage = string.Empty;
+            var options = BuildOptionsFromCurrentState();
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Export Options",
+                SuggestedFileName = "arbor-options.json",
+                FileTypeChoices =
+                [
+                    new FilePickerFileType("JSON")
+                    {
+                        Patterns = ["*.json"]
+                    }
+                ]
+            });
+
+            if (file is null)
+            {
+                return;
+            }
+
+            _applicationOptionsStore?.Export(file.Path.LocalPath, options);
+        }
+        catch (Exception exception)
+        {
+            ErrorMessage = $"Options export failed: {exception.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task ImportOptionsAsync()
+    {
+        if (StorageProvider is null || _applicationOptionsStore is null)
+        {
+            return;
+        }
+
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import Options",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("JSON")
+                {
+                    Patterns = ["*.json"]
+                }
+            ]
+        });
+
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            ErrorMessage = string.Empty;
+            var options = _applicationOptionsStore.Import(files[0].Path.LocalPath);
+            _applicationOptionsStore.Save(options);
+            ApplyOptions(options, updateCurrentRequestUrl: false);
+            _onApplicationOptionsChanged?.Invoke(options);
+        }
+        catch (Exception exception)
+        {
+            ErrorMessage = $"Options import failed: {exception.Message}";
+        }
     }
 
     [RelayCommand]
@@ -708,13 +952,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 .Select(h => new RequestHeader(h.Name, _variableResolver.Resolve(h.Value, variables)))
                 .ToList();
 
-            if (!string.IsNullOrEmpty(ContentType))
+            var effectiveContentType = ResolveContentType(resolvedBody);
+            if (!string.IsNullOrEmpty(effectiveContentType))
             {
-                headers.Insert(0, new RequestHeader("Content-Type", ContentType));
+                headers.Insert(0, new RequestHeader("Content-Type", effectiveContentType));
             }
 
             var response = await _httpRequestService.SendAsync(
-                new HttpRequestDraft(RequestName, SelectedMethod, resolvedUrl, resolvedBody, headers));
+                new HttpRequestDraft(RequestName, SelectedMethod, resolvedUrl, resolvedBody, headers, ParseHttpVersion(SelectedHttpVersionOption)));
 
             ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
             ResponseBody = response.Body;

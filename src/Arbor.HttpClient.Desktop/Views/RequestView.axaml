@@ -95,8 +95,8 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding}"
-                                       FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                                       FontSize="12" Opacity="0.9" Margin="0,1,0,0" />
+                                       FontFamily="{Binding App.UiFontFamily}"
+                                       FontSize="{Binding App.UiFontSize}" Opacity="0.9" Margin="0,1,0,0" />
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -114,8 +114,8 @@
                 <aedit:TextEditor x:Name="RequestBodyEditor"
                                   ShowLineNumbers="True"
                                   WordWrap="True"
-                                  FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                                  FontSize="13"
+                                  FontFamily="{Binding App.UiFontFamily}"
+                                  FontSize="{Binding App.UiFontSize}"
                                   MinHeight="150" />
             </Border>
         </Grid>
