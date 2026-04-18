@@ -73,7 +73,7 @@ public sealed class VariableTextBox : UserControl
 
         Content = _border;
 
-        ActualThemeVariantChanged += (_, _) => ApplyBrushes();
+        ActualThemeVariantChanged += (_, _) => { ApplyBrushes(); ApplyFont(); };
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
