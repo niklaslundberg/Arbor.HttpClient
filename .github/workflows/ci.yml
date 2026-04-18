@@ -39,8 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # dorny/test-reporter uses this to publish check-run test summaries (primarily visible on PRs).
-      checks: write
+      # dotnet-trx uses this to post test result comments on pull requests.
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
@@ -52,6 +52,11 @@ jobs:
       - name: Restore
         run: dotnet restore Arbor.HttpClient.slnx
 
+      - name: Install test reporting tools
+        run: |
+          dotnet tool install -g dotnet-trx --version 1.0.1
+          dotnet tool install -g trxlog2html --version 1.0.4
+
       - name: Run unit tests
         run: >
           dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj
@@ -62,15 +67,9 @@ jobs:
           --results-directory TestResults/unit
           --collect:"XPlat Code Coverage"
 
-      - name: Publish unit test report
+      - name: Report unit test results
         if: always()
-        uses: dorny/test-reporter@v1
-        with:
-          name: Unit Tests
-          path: TestResults/unit/*.trx
-          reporter: dotnet-trx
-          fail-on-error: true
-          fail-on-empty: false
+        run: trx --path TestResults/unit --verbosity normal
 
       - name: Upload coverage
         if: ${{ !cancelled() }}
@@ -91,7 +90,9 @@ jobs:
 
       - name: Generate unit test HTML report
         if: always()
-        run: python scripts/generate-trx-html-report.py --results-dir TestResults/unit --title "Unit Test Results"
+        run: |
+          mkdir -p TestResults/unit/html
+          trxlog2html -i TestResults/unit/unit-tests.trx -o TestResults/unit/html/index.html
 
       - name: Upload unit test HTML report
         if: always()
@@ -107,8 +108,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # dorny/test-reporter uses this to publish check-run test summaries (primarily visible on PRs).
-      checks: write
+      # dotnet-trx uses this to post test result comments on pull requests.
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
@@ -120,6 +121,11 @@ jobs:
       - name: Restore
         run: dotnet restore Arbor.HttpClient.slnx
 
+      - name: Install test reporting tools
+        run: |
+          dotnet tool install -g dotnet-trx --version 1.0.1
+          dotnet tool install -g trxlog2html --version 1.0.4
+
       - name: Run E2E tests
         run: >
           dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj
@@ -129,15 +135,9 @@ jobs:
           --logger "trx;LogFileName=e2e-tests.trx"
           --results-directory TestResults/e2e
 
-      - name: Publish E2E test report
+      - name: Report E2E test results
         if: always()
-        uses: dorny/test-reporter@v1
-        with:
-          name: E2E Tests
-          path: TestResults/e2e/*.trx
-          reporter: dotnet-trx
-          fail-on-error: true
-          fail-on-empty: false
+        run: trx --path TestResults/e2e --verbosity normal
 
       - name: Upload E2E test results
         if: always()
@@ -149,7 +149,9 @@ jobs:
 
       - name: Generate E2E test HTML report
         if: always()
-        run: python scripts/generate-trx-html-report.py --results-dir TestResults/e2e --title "E2E Test Results"
+        run: |
+          mkdir -p TestResults/e2e/html
+          trxlog2html -i TestResults/e2e/e2e-tests.trx -o TestResults/e2e/html/index.html
 
       - name: Upload E2E test HTML report
         if: always()
