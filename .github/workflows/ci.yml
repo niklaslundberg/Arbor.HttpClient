@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Required by dorny/test-reporter when publishing check-run test summaries on PRs.
+      # dorny/test-reporter uses this to publish check-run test summaries (primarily visible on PRs).
       checks: write
     steps:
       - uses: actions/checkout@v4
@@ -95,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Required by dorny/test-reporter when publishing check-run test summaries on PRs.
+      # dorny/test-reporter uses this to publish check-run test summaries (primarily visible on PRs).
       checks: write
     steps:
       - uses: actions/checkout@v4
