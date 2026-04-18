@@ -1,3 +1,4 @@
+using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.Mvvm;
@@ -69,8 +70,11 @@ public sealed class DockFactory : Factory
             IsCollapsable = false,
             ActiveDockable = mainLayout,
             DefaultDockable = mainLayout,
-            VisibleDockables = CreateList<IDockable>(mainLayout)
+            VisibleDockables = CreateList<IDockable>(mainLayout),
+            Windows = CreateList<IDockWindow>()
         };
+
+        DefaultHostWindowLocator = () => new HostWindow();
 
         return rootDock;
     }

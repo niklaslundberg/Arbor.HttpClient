@@ -66,6 +66,7 @@ public partial class ResponseView : UserControl
 
             if (_responseBodyEditor is not null)
             {
+                ApplyEditorFont(_responseBodyEditor, _appVm);
                 _responseBodyEditor.Text = _appVm.ResponseBody;
             }
         }
@@ -79,6 +80,14 @@ public partial class ResponseView : UserControl
             && _responseBodyEditor.Text != _appVm.ResponseBody)
         {
             _responseBodyEditor.Text = _appVm.ResponseBody;
+        }
+
+        if ((e.PropertyName == nameof(MainWindowViewModel.UiFontFamily)
+             || e.PropertyName == nameof(MainWindowViewModel.UiFontSize))
+            && _responseBodyEditor is not null
+            && _appVm is not null)
+        {
+            ApplyEditorFont(_responseBodyEditor, _appVm);
         }
     }
 
@@ -107,6 +116,12 @@ public partial class ResponseView : UserControl
             _responseTextMate.Dispose();
             _responseTextMate = null;
         }
+    }
+
+    private static void ApplyEditorFont(TextEditor editor, MainWindowViewModel appVm)
+    {
+        editor.FontFamily = new FontFamily(appVm.UiFontFamily);
+        editor.FontSize = appVm.UiFontSize;
     }
 
     private static void ApplyThemeColorsToEditor(TextEditor editor, TextMate.Installation installation)

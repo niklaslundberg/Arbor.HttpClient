@@ -192,6 +192,29 @@ public sealed class ApplicationOptionsStore(string optionsPath)
         {
             throw new InvalidDataException("Layout dockable order entries cannot be empty.");
         }
+
+        if (layout.FloatingWindows is null)
+        {
+            throw new InvalidDataException("Layout floating windows collection is required.");
+        }
+
+        foreach (var fw in layout.FloatingWindows)
+        {
+            if (fw is null)
+            {
+                throw new InvalidDataException("Floating window snapshot cannot be null.");
+            }
+
+            if (fw.Width <= 0 || fw.Height <= 0)
+            {
+                throw new InvalidDataException("Floating window dimensions must be positive values.");
+            }
+
+            if (fw.DockableIds is null)
+            {
+                throw new InvalidDataException("Floating window dockable IDs collection is required.");
+            }
+        }
     }
 
     private static ApplicationOptions DeserializeAndValidate(string json)

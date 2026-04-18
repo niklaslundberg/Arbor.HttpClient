@@ -75,12 +75,11 @@
                 <Button Content="Save Selected"
                         Command="{Binding SaveLayoutToExistingCommand}"
                         CommandParameter="{Binding SelectedLayoutName}" />
-                <Button Content="Restore Selected"
-                        Command="{Binding RestoreLayoutCommand}"
-                        CommandParameter="{Binding SelectedLayoutName}" />
                 <Button Content="Remove Selected"
                         Command="{Binding RemoveLayoutCommand}"
                         CommandParameter="{Binding SelectedLayoutName}" />
+                <Button Content="Restore Default"
+                        Command="{Binding RestoreDefaultLayoutCommand}" />
             </StackPanel>
         </Border>
 

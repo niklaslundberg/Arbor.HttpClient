@@ -73,6 +73,7 @@ public partial class RequestView : UserControl
 
             if (_requestBodyEditor is not null)
             {
+                ApplyEditorFont(_requestBodyEditor, _appVm);
                 _requestBodyEditor.Text = _appVm.RequestBody;
                 ApplyGrammarForContent(_requestTextMate, _appVm.RequestBody, ref _requestGrammarScope);
             }
@@ -105,6 +106,14 @@ public partial class RequestView : UserControl
         {
             _requestGrammarScope = string.Empty;
             ApplyGrammarForContent(_requestTextMate, _requestBodyEditor?.Text ?? string.Empty, ref _requestGrammarScope);
+        }
+
+        if ((e.PropertyName == nameof(MainWindowViewModel.UiFontFamily)
+             || e.PropertyName == nameof(MainWindowViewModel.UiFontSize))
+            && _requestBodyEditor is not null
+            && _appVm is not null)
+        {
+            ApplyEditorFont(_requestBodyEditor, _appVm);
         }
     }
 
@@ -161,6 +170,12 @@ public partial class RequestView : UserControl
 
         currentScope = newScope;
         installation.SetGrammar(string.IsNullOrEmpty(newScope) ? null : newScope);
+    }
+
+    private static void ApplyEditorFont(TextEditor editor, MainWindowViewModel appVm)
+    {
+        editor.FontFamily = new FontFamily(appVm.UiFontFamily);
+        editor.FontSize = appVm.UiFontSize;
     }
 
     private static void ApplyThemeColorsToEditor(TextEditor editor, TextMate.Installation installation)

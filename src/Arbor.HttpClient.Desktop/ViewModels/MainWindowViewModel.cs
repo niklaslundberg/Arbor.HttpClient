@@ -47,6 +47,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private ApplicationOptions _applicationOptions = new();
     private readonly Dictionary<string, DockLayoutSnapshot> _savedLayouts = new(StringComparer.OrdinalIgnoreCase);
     private int _layoutNameCounter = 1;
+    private bool _suppressLayoutRestore;
+    private DockLayoutSnapshot? _defaultLayout;
 
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
@@ -343,10 +345,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _dockFactory = new DockFactory(this);
         Layout = _dockFactory.CreateLayout();
         _dockFactory.InitLayout(Layout);
+        _defaultLayout = CaptureLayoutSnapshot();
 
+        _suppressLayoutRestore = true;
         var options = initialOptions ?? new ApplicationOptions();
         ApplyOptions(options);
         ApplyLayoutOptions(options.Layouts);
+        _suppressLayoutRestore = false;
     }
 
     public IReadOnlyList<string> Methods { get; }
@@ -602,6 +607,20 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void ToggleLayoutPanel() => IsLayoutPanelVisible = !IsLayoutPanelVisible;
 
+    partial void OnSelectedLayoutNameChanged(string? value)
+    {
+        if (_suppressLayoutRestore || string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        if (_savedLayouts.TryGetValue(value, out var snapshot))
+        {
+            ApplyLayoutSnapshot(snapshot);
+            PersistLayoutOptions();
+        }
+    }
+
     [RelayCommand]
     private void SaveLayoutAsNew()
     {
@@ -613,8 +632,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         var name = GenerateNextLayoutName();
         _savedLayouts[name] = layoutSnapshot;
-        SelectedLayoutName = name;
+        _suppressLayoutRestore = true;
         RefreshSavedLayoutNames();
+        SelectedLayoutName = name;
+        _suppressLayoutRestore = false;
         PersistLayoutOptions();
     }
 
@@ -633,23 +654,22 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         _savedLayouts[layoutName] = layoutSnapshot;
-        SelectedLayoutName = layoutName;
+        _suppressLayoutRestore = true;
         RefreshSavedLayoutNames();
+        SelectedLayoutName = layoutName;
+        _suppressLayoutRestore = false;
         PersistLayoutOptions();
     }
 
     [RelayCommand]
-    private void RestoreLayout(string? layoutName)
+    private void RestoreDefaultLayout()
     {
-        if (string.IsNullOrWhiteSpace(layoutName))
+        if (_defaultLayout is not null)
         {
-            return;
-        }
-
-        if (_savedLayouts.TryGetValue(layoutName, out var layoutSnapshot))
-        {
-            ApplyLayoutSnapshot(layoutSnapshot);
-            SelectedLayoutName = layoutName;
+            ApplyLayoutSnapshot(_defaultLayout);
+            _suppressLayoutRestore = true;
+            SelectedLayoutName = null;
+            _suppressLayoutRestore = false;
             PersistLayoutOptions();
         }
     }
@@ -664,12 +684,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (_savedLayouts.Remove(layoutName))
         {
+            _suppressLayoutRestore = true;
+            RefreshSavedLayoutNames();
             if (string.Equals(SelectedLayoutName, layoutName, StringComparison.OrdinalIgnoreCase))
             {
                 SelectedLayoutName = SavedLayoutNames.FirstOrDefault();
             }
-
-            RefreshSavedLayoutNames();
+            _suppressLayoutRestore = false;
             PersistLayoutOptions();
         }
     }
@@ -1126,6 +1147,32 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return null;
         }
 
+        var floatingWindows = new List<FloatingWindowSnapshot>();
+        if (root.Windows is not null)
+        {
+            foreach (var window in root.Windows)
+            {
+                var floatRoot = window.Layout;
+                if (floatRoot is null)
+                {
+                    continue;
+                }
+
+                var ids = new List<string>();
+                CollectDockableIds(floatRoot, ids);
+
+                floatingWindows.Add(new FloatingWindowSnapshot
+                {
+                    X = window.X,
+                    Y = window.Y,
+                    Width = window.Width > 0 ? window.Width : 300,
+                    Height = window.Height > 0 ? window.Height : 400,
+                    DockableIds = ids,
+                    ActiveDockableId = floatRoot.ActiveDockable?.Id
+                });
+            }
+        }
+
         return new DockLayoutSnapshot
         {
             LeftToolProportion = leftToolDock.Proportion,
@@ -1133,13 +1180,30 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ActiveToolDockableId = leftToolDock.ActiveDockable?.Id,
             ActiveDocumentDockableId = documentDock.ActiveDockable?.Id,
             LeftToolDockableOrder = GetDockableOrder(leftToolDock.VisibleDockables),
-            DocumentDockableOrder = GetDockableOrder(documentDock.VisibleDockables)
+            DocumentDockableOrder = GetDockableOrder(documentDock.VisibleDockables),
+            FloatingWindows = floatingWindows
         };
+    }
+
+    private static void CollectDockableIds(IDockable dockable, ICollection<string> ids)
+    {
+        if (!string.IsNullOrWhiteSpace(dockable.Id))
+        {
+            ids.Add(dockable.Id);
+        }
+
+        if (dockable is IDock dock && dock.VisibleDockables is not null)
+        {
+            foreach (var child in dock.VisibleDockables)
+            {
+                CollectDockableIds(child, ids);
+            }
+        }
     }
 
     private void ApplyLayoutSnapshot(DockLayoutSnapshot? snapshot)
     {
-        if (snapshot is null || Layout is null)
+        if (snapshot is null || Layout is null || _dockFactory is null)
         {
             return;
         }
@@ -1165,6 +1229,72 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ApplyDockOrder(documentDock, snapshot.DocumentDockableOrder);
         SetActiveDockable(leftToolDock, snapshot.ActiveToolDockableId);
         SetActiveDockable(documentDock, snapshot.ActiveDocumentDockableId);
+
+        // Close any existing floating windows before restoring new ones
+        if (Layout.Windows is { Count: > 0 } windows)
+        {
+            foreach (var win in windows.ToList())
+            {
+                _dockFactory.CloseWindow(win);
+            }
+        }
+
+        // Restore floating windows
+        foreach (var fw in snapshot.FloatingWindows)
+        {
+            if (fw.DockableIds.Count == 0)
+            {
+                continue;
+            }
+
+            // Find the first dockable to float (it creates the floating window)
+            IDockable? primary = null;
+            foreach (var id in fw.DockableIds)
+            {
+                primary = FindDockById<IDockable>(leftToolDock, id)
+                       ?? FindDockById<IDockable>(documentDock, id);
+                if (primary is not null)
+                {
+                    break;
+                }
+            }
+
+            if (primary is null)
+            {
+                continue;
+            }
+
+            var countBefore = Layout.Windows?.Count ?? 0;
+            _dockFactory.FloatDockable(primary);
+
+            // FloatDockable may not have created a window (e.g. if already floating), so guard
+            if (Layout.Windows is null || Layout.Windows.Count <= countBefore)
+            {
+                continue;
+            }
+
+            var floatWin = Layout.Windows[^1];
+            floatWin.X = fw.X;
+            floatWin.Y = fw.Y;
+            floatWin.Width = fw.Width;
+            floatWin.Height = fw.Height;
+
+            // Move remaining dockables into the same floating window
+            if (floatWin.Layout is IDock floatDock)
+            {
+                for (var i = 1; i < fw.DockableIds.Count; i++)
+                {
+                    var extra = FindDockById<IDockable>(leftToolDock, fw.DockableIds[i])
+                             ?? FindDockById<IDockable>(documentDock, fw.DockableIds[i]);
+                    if (extra?.Owner is IDock sourceOwner)
+                    {
+                        _dockFactory.MoveDockable(sourceOwner, floatDock, extra, null);
+                    }
+                }
+
+                SetActiveDockable(floatDock, fw.ActiveDockableId);
+            }
+        }
     }
 
     private static void ApplyDockOrder(IDock dock, IReadOnlyList<string> orderedDockableIds)

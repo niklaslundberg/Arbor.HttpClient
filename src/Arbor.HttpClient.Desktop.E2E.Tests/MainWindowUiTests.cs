@@ -122,7 +122,9 @@ public class MainWindowUiTests
             leftToolDock.ActiveDockable = leftToolDock.VisibleDockables!.First(d => d.Id == "left-panel");
             documentDock.ActiveDockable = documentDock.VisibleDockables!.First(d => d.Id == "request");
 
-            viewModel.RestoreLayoutCommand.Execute(layoutName);
+            // Selection was already layoutName after save; clear it first so the re-selection triggers restore
+            viewModel.SelectedLayoutName = null;
+            viewModel.SelectedLayoutName = layoutName;
 
             leftToolDock.Proportion.Should().BeApproximately(0.35, 0.0001);
             documentDock.Proportion.Should().BeApproximately(0.65, 0.0001);
