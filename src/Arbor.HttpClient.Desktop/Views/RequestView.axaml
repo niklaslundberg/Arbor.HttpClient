@@ -11,7 +11,7 @@
         <conv:MethodToColorConverter x:Key="MethodToColorConverter" />
     </UserControl.Resources>
 
-    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="10" Margin="8">
+    <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
 
         <Grid ColumnDefinitions="120,Auto,*,120" ColumnSpacing="8">
             <TextBox Grid.Column="0" PlaceholderText="Request name"
@@ -41,9 +41,12 @@
                     Command="{Binding App.SendRequestCommand}" />
         </Grid>
 
-        <TextBlock Grid.Row="1" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
+        <CheckBox Grid.Row="1" Content="Follow redirects"
+                  IsChecked="{Binding App.FollowRedirectsForRequest, Mode=TwoWay}" />
 
-        <TabControl Grid.Row="2">
+        <TextBlock Grid.Row="2" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
+
+        <TabControl Grid.Row="3">
             <TabItem Header="Query">
                 <Grid Margin="0,8,0,0" RowDefinitions="Auto,*" RowSpacing="6">
                     <Grid ColumnDefinitions="*,Auto">

@@ -69,7 +69,7 @@ public sealed class ScheduledJobService : IDisposable
     private async Task ExecuteJobAsync(ScheduledJobConfig config, CancellationToken cancellationToken)
     {
         var headers = ParseHeaders(config.HeadersJson);
-        var draft = new HttpRequestDraft(config.Name, config.Method, config.Url, config.Body, headers);
+        var draft = new HttpRequestDraft(config.Name, config.Method, config.Url, config.Body, headers, FollowRedirects: config.FollowRedirects);
 
         _logger.Information(
             "Scheduled job {JobName} executing {Method} {Url}",

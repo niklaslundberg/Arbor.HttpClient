@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
@@ -911,6 +912,112 @@ public class MainWindowUiTests
         }, CancellationToken.None);
     }
 
+    [Fact]
+    public async Task SendRequest_ShouldRespectFollowRedirectsOverride()
+    {
+        using var server = new RedirectTestServer();
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            using var defaultClient = new global::System.Net.Http.HttpClient();
+            using var followClient = new global::System.Net.Http.HttpClient(new SocketsHttpHandler { AllowAutoRedirect = true });
+            using var noFollowClient = new global::System.Net.Http.HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false });
+            var httpRequestService = new HttpRequestService(defaultClient, repository);
+            httpRequestService.SetHttpClientFactory(followRedirects =>
+                (followRedirects ?? true) ? followClient : noFollowClient);
+
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel)
+            {
+                RequestName = "redirect test",
+                SelectedMethod = "GET",
+                RequestUrl = server.RedirectUrl
+            };
+
+            viewModel.FollowRedirectsForRequest = false;
+            viewModel.SendRequestCommand.Execute(null);
+            await viewModel.SendRequestCommand.ExecutionTask!;
+            viewModel.ResponseStatus.Should().StartWith("302");
+
+            viewModel.FollowRedirectsForRequest = true;
+            viewModel.SendRequestCommand.Execute(null);
+            await viewModel.SendRequestCommand.ExecutionTask!;
+            viewModel.ResponseStatus.Should().Be("200 OK");
+            viewModel.RawResponseBody.Should().Contain("redirect-complete");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ScheduledJob_ShouldRespectFollowRedirectsOverride()
+    {
+        using var server = new RedirectTestServer();
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            using var defaultClient = new global::System.Net.Http.HttpClient();
+            using var followClient = new global::System.Net.Http.HttpClient(new SocketsHttpHandler { AllowAutoRedirect = true });
+            using var noFollowClient = new global::System.Net.Http.HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false });
+            var httpRequestService = new HttpRequestService(defaultClient, repository);
+            httpRequestService.SetHttpClientFactory(followRedirects =>
+                (followRedirects ?? true) ? followClient : noFollowClient);
+
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            using var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+
+            var noFollowId = 1;
+            scheduledJobService.Start(new ScheduledJobConfig(
+                noFollowId,
+                "redirect-off",
+                "GET",
+                server.RedirectUrl,
+                null,
+                null,
+                1,
+                AutoStart: false,
+                FollowRedirects: false));
+
+            await Task.Delay(1300);
+            scheduledJobService.Stop(noFollowId);
+            server.FinalRequestCount.Should().Be(0);
+
+            var followId = 2;
+            scheduledJobService.Start(new ScheduledJobConfig(
+                followId,
+                "redirect-on",
+                "GET",
+                server.RedirectUrl,
+                null,
+                null,
+                1,
+                AutoStart: false,
+                FollowRedirects: true));
+
+            await Task.Delay(1300);
+            scheduledJobService.Stop(followId);
+            server.FinalRequestCount.Should().BeGreaterThan(0);
+
+            return true;
+        }, CancellationToken.None);
+    }
+
 
     private sealed class TestEntryPoint
     {
@@ -1037,6 +1144,95 @@ public class MainWindowUiTests
         {
             _items.RemoveAll(e => e.Id == environmentId);
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RedirectTestServer : IDisposable
+    {
+        private readonly HttpListener _listener = new();
+        private readonly CancellationTokenSource _cts = new();
+        private readonly Task _loopTask;
+
+        public RedirectTestServer()
+        {
+            using var tcpListener = new TcpListener(IPAddress.Loopback, 0);
+            tcpListener.Start();
+            var port = ((IPEndPoint)tcpListener.LocalEndpoint).Port;
+            tcpListener.Stop();
+
+            BaseUrl = $"http://127.0.0.1:{port}";
+            RedirectUrl = $"{BaseUrl}/redirect";
+            FinalUrl = $"{BaseUrl}/final";
+
+            _listener.Prefixes.Add($"{BaseUrl}/");
+            _listener.Start();
+            _loopTask = Task.Run(() => ListenLoopAsync(_cts.Token));
+        }
+
+        public string BaseUrl { get; }
+        public string RedirectUrl { get; }
+        public string FinalUrl { get; }
+        public int FinalRequestCount { get; private set; }
+
+        private async Task ListenLoopAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                HttpListenerContext context;
+                try
+                {
+                    context = await _listener.GetContextAsync().ConfigureAwait(false);
+                }
+                catch (HttpListenerException)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+
+                using var response = context.Response;
+                if (context.Request.Url?.AbsolutePath == "/redirect")
+                {
+                    response.StatusCode = (int)HttpStatusCode.Redirect;
+                    response.RedirectLocation = FinalUrl;
+                    response.Close();
+                    continue;
+                }
+
+                if (context.Request.Url?.AbsolutePath == "/final")
+                {
+                    FinalRequestCount++;
+                    var payload = Encoding.UTF8.GetBytes("redirect-complete");
+                    response.StatusCode = (int)HttpStatusCode.OK;
+                    response.ContentType = "text/plain";
+                    response.ContentLength64 = payload.Length;
+                    await response.OutputStream.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+                    response.Close();
+                    continue;
+                }
+
+                response.StatusCode = (int)HttpStatusCode.NotFound;
+                response.Close();
+            }
+        }
+
+        public void Dispose()
+        {
+            _cts.Cancel();
+            _listener.Stop();
+            _listener.Close();
+            try
+            {
+                _loopTask.GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // Best effort stop for tests.
+            }
+
+            _cts.Dispose();
         }
     }
 

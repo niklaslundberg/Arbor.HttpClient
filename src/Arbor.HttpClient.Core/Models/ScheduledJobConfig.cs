@@ -8,4 +8,5 @@ public sealed record ScheduledJobConfig(
     string? Body,
     string? HeadersJson,
     int IntervalSeconds,
-    bool AutoStart);
+    bool AutoStart,
+    bool? FollowRedirects = null);

@@ -6,4 +6,5 @@ public sealed record HttpRequestDraft(
     string Url,
     string? Body,
     IReadOnlyList<RequestHeader>? Headers = null,
-    Version? HttpVersion = null);
+    Version? HttpVersion = null,
+    bool? FollowRedirects = null);

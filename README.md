@@ -28,6 +28,10 @@ Cross-platform desktop HTTP client built with **.NET 10**, **Avalonia 12**, and 
 
 *Scheduled jobs – run any saved request on a repeating interval in the background.*
 
+![Per-request redirect overrides](docs/screenshots/follow-redirect-overrides.png)
+
+*Per-request redirect overrides – manual and scheduled requests can enable or disable redirect following independently of the global default.*
+
 ## Solution layout
 
 - `Arbor.HttpClient.slnx` (SLNX solution at repo root)
@@ -109,8 +113,11 @@ Any request can be scheduled to run automatically in the background:
    - **Body** – optional request body.
    - **Interval (seconds)** – how often the request fires.
    - **Auto-start** – tick this to have the job start automatically when the app opens.
+   - **Follow redirects** – override the global redirect behavior for this scheduled request.
 3. Click **Save**, then **▶ Start** to run the job immediately, or rely on auto-start.
 4. Click **■ Stop** to pause a running job.
+
+Manual requests also have their own **Follow redirects** checkbox in the request panel, so they can override the global **Options → HTTP → Follow redirects** setting on a per-request basis.
 
 Global launch behavior can be controlled in **Options → HTTP → Auto-start scheduled jobs on launch**.  
 If this option is disabled, no scheduled jobs are auto-started at application launch even when a job has **Auto-start** enabled.

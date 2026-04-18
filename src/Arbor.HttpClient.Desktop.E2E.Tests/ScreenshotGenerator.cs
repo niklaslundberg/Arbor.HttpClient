@@ -410,6 +410,48 @@ public class ScreenshotGenerator
     }
 
     [Fact]
+    public async Task GenerateFollowRedirectOverridesScreenshot()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var (viewModel, window) = CreateWindow(
+                BuildHandler("{}"),
+                requestName: "Redirect override demo",
+                method: "GET",
+                url: "https://postman-echo.com/redirect-to?url=https://postman-echo.com/get");
+
+            viewModel.FollowRedirectsForRequest = false;
+            viewModel.LeftPanelTab = "ScheduledJobs";
+            viewModel.ScheduledJobs.Add(new ScheduledJobViewModel(new InMemoryScheduledJobRepo(), new ScheduledJobService(
+                new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryHistoryRepo()),
+                new LoggerConfiguration().WriteTo.Sink(new InMemorySink()).CreateLogger()))
+            {
+                Name = "Redirect check",
+                Method = "GET",
+                Url = "https://postman-echo.com/redirect-to?url=https://postman-echo.com/get",
+                IntervalSeconds = 60,
+                AutoStart = false,
+                FollowRedirects = false
+            });
+
+            window.Show();
+
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            frame?.Save(Path.Combine(outputDir, "follow-redirect-overrides.png"));
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task GenerateOptionsWindowScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
