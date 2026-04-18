@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:aedit="using:AvaloniaEdit"
+             x:Class="Arbor.HttpClient.Desktop.Views.ResponseView"
+             x:CompileBindings="False">
+
+    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="10" Margin="8">
+
+        <TextBlock Grid.Row="0" Text="{Binding App.ResponseStatus}" FontWeight="SemiBold" />
+
+        <!-- Response headers (shown after a request) -->
+        <Border Grid.Row="1"
+                IsVisible="{Binding App.HasResponseHeaders}"
+                Background="#0D1B2A" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4"
+                Padding="8,6">
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
+                <TextBlock Text="Response headers"
+                           FontWeight="SemiBold" FontSize="12" Opacity="0.7" />
+                <ScrollViewer Grid.Row="1" MaxHeight="130">
+                    <ItemsControl ItemsSource="{Binding App.ResponseHeaders}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}"
+                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                           FontSize="12" Opacity="0.9"
+                                           TextWrapping="Wrap" Margin="0,1,0,0" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- Response body -->
+        <Grid Grid.Row="2" RowDefinitions="Auto,*">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="Response Body" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Content="Open in editor"
+                        Command="{Binding App.OpenResponseBodyInExternalEditorCommand}" />
+            </Grid>
+            <Border Grid.Row="1" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4">
+                <aedit:TextEditor x:Name="ResponseBodyEditor"
+                                  ShowLineNumbers="True"
+                                  WordWrap="True"
+                                  IsReadOnly="True"
+                                  FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                  FontSize="13"
+                                  MinHeight="200" />
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

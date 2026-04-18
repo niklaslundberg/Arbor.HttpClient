@@ -1,0 +1,16 @@
+using Arbor.HttpClient.Core.Models;
+
+namespace Arbor.HttpClient.Core.Abstractions;
+
+public interface IEnvironmentRepository
+{
+    Task InitializeAsync(CancellationToken cancellationToken = default);
+
+    Task<int> SaveAsync(string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default);
+
+    Task UpdateAsync(int environmentId, string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RequestEnvironment>> GetAllAsync(CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(int environmentId, CancellationToken cancellationToken = default);
+}

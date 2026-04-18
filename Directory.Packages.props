@@ -1,0 +1,44 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <!-- Avalonia -->
+  <ItemGroup>
+    <PackageVersion Include="Avalonia" Version="12.0.1" />
+    <PackageVersion Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.0.1" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.0.1" />
+    <PackageVersion Include="Avalonia.Headless" Version="12.0.1" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.0.1" />
+    <PackageVersion Include="AvaloniaEdit.TextMate" Version="12.0.0" />
+    <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.1" />
+    <PackageVersion Include="TextMateSharp.Grammars" Version="2.0.3" />
+  </ItemGroup>
+  <!-- Dock -->
+  <ItemGroup>
+    <PackageVersion Include="Dock.Avalonia" Version="12.0.0.1" />
+    <PackageVersion Include="Dock.Avalonia.Themes.Fluent" Version="12.0.0.1" />
+    <PackageVersion Include="Dock.Model.Mvvm" Version="12.0.0.1" />
+  </ItemGroup>
+  <!-- MVVM -->
+  <ItemGroup>
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.1" />
+  </ItemGroup>
+  <!-- Logging -->
+  <ItemGroup>
+    <PackageVersion Include="Serilog" Version="4.3.1" />
+  </ItemGroup>
+  <!-- Storage -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.OpenApi.Readers" Version="1.6.29" />
+  </ItemGroup>
+  <!-- Testing -->
+  <ItemGroup>
+    <PackageVersion Include="AwesomeAssertions" Version="9.4.0" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,123 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Arbor.HttpClient.Desktop.ViewModels"
+             xmlns:conv="using:Arbor.HttpClient.Desktop.Converters"
+             xmlns:aedit="using:AvaloniaEdit"
+             x:Class="Arbor.HttpClient.Desktop.Views.RequestView"
+             x:CompileBindings="False">
+
+    <UserControl.Resources>
+        <conv:MethodToColorConverter x:Key="MethodToColorConverter" />
+    </UserControl.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
+
+        <!-- URL bar -->
+        <Grid ColumnDefinitions="120,Auto,*,120" ColumnSpacing="8">
+            <TextBox Grid.Column="0" PlaceholderText="Request name"
+                     Text="{Binding App.RequestName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <ComboBox Grid.Column="1" MinWidth="100"
+                      ItemsSource="{Binding App.Methods}"
+                      SelectedItem="{Binding App.SelectedMethod, Mode=TwoWay}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}"
+                                   Foreground="{Binding Converter={StaticResource MethodToColorConverter}}"
+                                   FontWeight="SemiBold" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBox Grid.Column="2"
+                     PlaceholderText="https://api.example.com or {{baseUrl}}/path"
+                     Text="{Binding App.RequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <Button x:Name="SendButton" Grid.Column="3" Content="Send"
+                    Command="{Binding App.SendRequestCommand}" />
+        </Grid>
+
+        <TextBlock Grid.Row="1" Text="{Binding App.ErrorMessage}" Foreground="Tomato" />
+
+        <!-- Headers -->
+        <Border Grid.Row="2" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4" Padding="8,6">
+            <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
+                <Grid ColumnDefinitions="*,Auto,Auto">
+                    <TextBlock Text="Headers" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="{Binding App.RequestHeadersPreviewLabel}"
+                            Command="{Binding App.ToggleRequestHeadersPreviewCommand}"
+                            Margin="4,0" Padding="6,2" FontSize="12" />
+                    <Button Grid.Column="2" Content="+ Add Header"
+                            Command="{Binding App.AddHeaderCommand}" />
+                </Grid>
+
+                <!-- Content-Type special row -->
+                <Grid Grid.Row="1" ColumnDefinitions="110,*,*" ColumnSpacing="6">
+                    <TextBlock Text="Content-Type" VerticalAlignment="Center" Opacity="0.8" />
+                    <ComboBox Grid.Column="1"
+                              ItemsSource="{Binding App.ContentTypeOptions}"
+                              SelectedItem="{Binding App.SelectedContentTypeOption, Mode=TwoWay}"
+                              HorizontalAlignment="Stretch" />
+                    <TextBox Grid.Column="2"
+                             PlaceholderText="e.g. application/vnd.api+json"
+                             Text="{Binding App.CustomContentType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             IsVisible="{Binding App.IsCustomContentType}" />
+                </Grid>
+
+                <!-- Additional headers list -->
+                <ItemsControl Grid.Row="2" ItemsSource="{Binding App.RequestHeaders}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:RequestHeaderViewModel">
+                            <Grid ColumnDefinitions="Auto,*,*,Auto" ColumnSpacing="6" Margin="0,2,0,0">
+                                <CheckBox Grid.Column="0"
+                                          IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                          VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" PlaceholderText="Name"
+                                         Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBox Grid.Column="2" PlaceholderText="Value"
+                                         Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <Button Grid.Column="3" Content="✕"
+                                        Command="{Binding $parent[UserControl].DataContext.RemoveHeaderCommand}"
+                                        CommandParameter="{Binding}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+        </Border>
+
+        <!-- Request Headers Preview (collapsible) -->
+        <Border Grid.Row="3"
+                IsVisible="{Binding App.IsRequestHeadersPreviewVisible}"
+                Background="#0D1B2A" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4"
+                Padding="8,6">
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
+                <TextBlock Text="Request headers (as sent)"
+                           FontWeight="SemiBold" FontSize="12" Opacity="0.7" />
+                <ItemsControl Grid.Row="1" ItemsSource="{Binding App.RequestHeadersPreview}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}"
+                                       FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                       FontSize="12" Opacity="0.9" Margin="0,1,0,0" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+        </Border>
+
+        <!-- Request Body -->
+        <Grid Grid.Row="4" RowDefinitions="Auto,*">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="Request Body" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Content="Open in editor"
+                        Command="{Binding App.OpenRequestBodyInExternalEditorCommand}" />
+            </Grid>
+            <Border Grid.Row="1" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4">
+                <aedit:TextEditor x:Name="RequestBodyEditor"
+                                  ShowLineNumbers="True"
+                                  WordWrap="True"
+                                  FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                  FontSize="13"
+                                  MinHeight="150" />
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
