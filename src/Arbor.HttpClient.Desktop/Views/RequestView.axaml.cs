@@ -12,12 +12,16 @@ namespace Arbor.HttpClient.Desktop.Views;
 public partial class RequestView : UserControl
 {
     private TextEditor? _requestBodyEditor;
+    private TextEditor? _requestUrlEditor;
     private TextEditor? _requestPreviewEditor;
     private MainWindowViewModel? _appVm;
     private RegistryOptions? _registryOptions;
     private TextMate.Installation? _requestTextMate;
     private EventHandler<TextMate.Installation>? _appliedThemeHandler;
     private string _requestGrammarScope = string.Empty;
+    private readonly VariableTokenColorizer _urlVariableColorizer = new();
+    private readonly VariableTokenColorizer _bodyVariableColorizer = new();
+    private readonly VariableTokenColorizer _previewVariableColorizer = new();
 
     public RequestView()
     {
@@ -40,6 +44,10 @@ public partial class RequestView : UserControl
         {
             _requestBodyEditor.Document.TextChanged -= OnRequestEditorTextChanged;
         }
+        if (_requestUrlEditor is not null)
+        {
+            _requestUrlEditor.Document.TextChanged -= OnRequestUrlEditorTextChanged;
+        }
 
         if (_requestTextMate is not null)
         {
@@ -53,6 +61,7 @@ public partial class RequestView : UserControl
 
         _appVm = GetAppVm();
         _requestBodyEditor = this.FindControl<TextEditor>("RequestBodyEditor");
+        _requestUrlEditor = this.FindControl<TextEditor>("RequestUrlEditor");
         _requestPreviewEditor = this.FindControl<TextEditor>("RequestPreviewEditor");
 
         _registryOptions ??= new RegistryOptions(ThemeName.DarkPlus);
@@ -67,6 +76,30 @@ public partial class RequestView : UserControl
             // once this view is attached to the visual tree and the effective theme is resolved.
             _requestTextMate.AppliedTheme += _appliedThemeHandler;
             _requestBodyEditor.Document.TextChanged += OnRequestEditorTextChanged;
+            if (!_requestBodyEditor.TextArea.TextView.LineTransformers.Contains(_bodyVariableColorizer))
+            {
+                _requestBodyEditor.TextArea.TextView.LineTransformers.Add(_bodyVariableColorizer);
+            }
+        }
+
+        if (_requestUrlEditor is not null)
+        {
+            _requestUrlEditor.TextArea.Background = Brushes.Transparent;
+            _requestUrlEditor.Options.EnableHyperlinks = false;
+            _requestUrlEditor.Options.EnableEmailHyperlinks = false;
+            _requestUrlEditor.Document.TextChanged += OnRequestUrlEditorTextChanged;
+            if (!_requestUrlEditor.TextArea.TextView.LineTransformers.Contains(_urlVariableColorizer))
+            {
+                _requestUrlEditor.TextArea.TextView.LineTransformers.Add(_urlVariableColorizer);
+            }
+        }
+
+        if (_requestPreviewEditor is not null)
+        {
+            if (!_requestPreviewEditor.TextArea.TextView.LineTransformers.Contains(_previewVariableColorizer))
+            {
+                _requestPreviewEditor.TextArea.TextView.LineTransformers.Add(_previewVariableColorizer);
+            }
         }
 
         if (_appVm is not null)
@@ -80,12 +113,20 @@ public partial class RequestView : UserControl
                 ApplyGrammarForContent(_requestTextMate, _appVm.RequestBody, ref _requestGrammarScope);
             }
 
+            if (_requestUrlEditor is not null)
+            {
+                ApplyEditorFont(_requestUrlEditor, _appVm);
+                _requestUrlEditor.Text = _appVm.RequestUrl;
+            }
+
             if (_requestPreviewEditor is not null)
             {
                 ApplyEditorFont(_requestPreviewEditor, _appVm);
                 _requestPreviewEditor.Text = _appVm.RequestPreview;
             }
         }
+
+        ApplyVariableColorTheme();
     }
 
     private void OnRequestEditorTextChanged(object? sender, System.EventArgs e)
@@ -99,6 +140,15 @@ public partial class RequestView : UserControl
         ApplyGrammarForContent(_requestTextMate, _requestBodyEditor?.Text ?? string.Empty, ref _requestGrammarScope);
     }
 
+    private void OnRequestUrlEditorTextChanged(object? sender, EventArgs e)
+    {
+        if (_appVm is not null && _requestUrlEditor is not null
+            && _appVm.RequestUrl != _requestUrlEditor.Text)
+        {
+            _appVm.RequestUrl = _requestUrlEditor.Text;
+        }
+    }
+
     private void OnAppVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MainWindowViewModel.RequestBody)
@@ -108,6 +158,14 @@ public partial class RequestView : UserControl
         {
             _requestBodyEditor.Text = _appVm.RequestBody;
             ApplyGrammarForContent(_requestTextMate, _appVm.RequestBody, ref _requestGrammarScope);
+        }
+
+        if (e.PropertyName == nameof(MainWindowViewModel.RequestUrl)
+            && _requestUrlEditor is not null
+            && _appVm is not null
+            && _requestUrlEditor.Text != _appVm.RequestUrl)
+        {
+            _requestUrlEditor.Text = _appVm.RequestUrl;
         }
 
         if (e.PropertyName == nameof(MainWindowViewModel.RequestPreview)
@@ -128,6 +186,11 @@ public partial class RequestView : UserControl
              || e.PropertyName == nameof(MainWindowViewModel.UiFontSize))
             && _appVm is not null)
         {
+            if (_requestUrlEditor is not null)
+            {
+                ApplyEditorFont(_requestUrlEditor, _appVm);
+            }
+
             if (_requestBodyEditor is not null)
             {
                 ApplyEditorFont(_requestBodyEditor, _appVm);
@@ -140,8 +203,11 @@ public partial class RequestView : UserControl
         }
     }
 
-    private void OnActualThemeVariantChanged(object? sender, EventArgs e) =>
+    private void OnActualThemeVariantChanged(object? sender, EventArgs e)
+    {
         ApplyTextMateTheme();
+        ApplyVariableColorTheme();
+    }
 
     protected override void OnUnloaded(Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -157,6 +223,12 @@ public partial class RequestView : UserControl
         {
             _requestBodyEditor.Document.TextChanged -= OnRequestEditorTextChanged;
             _requestBodyEditor = null;
+        }
+
+        if (_requestUrlEditor is not null)
+        {
+            _requestUrlEditor.Document.TextChanged -= OnRequestUrlEditorTextChanged;
+            _requestUrlEditor = null;
         }
 
         _requestPreviewEditor = null;
@@ -260,6 +332,32 @@ public partial class RequestView : UserControl
 
         brush = new SolidColorBrush(color);
         return true;
+    }
+
+    private void ApplyVariableColorTheme()
+    {
+        var theme = ActualThemeVariant;
+        IBrush bracketBrush = Brushes.Orange;
+        if (Application.Current?.TryGetResource("VariableBracketBrush", theme, out var bracketResource) == true &&
+            bracketResource is IBrush b)
+        {
+            bracketBrush = b;
+        }
+
+        IBrush nameBrush = Brushes.MediumPurple;
+        if (Application.Current?.TryGetResource("VariableNameBrush", theme, out var nameResource) == true &&
+            nameResource is IBrush n)
+        {
+            nameBrush = n;
+        }
+
+        _urlVariableColorizer.SetBrushes(bracketBrush, nameBrush);
+        _bodyVariableColorizer.SetBrushes(bracketBrush, nameBrush);
+        _previewVariableColorizer.SetBrushes(bracketBrush, nameBrush);
+
+        _requestUrlEditor?.TextArea.TextView.Redraw();
+        _requestBodyEditor?.TextArea.TextView.Redraw();
+        _requestPreviewEditor?.TextArea.TextView.Redraw();
     }
 
     private void ApplyTextMateTheme()

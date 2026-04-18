@@ -380,6 +380,89 @@ public class MainWindowUiTests
     }
 
     [Fact]
+    public async Task SendRequestAndPreview_ShouldResolveVariables_InUrlHeadersAndBody()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            Uri? capturedUri = null;
+            string? capturedHeaderValue = null;
+            string? capturedBody = null;
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(request =>
+            {
+                capturedUri = request.RequestUri;
+                if (request.Headers.TryGetValues("X-Tenant", out var headerValues))
+                {
+                    capturedHeaderValue = headerValues.SingleOrDefault();
+                }
+
+                capturedBody = request.Content is null
+                    ? string.Empty
+                    : request.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    ReasonPhrase = "OK",
+                    Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
+                };
+            });
+
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel)
+            {
+                RequestName = "variable resolution test",
+                SelectedMethod = "POST",
+                RequestUrl = "https://{{host}}/api?{{queryKey}}={{queryValue}}",
+                RequestBody = "{\"token\":\"{{token}}\",\"env\":\"{{environment}}\"}"
+            };
+
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "example.com"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryKey", "search"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryValue", "term"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerValue", "blue"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "abc123"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("environment", "dev"));
+
+            viewModel.RequestHeaders.Add(new RequestHeaderViewModel
+            {
+                Name = "X-{{headerName}}",
+                Value = "{{headerValue}}",
+                IsEnabled = true
+            });
+
+            viewModel.RequestPreview.Should().Contain("POST https://example.com/api?search=term HTTP/");
+            viewModel.RequestPreview.Should().Contain("X-Tenant: blue");
+            viewModel.RequestPreview.Should().Contain("\"token\":\"abc123\"");
+            viewModel.RequestPreview.Should().Contain("\"env\":\"dev\"");
+
+            viewModel.SendRequestCommand.Execute(null);
+            await viewModel.SendRequestCommand.ExecutionTask!;
+
+            capturedUri.Should().NotBeNull();
+            capturedUri!.AbsoluteUri.Should().Be("https://example.com/api?search=term");
+            capturedHeaderValue.Should().Be("blue");
+            capturedBody.Should().Be("{\"token\":\"abc123\",\"env\":\"dev\"}");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task OptionsView_ShouldDisplayScheduledJobsPage_WithAutoStartAndIntervalOptions()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
@@ -567,6 +650,73 @@ public class MainWindowUiTests
             floatWin.Y.Should().BeApproximately(350, 0.001);
             floatWin.Width.Should().BeApproximately(500, 0.001);
             floatWin.Height.Should().BeApproximately(400, 0.001);
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task SaveNewEnvironment_ShouldAutoActivateItAndResolveVariablesInPreviewAndSend()
+    {
+        // Regression test: after saving a brand-new environment (ActiveEnvironment was null),
+        // SaveEnvironmentAsync must automatically set ActiveEnvironment to the created entry
+        // so that variable tokens in the URL/body/headers resolve immediately without the user
+        // having to manually select the environment from the dropdown.
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            Uri? capturedUri = null;
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(req =>
+            {
+                capturedUri = req.RequestUri;
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            });
+
+            var environmentRepository = new StoringInMemoryEnvironmentRepository();
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                environmentRepository,
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel)
+            {
+                RequestUrl = "https://{{host}}/api",
+                SelectedMethod = "GET"
+            };
+
+            // Simulate "+ New Environment" → fills in name and a variable
+            viewModel.NewEnvironmentCommand.Execute(null);
+            viewModel.NewEnvironmentName = "myenv";
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "example.com"));
+
+            // Save – this is the path where ActiveEnvironment was previously never restored
+            await viewModel.SaveEnvironmentCommand.ExecuteAsync(null);
+
+            // After save, ActiveEnvironment should be auto-selected to the newly created env
+            viewModel.ActiveEnvironment.Should().NotBeNull("SaveEnvironmentAsync must auto-select the new environment");
+            viewModel.ActiveEnvironment!.Name.Should().Be("myenv");
+
+            // Variables should now be reflected in the preview
+            viewModel.RequestPreview.Should().Contain("https://example.com/api",
+                "{{host}} should be resolved to 'example.com' in the preview");
+
+            // And the actual request should also resolve variables
+            viewModel.SendRequestCommand.Execute(null);
+            await viewModel.SendRequestCommand.ExecutionTask!;
+
+            capturedUri.Should().NotBeNull();
+            capturedUri!.AbsoluteUri.Should().Be("https://example.com/api",
+                "{{host}} must be resolved to 'example.com' when the request is sent");
 
             return true;
         }, CancellationToken.None);
@@ -857,6 +1007,37 @@ public class MainWindowUiTests
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             => Task.FromResult(send(request));
+    }
+
+    private sealed class StoringInMemoryEnvironmentRepository : IEnvironmentRepository
+    {
+        private readonly List<RequestEnvironment> _items = [];
+        private int _nextId = 1;
+
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<int> SaveAsync(string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default)
+        {
+            var id = _nextId++;
+            _items.Add(new RequestEnvironment(id, name, variables.ToList()));
+            return Task.FromResult(id);
+        }
+
+        public Task UpdateAsync(int environmentId, string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default)
+        {
+            var idx = _items.FindIndex(e => e.Id == environmentId);
+            if (idx >= 0) _items[idx] = new RequestEnvironment(environmentId, name, variables.ToList());
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<RequestEnvironment>> GetAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<RequestEnvironment>>(_items.ToList());
+
+        public Task DeleteAsync(int environmentId, CancellationToken cancellationToken = default)
+        {
+            _items.RemoveAll(e => e.Id == environmentId);
+            return Task.CompletedTask;
+        }
     }
 
     private static T? FindDockById<T>(IDockable dockable, string id) where T : class, IDockable

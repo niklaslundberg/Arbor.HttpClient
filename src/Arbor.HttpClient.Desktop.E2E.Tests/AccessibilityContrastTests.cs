@@ -35,6 +35,14 @@ public class AccessibilityContrastTests
     private const string DarkMethodFallback = "#F5F5F5";
     private const string DarkError = "#FF6347";
 
+    // ─── Dark-theme variable token colors ────────────────────────────────────
+
+    // VariableBracketBrush (amber): same value as MethodPutBrush – already verified above.
+    private const string DarkVariableBracket = "#FFB74D";
+
+    // VariableNameBrush (violet): same value as MethodPatchBrush – already verified above.
+    private const string DarkVariableName = "#CE93D8";
+
     // ─── Light-theme backgrounds ─────────────────────────────────────────────
 
     private const string LightSurface = "#FFFFFF";
@@ -59,6 +67,14 @@ public class AccessibilityContrastTests
     private const string LightMethodFallback = "#1F2328";
     private const string LightError = "#B42318";
 
+    // ─── Light-theme variable token colors ───────────────────────────────────
+
+    // VariableBracketBrush (amber): same value as MethodPutBrush – already verified above.
+    private const string LightVariableBracket = "#875F09";
+
+    // VariableNameBrush (violet): same value as MethodPatchBrush – already verified above.
+    private const string LightVariableName = "#744DA9";
+
     // WCAG AA minimum for normal text (≥ 4.5:1).
     // Method labels are bold, so 3:1 (large-text AA) would suffice, but 4.5:1 is used for safety.
     private const double MinContrastRatio = 4.5;
@@ -81,6 +97,10 @@ public class AccessibilityContrastTests
     [InlineData(DarkError, DarkSurface, "Error / dark surface")]
     [InlineData(DarkError, DarkPanel, "Error / dark panel")]
     [InlineData(DarkDefaultText, DarkSecondaryPanel, "Default text / dark secondary panel")]
+    [InlineData(DarkVariableBracket, DarkSurface, "Variable bracket / dark surface")]
+    [InlineData(DarkVariableBracket, DarkPanel, "Variable bracket / dark panel")]
+    [InlineData(DarkVariableName, DarkSurface, "Variable name / dark surface")]
+    [InlineData(DarkVariableName, DarkPanel, "Variable name / dark panel")]
     public void DarkTheme_ColorPair_MeetsWcagAA(string foreground, string background, string label)
     {
         var ratio = ContrastRatio(foreground, background);
@@ -106,6 +126,10 @@ public class AccessibilityContrastTests
     [InlineData(LightError, LightSurface, "Error / light surface")]
     [InlineData(LightError, LightPanel, "Error / light panel")]
     [InlineData(LightDefaultText, LightSecondaryPanel, "Default text / light secondary panel")]
+    [InlineData(LightVariableBracket, LightSurface, "Variable bracket / light surface")]
+    [InlineData(LightVariableBracket, LightPanel, "Variable bracket / light panel")]
+    [InlineData(LightVariableName, LightSurface, "Variable name / light surface")]
+    [InlineData(LightVariableName, LightPanel, "Variable name / light panel")]
     public void LightTheme_ColorPair_MeetsWcagAA(string foreground, string background, string label)
     {
         var ratio = ContrastRatio(foreground, background);

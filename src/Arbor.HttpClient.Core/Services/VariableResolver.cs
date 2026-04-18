@@ -9,7 +9,7 @@ public sealed class VariableResolver
 
     public string Resolve(string input, IReadOnlyList<EnvironmentVariable> variables)
     {
-        if (string.IsNullOrEmpty(input) || variables.Count == 0)
+        if (string.IsNullOrEmpty(input))
         {
             return input;
         }
@@ -25,7 +25,7 @@ public sealed class VariableResolver
                 }
             }
 
-            return match.Value;
+            return string.Empty;
         });
     }
 }

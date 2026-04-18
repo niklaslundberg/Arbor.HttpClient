@@ -19,6 +19,7 @@ using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Desktop.Models;
 using Arbor.HttpClient.Desktop.Services;
 using Avalonia;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -331,6 +332,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     partial void OnUiFontSizeTextChanged(string value) =>
         OnPropertyChanged(nameof(UiFontSize));
 
+    partial void OnUiFontFamilyChanged(string value)
+    {
+        if (Application.Current is not null)
+        {
+            Application.Current.Resources["AppFontFamily"] = new FontFamily(value);
+        }
+    }
+
     partial void OnEnableHttpDiagnosticsChanged(bool value) =>
         _debugLogger.Information("HTTP diagnostics enabled changed to {IsEnabled}", value);
 
@@ -410,6 +419,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         RequestHeaders.CollectionChanged += OnRequestHeadersCollectionChanged;
         RequestQueryParameters.CollectionChanged += OnRequestQueryParametersCollectionChanged;
+        ActiveEnvironmentVariables.CollectionChanged += OnActiveEnvironmentVariablesCollectionChanged;
 
         SendRequestCommand = new AsyncRelayCommand(SendRequestAsync);
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
@@ -523,6 +533,30 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         SyncRequestUrlFromQueryParameters();
         RefreshRequestPreview();
     }
+
+    private void OnActiveEnvironmentVariablesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems is not null)
+        {
+            foreach (EnvironmentVariableViewModel variable in e.NewItems)
+            {
+                variable.PropertyChanged += OnActiveEnvironmentVariablePropertyChanged;
+            }
+        }
+
+        if (e.OldItems is not null)
+        {
+            foreach (EnvironmentVariableViewModel variable in e.OldItems)
+            {
+                variable.PropertyChanged -= OnActiveEnvironmentVariablePropertyChanged;
+            }
+        }
+
+        RefreshRequestPreview();
+    }
+
+    private void OnActiveEnvironmentVariablePropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        RefreshRequestPreview();
 
     private void UpdateRequestHeadersPreview()
     {
@@ -718,7 +752,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void RefreshRequestPreview()
     {
-        var variables = ActiveEnvironment?.Variables ?? [];
+        var variables = GetResolvedVariables();
         var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
         var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
 
@@ -750,6 +784,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         RequestPreview = builder.ToString();
     }
+
+    private List<EnvironmentVariable> GetResolvedVariables() =>
+        ActiveEnvironmentVariables
+            .Where(v => !string.IsNullOrWhiteSpace(v.Name))
+            .Select(v => new EnvironmentVariable(v.Name, v.Value))
+            .ToList();
 
     private static (string Prefix, string Query, string Fragment) SplitUrl(string url)
     {
@@ -1117,7 +1157,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         SelectedMethod = item.Method;
 
         var baseUrl = ActiveEnvironment is not null
-            ? _variableResolver.Resolve(SelectedCollection?.BaseUrl ?? string.Empty, ActiveEnvironment.Variables)
+            ? _variableResolver.Resolve(SelectedCollection?.BaseUrl ?? string.Empty, GetResolvedVariables())
             : (SelectedCollection?.BaseUrl ?? string.Empty);
 
         RequestUrl = baseUrl.TrimEnd('/') + item.Path;
@@ -1327,6 +1367,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             .Select(v => new EnvironmentVariable(v.Name, v.Value))
             .ToList();
 
+        int? newEnvId = null;
         if (ActiveEnvironment is not null)
         {
             await _environmentRepository.UpdateAsync(ActiveEnvironment.Id, NewEnvironmentName, variables);
@@ -1334,11 +1375,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         else
         {
-            await _environmentRepository.SaveAsync(NewEnvironmentName, variables);
+            newEnvId = await _environmentRepository.SaveAsync(NewEnvironmentName, variables);
             _debugLogger.Information("Created environment {EnvironmentName}", NewEnvironmentName);
         }
 
         await LoadEnvironmentsAsync();
+
+        if (newEnvId.HasValue)
+        {
+            ActiveEnvironment = Environments.FirstOrDefault(e => e.Id == newEnvId.Value);
+        }
+
         IsEnvironmentPanelVisible = false;
     }
 
@@ -1933,13 +1980,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             ErrorMessage = string.Empty;
 
-            var variables = ActiveEnvironment?.Variables ?? [];
+            var variables = GetResolvedVariables();
             var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
             var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
 
             var headers = RequestHeaders
                 .Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name))
-                .Select(h => new RequestHeader(h.Name, _variableResolver.Resolve(h.Value, variables)))
+                .Select(h => new RequestHeader(
+                    _variableResolver.Resolve(h.Name, variables),
+                    _variableResolver.Resolve(h.Value, variables)))
                 .ToList();
 
             var effectiveContentType = ResolveContentType(resolvedBody);
@@ -2004,6 +2053,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var all = await _environmentRepository.GetAllAsync(cancellationToken);
 
         var previousId = ActiveEnvironment?.Id;
+
+        // Explicitly null out ActiveEnvironment before clearing the collection so that
+        // the ComboBox TwoWay binding cannot write null back after we restore below.
+        ActiveEnvironment = null;
+
         Environments.Clear();
         foreach (var e in all)
         {
