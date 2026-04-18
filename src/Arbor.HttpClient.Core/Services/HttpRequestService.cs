@@ -1,5 +1,11 @@
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
+using System.Diagnostics;
+using System.Net;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
 namespace Arbor.HttpClient.Core.Services;
@@ -10,10 +16,19 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
     private readonly IRequestHistoryRepository _requestHistoryRepository = requestHistoryRepository;
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private Func<global::System.Net.Http.HttpClient>? _httpClientFactory;
+    private Action<HttpRequestDiagnostics>? _diagnosticsObserver;
+    private bool _httpDiagnosticsEnabled;
 
     public void SetHttpClientFactory(Func<global::System.Net.Http.HttpClient> httpClientFactory)
     {
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+    }
+
+    public void SetHttpDiagnosticsEnabled(bool enabled) => _httpDiagnosticsEnabled = enabled;
+
+    public void SetHttpDiagnosticsObserver(Action<HttpRequestDiagnostics> diagnosticsObserver)
+    {
+        _diagnosticsObserver = diagnosticsObserver ?? throw new ArgumentNullException(nameof(diagnosticsObserver));
     }
 
     public async Task<HttpResponseDetails> SendAsync(HttpRequestDraft requestDraft, CancellationToken cancellationToken = default)
@@ -65,8 +80,41 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
 
         var activeClient = _httpClientFactory?.Invoke() ?? _httpClient;
 
-        using var response = await activeClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        var totalStopwatch = Stopwatch.StartNew();
+        var requestedHttpVersion = requestMessage.Version.ToString(2);
+        var dnsLookupStopwatch = Stopwatch.StartNew();
+        var dnsLookupResult = "Skipped";
+        if (_httpDiagnosticsEnabled)
+        {
+            try
+            {
+                var addresses = await Dns.GetHostAddressesAsync(uri.DnsSafeHost, cancellationToken).ConfigureAwait(false);
+                dnsLookupResult = addresses.Length > 0
+                    ? string.Join(", ", addresses.Select(address => address.ToString()))
+                    : "No DNS addresses found";
+            }
+            catch (Exception exception)
+            {
+                dnsLookupResult = $"DNS lookup failed: {exception.Message}";
+            }
+        }
+        dnsLookupStopwatch.Stop();
+
+        var tlsStopwatch = Stopwatch.StartNew();
+        var tlsResult = uri.Scheme == Uri.UriSchemeHttps ? "TLS negotiation unavailable" : "Not applicable (HTTP)";
+        if (_httpDiagnosticsEnabled && uri.Scheme == Uri.UriSchemeHttps)
+        {
+            tlsResult = await ProbeTlsAsync(uri, cancellationToken).ConfigureAwait(false);
+        }
+        tlsStopwatch.Stop();
+
+        var headersStopwatch = Stopwatch.StartNew();
+        using var response = await activeClient.SendAsync(requestMessage, global::System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        headersStopwatch.Stop();
+
+        var bodyStopwatch = Stopwatch.StartNew();
         var responseBodyBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        bodyStopwatch.Stop();
         var charset = response.Content.Headers.ContentType?.CharSet;
         Encoding encoding;
         try
@@ -94,6 +142,47 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
                 _timeProvider.GetUtcNow()),
             cancellationToken).ConfigureAwait(false);
 
+        if (_httpDiagnosticsEnabled && _diagnosticsObserver is not null)
+        {
+            totalStopwatch.Stop();
+            _diagnosticsObserver.Invoke(new HttpRequestDiagnostics(
+                requestDraft.Method,
+                requestDraft.Url,
+                requestedHttpVersion,
+                response.Version.ToString(2),
+                dnsLookupResult,
+                tlsResult,
+                dnsLookupStopwatch.Elapsed.TotalMilliseconds,
+                tlsStopwatch.Elapsed.TotalMilliseconds,
+                headersStopwatch.Elapsed.TotalMilliseconds,
+                bodyStopwatch.Elapsed.TotalMilliseconds,
+                totalStopwatch.Elapsed.TotalMilliseconds));
+        }
+
         return new HttpResponseDetails((int)response.StatusCode, response.ReasonPhrase ?? string.Empty, responseBody, responseHeaders, responseBodyBytes);
+    }
+
+    private static async Task<string> ProbeTlsAsync(Uri uri, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var tcpClient = new TcpClient();
+            var port = uri.Port > 0 ? uri.Port : 443;
+            await tcpClient.ConnectAsync(uri.Host, port, cancellationToken).ConfigureAwait(false);
+            using var networkStream = tcpClient.GetStream();
+            using var sslStream = new SslStream(networkStream, false);
+            var sslOptions = new SslClientAuthenticationOptions
+            {
+                TargetHost = uri.Host,
+                EnabledSslProtocols = SslProtocols.None,
+                CertificateRevocationCheckMode = X509RevocationMode.NoCheck
+            };
+            await sslStream.AuthenticateAsClientAsync(sslOptions, cancellationToken).ConfigureAwait(false);
+            return sslStream.SslProtocol.ToString();
+        }
+        catch (Exception exception)
+        {
+            return $"TLS probe failed: {exception.Message}";
+        }
     }
 }

@@ -36,7 +36,8 @@ public sealed class InMemorySink : ILogEventSink, IDisposable
         var entry = new LogEntry(
             logEvent.Timestamp,
             logEvent.Level.ToString(),
-            message);
+            message,
+            GetTab(logEvent));
 
         lock (_lock)
         {
@@ -54,5 +55,17 @@ public sealed class InMemorySink : ILogEventSink, IDisposable
     public void Dispose()
     {
         // Nothing to release
+    }
+
+    private static string GetTab(LogEvent logEvent)
+    {
+        if (logEvent.Properties.TryGetValue("LogTab", out var tabProperty) &&
+            tabProperty is ScalarValue { Value: string tabValue } &&
+            !string.IsNullOrWhiteSpace(tabValue))
+        {
+            return tabValue;
+        }
+
+        return LogTab.Debug;
     }
 }

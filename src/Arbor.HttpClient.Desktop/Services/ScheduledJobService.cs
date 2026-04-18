@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
+using Arbor.HttpClient.Desktop.Logging;
 using Serilog;
 
 namespace Arbor.HttpClient.Desktop.Services;
@@ -20,7 +21,7 @@ public sealed class ScheduledJobService : IDisposable
     public ScheduledJobService(HttpRequestService httpRequestService, ILogger logger)
     {
         _httpRequestService = httpRequestService;
-        _logger = logger.ForContext<ScheduledJobService>();
+        _logger = logger.ForContext<ScheduledJobService>().ForContext("LogTab", LogTab.ScheduledLive);
     }
 
     public bool IsRunning(int jobId) => _handles.ContainsKey(jobId);

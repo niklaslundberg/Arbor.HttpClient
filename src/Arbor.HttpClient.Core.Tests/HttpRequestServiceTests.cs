@@ -157,6 +157,33 @@ public class HttpRequestServiceTests
         response.BodyBytes.Should().Equal(Encoding.UTF8.GetBytes("from-factory"));
     }
 
+    [Fact]
+    public async Task SendAsync_ShouldPublishHttpDiagnostics_WhenEnabled()
+    {
+        var handler = new StubMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Version = global::System.Net.HttpVersion.Version20,
+                ReasonPhrase = "OK",
+                Content = new StringContent("diagnostics")
+            });
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        HttpRequestDiagnostics? diagnostics = null;
+        service.SetHttpDiagnosticsObserver(entry => diagnostics = entry);
+        service.SetHttpDiagnosticsEnabled(true);
+
+        await service.SendAsync(new HttpRequestDraft("Diagnostics", "GET", "http://localhost:5000/test", null));
+
+        diagnostics.Should().NotBeNull();
+        diagnostics!.Method.Should().Be("GET");
+        diagnostics.Url.Should().Be("http://localhost:5000/test");
+        diagnostics.ResponseHttpVersion.Should().Be("2.0");
+        diagnostics.DnsLookup.Should().NotBeNullOrWhiteSpace();
+        diagnostics.ResponseHeadersMilliseconds.Should().BeGreaterThanOrEqualTo(0);
+        diagnostics.ResponseBodyMilliseconds.Should().BeGreaterThanOrEqualTo(0);
+        diagnostics.TotalMilliseconds.Should().BeGreaterThanOrEqualTo(0);
+    }
+
     private sealed class InMemoryRequestHistoryRepository : IRequestHistoryRepository
     {
         public List<SavedRequest> Items { get; } = [];

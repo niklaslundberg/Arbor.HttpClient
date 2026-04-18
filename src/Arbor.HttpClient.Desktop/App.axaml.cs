@@ -46,6 +46,7 @@ public partial class App : Application
                 .MinimumLevel.Information()
                 .WriteTo.Sink(inMemorySink)
                 .CreateLogger();
+            var diagnosticsLogger = Log.Logger.ForContext("LogTab", LogTab.HttpDiagnostics);
 
             // Repositories
             var historyRepository = new SqliteRequestHistoryRepository(dbPath);
@@ -66,6 +67,21 @@ public partial class App : Application
             // Services
             var httpClient = new global::System.Net.Http.HttpClient();
             var httpRequestService = new HttpRequestService(httpClient, historyRepository);
+            httpRequestService.SetHttpDiagnosticsObserver(diagnostics =>
+                diagnosticsLogger.Information(
+                    "HTTP diagnostics {Method} {Url} | Requested HTTP/{RequestedHttpVersion} | Response HTTP/{ResponseHttpVersion} | DNS ({DnsLookupMs:F1} ms): {DnsLookup} | TLS ({TlsMs:F1} ms): {TlsNegotiation} | Timings ms => headers: {HeadersMs:F1}, body: {BodyMs:F1}, total: {TotalMs:F1}",
+                    diagnostics.Method,
+                    diagnostics.Url,
+                    diagnostics.RequestedHttpVersion,
+                    diagnostics.ResponseHttpVersion,
+                    diagnostics.DnsLookupMilliseconds,
+                    diagnostics.DnsLookup,
+                    diagnostics.TlsNegotiationMilliseconds,
+                    diagnostics.TlsNegotiation,
+                    diagnostics.ResponseHeadersMilliseconds,
+                    diagnostics.ResponseBodyMilliseconds,
+                    diagnostics.TotalMilliseconds));
+            httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
             var configuredHttpClient = CreateHttpClient(currentOptions.Http);
             var retiredHttpClients = new List<global::System.Net.Http.HttpClient>();
             httpRequestService.SetHttpClientFactory(() => configuredHttpClient);
@@ -81,6 +97,7 @@ public partial class App : Application
                 scheduledJobRepository,
                 scheduledJobService,
                 logWindowViewModel,
+                Log.Logger,
                 optionsStore,
                 currentOptions,
                 updatedOptions =>
@@ -88,6 +105,7 @@ public partial class App : Application
                     currentOptions = updatedOptions;
                     retiredHttpClients.Add(configuredHttpClient);
                     configuredHttpClient = CreateHttpClient(currentOptions.Http);
+                    httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
                 });
 
             var window = new MainWindow
