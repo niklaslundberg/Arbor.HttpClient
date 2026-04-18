@@ -72,6 +72,17 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - `git commit --no-verify` bypasses the hook. Use it only in genuinely exceptional circumstances (e.g. committing a work-in-progress branch where tests are intentionally broken and you will fix them in the next commit). Never push to `main` with failing tests.
 - If a pre-existing test was already failing before your changes, note it explicitly in the PR description rather than silently ignoring it.
 
+## 6. Code Quality Requirements for New Work
+
+- Treat compiler warnings, analyzer warnings, and runtime errors as real defects. Do not ignore or suppress them unless there is a documented and justified reason.
+- Any new or changed production code must include test coverage. Prefer isolated unit tests first, then integration/E2E tests when unit tests are not sufficient.
+- Maintain reasonably high coverage in the changed area. If code can be tested, add tests.
+- For feature work, generate coverage reports and review them. CI must publish test and coverage outputs so they are visible during code review.
+- Profiling-oriented validation is required when changing request execution hot paths, scheduled/background job loops, data-processing loops, or code that introduces disposable/resource-heavy objects.
+- Treat code as a hot path when it runs on every request, for each item in a collection, or on a recurring timer. Profiling is optional for isolated admin/one-off flows.
+- Use JetBrains dotMemory Unit or equivalent tools (for example `dotnet-counters` or BenchmarkDotNet) to catch memory leaks, performance bottlenecks, or resource leaks. Attach profiling evidence in the PR when this requirement applies.
+- For UI-related changes, attach updated screenshots in the pull request so reviewers can verify visual impact.
+
 ---
 
 *Behavioral guidelines adapted from [vlad-ko/claude-wizard](https://github.com/vlad-ko/claude-wizard), used under the [MIT License](https://github.com/vlad-ko/claude-wizard/blob/main/LICENSE) (Copyright 2026 Vlad Ko).*

@@ -39,6 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # dotnet-trx uses this to post test result comments on pull requests.
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
@@ -49,6 +51,11 @@ jobs:
 
       - name: Restore
         run: dotnet restore Arbor.HttpClient.slnx
+
+      - name: Install test reporting tools
+        run: |
+          dotnet tool install -g dotnet-trx --version 1.0.1
+          dotnet tool install -g trxlog2html --version 1.0.4
 
       - name: Run unit tests
         run: >
@@ -56,14 +63,61 @@ jobs:
           --no-restore
           --configuration Release
           --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=unit-tests.trx"
+          --results-directory TestResults/unit
           --collect:"XPlat Code Coverage"
 
+      - name: Report unit test results
+        if: always()
+        run: trx --path TestResults/unit --verbosity normal
+
       - name: Upload coverage
+        if: ${{ !cancelled() }}
+        id: upload-unit-coverage
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-coverage
+          # Keep coverage optional so missing files do not hide unit test outcomes in CI.
           path: "**/coverage.cobertura.xml"
           if-no-files-found: ignore
+
+      - name: Generate unit test HTML report
+        if: always()
+        run: |
+          mkdir -p TestResults/unit/html
+          trxlog2html -i TestResults/unit/unit-tests.trx -o TestResults/unit/html/index.html
+
+      - name: Upload unit test results
+        if: always()
+        id: upload-unit-trx
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: TestResults/unit/*.trx
+          if-no-files-found: error
+
+      - name: Upload unit test HTML report
+        if: always()
+        id: upload-unit-html
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results-html
+          path: TestResults/unit/html/*.html
+          if-no-files-found: error
+
+      - name: Summarize unit test artifacts
+        if: always()
+        run: |
+          {
+            echo "## Unit Test Artifacts"
+            echo "| Report | Download |"
+            echo "| ------ | -------- |"
+            echo "| TRX results | [${{ steps.upload-unit-trx.outputs.artifact-url }}](${{ steps.upload-unit-trx.outputs.artifact-url }}) |"
+            echo "| HTML report | [${{ steps.upload-unit-html.outputs.artifact-url }}](${{ steps.upload-unit-html.outputs.artifact-url }}) |"
+            if [ -n "${{ steps.upload-unit-coverage.outputs.artifact-url }}" ]; then
+              echo "| Code coverage | [${{ steps.upload-unit-coverage.outputs.artifact-url }}](${{ steps.upload-unit-coverage.outputs.artifact-url }}) |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   e2e-tests:
     name: E2E Tests
@@ -71,6 +125,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # dotnet-trx uses this to post test result comments on pull requests.
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
@@ -82,9 +138,55 @@ jobs:
       - name: Restore
         run: dotnet restore Arbor.HttpClient.slnx
 
+      - name: Install test reporting tools
+        run: |
+          dotnet tool install -g dotnet-trx --version 1.0.1
+          dotnet tool install -g trxlog2html --version 1.0.4
+
       - name: Run E2E tests
         run: >
           dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj
           --no-restore
           --configuration Release
           --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=e2e-tests.trx"
+          --results-directory TestResults/e2e
+
+      - name: Report E2E test results
+        if: always()
+        run: trx --path TestResults/e2e --verbosity normal
+
+      - name: Generate E2E test HTML report
+        if: always()
+        run: |
+          mkdir -p TestResults/e2e/html
+          trxlog2html -i TestResults/e2e/e2e-tests.trx -o TestResults/e2e/html/index.html
+
+      - name: Upload E2E test results
+        if: always()
+        id: upload-e2e-trx
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: TestResults/e2e/*.trx
+          if-no-files-found: error
+
+      - name: Upload E2E test HTML report
+        if: always()
+        id: upload-e2e-html
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results-html
+          path: TestResults/e2e/html/*.html
+          if-no-files-found: error
+
+      - name: Summarize E2E test artifacts
+        if: always()
+        run: |
+          {
+            echo "## E2E Test Artifacts"
+            echo "| Report | Download |"
+            echo "| ------ | -------- |"
+            echo "| TRX results | [${{ steps.upload-e2e-trx.outputs.artifact-url }}](${{ steps.upload-e2e-trx.outputs.artifact-url }}) |"
+            echo "| HTML report | [${{ steps.upload-e2e-html.outputs.artifact-url }}](${{ steps.upload-e2e-html.outputs.artifact-url }}) |"
+          } >> "$GITHUB_STEP_SUMMARY"
