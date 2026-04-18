@@ -158,6 +158,37 @@ public class HttpRequestServiceTests
     }
 
     [Fact]
+    public async Task SendAsync_ShouldUseConfiguredHttpClientFactoryWithFollowRedirectOverride()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var fallbackHandler = new StubMessageHandler(_ => throw new InvalidOperationException("Fallback client should not be used"));
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(fallbackHandler), repository);
+
+        var followHandler = new StubMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent("follow")
+            });
+
+        var noFollowHandler = new StubMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent("no-follow")
+            });
+
+        service.SetHttpClientFactory(followRedirects =>
+            new global::System.Net.Http.HttpClient((followRedirects ?? true) ? followHandler : noFollowHandler));
+
+        var followResponse = await service.SendAsync(new HttpRequestDraft("Factory", "GET", "https://example.com", null, FollowRedirects: true));
+        var noFollowResponse = await service.SendAsync(new HttpRequestDraft("Factory", "GET", "https://example.com", null, FollowRedirects: false));
+
+        followResponse.Body.Should().Be("follow");
+        noFollowResponse.Body.Should().Be("no-follow");
+    }
+
+    [Fact]
     public async Task SendAsync_ShouldPublishHttpDiagnostics_WhenEnabled()
     {
         var handler = new StubMessageHandler(_ =>

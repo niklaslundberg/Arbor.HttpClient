@@ -83,8 +83,17 @@ public partial class App : Application
                     diagnostics.TotalMilliseconds));
             httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
             var configuredHttpClient = CreateHttpClient(currentOptions.Http);
+            var inverseRedirectHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects);
             var retiredHttpClients = new List<global::System.Net.Http.HttpClient>();
-            httpRequestService.SetHttpClientFactory(() => configuredHttpClient);
+            httpRequestService.SetHttpClientFactory(followRedirectsOverride =>
+            {
+                if (followRedirectsOverride is null || followRedirectsOverride == currentOptions.Http.FollowRedirects)
+                {
+                    return configuredHttpClient;
+                }
+
+                return inverseRedirectHttpClient;
+            });
             var scheduledJobService = new ScheduledJobService(httpRequestService, Log.Logger);
 
             // ViewModels
@@ -104,7 +113,9 @@ public partial class App : Application
                 {
                     currentOptions = updatedOptions;
                     retiredHttpClients.Add(configuredHttpClient);
+                    retiredHttpClients.Add(inverseRedirectHttpClient);
                     configuredHttpClient = CreateHttpClient(currentOptions.Http);
+                    inverseRedirectHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects);
                     httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
                 });
 
@@ -154,7 +165,7 @@ public partial class App : Application
         }
     }
 
-    private static global::System.Net.Http.HttpClient CreateHttpClient(HttpOptions options)
+    private static global::System.Net.Http.HttpClient CreateHttpClient(HttpOptions options, bool? followRedirectsOverride = null)
     {
         // SslProtocols.Tls/Tls11 are obsolete symbols, so their numeric values are used explicitly
         // to support import/export compatibility for legacy protocol selections.
@@ -163,7 +174,7 @@ public partial class App : Application
 
         var handler = new SocketsHttpHandler
         {
-            AllowAutoRedirect = options.FollowRedirects,
+            AllowAutoRedirect = followRedirectsOverride ?? options.FollowRedirects,
             SslOptions = new SslClientAuthenticationOptions
             {
                 EnabledSslProtocols = options.TlsVersion switch

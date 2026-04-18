@@ -86,6 +86,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private string _requestBody = string.Empty;
 
     [ObservableProperty]
+    private bool _followRedirectsForRequest = true;
+
+    [ObservableProperty]
     private string _responseStatus = string.Empty;
 
     [ObservableProperty]
@@ -618,6 +621,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void ApplyOptions(ApplicationOptions options, bool updateCurrentRequestUrl = true)
     {
+        var previousDefaultFollowRedirects = _applicationOptions.Http.FollowRedirects;
         var previousDefaultUrl = _applicationOptions.Http.DefaultRequestUrl;
         _applicationOptions = options;
 
@@ -632,6 +636,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         UiFontSizeText = options.Appearance.FontSize.ToString("0.##", CultureInfo.InvariantCulture);
         AutoStartScheduledJobsOnLaunch = options.ScheduledJobs.AutoStartOnLaunch;
         DefaultScheduledJobIntervalSeconds = options.ScheduledJobs.DefaultIntervalSeconds;
+
+        if (FollowRedirectsForRequest == previousDefaultFollowRedirects)
+        {
+            FollowRedirectsForRequest = options.Http.FollowRedirects;
+        }
 
         if (updateCurrentRequestUrl || string.IsNullOrWhiteSpace(RequestUrl) || string.Equals(RequestUrl, previousDefaultUrl, StringComparison.Ordinal))
         {
@@ -978,7 +987,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         var vm = new ScheduledJobViewModel(_scheduledJobRepository, _scheduledJobService)
         {
-            IntervalSeconds = Math.Max(MinScheduledJobIntervalSeconds, DefaultScheduledJobIntervalSeconds)
+            IntervalSeconds = Math.Max(MinScheduledJobIntervalSeconds, DefaultScheduledJobIntervalSeconds),
+            FollowRedirects = FollowHttpRedirects
         };
         ScheduledJobs.Add(vm);
         LeftPanelTab = "ScheduledJobs";
@@ -2000,7 +2010,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _httpRequestsLogger.Information("Manual request started: {Method} {Url}", SelectedMethod, resolvedUrl);
 
             var response = await _httpRequestService.SendAsync(
-                new HttpRequestDraft(RequestName, SelectedMethod, resolvedUrl, resolvedBody, headers, ParseHttpVersion(SelectedHttpVersionOption)));
+                new HttpRequestDraft(
+                    RequestName,
+                    SelectedMethod,
+                    resolvedUrl,
+                    resolvedBody,
+                    headers,
+                    ParseHttpVersion(SelectedHttpVersionOption),
+                    FollowRedirectsForRequest));
 
             ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
             _lastResponseBodyBytes = response.BodyBytes ?? Array.Empty<byte>();
@@ -2077,7 +2094,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ScheduledJobs.Clear();
         foreach (var config in all)
         {
-            var vm = ScheduledJobViewModel.FromConfig(config, _scheduledJobRepository, _scheduledJobService);
+            var vm = ScheduledJobViewModel.FromConfig(config, _scheduledJobRepository, _scheduledJobService, FollowHttpRedirects);
             ScheduledJobs.Add(vm);
 
             if (AutoStartScheduledJobsOnLaunch && config.AutoStart && !_scheduledJobService.IsRunning(config.Id))

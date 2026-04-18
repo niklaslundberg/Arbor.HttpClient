@@ -33,6 +33,9 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     private bool _autoStart;
 
     [ObservableProperty]
+    private bool _followRedirects = true;
+
+    [ObservableProperty]
     private bool _isRunning;
 
     public IReadOnlyList<string> Methods { get; } = ["GET", "POST", "PUT", "PATCH", "DELETE"];
@@ -46,7 +49,8 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     public static ScheduledJobViewModel FromConfig(
         ScheduledJobConfig config,
         IScheduledJobRepository repository,
-        ScheduledJobService jobService)
+        ScheduledJobService jobService,
+        bool defaultFollowRedirects)
     {
         var vm = new ScheduledJobViewModel(repository, jobService)
         {
@@ -56,7 +60,8 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
             Url = config.Url,
             Body = config.Body ?? string.Empty,
             IntervalSeconds = config.IntervalSeconds,
-            AutoStart = config.AutoStart
+            AutoStart = config.AutoStart,
+            FollowRedirects = config.FollowRedirects ?? defaultFollowRedirects
         };
         vm.IsRunning = jobService.IsRunning(config.Id);
         return vm;
@@ -67,7 +72,8 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
             string.IsNullOrWhiteSpace(Body) ? null : Body,
             null, // headers not yet supported in the scheduled-job editor
             Math.Max(MainWindowViewModel.MinScheduledJobIntervalSeconds, IntervalSeconds),
-            AutoStart);
+            AutoStart,
+            FollowRedirects);
 
     [RelayCommand]
     private void Start()

@@ -16,12 +16,18 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
     private readonly IRequestHistoryRepository _requestHistoryRepository = requestHistoryRepository;
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private Func<global::System.Net.Http.HttpClient>? _httpClientFactory;
+    private Func<bool?, global::System.Net.Http.HttpClient>? _httpClientFactoryWithRedirectOverride;
     private Action<HttpRequestDiagnostics>? _diagnosticsObserver;
     private bool _httpDiagnosticsEnabled;
 
     public void SetHttpClientFactory(Func<global::System.Net.Http.HttpClient> httpClientFactory)
     {
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+    }
+
+    public void SetHttpClientFactory(Func<bool?, global::System.Net.Http.HttpClient> httpClientFactoryWithRedirectOverride)
+    {
+        _httpClientFactoryWithRedirectOverride = httpClientFactoryWithRedirectOverride ?? throw new ArgumentNullException(nameof(httpClientFactoryWithRedirectOverride));
     }
 
     public void SetHttpDiagnosticsEnabled(bool enabled) => _httpDiagnosticsEnabled = enabled;
@@ -78,7 +84,9 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
             }
         }
 
-        var activeClient = _httpClientFactory?.Invoke() ?? _httpClient;
+        var activeClient = _httpClientFactoryWithRedirectOverride?.Invoke(requestDraft.FollowRedirects)
+            ?? _httpClientFactory?.Invoke()
+            ?? _httpClient;
 
         var totalStopwatch = Stopwatch.StartNew();
         var requestedHttpVersion = requestMessage.Version.ToString(2);
