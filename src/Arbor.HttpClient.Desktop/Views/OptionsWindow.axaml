@@ -13,7 +13,7 @@
     <Grid RowDefinitions="*,Auto" Margin="12" RowSpacing="10">
         <TabControl>
             <TabItem Header="HTTP">
-                <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*" RowSpacing="8" ColumnDefinitions="220,*" ColumnSpacing="8">
+                <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="8" ColumnDefinitions="220,*" ColumnSpacing="8">
                     <TextBlock Text="HTTP version" VerticalAlignment="Center" />
                     <ComboBox Grid.Column="1"
                               ItemsSource="{Binding HttpVersionOptions}"
@@ -35,10 +35,19 @@
                     <TextBlock Grid.Row="4" Text="Default URL for new requests" VerticalAlignment="Center" />
                     <TextBox Grid.Row="4" Grid.Column="1"
                              Text="{Binding DefaultRequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                </Grid>
+            </TabItem>
 
-                    <TextBlock Grid.Row="5" Text="Auto-start scheduled jobs on launch" VerticalAlignment="Center" />
-                    <CheckBox Grid.Row="5" Grid.Column="1"
+            <TabItem Header="Scheduled Jobs">
+                <Grid Margin="8" RowDefinitions="Auto,Auto,*" RowSpacing="8" ColumnDefinitions="220,*,Auto" ColumnSpacing="8">
+                    <TextBlock Text="Auto-start scheduled jobs on launch" VerticalAlignment="Center" />
+                    <CheckBox Grid.Column="1" Grid.ColumnSpan="2"
                               IsChecked="{Binding AutoStartScheduledJobsOnLaunch, Mode=TwoWay}" />
+
+                    <TextBlock Grid.Row="1" Text="Default interval for new jobs" VerticalAlignment="Center" />
+                    <TextBox Grid.Row="1" Grid.Column="1"
+                             Text="{Binding DefaultScheduledJobIntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="s" VerticalAlignment="Center" />
                 </Grid>
             </TabItem>
 

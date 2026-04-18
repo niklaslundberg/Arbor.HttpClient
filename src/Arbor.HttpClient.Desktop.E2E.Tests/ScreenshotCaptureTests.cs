@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Skia;
+using Avalonia.VisualTree;
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
@@ -21,11 +22,11 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 public class ScreenshotCaptureTests
 {
     /// <summary>
-    /// Saves a screenshot of the Options window (HTTP tab) showing the new
-    /// "Auto-start scheduled jobs on launch" toggle to docs/screenshots/.
+    /// Saves a screenshot of the Options window (Scheduled Jobs tab) showing the
+    /// auto-start toggle and default interval option to docs/screenshots/.
     /// </summary>
     [Fact]
-    public async Task Capture_OptionsWindow_AutostartToggle()
+    public async Task Capture_OptionsWindow_ScheduledJobsTab()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
@@ -50,10 +51,18 @@ public class ScreenshotCaptureTests
 
             var window = new OptionsWindow { DataContext = viewModel };
             window.Show();
+
+            // Switch to the Scheduled Jobs tab
+            var tabControl = window.GetVisualDescendants().OfType<TabControl>().First();
+            var scheduledJobsTab = tabControl.Items
+                .OfType<TabItem>()
+                .First(ti => string.Equals(ti.Header?.ToString(), "Scheduled Jobs", StringComparison.Ordinal));
+            tabControl.SelectedItem = scheduledJobsTab;
+
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
 
             var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            var dest = Path.Combine(FindRepoRoot(), "docs", "screenshots", "options-window-autostart.png");
+            var dest = Path.Combine(FindRepoRoot(), "docs", "screenshots", "options-window-scheduled-jobs.png");
             screenshot?.Save(dest);
 
             window.Close();

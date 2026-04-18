@@ -155,6 +155,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private bool _autoStartScheduledJobsOnLaunch = true;
 
+    [ObservableProperty]
+    private int _defaultScheduledJobIntervalSeconds = 60;
+
     public double UiFontSize =>
         double.TryParse(UiFontSizeText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
             ? parsed
@@ -408,7 +411,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             },
             ScheduledJobs = new ScheduledJobsOptions
             {
-                AutoStartOnLaunch = AutoStartScheduledJobsOnLaunch
+                AutoStartOnLaunch = AutoStartScheduledJobsOnLaunch,
+                DefaultIntervalSeconds = Math.Max(1, DefaultScheduledJobIntervalSeconds)
             }
         };
 
@@ -430,6 +434,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         UiFontFamily = options.Appearance.FontFamily;
         UiFontSizeText = options.Appearance.FontSize.ToString("0.##", CultureInfo.InvariantCulture);
         AutoStartScheduledJobsOnLaunch = options.ScheduledJobs.AutoStartOnLaunch;
+        DefaultScheduledJobIntervalSeconds = options.ScheduledJobs.DefaultIntervalSeconds;
 
         if (updateCurrentRequestUrl || string.IsNullOrWhiteSpace(RequestUrl) || string.Equals(RequestUrl, previousDefaultUrl, StringComparison.Ordinal))
         {
@@ -464,7 +469,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void AddScheduledJob()
     {
-        ScheduledJobs.Add(new ScheduledJobViewModel(_scheduledJobRepository, _scheduledJobService));
+        var vm = new ScheduledJobViewModel(_scheduledJobRepository, _scheduledJobService)
+        {
+            IntervalSeconds = Math.Max(1, DefaultScheduledJobIntervalSeconds)
+        };
+        ScheduledJobs.Add(vm);
         LeftPanelTab = "ScheduledJobs";
     }
 

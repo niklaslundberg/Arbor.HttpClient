@@ -125,6 +125,11 @@ public sealed class ApplicationOptionsStore(string optionsPath)
         {
             throw new InvalidDataException("Font family is required.");
         }
+
+        if (options.ScheduledJobs.DefaultIntervalSeconds < 1)
+        {
+            throw new InvalidDataException("Default scheduled job interval must be at least 1 second.");
+        }
     }
 
     private static ApplicationOptions DeserializeAndValidate(string json)

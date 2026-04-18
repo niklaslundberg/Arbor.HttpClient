@@ -119,10 +119,11 @@
                                         </Grid>
                                         <TextBox Grid.Row="2" PlaceholderText="Body (optional)"
                                                  Text="{Binding Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                                            <TextBox PlaceholderText="Interval (seconds)"
+                                        <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                                            <TextBlock Text="Interval (s)" VerticalAlignment="Center" />
+                                            <TextBox Grid.Column="1" PlaceholderText="seconds"
                                                      Text="{Binding IntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                            <CheckBox Grid.Column="1" Content="Auto-start"
+                                            <CheckBox Grid.Column="2" Content="Auto-start"
                                                       IsChecked="{Binding AutoStart, Mode=TwoWay}" />
                                         </Grid>
                                         <Button Grid.Row="4" Content="Save"
