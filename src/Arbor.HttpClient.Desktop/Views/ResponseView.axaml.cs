@@ -105,13 +105,13 @@ public partial class ResponseView : UserControl
 
         var ext = !string.IsNullOrWhiteSpace(_appVm.ResponseContentType)
             ? MainWindowViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
-            : DetectExtension(_appVm.ResponseBody);
+            : MainWindowViewModel.DetectExtensionFromContent(_appVm.ResponseBody);
 
         ApplyGrammarForContent(_responseTextMate, _registryOptions, ext, ref _responseGrammarScope);
 
         var rawExt = !string.IsNullOrWhiteSpace(_appVm.ResponseContentType)
             ? MainWindowViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
-            : DetectExtension(_appVm.RawResponseBody);
+            : MainWindowViewModel.DetectExtensionFromContent(_appVm.RawResponseBody);
         ApplyGrammarForContent(_rawResponseTextMate, _registryOptions, rawExt, ref _rawResponseGrammarScope);
     }
 
@@ -261,22 +261,6 @@ public partial class ResponseView : UserControl
 
         brush = new SolidColorBrush(color);
         return true;
-    }
-
-    private static string DetectExtension(string content)
-    {
-        var trimmed = content.TrimStart();
-        if (trimmed.StartsWith('{') || trimmed.StartsWith('['))
-        {
-            return ".json";
-        }
-
-        if (trimmed.StartsWith('<'))
-        {
-            return ".xml";
-        }
-
-        return ".txt";
     }
 
     private void ApplyTextMateTheme()

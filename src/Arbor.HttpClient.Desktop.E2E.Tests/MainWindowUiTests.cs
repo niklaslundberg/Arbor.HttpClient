@@ -309,7 +309,7 @@ public class MainWindowUiTests
                 new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     ReasonPhrase = "OK",
-                    Content = new StringContent("{\"message\":\"hello\"}", Encoding.UTF8, "application/json; charset=utf-8")
+                    Content = new StringContent("{\"message\":\"hello\"}", Encoding.UTF8, "application/json")
                 });
 
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);

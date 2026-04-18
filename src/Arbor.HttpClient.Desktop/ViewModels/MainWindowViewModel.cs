@@ -55,7 +55,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private DockLayoutSnapshot? _defaultLayout;
     private bool _isUpdatingRequestUrlFromQueryParameters;
     private bool _isUpdatingQueryParametersFromRequestUrl;
-    private byte[] _lastResponseBodyBytes = [];
+    private byte[] _lastResponseBodyBytes = Array.Empty<byte>();
 
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
@@ -100,9 +100,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _isBinaryResponse;
 
     [ObservableProperty]
-    private bool _hasInterpretedResponse;
-
-    [ObservableProperty]
     private string _errorMessage = string.Empty;
 
     [ObservableProperty]
@@ -133,6 +130,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public const string DarkThemeOption = "Dark";
     public const string LightThemeOption = "Light";
     public const int MinScheduledJobIntervalSeconds = 1;
+    private const string VariableTokenStart = "{{";
     private const string OptionsPageBreadcrumbSeparator = " \u203a  ";
 
     public IReadOnlyList<string> ThemeOptions { get; } =
@@ -643,8 +641,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
                 RequestQueryParameters.Add(new RequestQueryParameterViewModel
                 {
-                    Key = rawKey,
-                    Value = rawValue,
+                    Key = DecodeQueryComponent(rawKey),
+                    Value = DecodeQueryComponent(rawValue),
                     IsEnabled = true
                 });
             }
@@ -666,7 +664,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         var query = string.Join("&", RequestQueryParameters
             .Where(param => param.IsEnabled && !string.IsNullOrWhiteSpace(param.Key))
-            .Select(param => $"{param.Key}={param.Value ?? string.Empty}"));
+            .Select(param => $"{EncodeQueryComponent(param.Key)}={EncodeQueryComponent(param.Value ?? string.Empty)}"));
 
         var updatedUrl = BuildUrl(prefix, query, fragment);
 
@@ -746,6 +744,33 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         return $"{prefix}{queryPart}{fragment}";
     }
 
+    private static string DecodeQueryComponent(string value)
+    {
+        if (string.IsNullOrEmpty(value) || !value.Contains('%'))
+        {
+            return value;
+        }
+
+        try
+        {
+            return Uri.UnescapeDataString(value);
+        }
+        catch
+        {
+            return value;
+        }
+    }
+
+    private static string EncodeQueryComponent(string value)
+    {
+        if (string.IsNullOrEmpty(value) || value.Contains(VariableTokenStart, StringComparison.Ordinal))
+        {
+            return value;
+        }
+
+        return Uri.EscapeDataString(value);
+    }
+
     private void UpdateResponsePresentation(string responseBody, IReadOnlyList<(string Name, string Value)> headers)
     {
         ResponseContentType = GetResponseContentType(headers);
@@ -755,7 +780,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var isHtml = IsHtmlMediaType(mediaType);
 
         IsBinaryResponse = IsBinaryMediaType(mediaType);
-        HasInterpretedResponse = !IsBinaryResponse;
         ResponseBodyTabLabel = isJson ? "JSON" : isXml ? "XML" : "Body";
 
         if (IsBinaryResponse)
@@ -820,11 +844,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                || mediaType.StartsWith("audio/", StringComparison.Ordinal)
                || mediaType.StartsWith("video/", StringComparison.Ordinal)
                || mediaType is "application/octet-stream"
-               || mediaType.Contains("zip", StringComparison.Ordinal)
-               || mediaType.Contains("pdf", StringComparison.Ordinal)
-               || mediaType.Contains("msword", StringComparison.Ordinal)
-               || mediaType.Contains("excel", StringComparison.Ordinal)
-               || mediaType.Contains("powerpoint", StringComparison.Ordinal);
+               || mediaType is "application/zip"
+               || mediaType is "application/pdf"
+               || mediaType is "application/msword"
+               || mediaType is "application/vnd.ms-excel"
+               || mediaType is "application/vnd.ms-powerpoint"
+               || mediaType.StartsWith("application/vnd.openxmlformats-officedocument.", StringComparison.Ordinal);
     }
 
     private static bool TryFormatJson(string input, out string formatted)
@@ -1455,7 +1480,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         var ext = !string.IsNullOrEmpty(ContentType)
             ? ExtensionFromContentType(ContentType)
-            : DetectExtension(content);
+            : DetectExtensionFromContent(content);
         var path = Path.Combine(Path.GetTempPath(), $"{prefix}-{Guid.NewGuid():N}{ext}");
         File.WriteAllText(path, content);
         _tempFiles.Add(path);
@@ -1484,7 +1509,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         };
     }
 
-    private static string DetectExtension(string content)
+    internal static string DetectExtensionFromContent(string content)
     {
         var trimmed = content.TrimStart();
         if (trimmed.StartsWith('{') || trimmed.StartsWith('['))
@@ -1879,7 +1904,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 new HttpRequestDraft(RequestName, SelectedMethod, resolvedUrl, resolvedBody, headers, ParseHttpVersion(SelectedHttpVersionOption)));
 
             ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
-            _lastResponseBodyBytes = response.BodyBytes ?? [];
+            _lastResponseBodyBytes = response.BodyBytes ?? Array.Empty<byte>();
             RawResponseBody = response.Body;
 
             ResponseHeaders.Clear();

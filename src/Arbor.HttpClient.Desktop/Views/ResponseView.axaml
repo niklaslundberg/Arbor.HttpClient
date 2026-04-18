@@ -34,6 +34,8 @@
             <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding App.IsBinaryResponse}">
                 <TextBlock Text="Binary response" FontWeight="SemiBold" VerticalAlignment="Center" />
                 <Button Grid.Column="1" Content="Save and Open"
+                        AutomationProperties.Name="Save binary response and open in external application"
+                        ToolTip.Tip="Save binary response and open in your default application"
                         Command="{Binding App.SaveBinaryResponseAndOpenCommand}" />
             </Grid>
 

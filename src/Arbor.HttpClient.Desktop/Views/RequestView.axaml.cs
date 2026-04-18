@@ -183,7 +183,7 @@ public partial class RequestView : UserControl
         var explicitContentType = _appVm?.ContentType ?? string.Empty;
         var ext = !string.IsNullOrEmpty(explicitContentType)
             ? MainWindowViewModel.ExtensionFromContentType(explicitContentType)
-            : DetectExtension(content);
+            : MainWindowViewModel.DetectExtensionFromContent(content);
 
         var language = _registryOptions.GetLanguageByExtension(ext);
         var newScope = language is not null ? _registryOptions.GetScopeByLanguageId(language.Id) : string.Empty;
@@ -260,22 +260,6 @@ public partial class RequestView : UserControl
 
         brush = new SolidColorBrush(color);
         return true;
-    }
-
-    private static string DetectExtension(string content)
-    {
-        var trimmed = content.TrimStart();
-        if (trimmed.StartsWith('{') || trimmed.StartsWith('['))
-        {
-            return ".json";
-        }
-
-        if (trimmed.StartsWith('<'))
-        {
-            return ".xml";
-        }
-
-        return ".txt";
     }
 
     private void ApplyTextMateTheme()

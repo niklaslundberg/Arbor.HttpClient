@@ -73,7 +73,7 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
         {
             encoding = !string.IsNullOrWhiteSpace(charset) ? Encoding.GetEncoding(charset) : Encoding.UTF8;
         }
-        catch
+        catch (ArgumentException)
         {
             encoding = Encoding.UTF8;
         }
