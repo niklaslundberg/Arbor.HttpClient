@@ -56,6 +56,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly Dictionary<string, DockLayoutSnapshot> _savedLayouts = new(StringComparer.OrdinalIgnoreCase);
     private int _layoutNameCounter = 1;
     private bool _suppressLayoutRestore;
+    private bool _suppressOptionsAutoSave;
+    private bool _suppressEnvironmentAutoSave;
+    private bool _isSavingEnvironment;
+    private CancellationTokenSource? _optionsAutoSaveCts;
+    private CancellationTokenSource? _environmentAutoSaveCts;
     private DockLayoutSnapshot? _defaultLayout;
     private bool _isUpdatingRequestUrlFromQueryParameters;
     private bool _isUpdatingQueryParametersFromRequestUrl;
@@ -304,13 +309,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         RefreshRequestPreview();
 
     partial void OnSelectedHttpVersionOptionChanged(string value) =>
-        LogAndRefreshRequestPreview("Selected HTTP version", value);
+        LogRefreshRequestPreviewAndQueueOptionsAutoSave("Selected HTTP version", value);
 
     partial void OnSelectedTlsVersionOptionChanged(string value) =>
-        _debugLogger.Information("Selected TLS version changed to {TlsVersion}", value);
+        LogAndQueueOptionsAutoSave("Selected TLS version changed to {TlsVersion}", value);
 
     partial void OnFollowHttpRedirectsChanged(bool value) =>
-        _debugLogger.Information("Follow redirects changed to {FollowRedirects}", value);
+        LogAndQueueOptionsAutoSave("Follow redirects changed to {FollowRedirects}", value);
 
     partial void OnRequestBodyChanged(string value) =>
         RefreshRequestDerivedViews();
@@ -319,6 +324,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         _debugLogger.Information("Default content type changed to {ContentType}", value);
         RefreshRequestDerivedViews();
+        QueueOptionsAutoSave();
     }
 
     partial void OnRequestUrlChanged(string value)
@@ -333,7 +339,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     partial void OnUiFontSizeTextChanged(string value) =>
-        OnPropertyChanged(nameof(UiFontSize));
+        OnUiFontSizeTextChangedCore();
 
     partial void OnUiFontFamilyChanged(string value)
     {
@@ -341,10 +347,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             Application.Current.Resources["AppFontFamily"] = new FontFamily(value);
         }
+
+        QueueOptionsAutoSave();
     }
 
     partial void OnEnableHttpDiagnosticsChanged(bool value) =>
-        _debugLogger.Information("HTTP diagnostics enabled changed to {IsEnabled}", value);
+        LogAndQueueOptionsAutoSave("HTTP diagnostics enabled changed to {IsEnabled}", value);
 
     partial void OnSelectedCollectionChanged(Collection? value)
     {
@@ -373,12 +381,39 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             LightThemeOption => ThemeVariant.Light,
             _ => ThemeVariant.Default
         };
+
+        QueueOptionsAutoSave();
     }
 
-    private void LogAndRefreshRequestPreview(string operation, string value)
+    partial void OnDefaultRequestUrlChanged(string value) =>
+        QueueOptionsAutoSave();
+
+    partial void OnAutoStartScheduledJobsOnLaunchChanged(bool value) =>
+        QueueOptionsAutoSave();
+
+    partial void OnDefaultScheduledJobIntervalSecondsChanged(int value) =>
+        QueueOptionsAutoSave();
+
+    partial void OnNewEnvironmentNameChanged(string value) =>
+        QueueEnvironmentAutoSave();
+
+    private void OnUiFontSizeTextChangedCore()
+    {
+        OnPropertyChanged(nameof(UiFontSize));
+        QueueOptionsAutoSave();
+    }
+
+    private void LogRefreshRequestPreviewAndQueueOptionsAutoSave(string operation, string value)
     {
         _debugLogger.Information("{Operation} changed to {Value}", operation, value);
         RefreshRequestPreview();
+        QueueOptionsAutoSave();
+    }
+
+    private void LogAndQueueOptionsAutoSave<T>(string messageTemplate, T value)
+    {
+        _debugLogger.Information(messageTemplate, value);
+        QueueOptionsAutoSave();
     }
 
     public MainWindowViewModel(
@@ -556,10 +591,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         RefreshRequestPreview();
+        QueueEnvironmentAutoSave();
     }
 
-    private void OnActiveEnvironmentVariablePropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+    private void OnActiveEnvironmentVariablePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
         RefreshRequestPreview();
+        QueueEnvironmentAutoSave();
+    }
 
     private void UpdateRequestHeadersPreview()
     {
@@ -625,26 +664,36 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var previousDefaultUrl = _applicationOptions.Http.DefaultRequestUrl;
         _applicationOptions = options;
 
-        SelectedThemeOption = options.Appearance.Theme;
-        SelectedHttpVersionOption = options.Http.HttpVersion;
-        SelectedTlsVersionOption = options.Http.TlsVersion;
-        EnableHttpDiagnostics = options.Http.EnableHttpDiagnostics;
-        FollowHttpRedirects = options.Http.FollowRedirects;
-        DefaultRequestUrl = options.Http.DefaultRequestUrl;
-        DefaultContentType = options.Http.DefaultContentType;
-        UiFontFamily = options.Appearance.FontFamily;
-        UiFontSizeText = options.Appearance.FontSize.ToString("0.##", CultureInfo.InvariantCulture);
-        AutoStartScheduledJobsOnLaunch = options.ScheduledJobs.AutoStartOnLaunch;
-        DefaultScheduledJobIntervalSeconds = options.ScheduledJobs.DefaultIntervalSeconds;
+        var previousSuppressOptionsAutoSave = _suppressOptionsAutoSave;
+        _suppressOptionsAutoSave = true;
 
-        if (FollowRedirectsForRequest == previousDefaultFollowRedirects)
+        try
         {
-            FollowRedirectsForRequest = options.Http.FollowRedirects;
+            SelectedThemeOption = options.Appearance.Theme;
+            SelectedHttpVersionOption = options.Http.HttpVersion;
+            SelectedTlsVersionOption = options.Http.TlsVersion;
+            EnableHttpDiagnostics = options.Http.EnableHttpDiagnostics;
+            FollowHttpRedirects = options.Http.FollowRedirects;
+            DefaultRequestUrl = options.Http.DefaultRequestUrl;
+            DefaultContentType = options.Http.DefaultContentType;
+            UiFontFamily = options.Appearance.FontFamily;
+            UiFontSizeText = options.Appearance.FontSize.ToString("0.##", CultureInfo.InvariantCulture);
+            AutoStartScheduledJobsOnLaunch = options.ScheduledJobs.AutoStartOnLaunch;
+            DefaultScheduledJobIntervalSeconds = options.ScheduledJobs.DefaultIntervalSeconds;
+
+            if (FollowRedirectsForRequest == previousDefaultFollowRedirects)
+            {
+                FollowRedirectsForRequest = options.Http.FollowRedirects;
+            }
+
+            if (updateCurrentRequestUrl || string.IsNullOrWhiteSpace(RequestUrl) || string.Equals(RequestUrl, previousDefaultUrl, StringComparison.Ordinal))
+            {
+                RequestUrl = options.Http.DefaultRequestUrl;
+            }
         }
-
-        if (updateCurrentRequestUrl || string.IsNullOrWhiteSpace(RequestUrl) || string.Equals(RequestUrl, previousDefaultUrl, StringComparison.Ordinal))
+        finally
         {
-            RequestUrl = options.Http.DefaultRequestUrl;
+            _suppressOptionsAutoSave = previousSuppressOptionsAutoSave;
         }
     }
 
@@ -1015,13 +1064,22 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     partial void OnActiveEnvironmentChanged(RequestEnvironment? value)
     {
-        ActiveEnvironmentVariables.Clear();
-        if (value is not null)
+        var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
+        _suppressEnvironmentAutoSave = true;
+        try
         {
-            foreach (var v in value.Variables)
+            ActiveEnvironmentVariables.Clear();
+            if (value is not null)
             {
-                ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(v.Name, v.Value));
+                foreach (var v in value.Variables)
+                {
+                    ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(v.Name, v.Value));
+                }
             }
+        }
+        finally
+        {
+            _suppressEnvironmentAutoSave = previousSuppressEnvironmentAutoSave;
         }
 
         RefreshRequestPreview();
@@ -1365,13 +1423,25 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private async Task SaveEnvironmentAsync()
+    private Task SaveEnvironmentAsync() => SaveEnvironmentCoreAsync(closeEnvironmentPanel: true);
+
+    private async Task SaveEnvironmentCoreAsync(bool closeEnvironmentPanel)
     {
         if (string.IsNullOrWhiteSpace(NewEnvironmentName))
         {
             return;
         }
 
+        if (_isSavingEnvironment)
+        {
+            return;
+        }
+
+        _isSavingEnvironment = true;
+        var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
+        _suppressEnvironmentAutoSave = true;
+        try
+        {
         var variables = ActiveEnvironmentVariables
             .Where(v => !string.IsNullOrWhiteSpace(v.Name))
             .Select(v => new EnvironmentVariable(v.Name, v.Value))
@@ -1396,7 +1466,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ActiveEnvironment = Environments.FirstOrDefault(e => e.Id == newEnvId.Value);
         }
 
-        IsEnvironmentPanelVisible = false;
+        if (closeEnvironmentPanel)
+        {
+            IsEnvironmentPanelVisible = false;
+        }
+        }
+        finally
+        {
+            _suppressEnvironmentAutoSave = previousSuppressEnvironmentAutoSave;
+            _isSavingEnvironment = false;
+        }
     }
 
     [RelayCommand]
@@ -1425,26 +1504,44 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        ActiveEnvironment = environment;
-        NewEnvironmentName = environment.Name;
-        _debugLogger.Information("Editing environment {EnvironmentName}", environment.Name);
-        ActiveEnvironmentVariables.Clear();
-        foreach (var v in environment.Variables)
+        var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
+        _suppressEnvironmentAutoSave = true;
+        try
         {
-            ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(v.Name, v.Value));
-        }
+            ActiveEnvironment = environment;
+            NewEnvironmentName = environment.Name;
+            _debugLogger.Information("Editing environment {EnvironmentName}", environment.Name);
+            ActiveEnvironmentVariables.Clear();
+            foreach (var v in environment.Variables)
+            {
+                ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(v.Name, v.Value));
+            }
 
-        IsEnvironmentPanelVisible = true;
+            IsEnvironmentPanelVisible = true;
+        }
+        finally
+        {
+            _suppressEnvironmentAutoSave = previousSuppressEnvironmentAutoSave;
+        }
     }
 
     [RelayCommand]
     private void NewEnvironment()
     {
-        ActiveEnvironment = null;
-        NewEnvironmentName = string.Empty;
-        ActiveEnvironmentVariables.Clear();
-        IsEnvironmentPanelVisible = true;
-        _debugLogger.Information("Creating new environment");
+        var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
+        _suppressEnvironmentAutoSave = true;
+        try
+        {
+            ActiveEnvironment = null;
+            NewEnvironmentName = string.Empty;
+            ActiveEnvironmentVariables.Clear();
+            IsEnvironmentPanelVisible = true;
+            _debugLogger.Information("Creating new environment");
+        }
+        finally
+        {
+            _suppressEnvironmentAutoSave = previousSuppressEnvironmentAutoSave;
+        }
     }
 
     [RelayCommand]
@@ -1507,6 +1604,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        _optionsAutoSaveCts?.Cancel();
+        _optionsAutoSaveCts?.Dispose();
+        _environmentAutoSaveCts?.Cancel();
+        _environmentAutoSaveCts?.Dispose();
         _scheduledJobService.Dispose();
         _requestBodyWatcher?.Dispose();
         _requestBodyWatcher = null;
@@ -2071,19 +2172,80 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         var previousId = ActiveEnvironment?.Id;
 
-        // Explicitly null out ActiveEnvironment before clearing the collection so that
-        // the ComboBox TwoWay binding cannot write null back after we restore below.
-        ActiveEnvironment = null;
-
-        Environments.Clear();
-        foreach (var e in all)
+        var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
+        _suppressEnvironmentAutoSave = true;
+        try
         {
-            Environments.Add(e);
+            // Explicitly null out ActiveEnvironment before clearing the collection so that
+            // the ComboBox TwoWay binding cannot write null back after we restore below.
+            ActiveEnvironment = null;
+
+            Environments.Clear();
+            foreach (var e in all)
+            {
+                Environments.Add(e);
+            }
+
+            if (previousId.HasValue)
+            {
+                ActiveEnvironment = Environments.FirstOrDefault(e => e.Id == previousId.Value);
+            }
+        }
+        finally
+        {
+            _suppressEnvironmentAutoSave = previousSuppressEnvironmentAutoSave;
+        }
+    }
+
+    private void QueueOptionsAutoSave()
+    {
+        if (_suppressOptionsAutoSave || _applicationOptionsStore is null)
+        {
+            return;
         }
 
-        if (previousId.HasValue)
+        _optionsAutoSaveCts?.Cancel();
+        _optionsAutoSaveCts?.Dispose();
+        _optionsAutoSaveCts = new CancellationTokenSource();
+        _ = TriggerOptionsAutoSaveAsync(_optionsAutoSaveCts.Token);
+    }
+
+    private async Task TriggerOptionsAutoSaveAsync(CancellationToken cancellationToken)
+    {
+        try
         {
-            ActiveEnvironment = Environments.FirstOrDefault(e => e.Id == previousId.Value);
+            await Task.Delay(TimeSpan.FromMilliseconds(450), cancellationToken).ConfigureAwait(false);
+            await Dispatcher.UIThread.InvokeAsync(SaveOptions);
+        }
+        catch (OperationCanceledException)
+        {
+            // Debounced auto-save was superseded by a newer edit.
+        }
+    }
+
+    private void QueueEnvironmentAutoSave()
+    {
+        if (_suppressEnvironmentAutoSave || _isSavingEnvironment || !IsEnvironmentPanelVisible || string.IsNullOrWhiteSpace(NewEnvironmentName))
+        {
+            return;
+        }
+
+        _environmentAutoSaveCts?.Cancel();
+        _environmentAutoSaveCts?.Dispose();
+        _environmentAutoSaveCts = new CancellationTokenSource();
+        _ = TriggerEnvironmentAutoSaveAsync(_environmentAutoSaveCts.Token);
+    }
+
+    private async Task TriggerEnvironmentAutoSaveAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(450), cancellationToken).ConfigureAwait(false);
+            await Dispatcher.UIThread.InvokeAsync(async () => await SaveEnvironmentCoreAsync(closeEnvironmentPanel: false));
+        }
+        catch (OperationCanceledException)
+        {
+            // Debounced auto-save was superseded by a newer edit.
         }
     }
 

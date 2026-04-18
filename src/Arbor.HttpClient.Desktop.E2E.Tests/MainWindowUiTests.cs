@@ -521,6 +521,128 @@ public class MainWindowUiTests
     }
 
     [Fact]
+    public async Task OptionsChanges_ShouldAutoSaveAndLogToDebug()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+            var optionsPath = Path.Combine(Path.GetTempPath(), $"arbor-options-autosave-{Guid.NewGuid():N}.json");
+            var optionsStore = new ApplicationOptionsStore(optionsPath);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel,
+                logger,
+                optionsStore);
+
+            viewModel.SelectedTlsVersionOption = "Tls13";
+
+            await Task.Delay(1200);
+
+            var saved = optionsStore.Load();
+            saved.Http.TlsVersion.Should().Be("Tls13");
+            inMemorySink.GetSnapshot().Should().Contain(entry => entry.Message.Contains("Saved application options", StringComparison.Ordinal));
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task EnvironmentEdits_ShouldAutoSaveWithoutExplicitSaveCommand()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var environmentRepository = new StoringInMemoryEnvironmentRepository();
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                environmentRepository,
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            viewModel.NewEnvironmentCommand.Execute(null);
+            viewModel.NewEnvironmentName = "myenv";
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "example.com"));
+
+            await Task.Delay(1200);
+
+            var all = await environmentRepository.GetAllAsync();
+            all.Should().ContainSingle(e => e.Name == "myenv");
+            viewModel.ActiveEnvironment.Should().NotBeNull();
+            viewModel.ActiveEnvironment!.Name.Should().Be("myenv");
+            viewModel.IsEnvironmentPanelVisible.Should().BeTrue();
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ScheduledJobEdits_ShouldAutoSaveWithoutExplicitSaveCommand()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var scheduledJobRepository = new InMemoryScheduledJobRepository();
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                scheduledJobRepository,
+                scheduledJobService,
+                logWindowViewModel);
+
+            viewModel.AddScheduledJobCommand.Execute(null);
+            var job = viewModel.ScheduledJobs.Should().ContainSingle().Subject;
+            job.Name = "sync job";
+            job.Url = "https://example.com/sync";
+
+            await Task.Delay(1200);
+
+            var all = await scheduledJobRepository.GetAllAsync();
+            all.Should().ContainSingle(config =>
+                string.Equals(config.Name, "sync job", StringComparison.Ordinal) &&
+                string.Equals(config.Url, "https://example.com/sync", StringComparison.Ordinal));
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task FloatingWindow_PositionShouldBeRestoredOnStartup()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));

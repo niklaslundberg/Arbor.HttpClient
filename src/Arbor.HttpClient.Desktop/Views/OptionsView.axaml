@@ -161,7 +161,6 @@
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
                 <Button Content="Import JSON" Command="{Binding App.ImportOptionsCommand}" />
                 <Button Content="Export JSON" Command="{Binding App.ExportOptionsCommand}" />
-                <Button Content="Save" Command="{Binding App.SaveOptionsCommand}" />
             </StackPanel>
         </Border>
     </Grid>

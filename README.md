@@ -71,7 +71,7 @@ They are referenced with double curly braces: **`{{variableName}}`**.
    | `token`       | `my-secret-api-token`           |
    | `apiVersion`  | `v2`                            |
 
-5. Click **Save Environment**.
+5. Changes are saved automatically when you finish editing.
 
 ### 2 – Activate the environment
 
@@ -114,7 +114,7 @@ Any request can be scheduled to run automatically in the background:
    - **Interval (seconds)** – how often the request fires.
    - **Auto-start** – tick this to have the job start automatically when the app opens.
    - **Follow redirects** – override the global redirect behavior for this scheduled request.
-3. Click **Save**, then **▶ Start** to run the job immediately, or rely on auto-start.
+3. Job changes are saved automatically when you finish editing, then click **▶ Start** to run the job immediately, or rely on auto-start.
 4. Click **■ Stop** to pause a running job.
 
 Manual requests also have their own **Follow redirects** checkbox in the request panel, so they can override the global **Options → HTTP → Follow redirects** setting on a per-request basis.
@@ -123,6 +123,14 @@ Global launch behavior can be controlled in **Options → HTTP → Auto-start sc
 If this option is disabled, no scheduled jobs are auto-started at application launch even when a job has **Auto-start** enabled.
 
 Each invocation is recorded in the live log. Open it with the **📋 Logs** button in the toolbar.
+
+## Auto-save
+
+The following editable features now persist automatically after edits settle:
+
+- **Options** (HTTP, Scheduled Jobs defaults, and Look & Feel settings)
+- **Environment editor** (environment name and variables)
+- **Scheduled job editor** (job fields in the Scheduled tab)
 
 ## Live Log
 
