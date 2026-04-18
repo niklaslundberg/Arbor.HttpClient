@@ -253,6 +253,98 @@ public class MainWindowUiTests
     }
 
     [Fact]
+    public async Task RequestUrlAndQueryParameters_ShouldStayInSync_AndPreserveFragment()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            viewModel.RequestUrl = "https://example.com/items?first=1&second=2#keep";
+            viewModel.RequestQueryParameters.Should().HaveCount(2);
+            viewModel.RequestQueryParameters[0].Key.Should().Be("first");
+            viewModel.RequestQueryParameters[0].Value.Should().Be("1");
+            viewModel.RequestQueryParameters[1].Key.Should().Be("second");
+            viewModel.RequestQueryParameters[1].Value.Should().Be("2");
+
+            viewModel.RequestQueryParameters[0].IsEnabled = false;
+            viewModel.RequestUrl.Should().Be("https://example.com/items?second=2#keep");
+
+            viewModel.AddQueryParameterCommand.Execute(null);
+            var added = viewModel.RequestQueryParameters.Last();
+            added.Key = "third";
+            added.Value = "3";
+
+            viewModel.RequestUrl.Should().Be("https://example.com/items?second=2&third=3#keep");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task SendRequest_ShouldBuildInterpretedAndRawResponseViews()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ =>
+                new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    ReasonPhrase = "OK",
+                    Content = new StringContent("{\"message\":\"hello\"}", Encoding.UTF8, "application/json; charset=utf-8")
+                });
+
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel)
+            {
+                RequestName = "response test",
+                RequestUrl = "https://example.com/data",
+                SelectedMethod = "GET"
+            };
+
+            viewModel.SendRequestCommand.Execute(null);
+            await viewModel.SendRequestCommand.ExecutionTask!;
+
+            viewModel.ResponseBodyTabLabel.Should().Be("JSON");
+            viewModel.ResponseBody.Should().Contain("\n");
+            viewModel.RawResponseBody.Should().Be("{\"message\":\"hello\"}");
+            viewModel.IsBinaryResponse.Should().BeFalse();
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task OptionsView_ShouldDisplayScheduledJobsPage_WithAutoStartAndIntervalOptions()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));

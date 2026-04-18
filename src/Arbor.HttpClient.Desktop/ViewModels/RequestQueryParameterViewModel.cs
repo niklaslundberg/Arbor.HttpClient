@@ -2,10 +2,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Arbor.HttpClient.Desktop.ViewModels;
 
-public sealed partial class RequestHeaderViewModel : ViewModelBase
+public sealed partial class RequestQueryParameterViewModel : ViewModelBase
 {
     [ObservableProperty]
-    private string _name = string.Empty;
+    private string _key = string.Empty;
 
     [ObservableProperty]
     private string _value = string.Empty;

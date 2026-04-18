@@ -1,5 +1,6 @@
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
+using System.Text;
 
 namespace Arbor.HttpClient.Core.Services;
 
@@ -65,7 +66,19 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
         var activeClient = _httpClientFactory?.Invoke() ?? _httpClient;
 
         using var response = await activeClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
-        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var responseBodyBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        var charset = response.Content.Headers.ContentType?.CharSet;
+        Encoding encoding;
+        try
+        {
+            encoding = !string.IsNullOrWhiteSpace(charset) ? Encoding.GetEncoding(charset) : Encoding.UTF8;
+        }
+        catch
+        {
+            encoding = Encoding.UTF8;
+        }
+
+        var responseBody = encoding.GetString(responseBodyBytes);
 
         var responseHeaders = response.Headers
             .Concat(response.Content.Headers)
@@ -81,6 +94,6 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
                 _timeProvider.GetUtcNow()),
             cancellationToken).ConfigureAwait(false);
 
-        return new HttpResponseDetails((int)response.StatusCode, response.ReasonPhrase ?? string.Empty, responseBody, responseHeaders);
+        return new HttpResponseDetails((int)response.StatusCode, response.ReasonPhrase ?? string.Empty, responseBody, responseHeaders, responseBodyBytes);
     }
 }

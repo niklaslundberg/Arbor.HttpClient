@@ -27,6 +27,7 @@ public class HttpRequestServiceTests
 
         response.StatusCode.Should().Be(200);
         response.Body.Should().Be("hello");
+        response.BodyBytes.Should().Equal(Encoding.UTF8.GetBytes("hello"));
         repository.Items.Should().ContainSingle();
         repository.Items[0].Name.Should().Be("Test");
         repository.Items[0].CreatedAtUtc.Should().Be(new DateTimeOffset(2026, 4, 16, 0, 0, 0, TimeSpan.Zero));
@@ -153,6 +154,7 @@ public class HttpRequestServiceTests
         var response = await service.SendAsync(new HttpRequestDraft("Factory", "GET", "https://example.com", null));
 
         response.Body.Should().Be("from-factory");
+        response.BodyBytes.Should().Equal(Encoding.UTF8.GetBytes("from-factory"));
     }
 
     private sealed class InMemoryRequestHistoryRepository : IRequestHistoryRepository

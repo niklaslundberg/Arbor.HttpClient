@@ -12,6 +12,7 @@ namespace Arbor.HttpClient.Desktop.Views;
 public partial class RequestView : UserControl
 {
     private TextEditor? _requestBodyEditor;
+    private TextEditor? _requestPreviewEditor;
     private MainWindowViewModel? _appVm;
     private RegistryOptions? _registryOptions;
     private TextMate.Installation? _requestTextMate;
@@ -52,6 +53,7 @@ public partial class RequestView : UserControl
 
         _appVm = GetAppVm();
         _requestBodyEditor = this.FindControl<TextEditor>("RequestBodyEditor");
+        _requestPreviewEditor = this.FindControl<TextEditor>("RequestPreviewEditor");
 
         _registryOptions ??= new RegistryOptions(ThemeName.DarkPlus);
 
@@ -76,6 +78,12 @@ public partial class RequestView : UserControl
                 ApplyEditorFont(_requestBodyEditor, _appVm);
                 _requestBodyEditor.Text = _appVm.RequestBody;
                 ApplyGrammarForContent(_requestTextMate, _appVm.RequestBody, ref _requestGrammarScope);
+            }
+
+            if (_requestPreviewEditor is not null)
+            {
+                ApplyEditorFont(_requestPreviewEditor, _appVm);
+                _requestPreviewEditor.Text = _appVm.RequestPreview;
             }
         }
     }
@@ -102,6 +110,14 @@ public partial class RequestView : UserControl
             ApplyGrammarForContent(_requestTextMate, _appVm.RequestBody, ref _requestGrammarScope);
         }
 
+        if (e.PropertyName == nameof(MainWindowViewModel.RequestPreview)
+            && _requestPreviewEditor is not null
+            && _appVm is not null
+            && _requestPreviewEditor.Text != _appVm.RequestPreview)
+        {
+            _requestPreviewEditor.Text = _appVm.RequestPreview;
+        }
+
         if (e.PropertyName == nameof(MainWindowViewModel.ContentType))
         {
             _requestGrammarScope = string.Empty;
@@ -110,10 +126,17 @@ public partial class RequestView : UserControl
 
         if ((e.PropertyName == nameof(MainWindowViewModel.UiFontFamily)
              || e.PropertyName == nameof(MainWindowViewModel.UiFontSize))
-            && _requestBodyEditor is not null
             && _appVm is not null)
         {
-            ApplyEditorFont(_requestBodyEditor, _appVm);
+            if (_requestBodyEditor is not null)
+            {
+                ApplyEditorFont(_requestBodyEditor, _appVm);
+            }
+
+            if (_requestPreviewEditor is not null)
+            {
+                ApplyEditorFont(_requestPreviewEditor, _appVm);
+            }
         }
     }
 
@@ -135,6 +158,8 @@ public partial class RequestView : UserControl
             _requestBodyEditor.Document.TextChanged -= OnRequestEditorTextChanged;
             _requestBodyEditor = null;
         }
+
+        _requestPreviewEditor = null;
 
         if (_requestTextMate is not null)
         {

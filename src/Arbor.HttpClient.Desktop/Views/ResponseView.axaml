@@ -8,7 +8,6 @@
 
         <TextBlock Grid.Row="0" Text="{Binding App.ResponseStatus}" FontWeight="SemiBold" />
 
-        <!-- Response headers (shown after a request) -->
         <Border Grid.Row="1"
                 IsVisible="{Binding App.HasResponseHeaders}"
                 Background="{DynamicResource PreviewPanelBackgroundBrush}" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4"
@@ -31,20 +30,33 @@
             </Grid>
         </Border>
 
-        <!-- Response body -->
         <Grid Grid.Row="2" RowDefinitions="Auto,*">
-            <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="Response Body" FontWeight="SemiBold" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Content="Open in editor"
-                        Command="{Binding App.OpenResponseBodyInExternalEditorCommand}" />
+            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding App.IsBinaryResponse}">
+                <TextBlock Text="Binary response" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Content="Save and Open"
+                        Command="{Binding App.SaveBinaryResponseAndOpenCommand}" />
             </Grid>
-            <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
-                <aedit:TextEditor x:Name="ResponseBodyEditor"
-                                  ShowLineNumbers="True"
-                                  WordWrap="True"
-                                  IsReadOnly="True"
-                                  MinHeight="200" />
-            </Border>
+
+            <TabControl Grid.Row="1">
+                <TabItem Header="{Binding App.ResponseBodyTabLabel}">
+                    <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
+                        <aedit:TextEditor x:Name="ResponseBodyEditor"
+                                          ShowLineNumbers="True"
+                                          WordWrap="True"
+                                          IsReadOnly="True"
+                                          MinHeight="200" />
+                    </Border>
+                </TabItem>
+                <TabItem Header="Raw">
+                    <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
+                        <aedit:TextEditor x:Name="RawResponseBodyEditor"
+                                          ShowLineNumbers="True"
+                                          WordWrap="True"
+                                          IsReadOnly="True"
+                                          MinHeight="200" />
+                    </Border>
+                </TabItem>
+            </TabControl>
         </Grid>
     </Grid>
 </UserControl>
