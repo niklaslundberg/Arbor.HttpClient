@@ -5,11 +5,13 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Skia;
+using Avalonia.VisualTree;
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Desktop;
 using Arbor.HttpClient.Desktop.Logging;
+using Arbor.HttpClient.Desktop.Models;
 using Arbor.HttpClient.Desktop.Services;
 using Arbor.HttpClient.Desktop.ViewModels;
 using Arbor.HttpClient.Desktop.Views;
@@ -21,6 +23,59 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Collection("HeadlessAvalonia")]
 public class MainWindowUiTests
 {
+    [Fact]
+    public async Task InitializeAsync_ShouldNotAutoStartScheduledJobs_WhenApplicationOptionIsDisabled()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var scheduledJobRepository = new InMemoryScheduledJobRepository();
+            var jobId = await scheduledJobRepository.SaveAsync(new ScheduledJobConfig(
+                0,
+                "Job 1",
+                "GET",
+                "https://example.com/job",
+                null,
+                null,
+                60,
+                true));
+
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                scheduledJobRepository,
+                scheduledJobService,
+                logWindowViewModel,
+                initialOptions: new ApplicationOptions
+                {
+                    ScheduledJobs = new ScheduledJobsOptions
+                    {
+                        AutoStartOnLaunch = false
+                    }
+                });
+
+            await viewModel.InitializeAsync();
+
+            viewModel.ScheduledJobs.Should().HaveCount(1);
+            viewModel.ScheduledJobs.Single().AutoStart.Should().BeTrue();
+            viewModel.ScheduledJobs.Single().IsRunning.Should().BeFalse();
+            scheduledJobService.IsRunning(jobId).Should().BeFalse();
+
+            return true;
+        }, CancellationToken.None);
+    }
+
     [Fact]
     public async Task SendButton_ShouldUpdateResponseStatusAndBody()
     {
@@ -75,6 +130,50 @@ public class MainWindowUiTests
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
             var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
             var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-ui.png");
+            screenshot?.Save(screenshotPath);
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task OptionsWindow_ShouldDisplayScheduledJobAutoStartToggle()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            var window = new OptionsWindow { DataContext = viewModel };
+            window.Show();
+
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+
+            window.GetVisualDescendants()
+                .OfType<TextBlock>()
+                .Any(tb => string.Equals(tb.Text, "Auto-start scheduled jobs on launch", StringComparison.Ordinal))
+                .Should()
+                .BeTrue();
+
+            var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-options-window.png");
             screenshot?.Save(screenshotPath);
 
             window.Close();

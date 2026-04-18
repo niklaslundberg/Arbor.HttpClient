@@ -152,6 +152,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _uiFontSizeText = "13";
 
+    [ObservableProperty]
+    private bool _autoStartScheduledJobsOnLaunch = true;
+
     public double UiFontSize =>
         double.TryParse(UiFontSizeText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
             ? parsed
@@ -402,6 +405,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 Theme = SelectedThemeOption,
                 FontFamily = UiFontFamily,
                 FontSize = fontSize
+            },
+            ScheduledJobs = new ScheduledJobsOptions
+            {
+                AutoStartOnLaunch = AutoStartScheduledJobsOnLaunch
             }
         };
 
@@ -422,6 +429,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         DefaultContentType = options.Http.DefaultContentType;
         UiFontFamily = options.Appearance.FontFamily;
         UiFontSizeText = options.Appearance.FontSize.ToString("0.##", CultureInfo.InvariantCulture);
+        AutoStartScheduledJobsOnLaunch = options.ScheduledJobs.AutoStartOnLaunch;
 
         if (updateCurrentRequestUrl || string.IsNullOrWhiteSpace(RequestUrl) || string.Equals(RequestUrl, previousDefaultUrl, StringComparison.Ordinal))
         {
@@ -1030,7 +1038,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             var vm = ScheduledJobViewModel.FromConfig(config, _scheduledJobRepository, _scheduledJobService);
             ScheduledJobs.Add(vm);
 
-            if (config.AutoStart && !_scheduledJobService.IsRunning(config.Id))
+            if (AutoStartScheduledJobsOnLaunch && config.AutoStart && !_scheduledJobService.IsRunning(config.Id))
             {
                 _scheduledJobService.Start(config);
                 vm.IsRunning = true;

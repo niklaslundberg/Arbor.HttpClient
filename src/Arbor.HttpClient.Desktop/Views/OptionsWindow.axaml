@@ -13,7 +13,7 @@
     <Grid RowDefinitions="*,Auto" Margin="12" RowSpacing="10">
         <TabControl>
             <TabItem Header="HTTP">
-                <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="8" ColumnDefinitions="220,*" ColumnSpacing="8">
+                <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*" RowSpacing="8" ColumnDefinitions="220,*" ColumnSpacing="8">
                     <TextBlock Text="HTTP version" VerticalAlignment="Center" />
                     <ComboBox Grid.Column="1"
                               ItemsSource="{Binding HttpVersionOptions}"
@@ -35,6 +35,10 @@
                     <TextBlock Grid.Row="4" Text="Default URL for new requests" VerticalAlignment="Center" />
                     <TextBox Grid.Row="4" Grid.Column="1"
                              Text="{Binding DefaultRequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Grid.Row="5" Text="Auto-start scheduled jobs on launch" VerticalAlignment="Center" />
+                    <CheckBox Grid.Row="5" Grid.Column="1"
+                              IsChecked="{Binding AutoStartScheduledJobsOnLaunch, Mode=TwoWay}" />
                 </Grid>
             </TabItem>
 

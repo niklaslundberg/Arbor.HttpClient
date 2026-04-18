@@ -108,6 +108,9 @@ Any request can be scheduled to run automatically in the background:
 3. Click **Save**, then **▶ Start** to run the job immediately, or rely on auto-start.
 4. Click **■ Stop** to pause a running job.
 
+Global launch behavior can be controlled in **Options → HTTP → Auto-start scheduled jobs on launch**.  
+If this option is disabled, no scheduled jobs are auto-started at application launch even when a job has **Auto-start** enabled.
+
 Each invocation is recorded in the live log. Open it with the **📋 Logs** button in the toolbar.
 
 ## Live Log

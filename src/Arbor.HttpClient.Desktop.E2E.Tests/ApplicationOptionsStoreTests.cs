@@ -16,6 +16,7 @@ public class ApplicationOptionsStoreTests
 
         options.Http.DefaultContentType.Should().Be("application/json");
         options.Appearance.Theme.Should().Be("System");
+        options.ScheduledJobs.AutoStartOnLaunch.Should().BeTrue();
     }
 
     [Fact]
@@ -71,6 +72,10 @@ public class ApplicationOptionsStoreTests
                 Theme = "Dark",
                 FontFamily = "Consolas,Menlo,monospace",
                 FontSize = 14
+            },
+            ScheduledJobs = new ScheduledJobsOptions
+            {
+                AutoStartOnLaunch = false
             }
         };
 
@@ -82,5 +87,6 @@ public class ApplicationOptionsStoreTests
         imported.Http.FollowRedirects.Should().BeFalse();
         imported.Appearance.Theme.Should().Be("Dark");
         imported.Appearance.FontSize.Should().Be(14);
+        imported.ScheduledJobs.AutoStartOnLaunch.Should().BeFalse();
     }
 }

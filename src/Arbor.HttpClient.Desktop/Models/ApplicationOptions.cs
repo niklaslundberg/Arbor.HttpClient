@@ -5,6 +5,8 @@ public sealed class ApplicationOptions
     public HttpOptions Http { get; init; } = new();
 
     public AppearanceOptions Appearance { get; init; } = new();
+
+    public ScheduledJobsOptions ScheduledJobs { get; init; } = new();
 }
 
 public sealed class HttpOptions
@@ -27,4 +29,9 @@ public sealed class AppearanceOptions
     public double FontSize { get; init; } = 13d;
 
     public string FontFamily { get; init; } = "Cascadia Code,Consolas,Menlo,monospace";
+}
+
+public sealed class ScheduledJobsOptions
+{
+    public bool AutoStartOnLaunch { get; init; } = true;
 }
