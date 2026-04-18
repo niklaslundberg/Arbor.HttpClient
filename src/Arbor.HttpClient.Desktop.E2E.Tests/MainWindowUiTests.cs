@@ -138,7 +138,7 @@ public class MainWindowUiTests
     }
 
     [Fact]
-    public async Task OptionsWindow_ShouldDisplayScheduledJobsTab_WithAutoStartAndIntervalOptions()
+    public async Task OptionsView_ShouldDisplayScheduledJobsPage_WithAutoStartAndIntervalOptions()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
@@ -161,7 +161,9 @@ public class MainWindowUiTests
                 scheduledJobService,
                 logWindowViewModel);
 
-            var window = new OptionsWindow { DataContext = viewModel };
+            var optionsVm = new OptionsViewModel(viewModel);
+            var window = new Window { Width = 820, Height = 560, DataContext = optionsVm };
+            window.Content = new OptionsView();
             window.Show();
 
             // Navigate to the Scheduled Jobs page via the ViewModel
@@ -184,7 +186,7 @@ public class MainWindowUiTests
                 .BeTrue("auto-start toggle should be on the Scheduled Jobs page");
 
             var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-options-window.png");
+            var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-options-view.png");
             screenshot?.Save(screenshotPath);
 
             window.Close();

@@ -540,13 +540,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     /// <summary>Set by the view layer to open the log window.</summary>
     public Action? OpenLogWindowAction { get; set; }
-    public Action? OpenOptionsWindowAction { get; set; }
 
     [RelayCommand]
     private void OpenLogWindow() => OpenLogWindowAction?.Invoke();
 
     [RelayCommand]
-    private void OpenOptions() => OpenOptionsWindowAction?.Invoke();
+    private void OpenOptions()
+    {
+        if (_dockFactory?.LeftToolDock is { } dock &&
+            _dockFactory.OptionsViewModel is { } optVm)
+        {
+            dock.ActiveDockable = optVm;
+        }
+    }
 
     [RelayCommand]
     private void ToggleEnvironmentPanel() => IsEnvironmentPanelVisible = !IsEnvironmentPanelVisible;

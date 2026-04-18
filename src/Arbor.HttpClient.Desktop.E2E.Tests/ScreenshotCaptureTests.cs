@@ -22,11 +22,11 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 public class ScreenshotCaptureTests
 {
     /// <summary>
-    /// Saves a screenshot of the Options window (Scheduled Jobs tab) showing the
+    /// Saves a screenshot of the Options view (Scheduled Jobs page) showing the
     /// auto-start toggle and default interval option to docs/screenshots/.
     /// </summary>
     [Fact]
-    public async Task Capture_OptionsWindow_ScheduledJobsTab()
+    public async Task Capture_OptionsView_ScheduledJobsPage()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
@@ -49,7 +49,9 @@ public class ScreenshotCaptureTests
                 scheduledJobService,
                 logWindowViewModel);
 
-            var window = new OptionsWindow { DataContext = viewModel };
+            var optionsVm = new OptionsViewModel(viewModel);
+            var window = new Window { Width = 820, Height = 560, DataContext = optionsVm };
+            window.Content = new OptionsView();
             window.Show();
 
             // Navigate to the Scheduled Jobs page via the ViewModel
@@ -58,7 +60,7 @@ public class ScreenshotCaptureTests
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
 
             var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            var dest = Path.Combine(FindRepoRoot(), "docs", "screenshots", "options-window-scheduled-jobs.png");
+            var dest = Path.Combine(FindRepoRoot(), "docs", "screenshots", "options-view-scheduled-jobs.png");
             screenshot?.Save(dest);
 
             window.Close();
