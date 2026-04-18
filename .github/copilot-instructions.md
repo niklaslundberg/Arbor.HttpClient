@@ -72,7 +72,18 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - `git commit --no-verify` bypasses the hook. Use it only in genuinely exceptional circumstances (e.g. committing a work-in-progress branch where tests are intentionally broken and you will fix them in the next commit). Never push to `main` with failing tests.
 - If a pre-existing test was already failing before your changes, note it explicitly in the PR description rather than silently ignoring it.
 
-## 6. Code Quality Requirements for New Work
+## 6. Runtime Validation Before PR Ready
+
+**Run the application headlessly and fix every console error before the PR is ready.**
+
+- After completing feature or bug-fix work on the desktop application, run it headlessly using the Avalonia headless test infrastructure (`HeadlessUnitTestSession`) or via `dotnet run` with output captured.
+- Capture the full standard output and standard error of the run.
+- Treat any `[Binding]` error, `[Control]` error, or unhandled exception in the output as a defect that must be fixed — not ignored.
+- Exceptions: Dock framework transient null-binding noise emitted by the Dock library's own XAML templates (e.g. `DockCapabilityOverrides.CanClose` / `Owner.DockCapabilityPolicy.CanClose` during panel transitions) cannot be fixed without patching the upstream library; document these explicitly in the PR rather than silently ignoring them.
+- Re-run after every fix and repeat until the output is clean of actionable errors.
+- Include the captured (clean) console output as evidence in the PR description or checklist.
+
+## 7. Code Quality Requirements for New Work
 
 - Treat compiler warnings, analyzer warnings, and runtime errors as real defects. Do not ignore or suppress them unless there is a documented and justified reason.
 - Any new or changed production code must include test coverage. Prefer isolated unit tests first, then integration/E2E tests when unit tests are not sufficient.

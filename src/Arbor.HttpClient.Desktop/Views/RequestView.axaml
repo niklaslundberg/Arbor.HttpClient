@@ -114,8 +114,6 @@
                 <aedit:TextEditor x:Name="RequestBodyEditor"
                                   ShowLineNumbers="True"
                                   WordWrap="True"
-                                  FontFamily="{Binding App.UiFontFamily}"
-                                  FontSize="{Binding App.UiFontSize}"
                                   MinHeight="150" />
             </Border>
         </Grid>

@@ -78,6 +78,34 @@ public class ApplicationOptionsStoreTests
             {
                 AutoStartOnLaunch = false,
                 DefaultIntervalSeconds = 120
+            },
+            Layouts = new LayoutOptions
+            {
+                CurrentLayout = new DockLayoutSnapshot
+                {
+                    LeftToolProportion = 0.3,
+                    DocumentProportion = 0.7,
+                    ActiveToolDockableId = "left-panel",
+                    ActiveDocumentDockableId = "request",
+                    LeftToolDockableOrder = ["left-panel", "options"],
+                    DocumentDockableOrder = ["request", "response"]
+                },
+                SavedLayouts =
+                [
+                    new NamedDockLayout
+                    {
+                        Name = "Layout 1",
+                        Layout = new DockLayoutSnapshot
+                        {
+                            LeftToolProportion = 0.4,
+                            DocumentProportion = 0.6,
+                            ActiveToolDockableId = "options",
+                            ActiveDocumentDockableId = "response",
+                            LeftToolDockableOrder = ["options", "left-panel"],
+                            DocumentDockableOrder = ["response", "request"]
+                        }
+                    }
+                ]
             }
         };
 
@@ -91,6 +119,10 @@ public class ApplicationOptionsStoreTests
         imported.Appearance.FontSize.Should().Be(14);
         imported.ScheduledJobs.AutoStartOnLaunch.Should().BeFalse();
         imported.ScheduledJobs.DefaultIntervalSeconds.Should().Be(120);
+        imported.Layouts.CurrentLayout.Should().NotBeNull();
+        imported.Layouts.CurrentLayout!.LeftToolProportion.Should().Be(0.3);
+        imported.Layouts.SavedLayouts.Should().ContainSingle();
+        imported.Layouts.SavedLayouts[0].Name.Should().Be("Layout 1");
     }
 
     [Fact]
@@ -122,5 +154,25 @@ public class ApplicationOptionsStoreTests
         var action = () => ApplicationOptionsStore.Validate(options);
 
         action.Should().Throw<InvalidDataException>().WithMessage("*interval*");
+    }
+
+    [Fact]
+    public void Validate_ShouldRejectDuplicateSavedLayoutNames()
+    {
+        var options = new ApplicationOptions
+        {
+            Layouts = new LayoutOptions
+            {
+                SavedLayouts =
+                [
+                    new NamedDockLayout { Name = "Layout 1", Layout = new DockLayoutSnapshot() },
+                    new NamedDockLayout { Name = "layout 1", Layout = new DockLayoutSnapshot() }
+                ]
+            }
+        };
+
+        var action = () => ApplicationOptionsStore.Validate(options);
+
+        action.Should().Throw<InvalidDataException>().WithMessage("*Duplicate saved layout name*");
     }
 }

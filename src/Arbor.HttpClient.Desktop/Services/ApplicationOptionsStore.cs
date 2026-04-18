@@ -89,6 +89,11 @@ public sealed class ApplicationOptionsStore(string optionsPath)
             throw new InvalidDataException("Scheduled job options are required.");
         }
 
+        if (options.Layouts is null)
+        {
+            throw new InvalidDataException("Layout options are required.");
+        }
+
         if (!ValidHttpVersions.Contains(options.Http.HttpVersion))
         {
             throw new InvalidDataException($"Unsupported HTTP version '{options.Http.HttpVersion}'.");
@@ -129,6 +134,86 @@ public sealed class ApplicationOptionsStore(string optionsPath)
         if (options.ScheduledJobs.DefaultIntervalSeconds < 1)
         {
             throw new InvalidDataException("Default scheduled job interval must be at least 1 second.");
+        }
+
+        ValidateLayoutSnapshot(options.Layouts.CurrentLayout);
+
+        if (options.Layouts.SavedLayouts is null)
+        {
+            throw new InvalidDataException("Saved layouts are required.");
+        }
+
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var namedLayout in options.Layouts.SavedLayouts)
+        {
+            if (namedLayout is null)
+            {
+                throw new InvalidDataException("Saved layout cannot be null.");
+            }
+
+            if (string.IsNullOrWhiteSpace(namedLayout.Name))
+            {
+                throw new InvalidDataException("Saved layout name cannot be empty.");
+            }
+
+            if (!names.Add(namedLayout.Name))
+            {
+                throw new InvalidDataException($"Duplicate saved layout name '{namedLayout.Name}'.");
+            }
+
+            if (namedLayout.Layout is null)
+            {
+                throw new InvalidDataException($"Saved layout '{namedLayout.Name}' is missing layout data.");
+            }
+
+            ValidateLayoutSnapshot(namedLayout.Layout);
+        }
+    }
+
+    private static void ValidateLayoutSnapshot(DockLayoutSnapshot? layout)
+    {
+        if (layout is null)
+        {
+            return;
+        }
+
+        if (layout.LeftToolProportion <= 0 || layout.DocumentProportion <= 0)
+        {
+            throw new InvalidDataException("Layout proportions must be positive values.");
+        }
+
+        if (layout.LeftToolDockableOrder is null || layout.DocumentDockableOrder is null)
+        {
+            throw new InvalidDataException("Layout dockable order collections are required.");
+        }
+
+        if (layout.LeftToolDockableOrder.Any(string.IsNullOrWhiteSpace)
+            || layout.DocumentDockableOrder.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new InvalidDataException("Layout dockable order entries cannot be empty.");
+        }
+
+        if (layout.FloatingWindows is null)
+        {
+            throw new InvalidDataException("Layout floating windows collection is required.");
+        }
+
+        foreach (var fw in layout.FloatingWindows)
+        {
+            if (fw is null)
+            {
+                throw new InvalidDataException("Floating window snapshot cannot be null.");
+            }
+
+            if (fw.Width <= 0 || fw.Height <= 0)
+            {
+                throw new InvalidDataException("Floating window dimensions must be positive values.");
+            }
+
+            if (fw.DockableIds is null)
+            {
+                throw new InvalidDataException("Floating window dockable IDs collection is required.");
+            }
         }
     }
 
