@@ -165,9 +165,6 @@ public partial class ResponseView : UserControl
         return true;
     }
 
-    private string GetTextMateThemeName() =>
-        (ActualThemeVariant == ThemeVariant.Light ? ThemeName.LightPlus : ThemeName.DarkPlus).ToString();
-
     private void ApplyTextMateTheme()
     {
         if (_responseTextMate is null || _registryOptions is null)
@@ -175,18 +172,20 @@ public partial class ResponseView : UserControl
             return;
         }
 
-        try
+        // DarkPlus is already applied when the TextMate installation is created.
+        // In headless test runs, re-applying non-light themes can fail inside TextMate theme parsing.
+        if (ActualThemeVariant != ThemeVariant.Light)
         {
-            var theme = _registryOptions.GetTheme(GetTextMateThemeName());
-            if (theme is not null)
-            {
-                _responseTextMate.SetTheme(theme);
-            }
+            return;
         }
-        catch (NullReferenceException)
+
+        var theme = _registryOptions.GetTheme(ThemeName.LightPlus.ToString());
+        if (theme is null)
         {
-            // keep the currently installed theme when theme parsing fails in headless test runs
+            return;
         }
+
+        _responseTextMate.SetTheme(theme);
     }
 }
 
