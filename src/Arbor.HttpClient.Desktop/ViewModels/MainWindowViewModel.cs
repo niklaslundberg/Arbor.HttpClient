@@ -96,6 +96,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public const string SystemThemeOption = "System";
     public const string DarkThemeOption = "Dark";
     public const string LightThemeOption = "Light";
+    public const int MinScheduledJobIntervalSeconds = 1;
+    private const string OptionsPageBreadcrumbSeparator = " \u203a  ";
 
     public IReadOnlyList<string> ThemeOptions { get; } =
     [
@@ -157,6 +159,25 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private int _defaultScheduledJobIntervalSeconds = 60;
+
+    [ObservableProperty]
+    private string _selectedOptionsPage = "HTTP";
+
+    partial void OnSelectedOptionsPageChanged(string value)
+    {
+        OnPropertyChanged(nameof(SelectedOptionsPageTitle));
+        OnPropertyChanged(nameof(SelectedOptionsPageBreadcrumb));
+    }
+
+    public string SelectedOptionsPageTitle => SelectedOptionsPage switch
+    {
+        "HTTP" => "HTTP",
+        "ScheduledJobs" => "Scheduled Jobs",
+        "LookAndFeel" => "Look & Feel",
+        _ => SelectedOptionsPage
+    };
+
+    public string SelectedOptionsPageBreadcrumb => $"Options{OptionsPageBreadcrumbSeparator}{SelectedOptionsPageTitle}";
 
     public double UiFontSize =>
         double.TryParse(UiFontSizeText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
@@ -471,7 +492,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         var vm = new ScheduledJobViewModel(_scheduledJobRepository, _scheduledJobService)
         {
-            IntervalSeconds = Math.Max(1, DefaultScheduledJobIntervalSeconds)
+            IntervalSeconds = Math.Max(MinScheduledJobIntervalSeconds, DefaultScheduledJobIntervalSeconds)
         };
         ScheduledJobs.Add(vm);
         LeftPanelTab = "ScheduledJobs";

@@ -1,81 +1,171 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Arbor.HttpClient.Desktop.ViewModels"
+        xmlns:conv="using:Arbor.HttpClient.Desktop.Converters"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="460"
+        mc:Ignorable="d" d:DesignWidth="820" d:DesignHeight="560"
         x:Class="Arbor.HttpClient.Desktop.Views.OptionsWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="Options"
-        Width="640"
-        Height="460">
+        Width="820"
+        Height="560"
+        MinWidth="600"
+        MinHeight="420">
 
-    <Grid RowDefinitions="*,Auto" Margin="12" RowSpacing="10">
-        <TabControl>
-            <TabItem Header="HTTP">
-                <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="8" ColumnDefinitions="220,*" ColumnSpacing="8">
-                    <TextBlock Text="HTTP version" VerticalAlignment="Center" />
-                    <ComboBox Grid.Column="1"
-                              ItemsSource="{Binding HttpVersionOptions}"
-                              SelectedItem="{Binding SelectedHttpVersionOption, Mode=TwoWay}" />
+    <Grid RowDefinitions="*,Auto">
 
-                    <TextBlock Grid.Row="1" Text="TLS version" VerticalAlignment="Center" />
-                    <ComboBox Grid.Row="1" Grid.Column="1"
-                              ItemsSource="{Binding TlsVersionOptions}"
-                              SelectedItem="{Binding SelectedTlsVersionOption, Mode=TwoWay}" />
+        <!-- Main content: left tree nav + right settings -->
+        <Grid ColumnDefinitions="200,1,*">
 
-                    <TextBlock Grid.Row="2" Text="Follow redirects" VerticalAlignment="Center" />
-                    <CheckBox Grid.Row="2" Grid.Column="1"
-                              IsChecked="{Binding FollowHttpRedirects, Mode=TwoWay}" />
+            <!-- Left: category tree -->
+            <Border Background="{DynamicResource OptionsNavBackgroundBrush}"
+                    BorderBrush="{DynamicResource PanelBorderBrush}"
+                    BorderThickness="0,0,1,0">
+                <TreeView x:Name="CategoryTree"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          Margin="0,8,0,8">
+                    <TreeViewItem Header="HTTP" Tag="HTTP" IsSelected="True"
+                                  Padding="16,6,8,6" />
+                    <TreeViewItem Header="Scheduled Jobs" Tag="ScheduledJobs"
+                                  Padding="16,6,8,6" />
+                    <TreeViewItem Header="Look &amp; Feel" Tag="LookAndFeel"
+                                  Padding="16,6,8,6" />
+                </TreeView>
+            </Border>
 
-                    <TextBlock Grid.Row="3" Text="Default content type (body requests)" VerticalAlignment="Center" />
-                    <TextBox Grid.Row="3" Grid.Column="1"
-                             Text="{Binding DefaultContentType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <!-- 1 px vertical separator -->
+            <Rectangle Grid.Column="1" Fill="{DynamicResource PanelBorderBrush}" />
 
-                    <TextBlock Grid.Row="4" Text="Default URL for new requests" VerticalAlignment="Center" />
-                    <TextBox Grid.Row="4" Grid.Column="1"
-                             Text="{Binding DefaultRequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                </Grid>
-            </TabItem>
+            <!-- Right: page header + scrollable settings -->
+            <Grid Grid.Column="2" RowDefinitions="Auto,*">
 
-            <TabItem Header="Scheduled Jobs">
-                <Grid Margin="8" RowDefinitions="Auto,Auto,*" RowSpacing="8" ColumnDefinitions="220,*,Auto" ColumnSpacing="8">
-                    <TextBlock Text="Auto-start scheduled jobs on launch" VerticalAlignment="Center" />
-                    <CheckBox Grid.Column="1" Grid.ColumnSpan="2"
-                              IsChecked="{Binding AutoStartScheduledJobsOnLaunch, Mode=TwoWay}" />
+                <!-- Breadcrumb + page title -->
+                <Border Padding="24,16,24,12"
+                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                        BorderThickness="0,0,0,1">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding SelectedOptionsPageBreadcrumb}"
+                                   FontSize="11"
+                                   Opacity="0.55"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding SelectedOptionsPageTitle}"
+                                   FontSize="18"
+                                   FontWeight="SemiBold" />
+                    </StackPanel>
+                </Border>
 
-                    <TextBlock Grid.Row="1" Text="Default interval for new jobs" VerticalAlignment="Center" />
-                    <TextBox Grid.Row="1" Grid.Column="1"
-                             Text="{Binding DefaultScheduledJobIntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBlock Grid.Row="1" Grid.Column="2" Text="s" VerticalAlignment="Center" />
-                </Grid>
-            </TabItem>
+                <!-- Settings scroll area -->
+                <ScrollViewer Grid.Row="1"
+                              Padding="24,20,24,24"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <Grid>
 
-            <TabItem Header="Look &amp; Feel">
-                <Grid Margin="8" RowDefinitions="Auto,Auto,*" RowSpacing="8" ColumnDefinitions="220,*" ColumnSpacing="8">
-                    <TextBlock Text="Theme" VerticalAlignment="Center" />
-                    <ComboBox Grid.Column="1"
-                              ItemsSource="{Binding ThemeOptions}"
-                              SelectedItem="{Binding SelectedThemeOption, Mode=TwoWay}" />
+                        <!-- HTTP page -->
+                        <StackPanel Spacing="20"
+                                    IsVisible="{Binding SelectedOptionsPage,
+                                        Converter={x:Static conv:StringEqualityConverter.Instance},
+                                        ConverterParameter=HTTP}">
 
-                    <TextBlock Grid.Row="1" Text="Font family" VerticalAlignment="Center" />
-                    <ComboBox Grid.Row="1" Grid.Column="1"
-                              IsEditable="True"
-                              ItemsSource="{Binding FontFamilyOptions}"
-                              SelectedItem="{Binding UiFontFamily, Mode=TwoWay}" />
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="HTTP version" FontWeight="SemiBold" />
+                                <ComboBox ItemsSource="{Binding HttpVersionOptions}"
+                                          SelectedItem="{Binding SelectedHttpVersionOption, Mode=TwoWay}"
+                                          MinWidth="200" HorizontalAlignment="Left" />
+                            </StackPanel>
 
-                    <TextBlock Grid.Row="2" Text="Font size" VerticalAlignment="Center" />
-                    <TextBox Grid.Row="2" Grid.Column="1"
-                             Text="{Binding UiFontSizeText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                </Grid>
-            </TabItem>
-        </TabControl>
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="TLS version" FontWeight="SemiBold" />
+                                <ComboBox ItemsSource="{Binding TlsVersionOptions}"
+                                          SelectedItem="{Binding SelectedTlsVersionOption, Mode=TwoWay}"
+                                          MinWidth="200" HorizontalAlignment="Left" />
+                            </StackPanel>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
-            <Button Content="Import JSON" Command="{Binding ImportOptionsCommand}" />
-            <Button Content="Export JSON" Command="{Binding ExportOptionsCommand}" />
-            <Button Content="Save" Command="{Binding SaveOptionsCommand}" />
-            <Button Content="Close" Click="OnCloseClicked" />
-        </StackPanel>
+                            <CheckBox IsChecked="{Binding FollowHttpRedirects, Mode=TwoWay}"
+                                      Content="Follow redirects" />
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Default content type (body requests)"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap" />
+                                <TextBox Text="{Binding DefaultContentType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         MaxWidth="400" HorizontalAlignment="Left" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Default URL for new requests" FontWeight="SemiBold" />
+                                <TextBox Text="{Binding DefaultRequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+
+                        </StackPanel>
+
+                        <!-- Scheduled Jobs page -->
+                        <StackPanel Spacing="20"
+                                    IsVisible="{Binding SelectedOptionsPage,
+                                        Converter={x:Static conv:StringEqualityConverter.Instance},
+                                        ConverterParameter=ScheduledJobs}">
+
+                            <CheckBox IsChecked="{Binding AutoStartScheduledJobsOnLaunch, Mode=TwoWay}"
+                                      Content="Auto-start scheduled jobs on launch" />
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Default interval for new jobs" FontWeight="SemiBold" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBox Text="{Binding DefaultScheduledJobIntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             MinWidth="120" />
+                                    <TextBlock Text="seconds" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+
+                        </StackPanel>
+
+                        <!-- Look & Feel page -->
+                        <StackPanel Spacing="20"
+                                    IsVisible="{Binding SelectedOptionsPage,
+                                        Converter={x:Static conv:StringEqualityConverter.Instance},
+                                        ConverterParameter=LookAndFeel}">
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Theme" FontWeight="SemiBold" />
+                                <ComboBox ItemsSource="{Binding ThemeOptions}"
+                                          SelectedItem="{Binding SelectedThemeOption, Mode=TwoWay}"
+                                          MinWidth="200" HorizontalAlignment="Left" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Font family" FontWeight="SemiBold" />
+                                <ComboBox IsEditable="True"
+                                          ItemsSource="{Binding FontFamilyOptions}"
+                                          SelectedItem="{Binding UiFontFamily, Mode=TwoWay}"
+                                          HorizontalAlignment="Stretch" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Font size" FontWeight="SemiBold" />
+                                <TextBox Text="{Binding UiFontSizeText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         MinWidth="80" HorizontalAlignment="Left" />
+                            </StackPanel>
+
+                        </StackPanel>
+
+                    </Grid>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <!-- Bottom action bar -->
+        <Border Grid.Row="1"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="12,8">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
+                <Button Content="Import JSON" Command="{Binding ImportOptionsCommand}" />
+                <Button Content="Export JSON" Command="{Binding ExportOptionsCommand}" />
+                <Button Content="Save" Command="{Binding SaveOptionsCommand}" />
+                <Button Content="Close" Click="OnCloseClicked" />
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

@@ -164,26 +164,24 @@ public class MainWindowUiTests
             var window = new OptionsWindow { DataContext = viewModel };
             window.Show();
 
-            // Switch to the Scheduled Jobs tab so its content is rendered
-            var tabControl = window.GetVisualDescendants().OfType<TabControl>().First();
-            var scheduledJobsTab = tabControl.Items
-                .OfType<TabItem>()
-                .First(ti => string.Equals(ti.Header?.ToString(), "Scheduled Jobs", StringComparison.Ordinal));
-            tabControl.SelectedItem = scheduledJobsTab;
+            // Navigate to the Scheduled Jobs page via the ViewModel
+            viewModel.SelectedOptionsPage = "ScheduledJobs";
 
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
 
+            // The explicit <TextBlock> label is always in the visual tree
             var textBlocks = window.GetVisualDescendants().OfType<TextBlock>().Select(tb => tb.Text).ToList();
-
-            textBlocks
-                .Any(t => string.Equals(t, "Auto-start scheduled jobs on launch", StringComparison.Ordinal))
-                .Should()
-                .BeTrue("auto-start toggle should be on the Scheduled Jobs tab");
 
             textBlocks
                 .Any(t => string.Equals(t, "Default interval for new jobs", StringComparison.Ordinal))
                 .Should()
-                .BeTrue("default interval label should be on the Scheduled Jobs tab");
+                .BeTrue("default interval label should be on the Scheduled Jobs page");
+
+            // CheckBox.Content is checked directly — no need for template rendering
+            window.GetVisualDescendants().OfType<CheckBox>()
+                .Any(cb => string.Equals(cb.Content?.ToString(), "Auto-start scheduled jobs on launch", StringComparison.Ordinal))
+                .Should()
+                .BeTrue("auto-start toggle should be on the Scheduled Jobs page");
 
             var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
             var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-options-window.png");

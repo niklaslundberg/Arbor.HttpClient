@@ -121,7 +121,7 @@
                                                  Text="{Binding Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                         <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
                                             <TextBlock Text="Interval (s)" VerticalAlignment="Center" />
-                                            <TextBox Grid.Column="1" PlaceholderText="seconds"
+                                            <TextBox Grid.Column="1"
                                                      Text="{Binding IntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                             <CheckBox Grid.Column="2" Content="Auto-start"
                                                       IsChecked="{Binding AutoStart, Mode=TwoWay}" />

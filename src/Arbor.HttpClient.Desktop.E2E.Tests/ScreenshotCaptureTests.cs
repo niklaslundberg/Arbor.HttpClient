@@ -52,12 +52,8 @@ public class ScreenshotCaptureTests
             var window = new OptionsWindow { DataContext = viewModel };
             window.Show();
 
-            // Switch to the Scheduled Jobs tab
-            var tabControl = window.GetVisualDescendants().OfType<TabControl>().First();
-            var scheduledJobsTab = tabControl.Items
-                .OfType<TabItem>()
-                .First(ti => string.Equals(ti.Header?.ToString(), "Scheduled Jobs", StringComparison.Ordinal));
-            tabControl.SelectedItem = scheduledJobsTab;
+            // Navigate to the Scheduled Jobs page via the ViewModel
+            viewModel.SelectedOptionsPage = "ScheduledJobs";
 
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
 

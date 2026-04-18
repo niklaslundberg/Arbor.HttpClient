@@ -66,7 +66,7 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
         new(Id, Name, Method, Url,
             string.IsNullOrWhiteSpace(Body) ? null : Body,
             null, // headers not yet supported in the scheduled-job editor
-            Math.Max(1, IntervalSeconds),
+            Math.Max(MainWindowViewModel.MinScheduledJobIntervalSeconds, IntervalSeconds),
             AutoStart);
 
     [RelayCommand]
