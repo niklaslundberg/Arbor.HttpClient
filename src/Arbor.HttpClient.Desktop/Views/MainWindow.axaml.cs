@@ -16,6 +16,7 @@ public partial class MainWindow : Avalonia.Controls.Window
         {
             viewModel.StorageProvider = StorageProvider;
             viewModel.OpenLogWindowAction = OpenLogWindow;
+            viewModel.ExitApplicationAction = Close;
         }
     }
 

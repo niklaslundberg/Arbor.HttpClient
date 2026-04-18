@@ -7,6 +7,8 @@ public sealed class ApplicationOptions
     public AppearanceOptions Appearance { get; init; } = new();
 
     public ScheduledJobsOptions ScheduledJobs { get; init; } = new();
+
+    public LayoutOptions Layouts { get; init; } = new();
 }
 
 public sealed class HttpOptions
@@ -36,4 +38,33 @@ public sealed class ScheduledJobsOptions
     public bool AutoStartOnLaunch { get; init; } = true;
 
     public int DefaultIntervalSeconds { get; init; } = 60;
+}
+
+public sealed class LayoutOptions
+{
+    public DockLayoutSnapshot? CurrentLayout { get; init; }
+
+    public List<NamedDockLayout> SavedLayouts { get; init; } = [];
+}
+
+public sealed class NamedDockLayout
+{
+    public string Name { get; init; } = string.Empty;
+
+    public DockLayoutSnapshot Layout { get; init; } = new();
+}
+
+public sealed class DockLayoutSnapshot
+{
+    public double LeftToolProportion { get; init; } = 0.25;
+
+    public double DocumentProportion { get; init; } = 0.75;
+
+    public string? ActiveToolDockableId { get; init; }
+
+    public string? ActiveDocumentDockableId { get; init; }
+
+    public List<string> LeftToolDockableOrder { get; init; } = [];
+
+    public List<string> DocumentDockableOrder { get; init; } = [];
 }

@@ -89,6 +89,11 @@ public sealed class ApplicationOptionsStore(string optionsPath)
             throw new InvalidDataException("Scheduled job options are required.");
         }
 
+        if (options.Layouts is null)
+        {
+            throw new InvalidDataException("Layout options are required.");
+        }
+
         if (!ValidHttpVersions.Contains(options.Http.HttpVersion))
         {
             throw new InvalidDataException($"Unsupported HTTP version '{options.Http.HttpVersion}'.");
@@ -129,6 +134,52 @@ public sealed class ApplicationOptionsStore(string optionsPath)
         if (options.ScheduledJobs.DefaultIntervalSeconds < 1)
         {
             throw new InvalidDataException("Default scheduled job interval must be at least 1 second.");
+        }
+
+        ValidateLayoutSnapshot(options.Layouts.CurrentLayout);
+
+        if (options.Layouts.SavedLayouts is null)
+        {
+            throw new InvalidDataException("Saved layouts are required.");
+        }
+
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var namedLayout in options.Layouts.SavedLayouts)
+        {
+            if (namedLayout is null)
+            {
+                throw new InvalidDataException("Saved layout cannot be null.");
+            }
+
+            if (string.IsNullOrWhiteSpace(namedLayout.Name))
+            {
+                throw new InvalidDataException("Saved layout name cannot be empty.");
+            }
+
+            if (!names.Add(namedLayout.Name))
+            {
+                throw new InvalidDataException($"Duplicate saved layout name '{namedLayout.Name}'.");
+            }
+
+            if (namedLayout.Layout is null)
+            {
+                throw new InvalidDataException($"Saved layout '{namedLayout.Name}' is missing layout data.");
+            }
+
+            ValidateLayoutSnapshot(namedLayout.Layout);
+        }
+    }
+
+    private static void ValidateLayoutSnapshot(DockLayoutSnapshot? layout)
+    {
+        if (layout is null)
+        {
+            return;
+        }
+
+        if (layout.LeftToolProportion <= 0 || layout.DocumentProportion <= 0)
+        {
+            throw new InvalidDataException("Layout proportions must be positive values.");
         }
     }
 

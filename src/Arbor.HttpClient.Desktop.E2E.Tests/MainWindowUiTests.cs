@@ -15,6 +15,9 @@ using Arbor.HttpClient.Desktop.Models;
 using Arbor.HttpClient.Desktop.Services;
 using Arbor.HttpClient.Desktop.ViewModels;
 using Arbor.HttpClient.Desktop.Views;
+using Dock.Model.Controls;
+using Dock.Model.Core;
+using Dock.Model.Mvvm.Controls;
 using AwesomeAssertions;
 using Serilog;
 
@@ -23,6 +26,116 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Collection("HeadlessAvalonia")]
 public class MainWindowUiTests
 {
+    [Fact]
+    public async Task MainWindowViewModel_ShouldRestoreImplicitLayoutFromInitialOptions()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel,
+                initialOptions: new ApplicationOptions
+                {
+                    Layouts = new LayoutOptions
+                    {
+                        CurrentLayout = new DockLayoutSnapshot
+                        {
+                            LeftToolProportion = 0.4,
+                            DocumentProportion = 0.6,
+                            ActiveToolDockableId = "options",
+                            ActiveDocumentDockableId = "response",
+                            LeftToolDockableOrder = ["options", "left-panel"],
+                            DocumentDockableOrder = ["response", "request"]
+                        }
+                    }
+                });
+
+            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+            var documentDock = FindDockById<DocumentDock>(viewModel.Layout!, "document-dock");
+
+            leftToolDock.Should().NotBeNull();
+            documentDock.Should().NotBeNull();
+            leftToolDock!.Proportion.Should().BeApproximately(0.4, 0.0001);
+            documentDock!.Proportion.Should().BeApproximately(0.6, 0.0001);
+            leftToolDock.ActiveDockable?.Id.Should().Be("options");
+            documentDock.ActiveDockable?.Id.Should().Be("response");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task MainWindowViewModel_ShouldSaveRestoreAndRemoveNamedLayouts()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+            var documentDock = FindDockById<DocumentDock>(viewModel.Layout!, "document-dock");
+            leftToolDock.Should().NotBeNull();
+            documentDock.Should().NotBeNull();
+
+            leftToolDock!.Proportion = 0.35;
+            documentDock!.Proportion = 0.65;
+            leftToolDock.ActiveDockable = leftToolDock.VisibleDockables!.First(d => d.Id == "options");
+            documentDock.ActiveDockable = documentDock.VisibleDockables!.First(d => d.Id == "response");
+
+            viewModel.SaveLayoutAsNewCommand.Execute(null);
+            viewModel.SavedLayoutNames.Should().ContainSingle();
+            var layoutName = viewModel.SavedLayoutNames.Single();
+
+            leftToolDock.Proportion = 0.2;
+            documentDock.Proportion = 0.8;
+            leftToolDock.ActiveDockable = leftToolDock.VisibleDockables!.First(d => d.Id == "left-panel");
+            documentDock.ActiveDockable = documentDock.VisibleDockables!.First(d => d.Id == "request");
+
+            viewModel.RestoreLayoutCommand.Execute(layoutName);
+
+            leftToolDock.Proportion.Should().BeApproximately(0.35, 0.0001);
+            documentDock.Proportion.Should().BeApproximately(0.65, 0.0001);
+            leftToolDock.ActiveDockable?.Id.Should().Be("options");
+            documentDock.ActiveDockable?.Id.Should().Be("response");
+
+            viewModel.RemoveLayoutCommand.Execute(layoutName);
+            viewModel.SavedLayoutNames.Should().BeEmpty();
+
+            return true;
+        }, CancellationToken.None);
+    }
+
     [Fact]
     public async Task InitializeAsync_ShouldNotAutoStartScheduledJobs_WhenApplicationOptionIsDisabled()
     {
@@ -289,5 +402,27 @@ public class MainWindowUiTests
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             => Task.FromResult(send(request));
+    }
+
+    private static T? FindDockById<T>(IDockable dockable, string id) where T : class, IDockable
+    {
+        if (dockable is T match && string.Equals(match.Id, id, StringComparison.OrdinalIgnoreCase))
+        {
+            return match;
+        }
+
+        if (dockable is IDock dock && dock.VisibleDockables is not null)
+        {
+            foreach (var child in dock.VisibleDockables)
+            {
+                var result = FindDockById<T>(child, id);
+                if (result is not null)
+                {
+                    return result;
+                }
+            }
+        }
+
+        return null;
     }
 }

@@ -22,6 +22,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Controls;
 using Dock.Model.Core;
+using Dock.Model.Mvvm.Controls;
 
 namespace Arbor.HttpClient.Desktop.ViewModels;
 
@@ -44,6 +45,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private int _requestBodyReadPending;
     private DockFactory? _dockFactory;
     private ApplicationOptions _applicationOptions = new();
+    private readonly Dictionary<string, DockLayoutSnapshot> _savedLayouts = new(StringComparer.OrdinalIgnoreCase);
+    private int _layoutNameCounter = 1;
 
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
@@ -92,6 +95,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private Collection? _selectedCollection;
+
+    [ObservableProperty]
+    private bool _isLayoutPanelVisible;
+
+    [ObservableProperty]
+    private string? _selectedLayoutName;
 
     public const string SystemThemeOption = "System";
     public const string DarkThemeOption = "Dark";
@@ -324,6 +333,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ActiveEnvironmentVariables = [];
         RequestHeaders = [];
         ScheduledJobs = [];
+        SavedLayoutNames = [];
 
         RequestHeaders.CollectionChanged += OnRequestHeadersCollectionChanged;
 
@@ -334,7 +344,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         Layout = _dockFactory.CreateLayout();
         _dockFactory.InitLayout(Layout);
 
-        ApplyOptions(initialOptions ?? new ApplicationOptions());
+        var options = initialOptions ?? new ApplicationOptions();
+        ApplyOptions(options);
+        ApplyLayoutOptions(options.Layouts);
     }
 
     public IReadOnlyList<string> Methods { get; }
@@ -346,6 +358,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public ObservableCollection<EnvironmentVariableViewModel> ActiveEnvironmentVariables { get; }
     public ObservableCollection<RequestHeaderViewModel> RequestHeaders { get; }
     public ObservableCollection<ScheduledJobViewModel> ScheduledJobs { get; }
+    public ObservableCollection<string> SavedLayoutNames { get; }
     public LogWindowViewModel LogWindowViewModel => _logWindowViewModel;
 
     public IAsyncRelayCommand SendRequestCommand { get; }
@@ -434,7 +447,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 AutoStartOnLaunch = AutoStartScheduledJobsOnLaunch,
                 DefaultIntervalSeconds = Math.Max(1, DefaultScheduledJobIntervalSeconds)
-            }
+            },
+            Layouts = BuildLayoutOptions()
         };
 
         ApplicationOptionsStore.Validate(options);
@@ -461,6 +475,28 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             RequestUrl = options.Http.DefaultRequestUrl;
         }
+    }
+
+    private void ApplyLayoutOptions(LayoutOptions? layouts)
+    {
+        _savedLayouts.Clear();
+        SavedLayoutNames.Clear();
+
+        if (layouts?.SavedLayouts is not null)
+        {
+            foreach (var namedLayout in layouts.SavedLayouts)
+            {
+                if (!string.IsNullOrWhiteSpace(namedLayout.Name) && namedLayout.Layout is not null)
+                {
+                    _savedLayouts[namedLayout.Name] = namedLayout.Layout;
+                    SavedLayoutNames.Add(namedLayout.Name);
+                }
+            }
+        }
+
+        SelectedLayoutName = SavedLayoutNames.FirstOrDefault();
+        ApplyLayoutSnapshot(layouts?.CurrentLayout);
+        UpdateLayoutNameCounter();
     }
 
     private string ResolveContentType(string body)
@@ -541,8 +577,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>Set by the view layer to open the log window.</summary>
     public Action? OpenLogWindowAction { get; set; }
 
+    /// <summary>Set by the view layer to close the main window.</summary>
+    public Action? ExitApplicationAction { get; set; }
+
     [RelayCommand]
     private void OpenLogWindow() => OpenLogWindowAction?.Invoke();
+
+    [RelayCommand]
+    private void ExitApplication() => ExitApplicationAction?.Invoke();
 
     [RelayCommand]
     private void OpenOptions()
@@ -556,6 +598,81 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [RelayCommand]
     private void ToggleEnvironmentPanel() => IsEnvironmentPanelVisible = !IsEnvironmentPanelVisible;
+
+    [RelayCommand]
+    private void ToggleLayoutPanel() => IsLayoutPanelVisible = !IsLayoutPanelVisible;
+
+    [RelayCommand]
+    private void SaveLayoutAsNew()
+    {
+        var layoutSnapshot = CaptureLayoutSnapshot();
+        if (layoutSnapshot is null)
+        {
+            return;
+        }
+
+        var name = GenerateNextLayoutName();
+        _savedLayouts[name] = layoutSnapshot;
+        SelectedLayoutName = name;
+        RefreshSavedLayoutNames();
+        PersistLayoutOptions();
+    }
+
+    [RelayCommand]
+    private void SaveLayoutToExisting(string? layoutName)
+    {
+        if (string.IsNullOrWhiteSpace(layoutName))
+        {
+            return;
+        }
+
+        var layoutSnapshot = CaptureLayoutSnapshot();
+        if (layoutSnapshot is null)
+        {
+            return;
+        }
+
+        _savedLayouts[layoutName] = layoutSnapshot;
+        SelectedLayoutName = layoutName;
+        RefreshSavedLayoutNames();
+        PersistLayoutOptions();
+    }
+
+    [RelayCommand]
+    private void RestoreLayout(string? layoutName)
+    {
+        if (string.IsNullOrWhiteSpace(layoutName))
+        {
+            return;
+        }
+
+        if (_savedLayouts.TryGetValue(layoutName, out var layoutSnapshot))
+        {
+            ApplyLayoutSnapshot(layoutSnapshot);
+            SelectedLayoutName = layoutName;
+            PersistLayoutOptions();
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveLayout(string? layoutName)
+    {
+        if (string.IsNullOrWhiteSpace(layoutName))
+        {
+            return;
+        }
+
+        if (_savedLayouts.Remove(layoutName))
+        {
+            if (string.Equals(SelectedLayoutName, layoutName, StringComparison.OrdinalIgnoreCase))
+            {
+                SelectedLayoutName = SavedLayoutNames.FirstOrDefault();
+            }
+
+            RefreshSavedLayoutNames();
+            PersistLayoutOptions();
+        }
+    }
 
     [RelayCommand]
     private void LoadCollectionRequest(CollectionItemViewModel? item)
@@ -857,6 +974,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        PersistCurrentLayout();
         _scheduledJobService.Dispose();
         _requestBodyWatcher?.Dispose();
         _requestBodyWatcher = null;
@@ -867,6 +985,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             catch { /* best-effort cleanup */ }
         }
     }
+
+    public void PersistCurrentLayout() => PersistLayoutOptions();
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
@@ -948,6 +1068,202 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         catch
         {
             // no associated application – silently ignore
+        }
+    }
+
+    private LayoutOptions BuildLayoutOptions() =>
+        new()
+        {
+            CurrentLayout = CaptureLayoutSnapshot(),
+            SavedLayouts = _savedLayouts
+                .OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(item => new NamedDockLayout
+                {
+                    Name = item.Key,
+                    Layout = item.Value
+                })
+                .ToList()
+        };
+
+    private void PersistLayoutOptions()
+    {
+        if (_applicationOptionsStore is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var updatedOptions = new ApplicationOptions
+            {
+                Http = _applicationOptions.Http,
+                Appearance = _applicationOptions.Appearance,
+                ScheduledJobs = _applicationOptions.ScheduledJobs,
+                Layouts = BuildLayoutOptions()
+            };
+
+            _applicationOptionsStore.Save(updatedOptions);
+            _applicationOptions = updatedOptions;
+        }
+        catch
+        {
+            // best-effort persistence for implicit layout save
+        }
+    }
+
+    private DockLayoutSnapshot? CaptureLayoutSnapshot()
+    {
+        var root = Layout;
+        if (root is null)
+        {
+            return null;
+        }
+
+        var leftToolDock = FindDockById<ToolDock>(root, "left-tool-dock");
+        var documentDock = FindDockById<DocumentDock>(root, "document-dock");
+        if (leftToolDock is null || documentDock is null)
+        {
+            return null;
+        }
+
+        return new DockLayoutSnapshot
+        {
+            LeftToolProportion = leftToolDock.Proportion,
+            DocumentProportion = documentDock.Proportion,
+            ActiveToolDockableId = leftToolDock.ActiveDockable?.Id,
+            ActiveDocumentDockableId = documentDock.ActiveDockable?.Id,
+            LeftToolDockableOrder = leftToolDock.VisibleDockables?.Select(d => d.Id).Where(id => !string.IsNullOrWhiteSpace(id)).Cast<string>().ToList() ?? [],
+            DocumentDockableOrder = documentDock.VisibleDockables?.Select(d => d.Id).Where(id => !string.IsNullOrWhiteSpace(id)).Cast<string>().ToList() ?? []
+        };
+    }
+
+    private void ApplyLayoutSnapshot(DockLayoutSnapshot? snapshot)
+    {
+        if (snapshot is null || Layout is null)
+        {
+            return;
+        }
+
+        var leftToolDock = FindDockById<ToolDock>(Layout, "left-tool-dock");
+        var documentDock = FindDockById<DocumentDock>(Layout, "document-dock");
+        if (leftToolDock is null || documentDock is null)
+        {
+            return;
+        }
+
+        if (snapshot.LeftToolProportion > 0)
+        {
+            leftToolDock.Proportion = snapshot.LeftToolProportion;
+        }
+
+        if (snapshot.DocumentProportion > 0)
+        {
+            documentDock.Proportion = snapshot.DocumentProportion;
+        }
+
+        ApplyDockOrder(leftToolDock, snapshot.LeftToolDockableOrder);
+        ApplyDockOrder(documentDock, snapshot.DocumentDockableOrder);
+        SetActiveDockable(leftToolDock, snapshot.ActiveToolDockableId);
+        SetActiveDockable(documentDock, snapshot.ActiveDocumentDockableId);
+    }
+
+    private static void ApplyDockOrder(IDock dock, IReadOnlyList<string> orderedDockableIds)
+    {
+        var visibleDockables = dock.VisibleDockables;
+        if (visibleDockables is null || orderedDockableIds.Count == 0)
+        {
+            return;
+        }
+
+        var byId = visibleDockables
+            .Where(d => !string.IsNullOrWhiteSpace(d.Id))
+            .ToDictionary(d => d.Id!, StringComparer.OrdinalIgnoreCase);
+
+        var reordered = new List<IDockable>(visibleDockables.Count);
+        foreach (var id in orderedDockableIds)
+        {
+            if (byId.TryGetValue(id, out var dockable) && !reordered.Contains(dockable))
+            {
+                reordered.Add(dockable);
+            }
+        }
+
+        foreach (var dockable in visibleDockables)
+        {
+            if (!reordered.Contains(dockable))
+            {
+                reordered.Add(dockable);
+            }
+        }
+
+        visibleDockables.Clear();
+        foreach (var dockable in reordered)
+        {
+            visibleDockables.Add(dockable);
+        }
+    }
+
+    private static void SetActiveDockable(IDock dock, string? dockableId)
+    {
+        if (string.IsNullOrWhiteSpace(dockableId) || dock.VisibleDockables is null)
+        {
+            return;
+        }
+
+        var activeDockable = dock.VisibleDockables.FirstOrDefault(item => string.Equals(item.Id, dockableId, StringComparison.OrdinalIgnoreCase));
+        if (activeDockable is not null)
+        {
+            dock.ActiveDockable = activeDockable;
+        }
+    }
+
+    private static T? FindDockById<T>(IDockable dockable, string id) where T : class, IDockable
+    {
+        if (dockable is T foundDockable && string.Equals(foundDockable.Id, id, StringComparison.OrdinalIgnoreCase))
+        {
+            return foundDockable;
+        }
+
+        if (dockable is IDock dock && dock.VisibleDockables is not null)
+        {
+            foreach (var child in dock.VisibleDockables)
+            {
+                var childDock = FindDockById<T>(child, id);
+                if (childDock is not null)
+                {
+                    return childDock;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private string GenerateNextLayoutName()
+    {
+        while (_savedLayouts.ContainsKey($"Layout {_layoutNameCounter}"))
+        {
+            _layoutNameCounter++;
+        }
+
+        return $"Layout {_layoutNameCounter++}";
+    }
+
+    private void RefreshSavedLayoutNames()
+    {
+        var names = _savedLayouts.Keys.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList();
+        SavedLayoutNames.Clear();
+        foreach (var name in names)
+        {
+            SavedLayoutNames.Add(name);
+        }
+    }
+
+    private void UpdateLayoutNameCounter()
+    {
+        while (_savedLayouts.ContainsKey($"Layout {_layoutNameCounter}"))
+        {
+            _layoutNameCounter++;
         }
     }
 

@@ -98,6 +98,7 @@ public partial class App : Application
             window.Opened += async (_, _) => await InitializeAsync(historyRepository, collectionRepository, environmentRepository, scheduledJobRepository, viewModel);
             window.Closed += (_, _) =>
             {
+                viewModel.PersistCurrentLayout();
                 viewModel.Dispose();
                 logWindowViewModel.Dispose();
                 configuredHttpClient.Dispose();
