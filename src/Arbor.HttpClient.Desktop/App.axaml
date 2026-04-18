@@ -17,6 +17,12 @@
                     <SolidColorBrush x:Key="CollectionSelectionBrush" Color="#1E3A5F" />
                     <SolidColorBrush x:Key="MethodFallbackBrush" Color="#F5F5F5" />
                     <SolidColorBrush x:Key="ErrorBrush" Color="#FF6347" />
+                    <!-- Method label colors: accessible against dark backgrounds (WCAG AA ≥ 4.5:1 on #1E1E1E) -->
+                    <SolidColorBrush x:Key="MethodGetBrush" Color="#4FC3F7" />
+                    <SolidColorBrush x:Key="MethodPostBrush" Color="#6FCF97" />
+                    <SolidColorBrush x:Key="MethodPutBrush" Color="#FFB74D" />
+                    <SolidColorBrush x:Key="MethodPatchBrush" Color="#CE93D8" />
+                    <SolidColorBrush x:Key="MethodDeleteBrush" Color="#EF5350" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="TopToolbarBorderBrush" Color="#D0D7DE" />
@@ -28,14 +34,14 @@
                     <SolidColorBrush x:Key="CollectionSelectionBrush" Color="#DCEBFF" />
                     <SolidColorBrush x:Key="MethodFallbackBrush" Color="#1F2328" />
                     <SolidColorBrush x:Key="ErrorBrush" Color="#B42318" />
+                    <!-- Method label colors: accessible against light backgrounds (WCAG AA ≥ 4.5:1 on #FFFFFF) -->
+                    <SolidColorBrush x:Key="MethodGetBrush" Color="#0065BD" />
+                    <SolidColorBrush x:Key="MethodPostBrush" Color="#107C10" />
+                    <SolidColorBrush x:Key="MethodPutBrush" Color="#875F09" />
+                    <SolidColorBrush x:Key="MethodPatchBrush" Color="#744DA9" />
+                    <SolidColorBrush x:Key="MethodDeleteBrush" Color="#C50F1F" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
-
-            <SolidColorBrush x:Key="MethodGetBrush" Color="#0078D4" />
-            <SolidColorBrush x:Key="MethodPostBrush" Color="#107C10" />
-            <SolidColorBrush x:Key="MethodPutBrush" Color="#986F0B" />
-            <SolidColorBrush x:Key="MethodPatchBrush" Color="#744DA9" />
-            <SolidColorBrush x:Key="MethodDeleteBrush" Color="#C50F1F" />
         </ResourceDictionary>
     </Application.Resources>
 

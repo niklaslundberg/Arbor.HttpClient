@@ -138,6 +138,28 @@ The desktop application (`Arbor.HttpClient.Desktop`) is distributed as a signed 
 - The `Publisher` value in `AppxManifest.xml` must exactly match the `Subject` of the signing certificate. If you change the publisher, update both.
 - Required MSIX logo sizes: `Square44x44Logo` (44×44), `Square150x150Logo` (150×150), `Wide310x150Logo` (310×150), `StoreLogo` (50×50), `SplashScreen` (620×300). Update the workflow if real brand assets replace the generated placeholders.
 
+## Accessibility
+
+All UI changes involving human interaction must consider accessibility from the start — not as an afterthought.
+
+### Requirements
+
+- **Color contrast**: Every foreground/background color pair used for text or interactive elements must meet [WCAG 2.1](https://www.w3.org/WAI/standards-guidelines/wcag/) Level AA:
+  - ≥ 4.5:1 for normal text
+  - ≥ 3:1 for large text (bold text ≥ 14 pt, or regular text ≥ 18 pt) and graphical/UI components
+- **Theme consistency**: Colors must be defined per-theme (Dark/Light) in the `ResourceDictionary.ThemeDictionaries` section of `App.axaml` so that each variant meets the above ratios against its own backgrounds.
+- **Contrast tests**: Any new color pair introduced in `App.axaml` must be covered by a corresponding test case in `AccessibilityContrastTests.cs` that asserts the WCAG contrast ratio.
+- **Keyboard navigation**: Interactive controls (buttons, list items, text boxes) must be reachable and operable by keyboard alone.
+- **Screen reader labels**: All non-decorative icons and images must carry an accessible name (e.g., `AutomationProperties.Name`).
+
+### Verification checklist for UI pull requests
+
+Before merging any PR that touches UI code or theme resources:
+
+- [ ] All new/changed color pairs have been verified with the contrast-ratio formula in `AccessibilityContrastTests.cs` and meet WCAG AA.
+- [ ] Interactive elements remain keyboard-accessible (Tab, Enter/Space, arrow keys where applicable).
+- [ ] No purely visual text label has been replaced by an icon without an accessible name.
+
 ## Central Package Management
 
 All NuGet package versions are managed centrally in `Directory.Packages.props`.  
