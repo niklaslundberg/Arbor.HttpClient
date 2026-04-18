@@ -197,6 +197,120 @@ public class ScreenshotGenerator
     }
 
     [Fact]
+    public async Task GenerateVariablesQueryTabScreenshot()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var (viewModel, window) = CreateWindow(
+                BuildHandler("{\"ok\":true}"),
+                requestName: "Query with variables",
+                method: "GET",
+                url: "{{baseUrl}}/search");
+
+            viewModel.RequestQueryParameters.Add(new RequestQueryParameterViewModel
+            {
+                Key = "{{queryKey}}",
+                Value = "{{queryValue}}",
+                IsEnabled = true
+            });
+            viewModel.RequestQueryParameters.Add(new RequestQueryParameterViewModel
+            {
+                Key = "env",
+                Value = "{{environment}}",
+                IsEnabled = true
+            });
+            viewModel.RequestHeaders.Add(new RequestHeaderViewModel
+            {
+                Name = "X-{{headerName}}",
+                Value = "{{headerValue}}",
+                IsEnabled = true
+            });
+
+            viewModel.NewEnvironmentName = "Demo Environment";
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "https://postman-echo.com"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryKey", "city"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryValue", "stockholm"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("environment", "production"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerValue", "blue"));
+            viewModel.IsEnvironmentPanelVisible = false;
+
+            window.Show();
+            var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
+            if (tabControl is not null)
+            {
+                tabControl.SelectedIndex = 0; // Query tab
+            }
+
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            frame?.Save(Path.Combine(outputDir, "variables-query-tab.png"));
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task GenerateVariablesHeadersTabScreenshot()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var (viewModel, window) = CreateWindow(
+                BuildHandler("{\"ok\":true}"),
+                requestName: "Headers with variables",
+                method: "POST",
+                url: "{{baseUrl}}/api");
+
+            viewModel.RequestHeaders.Add(new RequestHeaderViewModel
+            {
+                Name = "X-{{headerName}}",
+                Value = "{{headerValue}}",
+                IsEnabled = true
+            });
+            viewModel.RequestHeaders.Add(new RequestHeaderViewModel
+            {
+                Name = "Authorization",
+                Value = "Bearer {{token}}",
+                IsEnabled = true
+            });
+
+            viewModel.NewEnvironmentName = "Demo Environment";
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "https://postman-echo.com"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerValue", "blue"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "demo-token"));
+            viewModel.IsEnvironmentPanelVisible = false;
+
+            window.Show();
+            var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
+            if (tabControl is not null)
+            {
+                tabControl.SelectedIndex = 2; // Headers tab
+            }
+
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            frame?.Save(Path.Combine(outputDir, "variables-headers-tab.png"));
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task GenerateVariablesPreviewScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
