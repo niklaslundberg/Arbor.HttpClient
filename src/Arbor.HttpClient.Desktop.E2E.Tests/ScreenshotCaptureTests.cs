@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http;
-using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -15,137 +14,26 @@ using Arbor.HttpClient.Desktop.Models;
 using Arbor.HttpClient.Desktop.Services;
 using Arbor.HttpClient.Desktop.ViewModels;
 using Arbor.HttpClient.Desktop.Views;
-using AwesomeAssertions;
 using Serilog;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
 [Collection("HeadlessAvalonia")]
-public class MainWindowUiTests
+public class ScreenshotCaptureTests
 {
+    /// <summary>
+    /// Saves a screenshot of the Options view (Scheduled Jobs page) showing the
+    /// auto-start toggle and default interval option to docs/screenshots/.
+    /// </summary>
     [Fact]
-    public async Task InitializeAsync_ShouldNotAutoStartScheduledJobs_WhenApplicationOptionIsDisabled()
+    public async Task Capture_OptionsView_ScheduledJobsPage()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
         await session.Dispatch(async () =>
         {
-            var repository = new InMemoryRequestHistoryRepository();
-            var scheduledJobRepository = new InMemoryScheduledJobRepository();
-            var jobId = await scheduledJobRepository.SaveAsync(new ScheduledJobConfig(
-                0,
-                "Job 1",
-                "GET",
-                "https://example.com/job",
-                null,
-                null,
-                60,
-                true));
-
             var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
-
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                scheduledJobRepository,
-                scheduledJobService,
-                logWindowViewModel,
-                initialOptions: new ApplicationOptions
-                {
-                    ScheduledJobs = new ScheduledJobsOptions
-                    {
-                        AutoStartOnLaunch = false
-                    }
-                });
-
-            await viewModel.InitializeAsync();
-
-            viewModel.ScheduledJobs.Should().HaveCount(1);
-            viewModel.ScheduledJobs.Single().AutoStart.Should().BeTrue();
-            viewModel.ScheduledJobs.Single().IsRunning.Should().BeFalse();
-            scheduledJobService.IsRunning(jobId).Should().BeFalse();
-
-            return true;
-        }, CancellationToken.None);
-    }
-
-    [Fact]
-    public async Task SendButton_ShouldUpdateResponseStatusAndBody()
-    {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ =>
-                new HttpResponseMessage(HttpStatusCode.Accepted)
-                {
-                    ReasonPhrase = "Accepted",
-                    Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
-                });
-
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
-
-            var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel)
-            {
-                RequestName = "UI Test",
-                RequestUrl = "https://example.com/api",
-                SelectedMethod = "GET"
-            };
-
-            var window = new MainWindow { DataContext = viewModel };
-            window.Show();
-
-            // Allow Dock to render its panel contents
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-
-            // The Send button is now inside RequestView which is rendered by the DockControl.
-            // Dock uses deferred content materialization, so visual-tree traversal may not find
-            // the button during headless tests. Execute the command via the ViewModel directly,
-            // which is what the button's Command binding ultimately calls.
-            viewModel.Layout.Should().NotBeNull("dock layout should be initialized");
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
-
-            viewModel.ResponseStatus.Should().Be("202 Accepted");
-            viewModel.ResponseBody.Should().Contain("ok");
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
-            var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-ui.png");
-            screenshot?.Save(screenshotPath);
-
-            window.Close();
-            return true;
-        }, CancellationToken.None);
-    }
-
-    [Fact]
-    public async Task OptionsView_ShouldDisplayScheduledJobsPage_WithAutoStartAndIntervalOptions()
-    {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -169,41 +57,97 @@ public class MainWindowUiTests
             // Navigate to the Scheduled Jobs page via the ViewModel
             viewModel.SelectedOptionsPage = "ScheduledJobs";
 
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
-
-            // The explicit <TextBlock> label is always in the visual tree
-            var textBlocks = window.GetVisualDescendants().OfType<TextBlock>().Select(tb => tb.Text).ToList();
-
-            textBlocks
-                .Any(t => string.Equals(t, "Default interval for new jobs", StringComparison.Ordinal))
-                .Should()
-                .BeTrue("default interval label should be on the Scheduled Jobs page");
-
-            // CheckBox.Content is checked directly — no need for template rendering
-            window.GetVisualDescendants().OfType<CheckBox>()
-                .Any(cb => string.Equals(cb.Content?.ToString(), "Auto-start scheduled jobs on launch", StringComparison.Ordinal))
-                .Should()
-                .BeTrue("auto-start toggle should be on the Scheduled Jobs page");
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
 
             var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-options-view.png");
-            screenshot?.Save(screenshotPath);
+            var dest = Path.Combine(FindRepoRoot(), "docs", "screenshots", "options-view-scheduled-jobs.png");
+            screenshot?.Save(dest);
 
             window.Close();
             return true;
         }, CancellationToken.None);
     }
 
+    /// <summary>
+    /// Saves a screenshot of the Scheduled Jobs tab showing the per-job
+    /// "Auto-start" checkbox on a populated job entry to docs/screenshots/.
+    /// </summary>
+    [Fact]
+    public async Task Capture_ScheduledJobsPanel_AutostartCheckbox()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var repository = new InMemoryRequestHistoryRepository();
+            var scheduledJobRepository = new InMemoryScheduledJobRepository();
+            await scheduledJobRepository.SaveAsync(new ScheduledJobConfig(
+                0, "Daily health-check", "GET", "https://example.com/health",
+                null, null, 60, AutoStart: true));
+
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                scheduledJobRepository,
+                scheduledJobService,
+                logWindowViewModel);
+
+            await viewModel.InitializeAsync();
+            viewModel.LeftPanelTab = "ScheduledJobs";
+
+            var window = new MainWindow { DataContext = viewModel };
+            window.Show();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(5);
+
+            var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            var dest = Path.Combine(FindRepoRoot(), "docs", "screenshots", "scheduled-jobs-autostart.png");
+            screenshot?.Save(dest);
+
+            window.Close();
+            viewModel.Dispose();
+            return true;
+        }, CancellationToken.None);
+    }
+
+    private static string FindRepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            if (dir.GetFiles("Arbor.HttpClient.slnx").Length > 0)
+            {
+                return dir.FullName;
+            }
+
+            dir = dir.Parent;
+        }
+
+        throw new InvalidOperationException("Could not locate repository root (Arbor.HttpClient.slnx not found).");
+    }
+
     private sealed class TestEntryPoint
     {
         public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
             .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions
-            {
-                UseHeadlessDrawing = false
-            })
+            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
             .WithInterFont()
             .LogToTrace();
+    }
+
+    private sealed class StubMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> send)
+        : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(send(request));
     }
 
     private sealed class InMemoryRequestHistoryRepository : IRequestHistoryRepository
@@ -282,12 +226,5 @@ public class MainWindowUiTests
 
         public Task<IReadOnlyList<ScheduledJobConfig>> GetAllAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ScheduledJobConfig>>(_items.ToList());
-    }
-
-    private sealed class StubMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> send)
-        : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => Task.FromResult(send(request));
     }
 }

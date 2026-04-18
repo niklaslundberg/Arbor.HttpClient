@@ -8,6 +8,7 @@
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="OptionsNavBackgroundBrush" Color="#2D2D30" />
                     <SolidColorBrush x:Key="TopToolbarBorderBrush" Color="#2A2A2A" />
                     <SolidColorBrush x:Key="SecondaryPanelBackgroundBrush" Color="#1A1A2E" />
                     <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#12212F" />
@@ -25,6 +26,7 @@
                     <SolidColorBrush x:Key="MethodDeleteBrush" Color="#EF5350" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="OptionsNavBackgroundBrush" Color="#F0F0F0" />
                     <SolidColorBrush x:Key="TopToolbarBorderBrush" Color="#D0D7DE" />
                     <SolidColorBrush x:Key="SecondaryPanelBackgroundBrush" Color="#F5F8FC" />
                     <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#F3F6FA" />

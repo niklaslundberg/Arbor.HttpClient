@@ -96,6 +96,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public const string SystemThemeOption = "System";
     public const string DarkThemeOption = "Dark";
     public const string LightThemeOption = "Light";
+    public const int MinScheduledJobIntervalSeconds = 1;
+    private const string OptionsPageBreadcrumbSeparator = " \u203a  ";
 
     public IReadOnlyList<string> ThemeOptions { get; } =
     [
@@ -151,6 +153,31 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private string _uiFontSizeText = "13";
+
+    [ObservableProperty]
+    private bool _autoStartScheduledJobsOnLaunch = true;
+
+    [ObservableProperty]
+    private int _defaultScheduledJobIntervalSeconds = 60;
+
+    [ObservableProperty]
+    private string _selectedOptionsPage = "HTTP";
+
+    partial void OnSelectedOptionsPageChanged(string value)
+    {
+        OnPropertyChanged(nameof(SelectedOptionsPageTitle));
+        OnPropertyChanged(nameof(SelectedOptionsPageBreadcrumb));
+    }
+
+    public string SelectedOptionsPageTitle => SelectedOptionsPage switch
+    {
+        "HTTP" => "HTTP",
+        "ScheduledJobs" => "Scheduled Jobs",
+        "LookAndFeel" => "Look & Feel",
+        _ => SelectedOptionsPage
+    };
+
+    public string SelectedOptionsPageBreadcrumb => $"Options{OptionsPageBreadcrumbSeparator}{SelectedOptionsPageTitle}";
 
     public double UiFontSize =>
         double.TryParse(UiFontSizeText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
@@ -402,6 +429,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 Theme = SelectedThemeOption,
                 FontFamily = UiFontFamily,
                 FontSize = fontSize
+            },
+            ScheduledJobs = new ScheduledJobsOptions
+            {
+                AutoStartOnLaunch = AutoStartScheduledJobsOnLaunch,
+                DefaultIntervalSeconds = Math.Max(1, DefaultScheduledJobIntervalSeconds)
             }
         };
 
@@ -422,6 +454,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         DefaultContentType = options.Http.DefaultContentType;
         UiFontFamily = options.Appearance.FontFamily;
         UiFontSizeText = options.Appearance.FontSize.ToString("0.##", CultureInfo.InvariantCulture);
+        AutoStartScheduledJobsOnLaunch = options.ScheduledJobs.AutoStartOnLaunch;
+        DefaultScheduledJobIntervalSeconds = options.ScheduledJobs.DefaultIntervalSeconds;
 
         if (updateCurrentRequestUrl || string.IsNullOrWhiteSpace(RequestUrl) || string.Equals(RequestUrl, previousDefaultUrl, StringComparison.Ordinal))
         {
@@ -456,7 +490,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void AddScheduledJob()
     {
-        ScheduledJobs.Add(new ScheduledJobViewModel(_scheduledJobRepository, _scheduledJobService));
+        var vm = new ScheduledJobViewModel(_scheduledJobRepository, _scheduledJobService)
+        {
+            IntervalSeconds = Math.Max(MinScheduledJobIntervalSeconds, DefaultScheduledJobIntervalSeconds)
+        };
+        ScheduledJobs.Add(vm);
         LeftPanelTab = "ScheduledJobs";
     }
 
@@ -502,13 +540,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     /// <summary>Set by the view layer to open the log window.</summary>
     public Action? OpenLogWindowAction { get; set; }
-    public Action? OpenOptionsWindowAction { get; set; }
 
     [RelayCommand]
     private void OpenLogWindow() => OpenLogWindowAction?.Invoke();
 
     [RelayCommand]
-    private void OpenOptions() => OpenOptionsWindowAction?.Invoke();
+    private void OpenOptions()
+    {
+        if (_dockFactory?.LeftToolDock is { } dock &&
+            _dockFactory.OptionsViewModel is { } optVm)
+        {
+            dock.ActiveDockable = optVm;
+        }
+    }
 
     [RelayCommand]
     private void ToggleEnvironmentPanel() => IsEnvironmentPanelVisible = !IsEnvironmentPanelVisible;
@@ -1030,7 +1074,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             var vm = ScheduledJobViewModel.FromConfig(config, _scheduledJobRepository, _scheduledJobService);
             ScheduledJobs.Add(vm);
 
-            if (config.AutoStart && !_scheduledJobService.IsRunning(config.Id))
+            if (AutoStartScheduledJobsOnLaunch && config.AutoStart && !_scheduledJobService.IsRunning(config.Id))
             {
                 _scheduledJobService.Start(config);
                 vm.IsRunning = true;

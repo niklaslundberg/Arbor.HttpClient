@@ -16,6 +16,8 @@ public class ApplicationOptionsStoreTests
 
         options.Http.DefaultContentType.Should().Be("application/json");
         options.Appearance.Theme.Should().Be("System");
+        options.ScheduledJobs.AutoStartOnLaunch.Should().BeTrue();
+        options.ScheduledJobs.DefaultIntervalSeconds.Should().Be(60);
     }
 
     [Fact]
@@ -71,6 +73,11 @@ public class ApplicationOptionsStoreTests
                 Theme = "Dark",
                 FontFamily = "Consolas,Menlo,monospace",
                 FontSize = 14
+            },
+            ScheduledJobs = new ScheduledJobsOptions
+            {
+                AutoStartOnLaunch = false,
+                DefaultIntervalSeconds = 120
             }
         };
 
@@ -82,5 +89,38 @@ public class ApplicationOptionsStoreTests
         imported.Http.FollowRedirects.Should().BeFalse();
         imported.Appearance.Theme.Should().Be("Dark");
         imported.Appearance.FontSize.Should().Be(14);
+        imported.ScheduledJobs.AutoStartOnLaunch.Should().BeFalse();
+        imported.ScheduledJobs.DefaultIntervalSeconds.Should().Be(120);
+    }
+
+    [Fact]
+    public void Validate_ShouldRejectZeroDefaultInterval()
+    {
+        var options = new ApplicationOptions
+        {
+            Http = new HttpOptions
+            {
+                HttpVersion = "1.1",
+                TlsVersion = "SystemDefault",
+                DefaultContentType = "application/json",
+                FollowRedirects = true,
+                DefaultRequestUrl = "https://example.com"
+            },
+            Appearance = new AppearanceOptions
+            {
+                Theme = "System",
+                FontFamily = "Consolas",
+                FontSize = 13
+            },
+            ScheduledJobs = new ScheduledJobsOptions
+            {
+                AutoStartOnLaunch = true,
+                DefaultIntervalSeconds = 0
+            }
+        };
+
+        var action = () => ApplicationOptionsStore.Validate(options);
+
+        action.Should().Throw<InvalidDataException>().WithMessage("*interval*");
     }
 }

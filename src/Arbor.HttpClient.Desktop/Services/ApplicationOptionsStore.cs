@@ -84,6 +84,11 @@ public sealed class ApplicationOptionsStore(string optionsPath)
             throw new InvalidDataException("Appearance options are required.");
         }
 
+        if (options.ScheduledJobs is null)
+        {
+            throw new InvalidDataException("Scheduled job options are required.");
+        }
+
         if (!ValidHttpVersions.Contains(options.Http.HttpVersion))
         {
             throw new InvalidDataException($"Unsupported HTTP version '{options.Http.HttpVersion}'.");
@@ -119,6 +124,11 @@ public sealed class ApplicationOptionsStore(string optionsPath)
         if (string.IsNullOrWhiteSpace(options.Appearance.FontFamily))
         {
             throw new InvalidDataException("Font family is required.");
+        }
+
+        if (options.ScheduledJobs.DefaultIntervalSeconds < 1)
+        {
+            throw new InvalidDataException("Default scheduled job interval must be at least 1 second.");
         }
     }
 

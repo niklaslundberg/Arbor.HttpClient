@@ -7,7 +7,7 @@ namespace Arbor.HttpClient.Desktop.ViewModels;
 
 /// <summary>
 /// Builds the initial Dock layout for the main window.
-/// Panels: Explorer tool (left), Request document, Response document.
+/// Panels: Explorer tool (left), Options tool (left), Request document, Response document.
 /// </summary>
 public sealed class DockFactory : Factory
 {
@@ -18,21 +18,31 @@ public sealed class DockFactory : Factory
         _mainVm = mainVm;
     }
 
+    /// <summary>The left-side ToolDock; used to activate the Options tool programmatically.</summary>
+    public ToolDock? LeftToolDock { get; private set; }
+
+    /// <summary>The Options tool dockable.</summary>
+    public OptionsViewModel? OptionsViewModel { get; private set; }
+
     public override IRootDock CreateLayout()
     {
         var leftPanel = new LeftPanelViewModel(_mainVm);
-        var request = new RequestViewModel(_mainVm);
-        var response = new ResponseViewModel(_mainVm);
+        var options = new OptionsViewModel(_mainVm);
+        OptionsViewModel = options;
 
         var leftToolDock = new ToolDock
         {
             Id = "left-tool-dock",
             Proportion = 0.25,
             ActiveDockable = leftPanel,
-            VisibleDockables = CreateList<IDockable>(leftPanel),
+            VisibleDockables = CreateList<IDockable>(leftPanel, options),
             Alignment = Alignment.Left,
             GripMode = GripMode.Visible
         };
+        LeftToolDock = leftToolDock;
+
+        var request = new RequestViewModel(_mainVm);
+        var response = new ResponseViewModel(_mainVm);
 
         var documentDock = new DocumentDock
         {

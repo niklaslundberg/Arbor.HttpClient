@@ -1,4 +1,3 @@
-using System.Linq;
 using Arbor.HttpClient.Desktop.ViewModels;
 
 namespace Arbor.HttpClient.Desktop.Views;
@@ -17,7 +16,6 @@ public partial class MainWindow : Avalonia.Controls.Window
         {
             viewModel.StorageProvider = StorageProvider;
             viewModel.OpenLogWindowAction = OpenLogWindow;
-            viewModel.OpenOptionsWindowAction = OpenOptionsWindow;
         }
     }
 
@@ -41,29 +39,8 @@ public partial class MainWindow : Avalonia.Controls.Window
         new LogWindow { DataContext = vm.LogWindowViewModel }.Show(this);
     }
 
-    private void OpenOptionsWindow()
-    {
-        if (DataContext is not MainWindowViewModel vm)
-        {
-            return;
-        }
-
-        if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime lifetime)
-        {
-            var existing = lifetime.Windows.OfType<OptionsWindow>().FirstOrDefault();
-            if (existing is not null)
-            {
-                existing.Activate();
-                return;
-            }
-        }
-
-        new OptionsWindow { DataContext = vm }.Show(this);
-    }
-
     protected override void OnClosed(System.EventArgs e)
     {
         base.OnClosed(e);
     }
 }
-
