@@ -1208,6 +1208,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        // When floating windows are present in the current session the dockables
+        // inside them have been moved OUT of leftToolDock/documentDock.  Closing
+        // those windows via CloseWindow permanently destroys the dockables, so
+        // FindDockById would never find them again for re-floating.  The safest
+        // fix is to recreate the entire dock layout so all dockables start in
+        // their known home positions before we apply the snapshot.
+        if (Layout.Windows is { Count: > 0 })
+        {
+            Layout = _dockFactory.CreateLayout();
+            _dockFactory.InitLayout(Layout);
+            OnPropertyChanged(nameof(Layout));
+        }
+
         var leftToolDock = FindDockById<ToolDock>(Layout, "left-tool-dock");
         var documentDock = FindDockById<DocumentDock>(Layout, "document-dock");
         if (leftToolDock is null || documentDock is null)
@@ -1229,15 +1242,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ApplyDockOrder(documentDock, snapshot.DocumentDockableOrder);
         SetActiveDockable(leftToolDock, snapshot.ActiveToolDockableId);
         SetActiveDockable(documentDock, snapshot.ActiveDocumentDockableId);
-
-        // Close any existing floating windows before restoring new ones
-        if (Layout.Windows is { Count: > 0 } windows)
-        {
-            foreach (var win in windows.ToList())
-            {
-                _dockFactory.CloseWindow(win);
-            }
-        }
 
         // Restore floating windows
         foreach (var fw in snapshot.FloatingWindows)

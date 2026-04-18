@@ -309,6 +309,204 @@ public class MainWindowUiTests
         }, CancellationToken.None);
     }
 
+    [Fact]
+    public async Task FloatingWindow_PositionShouldBeRestoredOnStartup()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            // Create a ViewModel that starts with a floating left-panel at a known position
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel,
+                initialOptions: new ApplicationOptions
+                {
+                    Layouts = new LayoutOptions
+                    {
+                        CurrentLayout = new DockLayoutSnapshot
+                        {
+                            LeftToolProportion = 0.25,
+                            DocumentProportion = 0.75,
+                            LeftToolDockableOrder = ["options"],
+                            DocumentDockableOrder = ["request", "response"],
+                            FloatingWindows =
+                            [
+                                new FloatingWindowSnapshot
+                                {
+                                    X = 100,
+                                    Y = 200,
+                                    Width = 400,
+                                    Height = 300,
+                                    DockableIds = ["left-panel"],
+                                    ActiveDockableId = "left-panel"
+                                }
+                            ]
+                        }
+                    }
+                });
+
+            // The floating window should have been created and positioned
+            viewModel.Layout!.Windows.Should().HaveCount(1);
+            var floatWin = viewModel.Layout.Windows![0];
+            floatWin.X.Should().BeApproximately(100, 0.001);
+            floatWin.Y.Should().BeApproximately(200, 0.001);
+            floatWin.Width.Should().BeApproximately(400, 0.001);
+            floatWin.Height.Should().BeApproximately(300, 0.001);
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task FloatingWindow_PositionShouldBeRestoredFromSavedLayout()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            var floatingSnapshot = new DockLayoutSnapshot
+            {
+                LeftToolProportion = 0.25,
+                DocumentProportion = 0.75,
+                LeftToolDockableOrder = ["options"],
+                DocumentDockableOrder = ["request", "response"],
+                FloatingWindows =
+                [
+                    new FloatingWindowSnapshot
+                    {
+                        X = 250,
+                        Y = 350,
+                        Width = 500,
+                        Height = 400,
+                        DockableIds = ["left-panel"],
+                        ActiveDockableId = "left-panel"
+                    }
+                ]
+            };
+
+            // Pre-load a named saved layout with floating windows
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel,
+                initialOptions: new ApplicationOptions
+                {
+                    Layouts = new LayoutOptions
+                    {
+                        SavedLayouts =
+                        [
+                            new NamedDockLayout { Name = "Floating Layout", Layout = floatingSnapshot }
+                        ]
+                    }
+                });
+
+            viewModel.SavedLayoutNames.Should().ContainSingle(n => n == "Floating Layout");
+            viewModel.Layout!.Windows?.Count.Should().Be(0, "no windows before selecting the layout");
+
+            // SelectedLayoutName was pre-set during init (with suppress=true), so set to null
+            // first to force a change event when we select it again.
+            viewModel.SelectedLayoutName = null;
+            viewModel.SelectedLayoutName = "Floating Layout";
+
+            viewModel.Layout!.Windows.Should().HaveCount(1);
+            var floatWin = viewModel.Layout.Windows![0];
+            floatWin.X.Should().BeApproximately(250, 0.001);
+            floatWin.Y.Should().BeApproximately(350, 0.001);
+            floatWin.Width.Should().BeApproximately(500, 0.001);
+            floatWin.Height.Should().BeApproximately(400, 0.001);
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task FloatingWindow_PositionShouldSurviveLayoutSwitching()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            // Float the left-panel dockable
+            var leftPanel = FindDockById<IDockable>(viewModel.Layout!, "left-panel");
+            leftPanel.Should().NotBeNull("left-panel dockable must exist");
+            viewModel.Factory!.FloatDockable(leftPanel!);
+
+            viewModel.Layout!.Windows.Should().HaveCount(1, "FloatDockable should have created a floating window");
+            var floatWin = viewModel.Layout.Windows![0];
+
+            // Move the floating window to a known position
+            floatWin.X = 300;
+            floatWin.Y = 400;
+            floatWin.Width = 550;
+            floatWin.Height = 380;
+
+            // Save this layout
+            viewModel.SaveLayoutAsNewCommand.Execute(null);
+            viewModel.SavedLayoutNames.Should().ContainSingle();
+            var layoutName = viewModel.SavedLayoutNames.Single();
+
+            // Switch away: restore the default (no floating windows)
+            viewModel.RestoreDefaultLayoutCommand.Execute(null);
+            viewModel.Layout!.Windows?.Count.Should().Be(0, "default layout has no floating windows");
+
+            // Switch back: the saved layout should restore the floating window at the original position
+            viewModel.SelectedLayoutName = layoutName;
+
+            viewModel.Layout!.Windows.Should().HaveCount(1);
+            var restoredWin = viewModel.Layout.Windows![0];
+            restoredWin.X.Should().BeApproximately(300, 0.001);
+            restoredWin.Y.Should().BeApproximately(400, 0.001);
+            restoredWin.Width.Should().BeApproximately(550, 0.001);
+            restoredWin.Height.Should().BeApproximately(380, 0.001);
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+
     private sealed class TestEntryPoint
     {
         public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
