@@ -737,7 +737,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private async Task LoadHistoryAsync(CancellationToken cancellationToken = default)
     {
-        var requests = await _requestHistoryRepository.GetRecentAsync(100, cancellationToken);
+        var requests = (await _requestHistoryRepository.GetRecentAsync(100, cancellationToken))
+            .OrderByDescending(item => item.CreatedAtUtc)
+            .ToList();
 
         _allHistory.Clear();
         _allHistory.AddRange(requests);

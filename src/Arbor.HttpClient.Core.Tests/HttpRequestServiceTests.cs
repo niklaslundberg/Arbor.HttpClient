@@ -29,6 +29,7 @@ public class HttpRequestServiceTests
         response.Body.Should().Be("hello");
         repository.Items.Should().ContainSingle();
         repository.Items[0].Name.Should().Be("Test");
+        repository.Items[0].CreatedAtUtc.Should().Be(new DateTimeOffset(2026, 4, 16, 0, 0, 0, TimeSpan.Zero));
     }
 
     [Fact]
