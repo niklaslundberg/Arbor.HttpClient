@@ -67,7 +67,7 @@ This project makes use of third-party packages. Their licenses and attribution d
 **Authors:** AvaloniaUI OÜ  
 **Copyright:** Copyright 2019-2026 © AvaloniaUI OÜ  
 **Project URL:** https://avaloniaui.net/  
-**License:** Not specified  
+**License:** Proprietary  
 **Note:** This package is a development-only dependency used exclusively in Debug builds to bridge the application with AvaloniaUI Developer Tools. It is not included in Release builds and is not redistributed with the application.
 
 ---
