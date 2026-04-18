@@ -10,6 +10,7 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await EnableForeignKeysAsync(connection, cancellationToken).ConfigureAwait(false);
 
         await using var command = connection.CreateCommand();
         command.CommandText =
@@ -34,6 +35,7 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await EnableForeignKeysAsync(connection, cancellationToken).ConfigureAwait(false);
 
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
@@ -57,6 +59,7 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await EnableForeignKeysAsync(connection, cancellationToken).ConfigureAwait(false);
 
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
@@ -82,6 +85,7 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await EnableForeignKeysAsync(connection, cancellationToken).ConfigureAwait(false);
 
         await using var cmd = connection.CreateCommand();
         cmd.CommandText =
@@ -119,10 +123,18 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await EnableForeignKeysAsync(connection, cancellationToken).ConfigureAwait(false);
 
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = "DELETE FROM environments WHERE id = $id;";
         cmd.Parameters.AddWithValue("$id", environmentId);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task EnableForeignKeysAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA foreign_keys=ON;";
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 

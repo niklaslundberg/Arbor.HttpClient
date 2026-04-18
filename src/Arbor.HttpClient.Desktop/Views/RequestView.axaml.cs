@@ -1,4 +1,3 @@
-using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -15,6 +14,7 @@ public partial class RequestView : UserControl
     private MainWindowViewModel? _appVm;
     private RegistryOptions? _registryOptions;
     private TextMate.Installation? _requestTextMate;
+    private EventHandler<TextMate.Installation>? _appliedThemeHandler;
     private string _requestGrammarScope = string.Empty;
 
     public RequestView()
@@ -27,21 +27,37 @@ public partial class RequestView : UserControl
 
     private void OnDataContextChanged(object? sender, System.EventArgs e)
     {
+        // Detach all previous wiring before re-wiring
         if (_appVm is not null)
         {
             _appVm.PropertyChanged -= OnAppVmPropertyChanged;
         }
 
-        _appVm = GetAppVm();
+        if (_requestBodyEditor is not null)
+        {
+            _requestBodyEditor.Document.TextChanged -= OnRequestEditorTextChanged;
+        }
 
+        if (_requestTextMate is not null)
+        {
+            if (_appliedThemeHandler is not null)
+            {
+                _requestTextMate.AppliedTheme -= _appliedThemeHandler;
+            }
+            _requestTextMate.Dispose();
+            _requestTextMate = null;
+        }
+
+        _appVm = GetAppVm();
         _requestBodyEditor = this.FindControl<TextEditor>("RequestBodyEditor");
 
         _registryOptions ??= new RegistryOptions(ThemeName.DarkPlus);
 
         if (_requestBodyEditor is not null)
         {
+            _appliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_requestBodyEditor, inst);
             _requestTextMate = _requestBodyEditor.InstallTextMate(_registryOptions);
-            _requestTextMate.AppliedTheme += (_, inst) => ApplyThemeColorsToEditor(_requestBodyEditor, inst);
+            _requestTextMate.AppliedTheme += _appliedThemeHandler;
             _requestBodyEditor.Document.TextChanged += OnRequestEditorTextChanged;
         }
 
@@ -89,7 +105,29 @@ public partial class RequestView : UserControl
     protected override void OnUnloaded(Avalonia.Interactivity.RoutedEventArgs e)
     {
         base.OnUnloaded(e);
-        _requestTextMate?.Dispose();
+
+        if (_appVm is not null)
+        {
+            _appVm.PropertyChanged -= OnAppVmPropertyChanged;
+            _appVm = null;
+        }
+
+        if (_requestBodyEditor is not null)
+        {
+            _requestBodyEditor.Document.TextChanged -= OnRequestEditorTextChanged;
+            _requestBodyEditor = null;
+        }
+
+        if (_requestTextMate is not null)
+        {
+            if (_appliedThemeHandler is not null)
+            {
+                _requestTextMate.AppliedTheme -= _appliedThemeHandler;
+                _appliedThemeHandler = null;
+            }
+            _requestTextMate.Dispose();
+            _requestTextMate = null;
+        }
     }
 
     private void ApplyGrammarForContent(TextMate.Installation? installation, string content, ref string currentScope)
@@ -191,3 +229,4 @@ public partial class RequestView : UserControl
         return ".txt";
     }
 }
+

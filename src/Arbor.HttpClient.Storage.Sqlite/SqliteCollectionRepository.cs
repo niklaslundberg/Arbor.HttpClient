@@ -10,6 +10,7 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await EnableForeignKeysAsync(connection, cancellationToken).ConfigureAwait(false);
 
         await using var command = connection.CreateCommand();
         command.CommandText =
@@ -39,6 +40,7 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await EnableForeignKeysAsync(connection, cancellationToken).ConfigureAwait(false);
 
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
@@ -57,22 +59,7 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
 
         var collectionId = (long)(await insertCollection.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
 
-        foreach (var request in requests)
-        {
-            await using var insertRequest = connection.CreateCommand();
-            insertRequest.Transaction = (SqliteTransaction)transaction;
-            insertRequest.CommandText =
-                """
-                INSERT INTO collection_requests (collection_id, name, method, path, description)
-                VALUES ($collectionId, $name, $method, $path, $description);
-                """;
-            insertRequest.Parameters.AddWithValue("$collectionId", collectionId);
-            insertRequest.Parameters.AddWithValue("$name", request.Name);
-            insertRequest.Parameters.AddWithValue("$method", request.Method);
-            insertRequest.Parameters.AddWithValue("$path", request.Path);
-            insertRequest.Parameters.AddWithValue("$description", request.Description ?? (object)DBNull.Value);
-            await insertRequest.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        }
+        await InsertRequestsAsync(connection, (SqliteTransaction)transaction, (int)collectionId, requests, cancellationToken).ConfigureAwait(false);
 
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return (int)collectionId;
@@ -82,6 +69,7 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await EnableForeignKeysAsync(connection, cancellationToken).ConfigureAwait(false);
 
         await using var cmd = connection.CreateCommand();
         cmd.CommandText =
@@ -124,10 +112,52 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await EnableForeignKeysAsync(connection, cancellationToken).ConfigureAwait(false);
 
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = "DELETE FROM collections WHERE id = $id;";
         cmd.Parameters.AddWithValue("$id", collectionId);
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    private static async Task EnableForeignKeysAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA foreign_keys=ON;";
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task InsertRequestsAsync(SqliteConnection connection, SqliteTransaction transaction, int collectionId, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken)
+    {
+        if (requests.Count == 0)
+        {
+            return;
+        }
+
+        await using var cmd = connection.CreateCommand();
+        cmd.Transaction = transaction;
+        cmd.CommandText =
+            """
+            INSERT INTO collection_requests (collection_id, name, method, path, description)
+            VALUES ($collectionId, $name, $method, $path, $description);
+            """;
+        var pCollectionId = cmd.Parameters.Add("$collectionId", SqliteType.Integer);
+        var pName = cmd.Parameters.Add("$name", SqliteType.Text);
+        var pMethod = cmd.Parameters.Add("$method", SqliteType.Text);
+        var pPath = cmd.Parameters.Add("$path", SqliteType.Text);
+        var pDescription = cmd.Parameters.Add("$description", SqliteType.Text);
+        pCollectionId.Value = collectionId;
+
+        await cmd.PrepareAsync(cancellationToken).ConfigureAwait(false);
+
+        foreach (var request in requests)
+        {
+            pName.Value = request.Name;
+            pMethod.Value = request.Method;
+            pPath.Value = request.Path;
+            pDescription.Value = request.Description ?? (object)DBNull.Value;
+            await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
 }
+

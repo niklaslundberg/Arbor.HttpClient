@@ -14,6 +14,7 @@ public partial class ResponseView : UserControl
     private MainWindowViewModel? _appVm;
     private RegistryOptions? _registryOptions;
     private TextMate.Installation? _responseTextMate;
+    private EventHandler<TextMate.Installation>? _appliedThemeHandler;
 
     public ResponseView()
     {
@@ -25,21 +26,32 @@ public partial class ResponseView : UserControl
 
     private void OnDataContextChanged(object? sender, System.EventArgs e)
     {
+        // Detach all previous wiring before re-wiring
         if (_appVm is not null)
         {
             _appVm.PropertyChanged -= OnAppVmPropertyChanged;
         }
 
-        _appVm = GetAppVm();
+        if (_responseTextMate is not null)
+        {
+            if (_appliedThemeHandler is not null)
+            {
+                _responseTextMate.AppliedTheme -= _appliedThemeHandler;
+            }
+            _responseTextMate.Dispose();
+            _responseTextMate = null;
+        }
 
+        _appVm = GetAppVm();
         _responseBodyEditor = this.FindControl<TextEditor>("ResponseBodyEditor");
 
         _registryOptions ??= new RegistryOptions(ThemeName.DarkPlus);
 
         if (_responseBodyEditor is not null)
         {
+            _appliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_responseBodyEditor, inst);
             _responseTextMate = _responseBodyEditor.InstallTextMate(_registryOptions);
-            _responseTextMate.AppliedTheme += (_, inst) => ApplyThemeColorsToEditor(_responseBodyEditor, inst);
+            _responseTextMate.AppliedTheme += _appliedThemeHandler;
         }
 
         if (_appVm is not null)
@@ -67,7 +79,25 @@ public partial class ResponseView : UserControl
     protected override void OnUnloaded(Avalonia.Interactivity.RoutedEventArgs e)
     {
         base.OnUnloaded(e);
-        _responseTextMate?.Dispose();
+
+        if (_appVm is not null)
+        {
+            _appVm.PropertyChanged -= OnAppVmPropertyChanged;
+            _appVm = null;
+        }
+
+        _responseBodyEditor = null;
+
+        if (_responseTextMate is not null)
+        {
+            if (_appliedThemeHandler is not null)
+            {
+                _responseTextMate.AppliedTheme -= _appliedThemeHandler;
+                _appliedThemeHandler = null;
+            }
+            _responseTextMate.Dispose();
+            _responseTextMate = null;
+        }
     }
 
     private static void ApplyThemeColorsToEditor(TextEditor editor, TextMate.Installation installation)
@@ -129,3 +159,4 @@ public partial class ResponseView : UserControl
         return true;
     }
 }
+
