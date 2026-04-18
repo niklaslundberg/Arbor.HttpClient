@@ -73,6 +73,7 @@ jobs:
 
       - name: Upload coverage
         if: ${{ !cancelled() }}
+        id: upload-unit-coverage
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-coverage
@@ -113,6 +114,9 @@ jobs:
             echo "| ------ | -------- |"
             echo "| TRX results | [${{ steps.upload-unit-trx.outputs.artifact-url }}](${{ steps.upload-unit-trx.outputs.artifact-url }}) |"
             echo "| HTML report | [${{ steps.upload-unit-html.outputs.artifact-url }}](${{ steps.upload-unit-html.outputs.artifact-url }}) |"
+            if [ -n "${{ steps.upload-unit-coverage.outputs.artifact-url }}" ]; then
+              echo "| Code coverage | [${{ steps.upload-unit-coverage.outputs.artifact-url }}](${{ steps.upload-unit-coverage.outputs.artifact-url }}) |"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
   e2e-tests:
