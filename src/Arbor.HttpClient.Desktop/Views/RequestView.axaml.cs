@@ -245,7 +245,18 @@ public partial class RequestView : UserControl
             return;
         }
 
-        _requestTextMate.SetTheme(_registryOptions.GetTheme(GetTextMateThemeName()));
+        try
+        {
+            var theme = _registryOptions.GetTheme(GetTextMateThemeName());
+            if (theme is not null)
+            {
+                _requestTextMate.SetTheme(theme);
+            }
+        }
+        catch (NullReferenceException)
+        {
+            // keep the currently installed theme when theme parsing fails in headless test runs
+        }
     }
 }
 

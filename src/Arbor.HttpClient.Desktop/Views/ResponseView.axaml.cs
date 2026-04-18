@@ -175,7 +175,18 @@ public partial class ResponseView : UserControl
             return;
         }
 
-        _responseTextMate.SetTheme(_registryOptions.GetTheme(GetTextMateThemeName()));
+        try
+        {
+            var theme = _registryOptions.GetTheme(GetTextMateThemeName());
+            if (theme is not null)
+            {
+                _responseTextMate.SetTheme(theme);
+            }
+        }
+        catch (NullReferenceException)
+        {
+            // keep the currently installed theme when theme parsing fails in headless test runs
+        }
     }
 }
 
