@@ -6,6 +6,7 @@
              RequestedThemeVariant="Default">
     <Application.Resources>
         <ResourceDictionary>
+            <FontFamily x:Key="AppFontFamily">Cascadia Code,Consolas,Menlo,monospace</FontFamily>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="OptionsNavBackgroundBrush" Color="#2D2D30" />
@@ -61,5 +62,8 @@
         <FluentTheme />
         <dock:DockFluentTheme />
         <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+        <Style Selector="TextBox">
+            <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}" />
+        </Style>
     </Application.Styles>
 </Application>

@@ -19,6 +19,7 @@ using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Desktop.Models;
 using Arbor.HttpClient.Desktop.Services;
 using Avalonia;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -330,6 +331,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     partial void OnUiFontSizeTextChanged(string value) =>
         OnPropertyChanged(nameof(UiFontSize));
+
+    partial void OnUiFontFamilyChanged(string value)
+    {
+        if (Application.Current is not null)
+        {
+            Application.Current.Resources["AppFontFamily"] = new FontFamily(value);
+        }
+    }
 
     partial void OnEnableHttpDiagnosticsChanged(bool value) =>
         _debugLogger.Information("HTTP diagnostics enabled changed to {IsEnabled}", value);
