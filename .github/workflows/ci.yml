@@ -144,6 +144,8 @@ jobs:
           dotnet tool install -g trxlog2html --version 1.0.4
 
       - name: Run E2E tests
+        env:
+          SCREENSHOT_OUTPUT_DIR: TestResults/screenshots
         run: >
           dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj
           --no-restore
@@ -180,6 +182,15 @@ jobs:
           path: TestResults/e2e/html/*.html
           if-no-files-found: error
 
+      - name: Upload E2E screenshots
+        if: always()
+        id: upload-e2e-screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: TestResults/screenshots/*.png
+          if-no-files-found: ignore
+
       - name: Summarize E2E test artifacts
         if: always()
         run: |
@@ -189,4 +200,7 @@ jobs:
             echo "| ------ | -------- |"
             echo "| TRX results | [${{ steps.upload-e2e-trx.outputs.artifact-url }}](${{ steps.upload-e2e-trx.outputs.artifact-url }}) |"
             echo "| HTML report | [${{ steps.upload-e2e-html.outputs.artifact-url }}](${{ steps.upload-e2e-html.outputs.artifact-url }}) |"
+            if [ -n "${{ steps.upload-e2e-screenshots.outputs.artifact-url }}" ]; then
+              echo "| Screenshots | [${{ steps.upload-e2e-screenshots.outputs.artifact-url }}](${{ steps.upload-e2e-screenshots.outputs.artifact-url }}) |"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

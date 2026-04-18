@@ -92,7 +92,21 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - Profiling-oriented validation is required when changing request execution hot paths, scheduled/background job loops, data-processing loops, or code that introduces disposable/resource-heavy objects.
 - Treat code as a hot path when it runs on every request, for each item in a collection, or on a recurring timer. Profiling is optional for isolated admin/one-off flows.
 - Use JetBrains dotMemory Unit or equivalent tools (for example `dotnet-counters` or BenchmarkDotNet) to catch memory leaks, performance bottlenecks, or resource leaks. Attach profiling evidence in the PR when this requirement applies.
-- For UI-related changes, attach updated screenshots in the pull request so reviewers can verify visual impact.
+- For UI-related changes, **screenshots must appear inline in the PR description** so reviewers can see them without downloading anything. Screenshots saved only to `/tmp/` or other ephemeral paths are inaccessible to reviewers and do not satisfy this requirement.
+  - **Correct workflow for every UI change:**
+    1. Run the E2E screenshot tests, directing output to the committed `docs/screenshots/` folder:
+       ```
+       SCREENSHOT_OUTPUT_DIR=docs/screenshots dotnet test \
+         src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
+         --filter "Category=Screenshots"
+       ```
+    2. Commit the generated `docs/screenshots/*.png` files via `report_progress`.
+    3. In the `prDescription` passed to `report_progress`, embed each relevant screenshot using a relative markdown image path:
+       ```markdown
+       ![Main window after change](docs/screenshots/main-window.png)
+       ```
+       GitHub renders relative repository paths in PR descriptions inline — the image appears immediately without any download step.
+  - Do **not** save screenshots only to `/tmp/` or to any path outside the repository tree — those files disappear and reviewers cannot see them.
 
 ---
 
