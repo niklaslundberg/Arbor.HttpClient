@@ -60,6 +60,18 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+## 5. All Tests Must Pass Before Committing
+
+**Never commit code that breaks the test suite.**
+
+- Run `dotnet test Arbor.HttpClient.slnx` and confirm it exits with no failures before every commit.
+- A pre-commit Git hook is available to automate this check. Set it up once after cloning:
+  ```
+  ./scripts/install-hooks.sh
+  ```
+- `git commit --no-verify` bypasses the hook. Use it only in genuinely exceptional circumstances (e.g. committing a work-in-progress branch where tests are intentionally broken and you will fix them in the next commit). Never push to `main` with failing tests.
+- If a pre-existing test was already failing before your changes, note it explicitly in the PR description rather than silently ignoring it.
+
 ---
 
 *Behavioral guidelines adapted from [vlad-ko/claude-wizard](https://github.com/vlad-ko/claude-wizard), used under the [MIT License](https://github.com/vlad-ko/claude-wizard/blob/main/LICENSE) (Copyright 2026 Vlad Ko).*
