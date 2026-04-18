@@ -1358,6 +1358,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             .Select(v => new EnvironmentVariable(v.Name, v.Value))
             .ToList();
 
+        int? newEnvId = null;
         if (ActiveEnvironment is not null)
         {
             await _environmentRepository.UpdateAsync(ActiveEnvironment.Id, NewEnvironmentName, variables);
@@ -1365,11 +1366,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         else
         {
-            await _environmentRepository.SaveAsync(NewEnvironmentName, variables);
+            newEnvId = await _environmentRepository.SaveAsync(NewEnvironmentName, variables);
             _debugLogger.Information("Created environment {EnvironmentName}", NewEnvironmentName);
         }
 
         await LoadEnvironmentsAsync();
+
+        if (newEnvId.HasValue)
+        {
+            ActiveEnvironment = Environments.FirstOrDefault(e => e.Id == newEnvId.Value);
+        }
+
         IsEnvironmentPanelVisible = false;
     }
 
@@ -2037,6 +2044,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var all = await _environmentRepository.GetAllAsync(cancellationToken);
 
         var previousId = ActiveEnvironment?.Id;
+
+        // Explicitly null out ActiveEnvironment before clearing the collection so that
+        // the ComboBox TwoWay binding cannot write null back after we restore below.
+        ActiveEnvironment = null;
+
         Environments.Clear();
         foreach (var e in all)
         {
