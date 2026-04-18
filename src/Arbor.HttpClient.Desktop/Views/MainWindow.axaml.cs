@@ -16,6 +16,7 @@ public partial class MainWindow : Avalonia.Controls.Window
         if (DataContext is MainWindowViewModel viewModel)
         {
             viewModel.StorageProvider = StorageProvider;
+            viewModel.Clipboard = Clipboard;
             viewModel.ExitApplicationAction = Close;
         }
     }

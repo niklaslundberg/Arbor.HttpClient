@@ -13,31 +13,65 @@
 
     <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
 
-        <Grid ColumnDefinitions="120,Auto,*,120" ColumnSpacing="8">
+        <Grid.KeyBindings>
+            <!-- Standard across Hoppscotch / Insomnia / Postman: Ctrl+Enter (or Cmd+Enter) sends the request -->
+            <KeyBinding Gesture="Ctrl+Return" Command="{Binding App.SendRequestCommand}" />
+            <KeyBinding Gesture="Cmd+Return" Command="{Binding App.SendRequestCommand}" />
+        </Grid.KeyBindings>
+
+        <Grid ColumnDefinitions="120,*,120" ColumnSpacing="8">
             <TextBox Grid.Column="0" PlaceholderText="Request name"
                      Text="{Binding App.RequestName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-            <ComboBox Grid.Column="1" MinWidth="100"
-                      ItemsSource="{Binding App.Methods}"
-                      SelectedItem="{Binding App.SelectedMethod, Mode=TwoWay}">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding}"
-                                   Foreground="{Binding Converter={StaticResource MethodToColorConverter}}"
-                                   FontWeight="SemiBold" />
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
-            <Border Grid.Column="2" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="3"
-                    Background="{DynamicResource SurfaceBackgroundBrush}">
-                <aedit:TextEditor x:Name="RequestUrlEditor"
-                                  ShowLineNumbers="False"
-                                  WordWrap="False"
-                                  HorizontalScrollBarVisibility="Hidden"
-                                  VerticalScrollBarVisibility="Hidden"
-                                  Padding="5,6,5,6"
-                                  Background="Transparent" />
+
+            <!-- Unified composer: method + URL + Send are rendered as one seamless control
+                 (Hoppscotch / Insomnia style). Wrap them in a single Border and strip
+                 the inner corners so they visually butt up against each other. -->
+            <Border Grid.Column="1" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1"
+                    CornerRadius="3"
+                    Background="{DynamicResource SurfaceBackgroundBrush}"
+                    ClipToBounds="True">
+                <Grid ColumnDefinitions="Auto,Auto,*">
+                    <ComboBox Grid.Column="0" MinWidth="100"
+                              BorderThickness="0"
+                              CornerRadius="0"
+                              Background="Transparent"
+                              ItemsSource="{Binding App.Methods}"
+                              SelectedItem="{Binding App.SelectedMethod, Mode=TwoWay}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}"
+                                           Foreground="{Binding Converter={StaticResource MethodToColorConverter}}"
+                                           FontWeight="SemiBold" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Rectangle Grid.Column="1" Width="1" VerticalAlignment="Stretch"
+                               Fill="{DynamicResource PanelBorderBrush}" />
+                    <Grid Grid.Column="2">
+                        <aedit:TextEditor x:Name="RequestUrlEditor"
+                                          ShowLineNumbers="False"
+                                          WordWrap="False"
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Hidden"
+                                          Padding="8,6,5,6"
+                                          Background="Transparent" />
+                        <!-- Placeholder overlay: AvaloniaEdit.TextEditor has no native PlaceholderText,
+                             so we render one in parallel that hides as soon as the URL has any content. -->
+                        <TextBlock Text="Enter request URL"
+                                   IsHitTestVisible="False"
+                                   Opacity="0.5"
+                                   Padding="10,6,5,6"
+                                   VerticalAlignment="Center"
+                                   IsVisible="{Binding App.RequestUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                    </Grid>
+                </Grid>
             </Border>
-            <Button x:Name="SendButton" Grid.Column="3" Content="Send"
+
+            <Button x:Name="SendButton" Grid.Column="2" Content="Send"
+                    Classes="accent"
+                    HorizontalContentAlignment="Center"
+                    HorizontalAlignment="Stretch"
+                    ToolTip.Tip="Send request (Ctrl+Enter)"
                     Command="{Binding App.SendRequestCommand}" />
         </Grid>
 

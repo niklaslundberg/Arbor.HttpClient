@@ -166,8 +166,18 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
                 bodyStopwatch.Elapsed.TotalMilliseconds,
                 totalStopwatch.Elapsed.TotalMilliseconds));
         }
+        else
+        {
+            totalStopwatch.Stop();
+        }
 
-        return new HttpResponseDetails((int)response.StatusCode, response.ReasonPhrase ?? string.Empty, responseBody, responseHeaders, responseBodyBytes);
+        return new HttpResponseDetails(
+            (int)response.StatusCode,
+            response.ReasonPhrase ?? string.Empty,
+            responseBody,
+            responseHeaders,
+            responseBodyBytes,
+            totalStopwatch.Elapsed.TotalMilliseconds);
     }
 
     private static async Task<string> ProbeTlsAsync(Uri uri, CancellationToken cancellationToken)

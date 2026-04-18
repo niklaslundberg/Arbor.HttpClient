@@ -1,12 +1,30 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:aedit="using:AvaloniaEdit"
+             xmlns:conv="using:Arbor.HttpClient.Desktop.Converters"
              x:Class="Arbor.HttpClient.Desktop.Views.ResponseView"
              x:CompileBindings="False">
 
+    <UserControl.Resources>
+        <conv:StatusCodeToColorConverter x:Key="StatusCodeToColorConverter" />
+    </UserControl.Resources>
+
     <Grid RowDefinitions="Auto,Auto,*" RowSpacing="10" Margin="8">
 
-        <TextBlock Grid.Row="0" Text="{Binding App.ResponseStatus}" FontWeight="SemiBold" />
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+            <TextBlock Text="{Binding App.ResponseStatus}"
+                       Foreground="{Binding App.ResponseStatusCode, Converter={StaticResource StatusCodeToColorConverter}}"
+                       FontWeight="SemiBold"
+                       AutomationProperties.Name="Response status" />
+            <TextBlock Text="{Binding App.ResponseTimeDisplay}"
+                       IsVisible="{Binding App.HasResponseHeaders}"
+                       Opacity="0.75"
+                       AutomationProperties.Name="Response time" />
+            <TextBlock Text="{Binding App.ResponseSizeDisplay}"
+                       IsVisible="{Binding App.HasResponseHeaders}"
+                       Opacity="0.75"
+                       AutomationProperties.Name="Response size" />
+        </StackPanel>
 
         <Border Grid.Row="1"
                 IsVisible="{Binding App.HasResponseHeaders}"

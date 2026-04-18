@@ -5,4 +5,5 @@ public sealed record HttpResponseDetails(
     string ReasonPhrase,
     string Body,
     IReadOnlyList<(string Name, string Value)> Headers,
-    byte[]? BodyBytes = null);
+    byte[]? BodyBytes = null,
+    double ElapsedMilliseconds = 0);

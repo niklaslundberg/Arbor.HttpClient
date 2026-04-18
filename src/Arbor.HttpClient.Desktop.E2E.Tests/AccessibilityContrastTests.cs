@@ -101,6 +101,15 @@ public class AccessibilityContrastTests
     [InlineData(DarkVariableBracket, DarkPanel, "Variable bracket / dark panel")]
     [InlineData(DarkVariableName, DarkSurface, "Variable name / dark surface")]
     [InlineData(DarkVariableName, DarkPanel, "Variable name / dark panel")]
+    // Response-status brushes (same palette values as above, re-verified explicitly).
+    [InlineData("#6FCF97", DarkSurface, "StatusSuccessBrush / dark surface")]
+    [InlineData("#6FCF97", DarkPanel, "StatusSuccessBrush / dark panel")]
+    [InlineData("#4FC3F7", DarkSurface, "StatusRedirectBrush / dark surface")]
+    [InlineData("#4FC3F7", DarkPanel, "StatusRedirectBrush / dark panel")]
+    [InlineData("#FFB74D", DarkSurface, "StatusClientErrorBrush / dark surface")]
+    [InlineData("#FFB74D", DarkPanel, "StatusClientErrorBrush / dark panel")]
+    [InlineData("#EF5350", DarkSurface, "StatusServerErrorBrush / dark surface")]
+    [InlineData("#EF5350", DarkPanel, "StatusServerErrorBrush / dark panel")]
     public void DarkTheme_ColorPair_MeetsWcagAA(string foreground, string background, string label)
     {
         var ratio = ContrastRatio(foreground, background);
@@ -130,6 +139,15 @@ public class AccessibilityContrastTests
     [InlineData(LightVariableBracket, LightPanel, "Variable bracket / light panel")]
     [InlineData(LightVariableName, LightSurface, "Variable name / light surface")]
     [InlineData(LightVariableName, LightPanel, "Variable name / light panel")]
+    // Response-status brushes (same palette values as above, re-verified explicitly).
+    [InlineData("#107C10", LightSurface, "StatusSuccessBrush / light surface")]
+    [InlineData("#107C10", LightPanel, "StatusSuccessBrush / light panel")]
+    [InlineData("#0065BD", LightSurface, "StatusRedirectBrush / light surface")]
+    [InlineData("#0065BD", LightPanel, "StatusRedirectBrush / light panel")]
+    [InlineData("#875F09", LightSurface, "StatusClientErrorBrush / light surface")]
+    [InlineData("#875F09", LightPanel, "StatusClientErrorBrush / light panel")]
+    [InlineData("#C50F1F", LightSurface, "StatusServerErrorBrush / light surface")]
+    [InlineData("#C50F1F", LightPanel, "StatusServerErrorBrush / light panel")]
     public void LightTheme_ColorPair_MeetsWcagAA(string foreground, string background, string label)
     {
         var ratio = ContrastRatio(foreground, background);
