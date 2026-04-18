@@ -17,4 +17,8 @@ public sealed class RequestViewModel : Document
     // Proxy needed inside the RequestHeaders item-template (DataContext = RequestHeaderViewModel)
     public IRelayCommand<RequestHeaderViewModel?> RemoveHeaderCommand =>
         App.RemoveHeaderCommand;
+
+    // Proxy needed inside the RequestQueryParameters item-template (DataContext = RequestQueryParameterViewModel)
+    public IRelayCommand<RequestQueryParameterViewModel?> RemoveQueryParameterCommand =>
+        App.RemoveQueryParameterCommand;
 }

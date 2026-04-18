@@ -7,8 +7,12 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
+using System.Xml.Linq;
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
@@ -49,6 +53,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private int _layoutNameCounter = 1;
     private bool _suppressLayoutRestore;
     private DockLayoutSnapshot? _defaultLayout;
+    private bool _isUpdatingRequestUrlFromQueryParameters;
+    private bool _isUpdatingQueryParametersFromRequestUrl;
+    private byte[] _lastResponseBodyBytes = Array.Empty<byte>();
 
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
@@ -69,6 +76,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private string _requestUrl = "https://postman-echo.com/get?hello=world";
 
     [ObservableProperty]
+    private string _requestPreview = string.Empty;
+
+    [ObservableProperty]
     private string _requestBody = string.Empty;
 
     [ObservableProperty]
@@ -76,6 +86,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private string _responseBody = string.Empty;
+
+    [ObservableProperty]
+    private string _rawResponseBody = string.Empty;
+
+    [ObservableProperty]
+    private string _responseBodyTabLabel = "Body";
+
+    [ObservableProperty]
+    private string _responseContentType = string.Empty;
+
+    [ObservableProperty]
+    private bool _isBinaryResponse;
 
     [ObservableProperty]
     private string _errorMessage = string.Empty;
@@ -108,6 +130,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public const string DarkThemeOption = "Dark";
     public const string LightThemeOption = "Light";
     public const int MinScheduledJobIntervalSeconds = 1;
+    private const string VariableTokenStart = "{{";
     private const string OptionsPageBreadcrumbSeparator = " \u203a  ";
 
     public IReadOnlyList<string> ThemeOptions { get; } =
@@ -255,7 +278,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         OnPropertyChanged(nameof(IsCustomContentType));
         OnPropertyChanged(nameof(ContentType));
-        UpdateRequestHeadersPreview();
+        RefreshRequestDerivedViews();
     }
 
     partial void OnCustomContentTypeChanged(string value)
@@ -263,15 +286,32 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (IsCustomContentType)
         {
             OnPropertyChanged(nameof(ContentType));
-            UpdateRequestHeadersPreview();
+            RefreshRequestDerivedViews();
         }
     }
 
+    partial void OnSelectedMethodChanged(string value) =>
+        RefreshRequestPreview();
+
+    partial void OnSelectedHttpVersionOptionChanged(string value) =>
+        RefreshRequestPreview();
+
     partial void OnRequestBodyChanged(string value) =>
-        UpdateRequestHeadersPreview();
+        RefreshRequestDerivedViews();
 
     partial void OnDefaultContentTypeChanged(string value) =>
-        UpdateRequestHeadersPreview();
+        RefreshRequestDerivedViews();
+
+    partial void OnRequestUrlChanged(string value)
+    {
+        if (_isUpdatingRequestUrlFromQueryParameters)
+        {
+            return;
+        }
+
+        SyncQueryParametersFromRequestUrl(value);
+        RefreshRequestPreview();
+    }
 
     partial void OnUiFontSizeTextChanged(string value) =>
         OnPropertyChanged(nameof(UiFontSize));
@@ -334,10 +374,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         Environments = [];
         ActiveEnvironmentVariables = [];
         RequestHeaders = [];
+        RequestQueryParameters = [];
         ScheduledJobs = [];
         SavedLayoutNames = [];
 
         RequestHeaders.CollectionChanged += OnRequestHeadersCollectionChanged;
+        RequestQueryParameters.CollectionChanged += OnRequestQueryParametersCollectionChanged;
 
         SendRequestCommand = new AsyncRelayCommand(SendRequestAsync);
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
@@ -352,6 +394,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ApplyOptions(options);
         ApplyLayoutOptions(options.Layouts);
         _suppressLayoutRestore = false;
+        SyncQueryParametersFromRequestUrl(RequestUrl);
+        RefreshRequestPreview();
     }
 
     public IReadOnlyList<string> Methods { get; }
@@ -362,6 +406,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public ObservableCollection<RequestEnvironment> Environments { get; }
     public ObservableCollection<EnvironmentVariableViewModel> ActiveEnvironmentVariables { get; }
     public ObservableCollection<RequestHeaderViewModel> RequestHeaders { get; }
+    public ObservableCollection<RequestQueryParameterViewModel> RequestQueryParameters { get; }
     public ObservableCollection<ScheduledJobViewModel> ScheduledJobs { get; }
     public ObservableCollection<string> SavedLayoutNames { get; }
     public LogWindowViewModel LogWindowViewModel => _logWindowViewModel;
@@ -378,6 +423,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (header is not null)
         {
             RequestHeaders.Remove(header);
+        }
+    }
+
+    [RelayCommand]
+    private void AddQueryParameter() => RequestQueryParameters.Add(new RequestQueryParameterViewModel());
+
+    [RelayCommand]
+    private void RemoveQueryParameter(RequestQueryParameterViewModel? parameter)
+    {
+        if (parameter is not null)
+        {
+            RequestQueryParameters.Remove(parameter);
         }
     }
 
@@ -403,11 +460,39 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
         }
 
-        UpdateRequestHeadersPreview();
+        RefreshRequestDerivedViews();
     }
 
     private void OnRequestHeaderPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
-        UpdateRequestHeadersPreview();
+        RefreshRequestDerivedViews();
+
+    private void OnRequestQueryParametersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems is not null)
+        {
+            foreach (RequestQueryParameterViewModel parameter in e.NewItems)
+            {
+                parameter.PropertyChanged += OnRequestQueryParameterPropertyChanged;
+            }
+        }
+
+        if (e.OldItems is not null)
+        {
+            foreach (RequestQueryParameterViewModel parameter in e.OldItems)
+            {
+                parameter.PropertyChanged -= OnRequestQueryParameterPropertyChanged;
+            }
+        }
+
+        SyncRequestUrlFromQueryParameters();
+        RefreshRequestPreview();
+    }
+
+    private void OnRequestQueryParameterPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        SyncRequestUrlFromQueryParameters();
+        RefreshRequestPreview();
+    }
 
     private void UpdateRequestHeadersPreview()
     {
@@ -423,6 +508,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             RequestHeadersPreview.Add($"{h.Name}: {h.Value}");
         }
+    }
+
+    private void RefreshRequestDerivedViews()
+    {
+        UpdateRequestHeadersPreview();
+        RefreshRequestPreview();
     }
 
     private ApplicationOptions BuildOptionsFromCurrentState()
@@ -519,6 +610,288 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         return DefaultContentType;
     }
 
+    private void SyncQueryParametersFromRequestUrl(string url)
+    {
+        if (_isUpdatingQueryParametersFromRequestUrl)
+        {
+            return;
+        }
+
+        _isUpdatingQueryParametersFromRequestUrl = true;
+        try
+        {
+            var query = ExtractQuery(url);
+            RequestQueryParameters.Clear();
+
+            if (string.IsNullOrEmpty(query))
+            {
+                return;
+            }
+
+            foreach (var segment in query.Split('&', StringSplitOptions.None))
+            {
+                if (segment.Length == 0)
+                {
+                    continue;
+                }
+
+                var equalsIndex = segment.IndexOf('=');
+                var rawKey = equalsIndex >= 0 ? segment[..equalsIndex] : segment;
+                var rawValue = equalsIndex >= 0 ? segment[(equalsIndex + 1)..] : string.Empty;
+
+                RequestQueryParameters.Add(new RequestQueryParameterViewModel
+                {
+                    Key = DecodeQueryComponent(rawKey),
+                    Value = DecodeQueryComponent(rawValue),
+                    IsEnabled = true
+                });
+            }
+        }
+        finally
+        {
+            _isUpdatingQueryParametersFromRequestUrl = false;
+        }
+    }
+
+    private void SyncRequestUrlFromQueryParameters()
+    {
+        if (_isUpdatingQueryParametersFromRequestUrl)
+        {
+            return;
+        }
+
+        var (prefix, _, fragment) = SplitUrl(RequestUrl);
+
+        var query = string.Join("&", RequestQueryParameters
+            .Where(param => param.IsEnabled && !string.IsNullOrWhiteSpace(param.Key))
+            .Select(param => $"{EncodeQueryComponent(param.Key)}={EncodeQueryComponent(param.Value ?? string.Empty)}"));
+
+        var updatedUrl = BuildUrl(prefix, query, fragment);
+
+        if (string.Equals(updatedUrl, RequestUrl, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _isUpdatingRequestUrlFromQueryParameters = true;
+        try
+        {
+            RequestUrl = updatedUrl;
+        }
+        finally
+        {
+            _isUpdatingRequestUrlFromQueryParameters = false;
+        }
+    }
+
+    private void RefreshRequestPreview()
+    {
+        var variables = ActiveEnvironment?.Variables ?? [];
+        var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
+        var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
+
+        var previewHeaders = RequestHeaders
+            .Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name))
+            .Select(h => new RequestHeader(
+                _variableResolver.Resolve(h.Name, variables),
+                _variableResolver.Resolve(h.Value, variables)))
+            .ToList();
+
+        var effectiveContentType = ResolveContentType(resolvedBody);
+        if (!string.IsNullOrEmpty(effectiveContentType))
+        {
+            previewHeaders.Insert(0, new RequestHeader("Content-Type", effectiveContentType));
+        }
+
+        var requestLine = $"{SelectedMethod} {resolvedUrl} HTTP/{SelectedHttpVersionOption}";
+        var headerLines = previewHeaders.Select(h => $"{h.Name}: {h.Value}");
+
+        var builder = new StringBuilder();
+        builder.AppendLine(requestLine);
+        foreach (var line in headerLines)
+        {
+            builder.AppendLine(line);
+        }
+
+        builder.AppendLine();
+        builder.Append(resolvedBody);
+
+        RequestPreview = builder.ToString();
+    }
+
+    private static (string Prefix, string Query, string Fragment) SplitUrl(string url)
+    {
+        var fragmentIndex = url.IndexOf('#');
+        var fragment = fragmentIndex >= 0 ? url[fragmentIndex..] : string.Empty;
+        var urlWithoutFragment = fragmentIndex >= 0 ? url[..fragmentIndex] : url;
+
+        var queryIndex = urlWithoutFragment.IndexOf('?');
+        if (queryIndex < 0)
+        {
+            return (urlWithoutFragment, string.Empty, fragment);
+        }
+
+        var prefix = urlWithoutFragment[..queryIndex];
+        var query = queryIndex + 1 < urlWithoutFragment.Length ? urlWithoutFragment[(queryIndex + 1)..] : string.Empty;
+        return (prefix, query, fragment);
+    }
+
+    private static string ExtractQuery(string url) => SplitUrl(url).Query;
+
+    private static string BuildUrl(string prefix, string query, string fragment)
+    {
+        var queryPart = string.IsNullOrEmpty(query) ? string.Empty : $"?{query}";
+        return $"{prefix}{queryPart}{fragment}";
+    }
+
+    private static string DecodeQueryComponent(string value)
+    {
+        if (string.IsNullOrEmpty(value) || !value.Contains('%'))
+        {
+            return value;
+        }
+
+        try
+        {
+            return Uri.UnescapeDataString(value);
+        }
+        catch
+        {
+            return value;
+        }
+    }
+
+    private static string EncodeQueryComponent(string value)
+    {
+        if (string.IsNullOrEmpty(value) || value.Contains(VariableTokenStart, StringComparison.Ordinal))
+        {
+            return value;
+        }
+
+        return Uri.EscapeDataString(value);
+    }
+
+    private void UpdateResponsePresentation(string responseBody, IReadOnlyList<(string Name, string Value)> headers)
+    {
+        ResponseContentType = GetResponseContentType(headers);
+        var mediaType = NormalizeMediaType(ResponseContentType);
+        var isJson = IsJsonMediaType(mediaType);
+        var isXml = IsXmlMediaType(mediaType);
+        var isHtml = IsHtmlMediaType(mediaType);
+
+        IsBinaryResponse = IsBinaryMediaType(mediaType);
+        ResponseBodyTabLabel = isJson ? "JSON" : isXml ? "XML" : "Body";
+
+        if (IsBinaryResponse)
+        {
+            ResponseBody = $"Binary response ({mediaType}). Use \"Save and Open\" to inspect the content.";
+            RawResponseBody = ResponseBody;
+            return;
+        }
+
+        if (isJson && TryFormatJson(responseBody, out var formattedJson))
+        {
+            ResponseBody = formattedJson;
+            return;
+        }
+
+        if ((isXml || isHtml) && TryFormatXml(responseBody, out var formattedXml))
+        {
+            ResponseBody = formattedXml;
+            return;
+        }
+
+        ResponseBody = responseBody;
+    }
+
+    private static string GetResponseContentType(IReadOnlyList<(string Name, string Value)> headers) =>
+        headers.FirstOrDefault(h => string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase)).Value ?? string.Empty;
+
+    private static string NormalizeMediaType(string contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            return string.Empty;
+        }
+
+        var semicolonIndex = contentType.IndexOf(';');
+        var mediaType = semicolonIndex >= 0 ? contentType[..semicolonIndex] : contentType;
+        return mediaType.Trim().ToLowerInvariant();
+    }
+
+    private static bool IsJsonMediaType(string mediaType) =>
+        mediaType == "application/json" || mediaType.EndsWith("+json", StringComparison.Ordinal);
+
+    private static bool IsXmlMediaType(string mediaType) =>
+        mediaType is "application/xml" or "text/xml" || mediaType.EndsWith("+xml", StringComparison.Ordinal);
+
+    private static bool IsHtmlMediaType(string mediaType) =>
+        mediaType == "text/html";
+
+    private static bool IsBinaryMediaType(string mediaType)
+    {
+        if (string.IsNullOrWhiteSpace(mediaType))
+        {
+            return false;
+        }
+
+        if (mediaType.StartsWith("text/", StringComparison.Ordinal) || IsJsonMediaType(mediaType) || IsXmlMediaType(mediaType) || IsHtmlMediaType(mediaType))
+        {
+            return false;
+        }
+
+        return mediaType.StartsWith("image/", StringComparison.Ordinal)
+               || mediaType.StartsWith("audio/", StringComparison.Ordinal)
+               || mediaType.StartsWith("video/", StringComparison.Ordinal)
+               || mediaType is "application/octet-stream"
+               || mediaType is "application/zip"
+               || mediaType is "application/pdf"
+               || mediaType is "application/msword"
+               || mediaType is "application/vnd.ms-excel"
+               || mediaType is "application/vnd.ms-powerpoint"
+               || mediaType.StartsWith("application/vnd.openxmlformats-officedocument.", StringComparison.Ordinal);
+    }
+
+    private static bool TryFormatJson(string input, out string formatted)
+    {
+        try
+        {
+            using var jsonDocument = JsonDocument.Parse(input);
+            formatted = JsonSerializer.Serialize(jsonDocument, new JsonSerializerOptions { WriteIndented = true });
+            return true;
+        }
+        catch
+        {
+            formatted = string.Empty;
+            return false;
+        }
+    }
+
+    private static bool TryFormatXml(string input, out string formatted)
+    {
+        try
+        {
+            var document = XDocument.Parse(input, LoadOptions.PreserveWhitespace);
+            using var writer = new StringWriter();
+            using var xmlWriter = XmlWriter.Create(writer, new XmlWriterSettings
+            {
+                OmitXmlDeclaration = false,
+                Indent = true,
+                NewLineOnAttributes = false
+            });
+            document.Save(xmlWriter);
+            xmlWriter.Flush();
+            formatted = writer.ToString();
+            return true;
+        }
+        catch
+        {
+            formatted = string.Empty;
+            return false;
+        }
+    }
+
+
     private static Version ParseHttpVersion(string value) => value switch
     {
         "1.0" => global::System.Net.HttpVersion.Version10,
@@ -568,6 +941,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(v.Name, v.Value));
             }
         }
+
+        RefreshRequestPreview();
     }
 
     [RelayCommand]
@@ -993,6 +1368,38 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         OpenWithShell(path);
     }
 
+    [RelayCommand]
+    private async Task SaveBinaryResponseAndOpenAsync()
+    {
+        if (!IsBinaryResponse || _lastResponseBodyBytes.Length == 0 || StorageProvider is null)
+        {
+            return;
+        }
+
+        var extension = ExtensionFromContentType(ResponseContentType);
+
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save Response",
+            SuggestedFileName = $"response{extension}",
+            FileTypeChoices =
+            [
+                new FilePickerFileType("Response file")
+                {
+                    Patterns = [$"*{extension}"]
+                }
+            ]
+        });
+
+        if (file is null)
+        {
+            return;
+        }
+
+        await File.WriteAllBytesAsync(file.Path.LocalPath, _lastResponseBodyBytes);
+        OpenWithShell(file.Path.LocalPath);
+    }
+
     public void Dispose()
     {
         _scheduledJobService.Dispose();
@@ -1073,7 +1480,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         var ext = !string.IsNullOrEmpty(ContentType)
             ? ExtensionFromContentType(ContentType)
-            : DetectExtension(content);
+            : DetectExtensionFromContent(content);
         var path = Path.Combine(Path.GetTempPath(), $"{prefix}-{Guid.NewGuid():N}{ext}");
         File.WriteAllText(path, content);
         _tempFiles.Add(path);
@@ -1082,17 +1489,27 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     internal static string ExtensionFromContentType(string contentType)
     {
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            return ".txt";
+        }
+
         var mediaType = contentType.Split(';')[0].Trim().ToLowerInvariant();
         return mediaType switch
         {
             "application/json" => ".json",
             "application/xml" or "text/xml" => ".xml",
             "text/html" => ".html",
+            "application/pdf" => ".pdf",
+            "application/zip" => ".zip",
+            "image/png" => ".png",
+            "image/jpeg" => ".jpg",
+            "image/gif" => ".gif",
             _ => ".txt"
         };
     }
 
-    private static string DetectExtension(string content)
+    internal static string DetectExtensionFromContent(string content)
     {
         var trimmed = content.TrimStart();
         if (trimmed.StartsWith('{') || trimmed.StartsWith('['))
@@ -1487,7 +1904,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 new HttpRequestDraft(RequestName, SelectedMethod, resolvedUrl, resolvedBody, headers, ParseHttpVersion(SelectedHttpVersionOption)));
 
             ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
-            ResponseBody = response.Body;
+            _lastResponseBodyBytes = response.BodyBytes ?? Array.Empty<byte>();
+            RawResponseBody = response.Body;
 
             ResponseHeaders.Clear();
             foreach (var (name, value) in response.Headers)
@@ -1496,6 +1914,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
 
             HasResponseHeaders = ResponseHeaders.Count > 0;
+            UpdateResponsePresentation(response.Body, response.Headers);
 
             await LoadHistoryAsync();
         }

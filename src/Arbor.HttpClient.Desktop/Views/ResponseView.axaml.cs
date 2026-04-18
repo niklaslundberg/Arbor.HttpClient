@@ -12,10 +12,15 @@ namespace Arbor.HttpClient.Desktop.Views;
 public partial class ResponseView : UserControl
 {
     private TextEditor? _responseBodyEditor;
+    private TextEditor? _rawResponseBodyEditor;
     private MainWindowViewModel? _appVm;
     private RegistryOptions? _registryOptions;
     private TextMate.Installation? _responseTextMate;
-    private EventHandler<TextMate.Installation>? _appliedThemeHandler;
+    private TextMate.Installation? _rawResponseTextMate;
+    private EventHandler<TextMate.Installation>? _responseAppliedThemeHandler;
+    private EventHandler<TextMate.Installation>? _rawAppliedThemeHandler;
+    private string _responseGrammarScope = string.Empty;
+    private string _rawResponseGrammarScope = string.Empty;
 
     public ResponseView()
     {
@@ -28,67 +33,123 @@ public partial class ResponseView : UserControl
 
     private void OnDataContextChanged(object? sender, System.EventArgs e)
     {
-        // Detach all previous wiring before re-wiring
         if (_appVm is not null)
         {
             _appVm.PropertyChanged -= OnAppVmPropertyChanged;
         }
 
-        if (_responseTextMate is not null)
-        {
-            if (_appliedThemeHandler is not null)
-            {
-                _responseTextMate.AppliedTheme -= _appliedThemeHandler;
-            }
-            _responseTextMate.Dispose();
-            _responseTextMate = null;
-        }
+        DisposeTextMateInstallations();
 
         _appVm = GetAppVm();
         _responseBodyEditor = this.FindControl<TextEditor>("ResponseBodyEditor");
+        _rawResponseBodyEditor = this.FindControl<TextEditor>("RawResponseBodyEditor");
 
         _registryOptions ??= new RegistryOptions(ThemeName.DarkPlus);
 
         if (_responseBodyEditor is not null)
         {
-            _appliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_responseBodyEditor, inst);
+            _responseAppliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_responseBodyEditor, inst);
             _responseTextMate = _responseBodyEditor.InstallTextMate(_registryOptions);
-            // ApplyThemeColorsToEditor is called via the AppliedTheme event when InstallTextMate
-            // fires its initial theme application using the DarkPlus default above.
-            // The correct variant (LightPlus or DarkPlus) is then applied via OnActualThemeVariantChanged
-            // once this view is attached to the visual tree and the effective theme is resolved.
-            _responseTextMate.AppliedTheme += _appliedThemeHandler;
+            _responseTextMate.AppliedTheme += _responseAppliedThemeHandler;
+        }
+
+        if (_rawResponseBodyEditor is not null)
+        {
+            _rawAppliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_rawResponseBodyEditor, inst);
+            _rawResponseTextMate = _rawResponseBodyEditor.InstallTextMate(_registryOptions);
+            _rawResponseTextMate.AppliedTheme += _rawAppliedThemeHandler;
         }
 
         if (_appVm is not null)
         {
             _appVm.PropertyChanged += OnAppVmPropertyChanged;
-
-            if (_responseBodyEditor is not null)
-            {
-                ApplyEditorFont(_responseBodyEditor, _appVm);
-                _responseBodyEditor.Text = _appVm.ResponseBody;
-            }
+            UpdateEditorsFromViewModel();
+            ApplyEditorFonts();
         }
     }
 
     private void OnAppVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainWindowViewModel.ResponseBody)
-            && _responseBodyEditor is not null
-            && _appVm is not null
-            && _responseBodyEditor.Text != _appVm.ResponseBody)
+        if (e.PropertyName is nameof(MainWindowViewModel.ResponseBody)
+            or nameof(MainWindowViewModel.RawResponseBody)
+            or nameof(MainWindowViewModel.ResponseContentType)
+            or nameof(MainWindowViewModel.IsBinaryResponse)
+            or nameof(MainWindowViewModel.ResponseBodyTabLabel))
+        {
+            UpdateEditorsFromViewModel();
+        }
+
+        if (e.PropertyName is nameof(MainWindowViewModel.UiFontFamily)
+            or nameof(MainWindowViewModel.UiFontSize))
+        {
+            ApplyEditorFonts();
+        }
+    }
+
+    private void UpdateEditorsFromViewModel()
+    {
+        if (_appVm is null)
+        {
+            return;
+        }
+
+        if (_responseBodyEditor is not null && _responseBodyEditor.Text != _appVm.ResponseBody)
         {
             _responseBodyEditor.Text = _appVm.ResponseBody;
         }
 
-        if ((e.PropertyName == nameof(MainWindowViewModel.UiFontFamily)
-             || e.PropertyName == nameof(MainWindowViewModel.UiFontSize))
-            && _responseBodyEditor is not null
-            && _appVm is not null)
+        if (_rawResponseBodyEditor is not null && _rawResponseBodyEditor.Text != _appVm.RawResponseBody)
+        {
+            _rawResponseBodyEditor.Text = _appVm.RawResponseBody;
+        }
+
+        var ext = !string.IsNullOrWhiteSpace(_appVm.ResponseContentType)
+            ? MainWindowViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
+            : MainWindowViewModel.DetectExtensionFromContent(_appVm.ResponseBody);
+
+        ApplyGrammarForContent(_responseTextMate, _registryOptions, ext, ref _responseGrammarScope);
+
+        var rawExt = !string.IsNullOrWhiteSpace(_appVm.ResponseContentType)
+            ? MainWindowViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
+            : MainWindowViewModel.DetectExtensionFromContent(_appVm.RawResponseBody);
+        ApplyGrammarForContent(_rawResponseTextMate, _registryOptions, rawExt, ref _rawResponseGrammarScope);
+    }
+
+    private void ApplyEditorFonts()
+    {
+        if (_appVm is null)
+        {
+            return;
+        }
+
+        if (_responseBodyEditor is not null)
         {
             ApplyEditorFont(_responseBodyEditor, _appVm);
         }
+
+        if (_rawResponseBodyEditor is not null)
+        {
+            ApplyEditorFont(_rawResponseBodyEditor, _appVm);
+        }
+    }
+
+    private static void ApplyGrammarForContent(TextMate.Installation? installation, RegistryOptions? registryOptions, string extension, ref string currentScope)
+    {
+        if (installation is null || registryOptions is null)
+        {
+            return;
+        }
+
+        var language = registryOptions.GetLanguageByExtension(extension);
+        var newScope = language is not null ? registryOptions.GetScopeByLanguageId(language.Id) : string.Empty;
+
+        if (newScope == currentScope)
+        {
+            return;
+        }
+
+        currentScope = newScope;
+        installation.SetGrammar(string.IsNullOrEmpty(newScope) ? null : newScope);
     }
 
     private void OnActualThemeVariantChanged(object? sender, EventArgs e) =>
@@ -105,16 +166,35 @@ public partial class ResponseView : UserControl
         }
 
         _responseBodyEditor = null;
+        _rawResponseBodyEditor = null;
 
+        DisposeTextMateInstallations();
+    }
+
+    private void DisposeTextMateInstallations()
+    {
         if (_responseTextMate is not null)
         {
-            if (_appliedThemeHandler is not null)
+            if (_responseAppliedThemeHandler is not null)
             {
-                _responseTextMate.AppliedTheme -= _appliedThemeHandler;
-                _appliedThemeHandler = null;
+                _responseTextMate.AppliedTheme -= _responseAppliedThemeHandler;
+                _responseAppliedThemeHandler = null;
             }
+
             _responseTextMate.Dispose();
             _responseTextMate = null;
+        }
+
+        if (_rawResponseTextMate is not null)
+        {
+            if (_rawAppliedThemeHandler is not null)
+            {
+                _rawResponseTextMate.AppliedTheme -= _rawAppliedThemeHandler;
+                _rawAppliedThemeHandler = null;
+            }
+
+            _rawResponseTextMate.Dispose();
+            _rawResponseTextMate = null;
         }
     }
 
@@ -185,7 +265,7 @@ public partial class ResponseView : UserControl
 
     private void ApplyTextMateTheme()
     {
-        if (_responseTextMate is null || _registryOptions is null)
+        if (_registryOptions is null)
         {
             return;
         }
@@ -197,7 +277,7 @@ public partial class ResponseView : UserControl
             return;
         }
 
-        _responseTextMate.SetTheme(theme);
+        _responseTextMate?.SetTheme(theme);
+        _rawResponseTextMate?.SetTheme(theme);
     }
 }
-
