@@ -15,6 +15,9 @@ public sealed partial class LogWindowViewModel : ViewModelBase, IDisposable
     private bool _autoScroll = true;
 
     public ObservableCollection<LogEntry> Entries { get; } = [];
+    public ObservableCollection<LogEntry> HttpDiagnosticsEntries { get; } = [];
+    public ObservableCollection<LogEntry> HttpRequestEntries { get; } = [];
+    public ObservableCollection<LogEntry> DebugEntries { get; } = [];
 
     public LogWindowViewModel(InMemorySink sink)
     {
@@ -23,7 +26,7 @@ public sealed partial class LogWindowViewModel : ViewModelBase, IDisposable
         // Populate with existing entries
         foreach (var entry in _sink.GetSnapshot())
         {
-            Entries.Add(entry);
+            AddEntry(entry);
         }
 
         _sink.EntryAdded += OnEntryAdded;
@@ -33,17 +36,42 @@ public sealed partial class LogWindowViewModel : ViewModelBase, IDisposable
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (Entries.Count >= MaxDisplayEntries)
-            {
-                Entries.RemoveAt(0);
-            }
-
-            Entries.Add(entry);
+            AddEntry(entry);
         });
     }
 
     public void Dispose()
     {
         _sink.EntryAdded -= OnEntryAdded;
+    }
+
+    private void AddEntry(LogEntry entry)
+    {
+        switch (entry.Tab)
+        {
+            case LogTab.ScheduledLive:
+                AddWithCapacity(Entries, entry);
+                break;
+            case LogTab.HttpDiagnostics:
+                AddWithCapacity(HttpDiagnosticsEntries, entry);
+                break;
+            case LogTab.HttpRequests:
+                AddWithCapacity(HttpRequestEntries, entry);
+                break;
+            case LogTab.Debug:
+            default:
+                AddWithCapacity(DebugEntries, entry);
+                break;
+        }
+    }
+
+    private static void AddWithCapacity(ObservableCollection<LogEntry> target, LogEntry entry)
+    {
+        if (target.Count >= MaxDisplayEntries)
+        {
+            target.RemoveAt(0);
+        }
+
+        target.Add(entry);
     }
 }

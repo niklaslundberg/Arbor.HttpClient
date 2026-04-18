@@ -27,6 +27,7 @@ using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.Mvvm.Controls;
+using Serilog;
 
 namespace Arbor.HttpClient.Desktop.ViewModels;
 
@@ -43,6 +44,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly VariableResolver _variableResolver;
     private readonly ApplicationOptionsStore? _applicationOptionsStore;
     private readonly Action<ApplicationOptions>? _onApplicationOptionsChanged;
+    private readonly ILogger _debugLogger;
+    private readonly ILogger _httpRequestsLogger;
     private readonly List<string> _tempFiles = [];
     private readonly List<SavedRequest> _allHistory = [];
     private FileSystemWatcher? _requestBodyWatcher;
@@ -170,6 +173,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _followHttpRedirects = true;
 
     [ObservableProperty]
+    private bool _enableHttpDiagnostics;
+
+    [ObservableProperty]
     private string _defaultRequestUrl = "https://postman-echo.com/get?hello=world";
 
     [ObservableProperty]
@@ -294,13 +300,22 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         RefreshRequestPreview();
 
     partial void OnSelectedHttpVersionOptionChanged(string value) =>
-        RefreshRequestPreview();
+        LogAndRefreshRequestPreview("Selected HTTP version", value);
+
+    partial void OnSelectedTlsVersionOptionChanged(string value) =>
+        _debugLogger.Information("Selected TLS version changed to {TlsVersion}", value);
+
+    partial void OnFollowHttpRedirectsChanged(bool value) =>
+        _debugLogger.Information("Follow redirects changed to {FollowRedirects}", value);
 
     partial void OnRequestBodyChanged(string value) =>
         RefreshRequestDerivedViews();
 
-    partial void OnDefaultContentTypeChanged(string value) =>
+    partial void OnDefaultContentTypeChanged(string value)
+    {
+        _debugLogger.Information("Default content type changed to {ContentType}", value);
         RefreshRequestDerivedViews();
+    }
 
     partial void OnRequestUrlChanged(string value)
     {
@@ -316,6 +331,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     partial void OnUiFontSizeTextChanged(string value) =>
         OnPropertyChanged(nameof(UiFontSize));
 
+    partial void OnEnableHttpDiagnosticsChanged(bool value) =>
+        _debugLogger.Information("HTTP diagnostics enabled changed to {IsEnabled}", value);
+
     partial void OnSelectedCollectionChanged(Collection? value)
     {
         CollectionItems.Clear();
@@ -330,6 +348,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedThemeOptionChanged(string value)
     {
+        _debugLogger.Information("Theme changed to {Theme}", value);
+
         if (Application.Current is null)
         {
             return;
@@ -343,6 +363,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         };
     }
 
+    private void LogAndRefreshRequestPreview(string operation, string value)
+    {
+        _debugLogger.Information("{Operation} changed to {Value}", operation, value);
+        RefreshRequestPreview();
+    }
+
     public MainWindowViewModel(
         HttpRequestService httpRequestService,
         IRequestHistoryRepository requestHistoryRepository,
@@ -351,6 +377,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IScheduledJobRepository scheduledJobRepository,
         ScheduledJobService scheduledJobService,
         LogWindowViewModel logWindowViewModel,
+        ILogger? logger = null,
         ApplicationOptionsStore? applicationOptionsStore = null,
         ApplicationOptions? initialOptions = null,
         Action<ApplicationOptions>? onApplicationOptionsChanged = null)
@@ -366,6 +393,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _variableResolver = new VariableResolver();
         _applicationOptionsStore = applicationOptionsStore;
         _onApplicationOptionsChanged = onApplicationOptionsChanged;
+        var appLogger = (logger ?? Log.Logger).ForContext<MainWindowViewModel>();
+        _debugLogger = appLogger.ForContext("LogTab", Logging.LogTab.Debug);
+        _httpRequestsLogger = appLogger.ForContext("LogTab", Logging.LogTab.HttpRequests);
 
         Methods = ["GET", "POST", "PUT", "PATCH", "DELETE"];
         History = [];
@@ -529,6 +559,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 HttpVersion = SelectedHttpVersionOption,
                 TlsVersion = SelectedTlsVersionOption,
+                EnableHttpDiagnostics = EnableHttpDiagnostics,
                 DefaultContentType = DefaultContentType,
                 FollowRedirects = FollowHttpRedirects,
                 DefaultRequestUrl = DefaultRequestUrl
@@ -559,6 +590,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         SelectedThemeOption = options.Appearance.Theme;
         SelectedHttpVersionOption = options.Http.HttpVersion;
         SelectedTlsVersionOption = options.Http.TlsVersion;
+        EnableHttpDiagnostics = options.Http.EnableHttpDiagnostics;
         FollowHttpRedirects = options.Http.FollowRedirects;
         DefaultRequestUrl = options.Http.DefaultRequestUrl;
         DefaultContentType = options.Http.DefaultContentType;
@@ -954,14 +986,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void ShowScheduledJobsTab() => LeftPanelTab = "ScheduledJobs";
 
-    /// <summary>Set by the view layer to open the log window.</summary>
-    public Action? OpenLogWindowAction { get; set; }
-
     /// <summary>Set by the view layer to close the main window.</summary>
     public Action? ExitApplicationAction { get; set; }
 
     [RelayCommand]
-    private void OpenLogWindow() => OpenLogWindowAction?.Invoke();
+    private void OpenLogWindow()
+    {
+        if (_dockFactory?.LeftToolDock is { } dock &&
+            _dockFactory.LogPanelViewModel is { } logPanelVm)
+        {
+            dock.ActiveDockable = logPanelVm;
+        }
+    }
 
     [RelayCommand]
     private void ExitApplication() => ExitApplicationAction?.Invoke();
@@ -1137,6 +1173,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             await LoadCollectionsAsync();
             SelectedCollection = Collections.FirstOrDefault(c => c.Id == id);
             LeftPanelTab = "Collections";
+            _debugLogger.Information("Imported collection {CollectionName} from {Path}", collection.Name, files[0].Path.LocalPath);
         }
         catch (Exception ex)
         {
@@ -1153,6 +1190,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         await _collectionRepository.DeleteAsync(collection.Id);
+        _debugLogger.Information("Deleted collection {CollectionName}", collection.Name);
         if (SelectedCollection?.Id == collection.Id)
         {
             SelectedCollection = null;
@@ -1171,6 +1209,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _applicationOptionsStore?.Save(options);
             ApplyOptions(options, updateCurrentRequestUrl: false);
             _onApplicationOptionsChanged?.Invoke(options);
+            _debugLogger.Information("Saved application options");
         }
         catch (Exception exception)
         {
@@ -1209,6 +1248,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
 
             _applicationOptionsStore?.Export(file.Path.LocalPath, options);
+            _debugLogger.Information("Exported options to {Path}", file.Path.LocalPath);
         }
         catch (Exception exception)
         {
@@ -1249,6 +1289,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _applicationOptionsStore.Save(options);
             ApplyOptions(options, updateCurrentRequestUrl: false);
             _onApplicationOptionsChanged?.Invoke(options);
+            _debugLogger.Information("Imported options from {Path}", files[0].Path.LocalPath);
         }
         catch (Exception exception)
         {
@@ -1260,6 +1301,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void AddEnvironmentVariable()
     {
         ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(string.Empty, string.Empty));
+        _debugLogger.Information("Added environment variable placeholder");
     }
 
     [RelayCommand]
@@ -1268,6 +1310,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (variable is not null)
         {
             ActiveEnvironmentVariables.Remove(variable);
+            _debugLogger.Information("Removed environment variable {VariableName}", variable.Name);
         }
     }
 
@@ -1287,10 +1330,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (ActiveEnvironment is not null)
         {
             await _environmentRepository.UpdateAsync(ActiveEnvironment.Id, NewEnvironmentName, variables);
+            _debugLogger.Information("Updated environment {EnvironmentName}", NewEnvironmentName);
         }
         else
         {
             await _environmentRepository.SaveAsync(NewEnvironmentName, variables);
+            _debugLogger.Information("Created environment {EnvironmentName}", NewEnvironmentName);
         }
 
         await LoadEnvironmentsAsync();
@@ -1306,6 +1351,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         await _environmentRepository.DeleteAsync(environment.Id);
+        _debugLogger.Information("Deleted environment {EnvironmentName}", environment.Name);
         if (ActiveEnvironment?.Id == environment.Id)
         {
             ActiveEnvironment = null;
@@ -1324,6 +1370,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         ActiveEnvironment = environment;
         NewEnvironmentName = environment.Name;
+        _debugLogger.Information("Editing environment {EnvironmentName}", environment.Name);
         ActiveEnvironmentVariables.Clear();
         foreach (var v in environment.Variables)
         {
@@ -1340,6 +1387,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         NewEnvironmentName = string.Empty;
         ActiveEnvironmentVariables.Clear();
         IsEnvironmentPanelVisible = true;
+        _debugLogger.Information("Creating new environment");
     }
 
     [RelayCommand]
@@ -1900,6 +1948,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 headers.Insert(0, new RequestHeader("Content-Type", effectiveContentType));
             }
 
+            _httpRequestsLogger.Information("Manual request started: {Method} {Url}", SelectedMethod, resolvedUrl);
+
             var response = await _httpRequestService.SendAsync(
                 new HttpRequestDraft(RequestName, SelectedMethod, resolvedUrl, resolvedBody, headers, ParseHttpVersion(SelectedHttpVersionOption)));
 
@@ -1915,11 +1965,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             HasResponseHeaders = ResponseHeaders.Count > 0;
             UpdateResponsePresentation(response.Body, response.Headers);
+            _httpRequestsLogger.Information("Manual request completed: {StatusCode} {ReasonPhrase}", response.StatusCode, response.ReasonPhrase);
 
             await LoadHistoryAsync();
         }
         catch (Exception exception)
         {
+            _httpRequestsLogger.Error(exception, "Manual request failed");
             ErrorMessage = exception.Message;
         }
     }

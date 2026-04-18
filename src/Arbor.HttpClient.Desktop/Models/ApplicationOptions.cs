@@ -17,6 +17,8 @@ public sealed class HttpOptions
 
     public string TlsVersion { get; init; } = "SystemDefault";
 
+    public bool EnableHttpDiagnostics { get; init; }
+
     public string DefaultContentType { get; init; } = "application/json";
 
     public bool FollowRedirects { get; init; } = true;

@@ -86,6 +86,9 @@
                             <CheckBox IsChecked="{Binding FollowHttpRedirects, Mode=TwoWay}"
                                       Content="Follow redirects" />
 
+                            <CheckBox IsChecked="{Binding EnableHttpDiagnostics, Mode=TwoWay}"
+                                      Content="Enable HTTP diagnostics" />
+
                             <StackPanel Spacing="4">
                                 <TextBlock Text="Default content type (body requests)"
                                            FontWeight="SemiBold"

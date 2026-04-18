@@ -16,7 +16,6 @@ public partial class MainWindow : Avalonia.Controls.Window
         if (DataContext is MainWindowViewModel viewModel)
         {
             viewModel.StorageProvider = StorageProvider;
-            viewModel.OpenLogWindowAction = OpenLogWindow;
             viewModel.ExitApplicationAction = Close;
         }
     }
@@ -35,26 +34,6 @@ public partial class MainWindow : Avalonia.Controls.Window
         }
 
         base.OnClosing(e);
-    }
-
-    private void OpenLogWindow()
-    {
-        if (DataContext is not MainWindowViewModel vm)
-        {
-            return;
-        }
-
-        if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime lifetime)
-        {
-            var existing = lifetime.Windows.OfType<LogWindow>().FirstOrDefault();
-            if (existing is not null)
-            {
-                existing.Activate();
-                return;
-            }
-        }
-
-        new LogWindow { DataContext = vm.LogWindowViewModel }.Show(this);
     }
 
     protected override void OnClosed(System.EventArgs e)

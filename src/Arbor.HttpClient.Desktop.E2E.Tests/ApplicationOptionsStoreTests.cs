@@ -15,6 +15,7 @@ public class ApplicationOptionsStoreTests
         var options = store.Load();
 
         options.Http.DefaultContentType.Should().Be("application/json");
+        options.Http.EnableHttpDiagnostics.Should().BeFalse();
         options.Appearance.Theme.Should().Be("System");
         options.ScheduledJobs.AutoStartOnLaunch.Should().BeTrue();
         options.ScheduledJobs.DefaultIntervalSeconds.Should().Be(60);
@@ -64,6 +65,7 @@ public class ApplicationOptionsStoreTests
             {
                 HttpVersion = "2.0",
                 TlsVersion = "Tls13",
+                EnableHttpDiagnostics = true,
                 DefaultContentType = "application/json",
                 FollowRedirects = false,
                 DefaultRequestUrl = "https://example.com/api"
@@ -114,6 +116,7 @@ public class ApplicationOptionsStoreTests
         var imported = store.Import(exportPath);
 
         imported.Http.HttpVersion.Should().Be("2.0");
+        imported.Http.EnableHttpDiagnostics.Should().BeTrue();
         imported.Http.FollowRedirects.Should().BeFalse();
         imported.Appearance.Theme.Should().Be("Dark");
         imported.Appearance.FontSize.Should().Be(14);
