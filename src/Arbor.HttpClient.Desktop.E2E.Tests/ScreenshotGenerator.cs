@@ -214,6 +214,35 @@ public class ScreenshotGenerator
         }, CancellationToken.None);
     }
 
+    [Fact]
+    public async Task GenerateOptionsWindowScreenshot()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
+
+        await session.Dispatch(() =>
+        {
+            var (viewModel, _) = CreateWindow(
+                BuildHandler("{}"),
+                requestName: "Options demo",
+                method: "POST",
+                url: "https://postman-echo.com/post");
+
+            var optionsWindow = new OptionsWindow { DataContext = viewModel };
+            optionsWindow.Show();
+
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            var frame = optionsWindow.GetLastRenderedFrame() ?? optionsWindow.CaptureRenderedFrame();
+            frame?.Save(Path.Combine(outputDir, "options-window.png"));
+
+            optionsWindow.Close();
+            return Task.FromResult(true);
+        }, CancellationToken.None);
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

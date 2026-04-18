@@ -1,0 +1,68 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Arbor.HttpClient.Desktop.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="460"
+        x:Class="Arbor.HttpClient.Desktop.Views.OptionsWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Options"
+        Width="640"
+        Height="460">
+
+    <Grid RowDefinitions="*,Auto" Margin="12" RowSpacing="10">
+        <TabControl>
+            <TabItem Header="HTTP">
+                <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="8" ColumnDefinitions="220,*" ColumnSpacing="8">
+                    <TextBlock Text="HTTP version" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1"
+                              ItemsSource="{Binding HttpVersionOptions}"
+                              SelectedItem="{Binding SelectedHttpVersionOption, Mode=TwoWay}" />
+
+                    <TextBlock Grid.Row="1" Text="TLS version" VerticalAlignment="Center" />
+                    <ComboBox Grid.Row="1" Grid.Column="1"
+                              ItemsSource="{Binding TlsVersionOptions}"
+                              SelectedItem="{Binding SelectedTlsVersionOption, Mode=TwoWay}" />
+
+                    <TextBlock Grid.Row="2" Text="Follow redirects" VerticalAlignment="Center" />
+                    <CheckBox Grid.Row="2" Grid.Column="1"
+                              IsChecked="{Binding FollowHttpRedirects, Mode=TwoWay}" />
+
+                    <TextBlock Grid.Row="3" Text="Default content type (body requests)" VerticalAlignment="Center" />
+                    <TextBox Grid.Row="3" Grid.Column="1"
+                             Text="{Binding DefaultContentType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Grid.Row="4" Text="Default URL for new requests" VerticalAlignment="Center" />
+                    <TextBox Grid.Row="4" Grid.Column="1"
+                             Text="{Binding DefaultRequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Look &amp; Feel">
+                <Grid Margin="8" RowDefinitions="Auto,Auto,*" RowSpacing="8" ColumnDefinitions="220,*" ColumnSpacing="8">
+                    <TextBlock Text="Theme" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1"
+                              ItemsSource="{Binding ThemeOptions}"
+                              SelectedItem="{Binding SelectedThemeOption, Mode=TwoWay}" />
+
+                    <TextBlock Grid.Row="1" Text="Font family" VerticalAlignment="Center" />
+                    <ComboBox Grid.Row="1" Grid.Column="1"
+                              IsEditable="True"
+                              ItemsSource="{Binding FontFamilyOptions}"
+                              SelectedItem="{Binding UiFontFamily, Mode=TwoWay}" />
+
+                    <TextBlock Grid.Row="2" Text="Font size" VerticalAlignment="Center" />
+                    <TextBox Grid.Row="2" Grid.Column="1"
+                             Text="{Binding UiFontSizeText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
+            <Button Content="Import JSON" Command="{Binding ImportOptionsCommand}" />
+            <Button Content="Export JSON" Command="{Binding ExportOptionsCommand}" />
+            <Button Content="Save" Command="{Binding SaveOptionsCommand}" />
+            <Button Content="Close" Click="OnCloseClicked" />
+        </StackPanel>
+    </Grid>
+</Window>

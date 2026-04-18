@@ -21,8 +21,8 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding}"
-                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                                           FontSize="12" Opacity="0.9"
+                                           FontFamily="{Binding App.UiFontFamily}"
+                                           FontSize="{Binding App.UiFontSize}" Opacity="0.9"
                                            TextWrapping="Wrap" Margin="0,1,0,0" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -43,8 +43,8 @@
                                   ShowLineNumbers="True"
                                   WordWrap="True"
                                   IsReadOnly="True"
-                                  FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                                  FontSize="13"
+                                  FontFamily="{Binding App.UiFontFamily}"
+                                  FontSize="{Binding App.UiFontSize}"
                                   MinHeight="200" />
             </Border>
         </Grid>

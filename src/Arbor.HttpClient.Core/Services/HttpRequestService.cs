@@ -8,6 +8,12 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
     private readonly global::System.Net.Http.HttpClient _httpClient = httpClient;
     private readonly IRequestHistoryRepository _requestHistoryRepository = requestHistoryRepository;
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private Func<global::System.Net.Http.HttpClient>? _httpClientFactory;
+
+    public void SetHttpClientFactory(Func<global::System.Net.Http.HttpClient> httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+    }
 
     public async Task<HttpResponseDetails> SendAsync(HttpRequestDraft requestDraft, CancellationToken cancellationToken = default)
     {
@@ -22,6 +28,11 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
         }
 
         using var requestMessage = new global::System.Net.Http.HttpRequestMessage(new global::System.Net.Http.HttpMethod(requestDraft.Method), uri);
+        if (requestDraft.HttpVersion is not null)
+        {
+            requestMessage.Version = requestDraft.HttpVersion;
+            requestMessage.VersionPolicy = global::System.Net.Http.HttpVersionPolicy.RequestVersionOrLower;
+        }
 
         var contentTypeHeader = requestDraft.Headers?
             .FirstOrDefault(h => h.IsEnabled && string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase));
@@ -51,7 +62,9 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
             }
         }
 
-        using var response = await _httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        var activeClient = _httpClientFactory?.Invoke() ?? _httpClient;
+
+        using var response = await activeClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
         var responseHeaders = response.Headers

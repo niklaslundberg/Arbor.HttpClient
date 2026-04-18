@@ -112,6 +112,49 @@ public class HttpRequestServiceTests
         capturedRequest!.Headers.Should().NotContain(h => h.Key == "X-Disabled");
     }
 
+    [Fact]
+    public async Task SendAsync_ShouldSetRequestHttpVersionWhenProvided()
+    {
+        HttpRequestMessage? capturedRequest = null;
+        var handler = new StubMessageHandler(req =>
+        {
+            capturedRequest = req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent(string.Empty)
+            };
+        });
+
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+
+        await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null, HttpVersion: global::System.Net.HttpVersion.Version20));
+
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.Version.Should().Be(global::System.Net.HttpVersion.Version20);
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldUseConfiguredHttpClientFactory()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var fallbackHandler = new StubMessageHandler(_ => throw new InvalidOperationException("Fallback client should not be used"));
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(fallbackHandler), repository);
+
+        var factoryHandler = new StubMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent("from-factory")
+            });
+
+        service.SetHttpClientFactory(() => new global::System.Net.Http.HttpClient(factoryHandler));
+
+        var response = await service.SendAsync(new HttpRequestDraft("Factory", "GET", "https://example.com", null));
+
+        response.Body.Should().Be("from-factory");
+    }
+
     private sealed class InMemoryRequestHistoryRepository : IRequestHistoryRepository
     {
         public List<SavedRequest> Items { get; } = [];
