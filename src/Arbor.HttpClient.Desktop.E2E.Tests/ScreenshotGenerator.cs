@@ -274,6 +274,69 @@ public class ScreenshotGenerator
         }, CancellationToken.None);
     }
 
+    [Fact]
+    public async Task GenerateLogPanelScreenshot()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
+
+        await session.Dispatch(() =>
+        {
+            var (viewModel, window) = CreateWindow(
+                BuildHandler("{}"),
+                requestName: "Log panel demo",
+                method: "GET",
+                url: "https://postman-echo.com/get");
+
+            // Navigate to the dockable Logs panel
+            viewModel.OpenLogWindowCommand.Execute(null);
+
+            window.Show();
+
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(5);
+            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            frame?.Save(Path.Combine(outputDir, "log-panel.png"));
+
+            window.Close();
+            return Task.FromResult(true);
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task GenerateOptionsWindowHttpDiagnosticsScreenshot()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
+
+        await session.Dispatch(() =>
+        {
+            var (viewModel, _) = CreateWindow(
+                BuildHandler("{}"),
+                requestName: "Diagnostics demo",
+                method: "GET",
+                url: "https://postman-echo.com/get");
+
+            // Show HTTP options page (includes the new "Enable HTTP diagnostics" checkbox)
+            viewModel.SelectedOptionsPage = "HTTP";
+
+            var optionsWindow = new OptionsWindow { DataContext = viewModel };
+            optionsWindow.Show();
+
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            var frame = optionsWindow.GetLastRenderedFrame() ?? optionsWindow.CaptureRenderedFrame();
+            frame?.Save(Path.Combine(outputDir, "options-window-http-diagnostics.png"));
+
+            optionsWindow.Close();
+            return Task.FromResult(true);
+        }, CancellationToken.None);
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
