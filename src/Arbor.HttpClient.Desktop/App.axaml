@@ -24,6 +24,9 @@
                     <SolidColorBrush x:Key="MethodPutBrush" Color="#FFB74D" />
                     <SolidColorBrush x:Key="MethodPatchBrush" Color="#CE93D8" />
                     <SolidColorBrush x:Key="MethodDeleteBrush" Color="#EF5350" />
+                    <!-- Variable token colors: brackets {{ }} amber, name violet -->
+                    <SolidColorBrush x:Key="VariableBracketBrush" Color="#FFB74D" />
+                    <SolidColorBrush x:Key="VariableNameBrush" Color="#CE93D8" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="OptionsNavBackgroundBrush" Color="#F0F0F0" />
@@ -42,6 +45,9 @@
                     <SolidColorBrush x:Key="MethodPutBrush" Color="#875F09" />
                     <SolidColorBrush x:Key="MethodPatchBrush" Color="#744DA9" />
                     <SolidColorBrush x:Key="MethodDeleteBrush" Color="#C50F1F" />
+                    <!-- Variable token colors: brackets {{ }} amber, name violet -->
+                    <SolidColorBrush x:Key="VariableBracketBrush" Color="#875F09" />
+                    <SolidColorBrush x:Key="VariableNameBrush" Color="#744DA9" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>

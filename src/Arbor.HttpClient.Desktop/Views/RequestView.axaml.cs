@@ -1,12 +1,9 @@
-using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Arbor.HttpClient.Desktop.ViewModels;
 using AvaloniaEdit;
-using AvaloniaEdit.Document;
-using AvaloniaEdit.Rendering;
 using AvaloniaEdit.TextMate;
 using TextMateSharp.Grammars;
 
@@ -87,6 +84,7 @@ public partial class RequestView : UserControl
 
         if (_requestUrlEditor is not null)
         {
+            _requestUrlEditor.TextArea.Background = Brushes.Transparent;
             _requestUrlEditor.Document.TextChanged += OnRequestUrlEditorTextChanged;
             if (!_requestUrlEditor.TextArea.TextView.LineTransformers.Contains(_urlVariableColorizer))
             {
@@ -336,16 +334,23 @@ public partial class RequestView : UserControl
 
     private void ApplyVariableColorTheme()
     {
-        IBrush brush = Brushes.MediumPurple;
-        if (Application.Current?.TryGetResource("MethodPatchBrush", out var resource) == true &&
-            resource is IBrush resourceBrush)
+        IBrush bracketBrush = Brushes.Orange;
+        if (Application.Current?.TryGetResource("VariableBracketBrush", out var bracketResource) == true &&
+            bracketResource is IBrush b)
         {
-            brush = resourceBrush;
+            bracketBrush = b;
         }
 
-        _urlVariableColorizer.SetForeground(brush);
-        _bodyVariableColorizer.SetForeground(brush);
-        _previewVariableColorizer.SetForeground(brush);
+        IBrush nameBrush = Brushes.MediumPurple;
+        if (Application.Current?.TryGetResource("VariableNameBrush", out var nameResource) == true &&
+            nameResource is IBrush n)
+        {
+            nameBrush = n;
+        }
+
+        _urlVariableColorizer.SetBrushes(bracketBrush, nameBrush);
+        _bodyVariableColorizer.SetBrushes(bracketBrush, nameBrush);
+        _previewVariableColorizer.SetBrushes(bracketBrush, nameBrush);
 
         _requestUrlEditor?.TextArea.TextView.Redraw();
         _requestBodyEditor?.TextArea.TextView.Redraw();
@@ -367,29 +372,6 @@ public partial class RequestView : UserControl
         }
 
         _requestTextMate.SetTheme(theme);
-    }
-
-    private sealed partial class VariableTokenColorizer : DocumentColorizingTransformer
-    {
-        [GeneratedRegex(@"\{\{[^}]+\}\}", RegexOptions.Compiled)]
-        private static partial Regex VariableTokenRegex();
-
-        private IBrush _foreground = Brushes.MediumPurple;
-
-        public void SetForeground(IBrush foreground) => _foreground = foreground;
-
-        protected override void ColorizeLine(DocumentLine line)
-        {
-            var lineText = CurrentContext.Document.GetText(line);
-            foreach (Match match in VariableTokenRegex().Matches(lineText))
-            {
-                var startOffset = line.Offset + match.Index;
-                var endOffset = startOffset + match.Length;
-
-                ChangeLinePart(startOffset, endOffset, element =>
-                    element.TextRunProperties.SetForegroundBrush(_foreground));
-            }
-        }
     }
 }
 

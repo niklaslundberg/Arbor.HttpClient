@@ -208,7 +208,21 @@ Before merging any PR that touches UI code or theme resources:
 - [ ] Interactive elements remain keyboard-accessible (Tab, Enter/Space, arrow keys where applicable).
 - [ ] No purely visual text label has been replaced by an icon without an accessible name.
 
-## Central Package Management
+## UI Consistency
+
+All text-input controls must have a consistent look and feel that matches the Avalonia Fluent theme.
+
+- **Text inputs that replace a standard `TextBox`** (e.g. `AvaloniaEdit.TextEditor` used for variable highlighting in the URL bar) must match the Fluent `TextBox` visual metrics:
+  - `Padding="5,6,5,6"` to align text at the same vertical position as a `TextBox` (effective centering for the default 13 px font in a 32 px row)
+  - `CornerRadius="3"` on the surrounding `Border` (Fluent standard)
+  - `Background` on the surrounding `Border` set to `{DynamicResource SurfaceBackgroundBrush}` so the background adapts with the active theme
+  - The inner `TextEditor` itself must be `Background="Transparent"` so the Border background is visible
+  - Scrollbars hidden (`HorizontalScrollBarVisibility="Hidden"` and `VerticalScrollBarVisibility="Hidden"`) for single-line inputs
+  - Font family and size must be explicitly propagated from the app-level `UiFontFamily`/`UiFontSize` bindings via `ApplyEditorFont`
+- **`TextBox` controls that remain as plain `TextBox`** do not need additional styling; they automatically inherit font and appearance from the Fluent theme and window-level `FontFamily`/`FontSize` bindings.
+- Never mix raw `TextEditor` controls and styled `TextBox` controls in the same row or form group without ensuring they have the same effective height and padding.
+
+
 
 All NuGet package versions are managed centrally in `Directory.Packages.props`.  
 - Always declare new packages with `<PackageVersion Include="PackageName" Version="x.y.z" />` in `Directory.Packages.props`.  
