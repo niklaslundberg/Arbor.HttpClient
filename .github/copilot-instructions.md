@@ -78,7 +78,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - Any new or changed production code must include test coverage. Prefer isolated unit tests first, then integration/E2E tests when unit tests are not sufficient.
 - Maintain reasonably high coverage in the changed area. If code can be tested, add tests.
 - For feature work, generate coverage reports and review them. CI must publish test and coverage outputs so they are visible during code review.
-- Profiling-oriented validation is required when changing request execution hot paths, scheduled/background job loops, data-processing loops, or code that introduces disposable/resource-heavy objects. Use JetBrains dotMemory Unit or equivalent tools (for example `dotnet-counters` or BenchmarkDotNet) to catch memory leaks, performance bottlenecks, or resource leaks, and attach profiling evidence in the PR when this requirement applies.
+- Profiling-oriented validation is required when changing request execution hot paths, scheduled/background job loops, data-processing loops, or code that introduces disposable/resource-heavy objects. Treat code as a hot path when it runs on every request, for each item in a collection, or on a recurring timer; profiling is optional for isolated admin/one-off flows. Use JetBrains dotMemory Unit or equivalent tools (for example `dotnet-counters` or BenchmarkDotNet) to catch memory leaks, performance bottlenecks, or resource leaks, and attach profiling evidence in the PR when this requirement applies.
 - For UI-related changes, attach updated screenshots in the pull request so reviewers can verify visual impact.
 
 ---
