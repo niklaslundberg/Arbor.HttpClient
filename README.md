@@ -118,6 +118,10 @@ The log window (**📋 Logs** toolbar button) shows all application events in re
 - Any errors (connection failures, invalid URLs, etc.).
 - Up to **1 000** events are kept in memory; older events are discarded automatically.
 
+## Design attribution
+
+The theme palette and visual direction are inspired by [Hoppscotch](https://github.com/hoppscotch/hoppscotch).
+
 ## Regenerating Screenshots
 
 To regenerate the documentation screenshots locally (no display required):

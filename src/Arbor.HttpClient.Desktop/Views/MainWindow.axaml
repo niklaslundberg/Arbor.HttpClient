@@ -21,8 +21,8 @@
     <DockPanel Margin="0">
 
         <!-- Top toolbar -->
-        <Border DockPanel.Dock="Top" Padding="16,10" BorderBrush="#2A2A2A" BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
+        <Border DockPanel.Dock="Top" Padding="16,10" BorderBrush="{DynamicResource TopToolbarBorderBrush}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
                 <TextBlock Text="Arbor Http Client" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" />
 
                 <!-- Environment selector -->
@@ -39,11 +39,18 @@
                     </ComboBox>
                 </StackPanel>
 
-                <Button Grid.Column="2" Content="Manage Envs" Margin="6,0"
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="8,0,0,0">
+                    <TextBlock Text="Theme:" VerticalAlignment="Center" Opacity="0.7" />
+                    <ComboBox MinWidth="120"
+                              ItemsSource="{Binding ThemeOptions}"
+                              SelectedItem="{Binding SelectedThemeOption, Mode=TwoWay}" />
+                </StackPanel>
+
+                <Button Grid.Column="3" Content="Manage Envs" Margin="6,0"
                         Command="{Binding ToggleEnvironmentPanelCommand}" />
-                <Button Grid.Column="3" Content="Import OpenAPI" Margin="0,0,6,0"
+                <Button Grid.Column="4" Content="Import OpenAPI" Margin="0,0,6,0"
                         Command="{Binding ImportCollectionCommand}" />
-                <Button Grid.Column="4" Content="📋 Logs"
+                <Button Grid.Column="5" Content="📋 Logs"
                         Command="{Binding OpenLogWindowCommand}" />
             </Grid>
         </Border>
@@ -51,7 +58,7 @@
         <!-- Environment panel (collapsible) -->
         <Border DockPanel.Dock="Top"
                 IsVisible="{Binding IsEnvironmentPanelVisible}"
-                Background="#1A1A2E" Padding="16,10" BorderBrush="#3C3F41" BorderThickness="0,0,0,1">
+                Background="{DynamicResource SecondaryPanelBackgroundBrush}" Padding="16,10" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="0,0,0,1">
             <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="*,Auto" RowSpacing="6">
                 <TextBlock Text="Environments" FontWeight="SemiBold" FontSize="15" />
                 <Button Grid.Column="1" Content="+ New Environment"

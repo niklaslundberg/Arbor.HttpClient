@@ -4,7 +4,40 @@
              xmlns:local="using:Arbor.HttpClient.Desktop"
              xmlns:dock="using:Dock.Avalonia.Themes.Fluent"
              RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="TopToolbarBorderBrush" Color="#2A2A2A" />
+                    <SolidColorBrush x:Key="SecondaryPanelBackgroundBrush" Color="#1A1A2E" />
+                    <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#12212F" />
+                    <SolidColorBrush x:Key="PreviewPanelBackgroundBrush" Color="#0D1B2A" />
+                    <SolidColorBrush x:Key="PanelBorderBrush" Color="#3C3F41" />
+                    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#1E1E1E" />
+                    <SolidColorBrush x:Key="CollectionSelectionBrush" Color="#1E3A5F" />
+                    <SolidColorBrush x:Key="MethodFallbackBrush" Color="#F5F5F5" />
+                    <SolidColorBrush x:Key="ErrorBrush" Color="#FF6347" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="TopToolbarBorderBrush" Color="#D0D7DE" />
+                    <SolidColorBrush x:Key="SecondaryPanelBackgroundBrush" Color="#F5F8FC" />
+                    <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#F3F6FA" />
+                    <SolidColorBrush x:Key="PreviewPanelBackgroundBrush" Color="#EEF4FA" />
+                    <SolidColorBrush x:Key="PanelBorderBrush" Color="#C5D0DB" />
+                    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="CollectionSelectionBrush" Color="#DCEBFF" />
+                    <SolidColorBrush x:Key="MethodFallbackBrush" Color="#1F2328" />
+                    <SolidColorBrush x:Key="ErrorBrush" Color="#B42318" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <SolidColorBrush x:Key="MethodGetBrush" Color="#0078D4" />
+            <SolidColorBrush x:Key="MethodPostBrush" Color="#107C10" />
+            <SolidColorBrush x:Key="MethodPutBrush" Color="#986F0B" />
+            <SolidColorBrush x:Key="MethodPatchBrush" Color="#744DA9" />
+            <SolidColorBrush x:Key="MethodDeleteBrush" Color="#C50F1F" />
+        </ResourceDictionary>
+    </Application.Resources>
 
     <Application.DataTemplates>
         <local:ViewLocator/>

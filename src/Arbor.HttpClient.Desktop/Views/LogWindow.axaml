@@ -19,12 +19,12 @@
                       VerticalAlignment="Center" />
         </Grid>
 
-        <Border Grid.Row="1" BorderBrush="#3C3F41" BorderThickness="1" CornerRadius="4">
+        <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
             <ListBox x:Name="LogList"
                      ItemsSource="{Binding Entries}"
                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
                      ScrollViewer.VerticalScrollBarVisibility="Auto"
-                     Background="#1E1E1E">
+                     Background="{DynamicResource SurfaceBackgroundBrush}">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="logging:LogEntry">
                         <Grid ColumnDefinitions="160,80,*" ColumnSpacing="8">

@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Arbor.HttpClient.Desktop.ViewModels;
 using AvaloniaEdit;
 using AvaloniaEdit.TextMate;
@@ -20,6 +21,7 @@ public partial class ResponseView : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        ActualThemeVariantChanged += OnActualThemeVariantChanged;
     }
 
     private MainWindowViewModel? GetAppVm() => (DataContext as ResponseViewModel)?.App;
@@ -52,6 +54,7 @@ public partial class ResponseView : UserControl
             _appliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_responseBodyEditor, inst);
             _responseTextMate = _responseBodyEditor.InstallTextMate(_registryOptions);
             _responseTextMate.AppliedTheme += _appliedThemeHandler;
+            _responseTextMate.SetTheme(GetTextMateThemeName());
         }
 
         if (_appVm is not null)
@@ -75,6 +78,9 @@ public partial class ResponseView : UserControl
             _responseBodyEditor.Text = _appVm.ResponseBody;
         }
     }
+
+    private void OnActualThemeVariantChanged(object? sender, EventArgs e) =>
+        _responseTextMate?.SetTheme(GetTextMateThemeName());
 
     protected override void OnUnloaded(Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -158,5 +164,8 @@ public partial class ResponseView : UserControl
         brush = new SolidColorBrush(color);
         return true;
     }
+
+    private ThemeName GetTextMateThemeName() =>
+        ActualThemeVariant == ThemeVariant.Light ? ThemeName.LightPlus : ThemeName.DarkPlus;
 }
 

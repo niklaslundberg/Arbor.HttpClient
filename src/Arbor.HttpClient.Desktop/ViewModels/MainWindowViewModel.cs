@@ -12,7 +12,9 @@ using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Desktop.Services;
+using Avalonia;
 using Avalonia.Platform.Storage;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -85,6 +87,20 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private Collection? _selectedCollection;
+
+    public const string SystemThemeOption = "System";
+    public const string DarkThemeOption = "Dark";
+    public const string LightThemeOption = "Light";
+
+    public IReadOnlyList<string> ThemeOptions { get; } =
+    [
+        SystemThemeOption,
+        DarkThemeOption,
+        LightThemeOption
+    ];
+
+    [ObservableProperty]
+    private string _selectedThemeOption = SystemThemeOption;
 
     // Content-Type selector
     public const string NoneContentTypeOption = "(none)";
@@ -168,6 +184,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 CollectionItems.Add(new CollectionItemViewModel(r));
             }
         }
+    }
+
+    partial void OnSelectedThemeOptionChanged(string value)
+    {
+        if (Application.Current is null)
+        {
+            return;
+        }
+
+        Application.Current.RequestedThemeVariant = value switch
+        {
+            DarkThemeOption => ThemeVariant.Dark,
+            LightThemeOption => ThemeVariant.Light,
+            _ => ThemeVariant.Default
+        };
     }
 
     public MainWindowViewModel(

@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Arbor.HttpClient.Desktop.ViewModels;
 using AvaloniaEdit;
 using AvaloniaEdit.TextMate;
@@ -21,6 +22,7 @@ public partial class RequestView : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        ActualThemeVariantChanged += OnActualThemeVariantChanged;
     }
 
     private MainWindowViewModel? GetAppVm() => (DataContext as RequestViewModel)?.App;
@@ -58,6 +60,7 @@ public partial class RequestView : UserControl
             _appliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_requestBodyEditor, inst);
             _requestTextMate = _requestBodyEditor.InstallTextMate(_registryOptions);
             _requestTextMate.AppliedTheme += _appliedThemeHandler;
+            _requestTextMate.SetTheme(GetTextMateThemeName());
             _requestBodyEditor.Document.TextChanged += OnRequestEditorTextChanged;
         }
 
@@ -101,6 +104,9 @@ public partial class RequestView : UserControl
             ApplyGrammarForContent(_requestTextMate, _requestBodyEditor?.Text ?? string.Empty, ref _requestGrammarScope);
         }
     }
+
+    private void OnActualThemeVariantChanged(object? sender, EventArgs e) =>
+        _requestTextMate?.SetTheme(GetTextMateThemeName());
 
     protected override void OnUnloaded(Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -228,5 +234,8 @@ public partial class RequestView : UserControl
 
         return ".txt";
     }
+
+    private ThemeName GetTextMateThemeName() =>
+        ActualThemeVariant == ThemeVariant.Light ? ThemeName.LightPlus : ThemeName.DarkPlus;
 }
 
