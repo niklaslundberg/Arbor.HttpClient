@@ -85,6 +85,8 @@ public partial class RequestView : UserControl
         if (_requestUrlEditor is not null)
         {
             _requestUrlEditor.TextArea.Background = Brushes.Transparent;
+            _requestUrlEditor.Options.EnableHyperlinks = false;
+            _requestUrlEditor.Options.EnableEmailHyperlinks = false;
             _requestUrlEditor.Document.TextChanged += OnRequestUrlEditorTextChanged;
             if (!_requestUrlEditor.TextArea.TextView.LineTransformers.Contains(_urlVariableColorizer))
             {
