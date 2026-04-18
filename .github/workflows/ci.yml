@@ -39,6 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      checks: write
     steps:
       - uses: actions/checkout@v4
 
@@ -56,14 +57,35 @@ jobs:
           --no-restore
           --configuration Release
           --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=unit-tests.trx"
+          --results-directory TestResults/unit
           --collect:"XPlat Code Coverage"
 
+      - name: Publish unit test report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Unit Tests
+          path: TestResults/unit/*.trx
+          reporter: dotnet-trx
+          fail-on-error: true
+          fail-on-empty: false
+
       - name: Upload coverage
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-coverage
           path: "**/coverage.cobertura.xml"
           if-no-files-found: ignore
+
+      - name: Upload unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: TestResults/unit/*.trx
+          if-no-files-found: error
 
   e2e-tests:
     name: E2E Tests
@@ -71,6 +93,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      checks: write
     steps:
       - uses: actions/checkout@v4
 
@@ -88,3 +111,23 @@ jobs:
           --no-restore
           --configuration Release
           --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=e2e-tests.trx"
+          --results-directory TestResults/e2e
+
+      - name: Publish E2E test report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: E2E Tests
+          path: TestResults/e2e/*.trx
+          reporter: dotnet-trx
+          fail-on-error: true
+          fail-on-empty: false
+
+      - name: Upload E2E test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: TestResults/e2e/*.trx
+          if-no-files-found: error
