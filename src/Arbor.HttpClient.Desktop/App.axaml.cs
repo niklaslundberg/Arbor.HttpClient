@@ -66,7 +66,9 @@ public partial class App : Application
             // Services
             var httpClient = new global::System.Net.Http.HttpClient();
             var httpRequestService = new HttpRequestService(httpClient, historyRepository);
-            httpRequestService.SetHttpClientFactory(() => CreateHttpClient(currentOptions.Http));
+            var configuredHttpClient = CreateHttpClient(currentOptions.Http);
+            var retiredHttpClients = new List<global::System.Net.Http.HttpClient>();
+            httpRequestService.SetHttpClientFactory(() => configuredHttpClient);
             var scheduledJobService = new ScheduledJobService(httpRequestService, Log.Logger);
 
             // ViewModels
@@ -81,7 +83,12 @@ public partial class App : Application
                 logWindowViewModel,
                 optionsStore,
                 currentOptions,
-                updatedOptions => currentOptions = updatedOptions);
+                updatedOptions =>
+                {
+                    currentOptions = updatedOptions;
+                    retiredHttpClients.Add(configuredHttpClient);
+                    configuredHttpClient = CreateHttpClient(currentOptions.Http);
+                });
 
             var window = new MainWindow
             {
@@ -93,6 +100,12 @@ public partial class App : Application
             {
                 viewModel.Dispose();
                 logWindowViewModel.Dispose();
+                configuredHttpClient.Dispose();
+                foreach (var retiredHttpClient in retiredHttpClients)
+                {
+                    retiredHttpClient.Dispose();
+                }
+                httpClient.Dispose();
                 Log.CloseAndFlush();
             };
             desktop.MainWindow = window;
@@ -124,8 +137,10 @@ public partial class App : Application
 
     private static global::System.Net.Http.HttpClient CreateHttpClient(HttpOptions options)
     {
-        const SslProtocols tls10 = (SslProtocols)192;
-        const SslProtocols tls11 = (SslProtocols)768;
+        // SslProtocols.Tls/Tls11 are obsolete symbols, so their numeric values are used explicitly
+        // to support import/export compatibility for legacy protocol selections.
+        const SslProtocols tls10 = (SslProtocols)192; // SslProtocols.Tls
+        const SslProtocols tls11 = (SslProtocols)768; // SslProtocols.Tls11
 
         var handler = new SocketsHttpHandler
         {

@@ -444,13 +444,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         return DefaultContentType;
     }
 
-    private static Version? ParseHttpVersion(string value) => value switch
+    private static Version ParseHttpVersion(string value) => value switch
     {
         "1.0" => global::System.Net.HttpVersion.Version10,
         "1.1" => global::System.Net.HttpVersion.Version11,
         "2.0" => global::System.Net.HttpVersion.Version20,
         "3.0" => global::System.Net.HttpVersion.Version30,
-        _ => null
+        _ => global::System.Net.HttpVersion.Version11
     };
 
     [RelayCommand]

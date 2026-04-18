@@ -99,7 +99,9 @@ public sealed class ApplicationOptionsStore(string optionsPath)
             throw new InvalidDataException($"Invalid default content type '{options.Http.DefaultContentType}'.");
         }
 
-        if (!Uri.TryCreate(options.Http.DefaultRequestUrl, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
+        if (!Uri.TryCreate(options.Http.DefaultRequestUrl, UriKind.Absolute, out var uri)
+            || uri.Scheme is not ("http" or "https")
+            || string.IsNullOrWhiteSpace(uri.Host))
         {
             throw new InvalidDataException("Default request URL must be an absolute HTTP or HTTPS URL.");
         }

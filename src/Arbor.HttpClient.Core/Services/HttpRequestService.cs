@@ -62,33 +62,25 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
             }
         }
 
-        var createdClient = _httpClientFactory?.Invoke();
-        var activeClient = createdClient ?? _httpClient;
+        var activeClient = _httpClientFactory?.Invoke() ?? _httpClient;
 
-        try
-        {
-            using var response = await activeClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
-            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        using var response = await activeClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
-            var responseHeaders = response.Headers
-                .Concat(response.Content.Headers)
-                .SelectMany(h => h.Value.Select(v => (h.Key, v)))
-                .ToList();
+        var responseHeaders = response.Headers
+            .Concat(response.Content.Headers)
+            .SelectMany(h => h.Value.Select(v => (h.Key, v)))
+            .ToList();
 
-            await _requestHistoryRepository.SaveAsync(
-                new SavedRequest(
-                    string.IsNullOrWhiteSpace(requestDraft.Name) ? requestDraft.Url : requestDraft.Name,
-                    requestDraft.Method,
-                    requestDraft.Url,
-                    requestDraft.Body,
-                    _timeProvider.GetUtcNow()),
-                cancellationToken).ConfigureAwait(false);
+        await _requestHistoryRepository.SaveAsync(
+            new SavedRequest(
+                string.IsNullOrWhiteSpace(requestDraft.Name) ? requestDraft.Url : requestDraft.Name,
+                requestDraft.Method,
+                requestDraft.Url,
+                requestDraft.Body,
+                _timeProvider.GetUtcNow()),
+            cancellationToken).ConfigureAwait(false);
 
-            return new HttpResponseDetails((int)response.StatusCode, response.ReasonPhrase ?? string.Empty, responseBody, responseHeaders);
-        }
-        finally
-        {
-            createdClient?.Dispose();
-        }
+        return new HttpResponseDetails((int)response.StatusCode, response.ReasonPhrase ?? string.Empty, responseBody, responseHeaders);
     }
 }
