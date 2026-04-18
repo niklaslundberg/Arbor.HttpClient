@@ -10,15 +10,38 @@
         <conv:MethodToColorConverter x:Key="MethodToColorConverter" />
     </UserControl.Resources>
 
+    <UserControl.Styles>
+        <!-- Tab-styled buttons for the History / Collections / Scheduled selector,
+             matching the look of TabControl TabItems used elsewhere (flat, with
+             an accent underline on the active tab). -->
+        <Style Selector="Button.tab">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0,0,0,2" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="CornerRadius" Value="0" />
+        </Style>
+        <Style Selector="Button.tab:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.tab.active">
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+    </UserControl.Styles>
+
     <Grid RowDefinitions="Auto,*" Margin="8" Background="{DynamicResource PanelBackgroundBrush}">
         <!-- Tab bar -->
-        <StackPanel Orientation="Horizontal" Spacing="4">
-            <Button Content="History" Command="{Binding App.ShowHistoryTabCommand}"
-                    FontWeight="{Binding App.LeftPanelTab, Converter={x:Static conv:TabFontWeightConverter.Instance}, ConverterParameter=History}" />
-            <Button Content="Collections" Command="{Binding App.ShowCollectionsTabCommand}"
-                    FontWeight="{Binding App.LeftPanelTab, Converter={x:Static conv:TabFontWeightConverter.Instance}, ConverterParameter=Collections}" />
-            <Button Content="Scheduled" Command="{Binding App.ShowScheduledJobsTabCommand}"
-                    FontWeight="{Binding App.LeftPanelTab, Converter={x:Static conv:TabFontWeightConverter.Instance}, ConverterParameter=ScheduledJobs}" />
+        <StackPanel Orientation="Horizontal" Spacing="0">
+            <Button Classes="tab" Content="History"
+                    Command="{Binding App.ShowHistoryTabCommand}"
+                    Classes.active="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=History}" />
+            <Button Classes="tab" Content="Collections"
+                    Command="{Binding App.ShowCollectionsTabCommand}"
+                    Classes.active="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=Collections}" />
+            <Button Classes="tab" Content="Scheduled"
+                    Command="{Binding App.ShowScheduledJobsTabCommand}"
+                    Classes.active="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=ScheduledJobs}" />
         </StackPanel>
 
         <!-- History tab -->
@@ -32,6 +55,13 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="models:SavedRequest">
                             <StackPanel Margin="0,4">
+                                <StackPanel.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Copy as cURL"
+                                                  Command="{Binding $parent[UserControl].DataContext.App.CopyHistoryItemAsCurlCommand}"
+                                                  CommandParameter="{Binding}" />
+                                    </ContextMenu>
+                                </StackPanel.ContextMenu>
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
                                     <TextBlock Text="{Binding Method}"

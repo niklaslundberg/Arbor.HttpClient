@@ -19,6 +19,7 @@ using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Desktop.Models;
 using Arbor.HttpClient.Desktop.Services;
 using Avalonia;
+using Avalonia.Input.Platform;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
@@ -68,6 +69,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
+
+    // Needed for clipboard (e.g. "Copy as cURL" on history items) – set by the view
+    public global::Avalonia.Input.Platform.IClipboard? Clipboard { get; set; }
 
     /// <summary>Dock layout root; bound to DockControl.Layout in MainWindow.</summary>
     public IRootDock? Layout { get; private set; }
@@ -1622,6 +1626,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         await File.WriteAllBytesAsync(file.Path.LocalPath, _lastResponseBodyBytes);
         OpenWithShell(file.Path.LocalPath);
+    }
+
+    /// <summary>
+    /// Copies the given history item to the clipboard formatted as a single-line
+    /// <c>curl</c> command. Matches the "Copy as cURL" action available in
+    /// Hoppscotch, Insomnia, and the browser devtools network panel.
+    /// No-op when the clipboard or request is unavailable.
+    /// </summary>
+    [RelayCommand]
+    private async Task CopyHistoryItemAsCurlAsync(SavedRequest? request)
+    {
+        if (request is null || Clipboard is null)
+        {
+            return;
+        }
+
+        var command = CurlFormatter.Format(request);
+        await Clipboard.SetTextAsync(command);
     }
 
     public void Dispose()
