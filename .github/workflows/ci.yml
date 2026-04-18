@@ -39,6 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Required by dorny/test-reporter when publishing check-run test summaries on PRs.
       checks: write
     steps:
       - uses: actions/checkout@v4
@@ -76,6 +77,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-coverage
+          # Keep coverage optional so missing files do not hide unit test outcomes in CI.
           path: "**/coverage.cobertura.xml"
           if-no-files-found: ignore
 
@@ -93,6 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Required by dorny/test-reporter when publishing check-run test summaries on PRs.
       checks: write
     steps:
       - uses: actions/checkout@v4
