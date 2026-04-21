@@ -40,7 +40,7 @@ internal sealed class VariableAutoCompleteController : IDisposable
         }
 
         var typedCharacter = e.Text[0];
-        if (!char.IsLetterOrDigit(typedCharacter) && typedCharacter is not '_' and not '-')
+        if (char.IsWhiteSpace(typedCharacter) || typedCharacter == '}')
         {
             _completionWindow.CompletionList.RequestInsertion(e);
         }
