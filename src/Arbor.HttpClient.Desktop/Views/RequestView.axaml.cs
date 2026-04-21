@@ -8,7 +8,6 @@ using Arbor.HttpClient.Desktop.ViewModels;
 using AvaloniaEdit;
 using AvaloniaEdit.TextMate;
 using TextMateSharp.Grammars;
-using System.Linq;
 
 namespace Arbor.HttpClient.Desktop.Views;
 
@@ -397,11 +396,6 @@ public partial class RequestView : UserControl
     }
 
     private IReadOnlyList<string> GetVariableNames() =>
-        _appVm?.ActiveEnvironmentVariables
-            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
-            .Select(variable => variable.Name.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList()
-        ?? [];
+        VariableNameHelper.ExtractDistinctNames(_appVm?.ActiveEnvironmentVariables);
 }
 

@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -65,7 +63,6 @@ public sealed class VariableTextBox : UserControl
         _editor.Options.EnableEmailHyperlinks = false;
         _editor.TextArea.Background = Brushes.Transparent;
         _editor.TextArea.TextView.LineTransformers.Add(_colorizer);
-        _autoCompleteController = new VariableAutoCompleteController(_editor, GetVariableNames);
         _editor.Document.TextChanged += OnEditorTextChanged;
 
         _placeholder = new TextBlock
@@ -193,10 +190,5 @@ public sealed class VariableTextBox : UserControl
     }
 
     private IReadOnlyList<string> GetVariableNames() =>
-        AppViewModel?.ActiveEnvironmentVariables
-            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
-            .Select(variable => variable.Name.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList()
-        ?? [];
+        VariableNameHelper.ExtractDistinctNames(AppViewModel?.ActiveEnvironmentVariables);
 }

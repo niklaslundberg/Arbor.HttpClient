@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -56,7 +57,7 @@ public static class VariableCompletionEngine
             fullText[endOffset] == '}' &&
             fullText[endOffset + 1] == '}';
 
-        return hasClosingBraces ? variableName : $"{variableName}}}";
+        return hasClosingBraces ? variableName : string.Concat(variableName, "}}");
     }
 }
 

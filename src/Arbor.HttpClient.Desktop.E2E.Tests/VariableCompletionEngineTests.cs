@@ -34,9 +34,9 @@ public class VariableCompletionEngineTests
     {
         var suggestions = VariableCompletionEngine.GetSuggestions(
             ["Host", "token", "tenant", "region"],
-            "te");
+            "t");
 
-        suggestions.Should().Equal("tenant");
+        suggestions.Should().Equal("tenant", "token");
     }
 
     [Fact]
