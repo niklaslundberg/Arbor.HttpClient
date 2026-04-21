@@ -57,7 +57,37 @@ public static class VariableCompletionEngine
             fullText[endOffset] == '}' &&
             fullText[endOffset + 1] == '}';
 
+        if (!hasClosingBraces)
+        {
+            hasClosingBraces = HasClosingBracesLaterInCurrentToken(fullText, endOffset);
+        }
+
         return hasClosingBraces ? variableName : string.Concat(variableName, "}}");
+    }
+
+    private static bool HasClosingBracesLaterInCurrentToken(string fullText, int endOffset)
+    {
+        if (endOffset < 0 || endOffset >= fullText.Length)
+        {
+            return false;
+        }
+
+        var closingOffset = fullText.IndexOf("}}", endOffset, StringComparison.Ordinal);
+        if (closingOffset < 0)
+        {
+            return false;
+        }
+
+        for (var index = endOffset; index < closingOffset; index++)
+        {
+            var ch = fullText[index];
+            if (ch is '{' or '}' or '\r' or '\n')
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 
