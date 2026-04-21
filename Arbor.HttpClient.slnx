@@ -5,5 +5,6 @@
     <Project Path="src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj" />
     <Project Path="src/Arbor.HttpClient.Desktop/Arbor.HttpClient.Desktop.csproj" />
     <Project Path="src/Arbor.HttpClient.Storage.Sqlite/Arbor.HttpClient.Storage.Sqlite.csproj" />
+    <Project Path="src/Arbor.HttpClient.Testing/Arbor.HttpClient.Testing.csproj" />
   </Folder>
 </Solution>

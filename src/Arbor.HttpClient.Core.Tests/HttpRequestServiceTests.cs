@@ -1,9 +1,10 @@
 using System.Net;
 using System.Net.Http;
 using System.Text;
-using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
+using Arbor.HttpClient.Testing.Fakes;
+using Arbor.HttpClient.Testing.Repositories;
 using AwesomeAssertions;
 
 namespace Arbor.HttpClient.Core.Tests;
@@ -14,7 +15,7 @@ public class HttpRequestServiceTests
     public async Task SendAsync_ShouldReturnResponseAndPersistRequest()
     {
         var repository = new InMemoryRequestHistoryRepository();
-        var handler = new StubMessageHandler(_ =>
+        var handler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
             {
                 ReasonPhrase = "OK",
@@ -37,7 +38,7 @@ public class HttpRequestServiceTests
     [Fact]
     public async Task SendAsync_ShouldRejectNonHttpUrls()
     {
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
 
         var action = () => service.SendAsync(new HttpRequestDraft("Invalid", "GET", "file:///etc/passwd", null));
 
@@ -48,7 +49,7 @@ public class HttpRequestServiceTests
     public async Task SendAsync_ShouldSendContentTypeHeader()
     {
         HttpRequestMessage? capturedRequest = null;
-        var handler = new StubMessageHandler(req =>
+        var handler = new StubHttpMessageHandler(req =>
         {
             capturedRequest = req;
             return new HttpResponseMessage(HttpStatusCode.OK)
@@ -72,7 +73,7 @@ public class HttpRequestServiceTests
     public async Task SendAsync_ShouldSendCustomRequestHeader()
     {
         HttpRequestMessage? capturedRequest = null;
-        var handler = new StubMessageHandler(req =>
+        var handler = new StubHttpMessageHandler(req =>
         {
             capturedRequest = req;
             return new HttpResponseMessage(HttpStatusCode.OK)
@@ -95,7 +96,7 @@ public class HttpRequestServiceTests
     public async Task SendAsync_ShouldSkipDisabledHeaders()
     {
         HttpRequestMessage? capturedRequest = null;
-        var handler = new StubMessageHandler(req =>
+        var handler = new StubHttpMessageHandler(req =>
         {
             capturedRequest = req;
             return new HttpResponseMessage(HttpStatusCode.OK)
@@ -118,7 +119,7 @@ public class HttpRequestServiceTests
     public async Task SendAsync_ShouldSetRequestHttpVersionWhenProvided()
     {
         HttpRequestMessage? capturedRequest = null;
-        var handler = new StubMessageHandler(req =>
+        var handler = new StubHttpMessageHandler(req =>
         {
             capturedRequest = req;
             return new HttpResponseMessage(HttpStatusCode.OK)
@@ -140,10 +141,10 @@ public class HttpRequestServiceTests
     public async Task SendAsync_ShouldUseConfiguredHttpClientFactory()
     {
         var repository = new InMemoryRequestHistoryRepository();
-        var fallbackHandler = new StubMessageHandler(_ => throw new InvalidOperationException("Fallback client should not be used"));
+        var fallbackHandler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("Fallback client should not be used"));
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(fallbackHandler), repository);
 
-        var factoryHandler = new StubMessageHandler(_ =>
+        var factoryHandler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
             {
                 ReasonPhrase = "OK",
@@ -162,17 +163,17 @@ public class HttpRequestServiceTests
     public async Task SendAsync_ShouldUseConfiguredHttpClientFactoryWithFollowRedirectOverride()
     {
         var repository = new InMemoryRequestHistoryRepository();
-        var fallbackHandler = new StubMessageHandler(_ => throw new InvalidOperationException("Fallback client should not be used"));
+        var fallbackHandler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("Fallback client should not be used"));
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(fallbackHandler), repository);
 
-        var followHandler = new StubMessageHandler(_ =>
+        var followHandler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
             {
                 ReasonPhrase = "OK",
                 Content = new StringContent("follow")
             });
 
-        var noFollowHandler = new StubMessageHandler(_ =>
+        var noFollowHandler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
             {
                 ReasonPhrase = "OK",
@@ -192,7 +193,7 @@ public class HttpRequestServiceTests
     [Fact]
     public async Task SendAsync_ShouldPublishHttpDiagnostics_WhenEnabled()
     {
-        var handler = new StubMessageHandler(_ =>
+        var handler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Version = global::System.Net.HttpVersion.Version20,
@@ -214,33 +215,5 @@ public class HttpRequestServiceTests
         diagnostics.ResponseHeadersMilliseconds.Should().BeGreaterThanOrEqualTo(0);
         diagnostics.ResponseBodyMilliseconds.Should().BeGreaterThanOrEqualTo(0);
         diagnostics.TotalMilliseconds.Should().BeGreaterThanOrEqualTo(0);
-    }
-
-    private sealed class InMemoryRequestHistoryRepository : IRequestHistoryRepository
-    {
-        public List<SavedRequest> Items { get; } = [];
-
-        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public Task SaveAsync(SavedRequest request, CancellationToken cancellationToken = default)
-        {
-            Items.Add(request);
-            return Task.CompletedTask;
-        }
-
-        public Task<IReadOnlyList<SavedRequest>> GetRecentAsync(int limit, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<SavedRequest>>(Items.Take(limit).ToList());
-    }
-
-    private sealed class StubMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> send)
-        : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => Task.FromResult(send(request));
-    }
-
-    private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => now;
     }
 }
