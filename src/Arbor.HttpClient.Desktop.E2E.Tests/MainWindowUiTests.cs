@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
@@ -503,6 +502,7 @@ public class MainWindowUiTests
 
             var requestUrlEditor = requestView.FindControl<TextEditor>("RequestUrlEditor");
             requestUrlEditor.Should().NotBeNull();
+            requestView.RequestUrlEditorForTests.Should().NotBeNull();
             requestUrlEditor!.Text = string.Empty;
             requestUrlEditor.CaretOffset = 0;
 
@@ -511,22 +511,19 @@ public class MainWindowUiTests
             requestUrlEditor.TextArea.PerformTextInput("t");
             requestUrlEditor.TextArea.PerformTextInput("o");
 
-            var controllerField = typeof(RequestView).GetField("_requestUrlAutoCompleteController", BindingFlags.Instance | BindingFlags.NonPublic);
-            controllerField.Should().NotBeNull();
-            var controller = controllerField!.GetValue(requestView);
+            var controller = requestView.RequestUrlAutoCompleteControllerForTests;
             controller.Should().NotBeNull();
-
-            var completionWindowField = controller!.GetType().GetField("_completionWindow", BindingFlags.Instance | BindingFlags.NonPublic);
-            completionWindowField.Should().NotBeNull();
-            var completionWindow = completionWindowField!.GetValue(controller) as AvaloniaEdit.CodeCompletion.CompletionWindow;
+            var completionWindow = controller!.CurrentCompletionWindow;
             completionWindow.Should().NotBeNull();
             completionWindow!.IsOpen.Should().BeTrue();
             var completionItem = completionWindow.CompletionList.CompletionData.Single(data => data.Text == "token");
             completionItem.Complete(
                 requestUrlEditor.TextArea,
-                new SimpleSegment(
-                    completionWindow.StartOffset,
-                    completionWindow.EndOffset - completionWindow.StartOffset),
+                new TextSegment
+                {
+                    StartOffset = completionWindow.StartOffset,
+                    Length = completionWindow.EndOffset - completionWindow.StartOffset
+                },
                 EventArgs.Empty);
 
             requestUrlEditor.Text.Should().Be("{{token}}");

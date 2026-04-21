@@ -34,6 +34,9 @@ public partial class RequestView : UserControl
         ActualThemeVariantChanged += OnActualThemeVariantChanged;
     }
 
+    internal TextEditor? RequestUrlEditorForTests => _requestUrlEditor;
+    internal VariableAutoCompleteController? RequestUrlAutoCompleteControllerForTests => _requestUrlAutoCompleteController;
+
     private MainWindowViewModel? GetAppVm() => (DataContext as RequestViewModel)?.App;
 
     private void OnDataContextChanged(object? sender, System.EventArgs e)

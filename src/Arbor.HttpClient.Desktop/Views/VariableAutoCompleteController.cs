@@ -27,6 +27,8 @@ internal sealed class VariableAutoCompleteController : IDisposable
         CloseCompletionWindow();
     }
 
+    internal CompletionWindow? CurrentCompletionWindow => _completionWindow;
+
     private void OnTextEntered(object? sender, TextInputEventArgs e)
     {
         UpdateCompletionWindow();
