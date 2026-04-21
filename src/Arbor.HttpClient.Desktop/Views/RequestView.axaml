@@ -98,8 +98,10 @@
                                                   IsChecked="{Binding IsEnabled, Mode=TwoWay}"
                                                   VerticalAlignment="Center" />
                                         <views:VariableTextBox Grid.Column="1" PlaceholderText="Key"
+                                                 AppViewModel="{Binding $parent[UserControl].DataContext.App}"
                                                  Text="{Binding Key, Mode=TwoWay}" />
                                         <views:VariableTextBox Grid.Column="2" PlaceholderText="Value"
+                                                 AppViewModel="{Binding $parent[UserControl].DataContext.App}"
                                                  Text="{Binding Value, Mode=TwoWay}" />
                                         <TextBox Grid.Column="3" PlaceholderText="Description"
                                                  Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
@@ -159,8 +161,10 @@
                                                   IsChecked="{Binding IsEnabled, Mode=TwoWay}"
                                                   VerticalAlignment="Center" />
                                         <views:VariableTextBox Grid.Column="1" PlaceholderText="Key"
+                                                 AppViewModel="{Binding $parent[UserControl].DataContext.App}"
                                                  Text="{Binding Name, Mode=TwoWay}" />
                                         <views:VariableTextBox Grid.Column="2" PlaceholderText="Value"
+                                                 AppViewModel="{Binding $parent[UserControl].DataContext.App}"
                                                  Text="{Binding Value, Mode=TwoWay}" />
                                         <TextBox Grid.Column="3" PlaceholderText="Description"
                                                  Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />

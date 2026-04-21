@@ -1,7 +1,9 @@
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
+using Arbor.HttpClient.Desktop.ViewModels;
 
 namespace Arbor.HttpClient.Desktop.Views;
 
@@ -18,9 +20,13 @@ public sealed class VariableTextBox : UserControl
     public static readonly StyledProperty<string> PlaceholderTextProperty =
         AvaloniaProperty.Register<VariableTextBox, string>(nameof(PlaceholderText), defaultValue: string.Empty);
 
+    public static readonly StyledProperty<MainWindowViewModel?> AppViewModelProperty =
+        AvaloniaProperty.Register<VariableTextBox, MainWindowViewModel?>(nameof(AppViewModel));
+
     private readonly AvaloniaEdit.TextEditor _editor;
     private readonly TextBlock _placeholder;
     private readonly VariableTokenColorizer _colorizer = new();
+    private VariableAutoCompleteController? _autoCompleteController;
     private readonly Border _border;
     private bool _updatingText;
 
@@ -34,6 +40,12 @@ public sealed class VariableTextBox : UserControl
     {
         get => GetValue(PlaceholderTextProperty);
         set => SetValue(PlaceholderTextProperty, value);
+    }
+
+    public MainWindowViewModel? AppViewModel
+    {
+        get => GetValue(AppViewModelProperty);
+        set => SetValue(AppViewModelProperty, value);
     }
 
     public VariableTextBox()
@@ -81,8 +93,16 @@ public sealed class VariableTextBox : UserControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        _autoCompleteController ??= new VariableAutoCompleteController(_editor, GetVariableNames);
         ApplyFont();
         ApplyBrushes();
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        _autoCompleteController?.Dispose();
+        _autoCompleteController = null;
+        base.OnDetachedFromVisualTree(e);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -168,4 +188,7 @@ public sealed class VariableTextBox : UserControl
             _border.Background = bgBrush;
         }
     }
+
+    private IReadOnlyList<string> GetVariableNames() =>
+        VariableNameHelper.ExtractDistinctNames(AppViewModel?.ActiveEnvironmentVariables);
 }
