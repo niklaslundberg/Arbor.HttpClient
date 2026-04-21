@@ -1,12 +1,15 @@
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Skia;
 using Avalonia.VisualTree;
+using AvaloniaEdit;
+using AvaloniaEdit.Document;
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
@@ -459,6 +462,77 @@ public class MainWindowUiTests
             capturedHeaderValue.Should().Be("blue");
             capturedBody.Should().Be("{\"token\":\"abc123\",\"env\":\"dev\"}");
 
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task RequestUrlEditor_AutocompleteShouldInsertFilteredEnvironmentVariable()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var mainViewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            mainViewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "abc"));
+            mainViewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "example.com"));
+
+            var requestView = new RequestView
+            {
+                DataContext = new RequestViewModel(mainViewModel)
+            };
+            var window = new Window { Width = 900, Height = 500, Content = requestView };
+            window.Show();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+
+            var requestUrlEditor = requestView.FindControl<TextEditor>("RequestUrlEditor");
+            requestUrlEditor.Should().NotBeNull();
+            requestUrlEditor!.Text = string.Empty;
+            requestUrlEditor.CaretOffset = 0;
+
+            requestUrlEditor.TextArea.PerformTextInput("{");
+            requestUrlEditor.TextArea.PerformTextInput("{");
+            requestUrlEditor.TextArea.PerformTextInput("t");
+            requestUrlEditor.TextArea.PerformTextInput("o");
+
+            var controllerField = typeof(RequestView).GetField("_requestUrlAutoCompleteController", BindingFlags.Instance | BindingFlags.NonPublic);
+            controllerField.Should().NotBeNull();
+            var controller = controllerField!.GetValue(requestView);
+            controller.Should().NotBeNull();
+
+            var completionWindowField = controller!.GetType().GetField("_completionWindow", BindingFlags.Instance | BindingFlags.NonPublic);
+            completionWindowField.Should().NotBeNull();
+            var completionWindow = completionWindowField!.GetValue(controller) as AvaloniaEdit.CodeCompletion.CompletionWindow;
+            completionWindow.Should().NotBeNull();
+            completionWindow!.IsOpen.Should().BeTrue();
+            var completionItem = completionWindow.CompletionList.CompletionData.Single(data => data.Text == "token");
+            completionItem.Complete(
+                requestUrlEditor.TextArea,
+                new SimpleSegment(
+                    completionWindow.StartOffset,
+                    completionWindow.EndOffset - completionWindow.StartOffset),
+                EventArgs.Empty);
+
+            requestUrlEditor.Text.Should().Be("{{token}}");
+            mainViewModel.RequestUrl.Should().Be("{{token}}");
+
+            window.Close();
             return true;
         }, CancellationToken.None);
     }
