@@ -169,16 +169,19 @@ public class ScreenshotGenerator
                 IsEnabled = true
             });
 
-            // Pre-populate an environment so the panel shows real variables
-            viewModel.NewEnvironmentName = "Demo Environment";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("environment", "production"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "https://postman-echo.com"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryKey", "city"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryValue", "stockholm"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "demo-token"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerValue", "blue"));
-            viewModel.IsEnvironmentPanelVisible = true;
+            // Pre-populate an environment so the Environments dock panel shows real variables
+            viewModel.Environments.Add(new RequestEnvironment(1, "Demo Environment",
+            [
+                new EnvironmentVariable("environment", "production"),
+                new EnvironmentVariable("baseUrl", "https://postman-echo.com"),
+                new EnvironmentVariable("queryKey", "city"),
+                new EnvironmentVariable("queryValue", "stockholm"),
+                new EnvironmentVariable("token", "demo-token"),
+                new EnvironmentVariable("headerName", "Tenant"),
+                new EnvironmentVariable("headerValue", "blue", false)
+            ]));
+            viewModel.EditEnvironmentCommand.Execute(viewModel.Environments[0]);
+            viewModel.OpenEnvironmentsCommand.Execute(null);
 
             window.Show();
             var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();

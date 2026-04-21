@@ -60,10 +60,11 @@ They are referenced with double curly braces: **`{{variableName}}`**.
 
 ### 1 – Create an environment
 
-1. Click **Manage Envs** in the top toolbar.
+1. Click **Environments** in the top toolbar.
 2. Click **+ New Environment**.
 3. Enter an environment name (e.g. `Development` or `Production`).
-4. Click **+ Add Variable** and fill in name/value pairs:
+4. In the **Environments** dock panel, click **+ Add Variable** and fill in key/value pairs.
+5. Use the **Active** checkbox per variable to include/exclude it.
 
    | Name          | Example value                   |
    |---------------|---------------------------------|
@@ -71,7 +72,8 @@ They are referenced with double curly braces: **`{{variableName}}`**.
    | `token`       | `my-secret-api-token`           |
    | `apiVersion`  | `v2`                            |
 
-5. Changes are saved automatically when you finish editing.
+6. Changes are saved automatically when you finish editing.
+7. Use **Export JSON** in the Environments panel to export environments in a portable JSON format.
 
 ### 2 – Activate the environment
 

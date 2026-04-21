@@ -51,8 +51,8 @@
 
                 <Button Grid.Column="2" Content="Options" Margin="8,0,0,0"
                         Command="{Binding OpenOptionsCommand}" />
-                <Button Grid.Column="3" Content="Manage Envs" Margin="6,0"
-                        Command="{Binding ToggleEnvironmentPanelCommand}" />
+                <Button Grid.Column="3" Content="Environments" Margin="6,0"
+                        Command="{Binding OpenEnvironmentsCommand}" />
                 <Button Grid.Column="4" Content="Import OpenAPI" Margin="0,0,6,0"
                         Command="{Binding ImportCollectionCommand}" />
                 <Button Grid.Column="5" Content="📋 Logs"
@@ -81,65 +81,6 @@
                 <Button Content="Restore Default"
                         Command="{Binding RestoreDefaultLayoutCommand}" />
             </StackPanel>
-        </Border>
-
-        <!-- Environment panel (collapsible) -->
-        <Border DockPanel.Dock="Top"
-                IsVisible="{Binding IsEnvironmentPanelVisible}"
-                Background="{DynamicResource SecondaryPanelBackgroundBrush}" Padding="16,10" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="0,0,0,1">
-            <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="*,Auto" RowSpacing="6">
-                <TextBlock Text="Environments" FontWeight="SemiBold" FontSize="15" />
-                <Button Grid.Column="1" Content="+ New Environment"
-                        Command="{Binding NewEnvironmentCommand}" />
-
-                <!-- Existing environments list -->
-                <ItemsControl Grid.Row="1" Grid.ColumnSpan="2" ItemsSource="{Binding Environments}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="models:RequestEnvironment">
-                            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2">
-                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
-                                <Button Grid.Column="1" Content="Edit" Margin="4,0"
-                                        Command="{Binding $parent[Window].DataContext.EditEnvironmentCommand}"
-                                        CommandParameter="{Binding}" />
-                                <Button Grid.Column="2" Content="Delete"
-                                        Command="{Binding $parent[Window].DataContext.DeleteEnvironmentCommand}"
-                                        CommandParameter="{Binding}" />
-                            </Grid>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <!-- Edit / new environment form -->
-                <Border Grid.Row="2" Grid.ColumnSpan="2" Padding="0,8,0,0">
-                    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="6">
-                        <TextBox PlaceholderText="Environment name"
-                                 Text="{Binding NewEnvironmentName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-
-                        <ItemsControl Grid.Row="1" ItemsSource="{Binding ActiveEnvironmentVariables}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:EnvironmentVariableViewModel">
-                                    <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="6" Margin="0,2">
-                                        <TextBox PlaceholderText="Name"
-                                                 Foreground="{DynamicResource MethodPatchBrush}"
-                                                 Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <TextBox Grid.Column="1" PlaceholderText="Value"
-                                                 Foreground="{DynamicResource MethodGetBrush}"
-                                                 Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <Button Grid.Column="2" Content="✕"
-                                                Command="{Binding $parent[Window].DataContext.RemoveEnvironmentVariableCommand}"
-                                                CommandParameter="{Binding}" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6">
-                            <Button Content="+ Add Variable"
-                                    Command="{Binding AddEnvironmentVariableCommand}" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-            </Grid>
         </Border>
 
         <!-- Dockable main content area -->
