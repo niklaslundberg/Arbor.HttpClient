@@ -466,6 +466,70 @@ public class MainWindowUiTests
     }
 
     [Fact]
+    public async Task SendRequestAndPreview_ShouldApplyAuthHelperAuthorizationHeader()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            string? capturedAuthorization = null;
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(request =>
+            {
+                if (request.Headers.TryGetValues("Authorization", out var headerValues))
+                {
+                    capturedAuthorization = headerValues.SingleOrDefault();
+                }
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    ReasonPhrase = "OK",
+                    Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
+                };
+            });
+
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel)
+            {
+                RequestName = "auth helper test",
+                SelectedMethod = "GET",
+                RequestUrl = "https://example.com/api",
+                SelectedAuthModeOption = MainWindowViewModel.AuthBearerOption,
+                AuthBearerToken = "{{token}}"
+            };
+
+            viewModel.RequestHeaders.Add(new RequestHeaderViewModel
+            {
+                Name = "Authorization",
+                Value = "Bearer old-token",
+                IsEnabled = true
+            });
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "abc123"));
+
+            viewModel.RequestPreview.Should().Contain("Authorization: Bearer abc123");
+            viewModel.RequestPreview.Should().NotContain("Bearer old-token");
+
+            viewModel.SendRequestCommand.Execute(null);
+            await viewModel.SendRequestCommand.ExecutionTask!;
+
+            capturedAuthorization.Should().Be("Bearer abc123");
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task RequestUrlEditor_AutocompleteShouldInsertFilteredEnvironmentVariable()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));

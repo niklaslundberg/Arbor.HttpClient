@@ -260,8 +260,45 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             : 13d;
 
     // Content-Type selector
+    public const string AuthNoneOption = "None";
+    public const string AuthBearerOption = "Bearer Token";
+    public const string AuthBasicOption = "Basic";
+    public const string AuthApiKeyOption = "API Key";
+    public const string AuthOAuth2ClientCredentialsOption = "OAuth 2 (Client Credentials)";
     public const string NoneContentTypeOption = "(none)";
     public const string CustomContentTypeOption = "Custom...";
+
+    public IReadOnlyList<string> AuthModeOptions { get; } =
+    [
+        AuthNoneOption,
+        AuthBearerOption,
+        AuthBasicOption,
+        AuthApiKeyOption,
+        AuthOAuth2ClientCredentialsOption
+    ];
+
+    [ObservableProperty]
+    private string _selectedAuthModeOption = AuthNoneOption;
+
+    [ObservableProperty]
+    private string _authBearerToken = string.Empty;
+
+    [ObservableProperty]
+    private string _authBasicUsername = string.Empty;
+
+    [ObservableProperty]
+    private string _authBasicPassword = string.Empty;
+
+    [ObservableProperty]
+    private string _authApiKey = string.Empty;
+
+    [ObservableProperty]
+    private string _authOAuth2AccessToken = string.Empty;
+
+    public bool IsBearerAuthMode => SelectedAuthModeOption == AuthBearerOption;
+    public bool IsBasicAuthMode => SelectedAuthModeOption == AuthBasicOption;
+    public bool IsApiKeyAuthMode => SelectedAuthModeOption == AuthApiKeyOption;
+    public bool IsOAuth2ClientCredentialsAuthMode => SelectedAuthModeOption == AuthOAuth2ClientCredentialsOption;
 
     public IReadOnlyList<string> ContentTypeOptions { get; } =
     [
@@ -320,6 +357,55 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(IsCustomContentType));
         OnPropertyChanged(nameof(ContentType));
         RefreshRequestDerivedViews();
+    }
+
+    partial void OnSelectedAuthModeOptionChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsBearerAuthMode));
+        OnPropertyChanged(nameof(IsBasicAuthMode));
+        OnPropertyChanged(nameof(IsApiKeyAuthMode));
+        OnPropertyChanged(nameof(IsOAuth2ClientCredentialsAuthMode));
+        RefreshRequestDerivedViews();
+    }
+
+    partial void OnAuthBearerTokenChanged(string value)
+    {
+        if (IsBearerAuthMode)
+        {
+            RefreshRequestDerivedViews();
+        }
+    }
+
+    partial void OnAuthBasicUsernameChanged(string value)
+    {
+        if (IsBasicAuthMode)
+        {
+            RefreshRequestDerivedViews();
+        }
+    }
+
+    partial void OnAuthBasicPasswordChanged(string value)
+    {
+        if (IsBasicAuthMode)
+        {
+            RefreshRequestDerivedViews();
+        }
+    }
+
+    partial void OnAuthApiKeyChanged(string value)
+    {
+        if (IsApiKeyAuthMode)
+        {
+            RefreshRequestDerivedViews();
+        }
+    }
+
+    partial void OnAuthOAuth2AccessTokenChanged(string value)
+    {
+        if (IsOAuth2ClientCredentialsAuthMode)
+        {
+            RefreshRequestDerivedViews();
+        }
     }
 
     partial void OnCustomContentTypeChanged(string value)
@@ -636,8 +722,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             RequestHeadersPreview.Add($"Content-Type: {effectiveContentType}");
         }
 
+        var authHeader = BuildAuthHeader(value => value);
+        if (authHeader is not null)
+        {
+            RequestHeadersPreview.Add($"{authHeader.Name}: {authHeader.Value}");
+        }
+
         foreach (var h in RequestHeaders.Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name)))
         {
+            if (authHeader is not null && string.Equals(h.Name, authHeader.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             RequestHeadersPreview.Add($"{h.Name}: {h.Value}");
         }
     }
@@ -839,19 +936,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var variables = GetResolvedVariables();
         var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
         var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
-
-        var previewHeaders = RequestHeaders
-            .Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name))
-            .Select(h => new RequestHeader(
-                _variableResolver.Resolve(h.Name, variables),
-                _variableResolver.Resolve(h.Value, variables)))
-            .ToList();
-
-        var effectiveContentType = ResolveContentType(resolvedBody);
-        if (!string.IsNullOrEmpty(effectiveContentType))
-        {
-            previewHeaders.Insert(0, new RequestHeader("Content-Type", effectiveContentType));
-        }
+        var previewHeaders = BuildResolvedHeaders(variables, resolvedBody);
 
         var requestLine = $"{SelectedMethod} {resolvedUrl} HTTP/{SelectedHttpVersionOption}";
         var headerLines = previewHeaders.Select(h => $"{h.Name}: {h.Value}");
@@ -867,6 +952,53 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         builder.Append(resolvedBody);
 
         RequestPreview = builder.ToString();
+    }
+
+    private List<RequestHeader> BuildResolvedHeaders(IReadOnlyList<EnvironmentVariable> variables, string resolvedBody)
+    {
+        var headers = RequestHeaders
+            .Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name))
+            .Select(h => new RequestHeader(
+                _variableResolver.Resolve(h.Name, variables),
+                _variableResolver.Resolve(h.Value, variables)))
+            .ToList();
+
+        var authHeader = BuildAuthHeader(value => _variableResolver.Resolve(value, variables));
+        if (authHeader is not null)
+        {
+            headers.RemoveAll(header => string.Equals(header.Name, authHeader.Name, StringComparison.OrdinalIgnoreCase));
+            headers.Insert(0, authHeader);
+        }
+
+        var effectiveContentType = ResolveContentType(resolvedBody);
+        if (!string.IsNullOrEmpty(effectiveContentType))
+        {
+            headers.Insert(0, new RequestHeader("Content-Type", effectiveContentType));
+        }
+
+        return headers;
+    }
+
+    private RequestHeader? BuildAuthHeader(Func<string, string> resolve)
+    {
+        return SelectedAuthModeOption switch
+        {
+            AuthBearerOption when !string.IsNullOrWhiteSpace(AuthBearerToken) =>
+                new RequestHeader("Authorization", $"Bearer {resolve(AuthBearerToken)}"),
+
+            AuthBasicOption when !string.IsNullOrWhiteSpace(AuthBasicUsername) || !string.IsNullOrWhiteSpace(AuthBasicPassword) =>
+                new RequestHeader(
+                    "Authorization",
+                    $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"{resolve(AuthBasicUsername)}:{resolve(AuthBasicPassword)}"))}"),
+
+            AuthApiKeyOption when !string.IsNullOrWhiteSpace(AuthApiKey) =>
+                new RequestHeader("Authorization", $"ApiKey {resolve(AuthApiKey)}"),
+
+            AuthOAuth2ClientCredentialsOption when !string.IsNullOrWhiteSpace(AuthOAuth2AccessToken) =>
+                new RequestHeader("Authorization", $"Bearer {resolve(AuthOAuth2AccessToken)}"),
+
+            _ => null
+        };
     }
 
     private List<EnvironmentVariable> GetResolvedVariables() =>
@@ -2138,19 +2270,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             var variables = GetResolvedVariables();
             var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
             var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
-
-            var headers = RequestHeaders
-                .Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name))
-                .Select(h => new RequestHeader(
-                    _variableResolver.Resolve(h.Name, variables),
-                    _variableResolver.Resolve(h.Value, variables)))
-                .ToList();
-
-            var effectiveContentType = ResolveContentType(resolvedBody);
-            if (!string.IsNullOrEmpty(effectiveContentType))
-            {
-                headers.Insert(0, new RequestHeader("Content-Type", effectiveContentType));
-            }
+            var headers = BuildResolvedHeaders(variables, resolvedBody);
 
             _httpRequestsLogger.Information("Manual request started: {Method} {Url}", SelectedMethod, resolvedUrl);
 
