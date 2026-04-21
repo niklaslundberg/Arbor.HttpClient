@@ -293,12 +293,11 @@ public class MainWindowUiTests
                 new InMemoryEnvironmentRepository(),
                 new InMemoryScheduledJobRepository(),
                 scheduledJobService,
-                logWindowViewModel)
-            {
-                RequestName = "UI Test",
-                RequestUrl = "https://example.com/api",
-                SelectedMethod = "GET"
-            };
+                logWindowViewModel);
+
+            viewModel.RequestEditor.RequestName = "UI Test";
+            viewModel.RequestEditor.RequestUrl = "https://example.com/api";
+            viewModel.RequestEditor.SelectedMethod = "GET";
 
             var window = new MainWindow { DataContext = viewModel };
             window.Show();
@@ -350,22 +349,22 @@ public class MainWindowUiTests
                 scheduledJobService,
                 logWindowViewModel);
 
-            viewModel.RequestUrl = "https://example.com/items?first=1&second=2#keep";
-            viewModel.RequestQueryParameters.Should().HaveCount(2);
-            viewModel.RequestQueryParameters[0].Key.Should().Be("first");
-            viewModel.RequestQueryParameters[0].Value.Should().Be("1");
-            viewModel.RequestQueryParameters[1].Key.Should().Be("second");
-            viewModel.RequestQueryParameters[1].Value.Should().Be("2");
+            viewModel.RequestEditor.RequestUrl = "https://example.com/items?first=1&second=2#keep";
+            viewModel.RequestEditor.RequestQueryParameters.Should().HaveCount(2);
+            viewModel.RequestEditor.RequestQueryParameters[0].Key.Should().Be("first");
+            viewModel.RequestEditor.RequestQueryParameters[0].Value.Should().Be("1");
+            viewModel.RequestEditor.RequestQueryParameters[1].Key.Should().Be("second");
+            viewModel.RequestEditor.RequestQueryParameters[1].Value.Should().Be("2");
 
-            viewModel.RequestQueryParameters[0].IsEnabled = false;
-            viewModel.RequestUrl.Should().Be("https://example.com/items?second=2#keep");
+            viewModel.RequestEditor.RequestQueryParameters[0].IsEnabled = false;
+            viewModel.RequestEditor.RequestUrl.Should().Be("https://example.com/items?second=2#keep");
 
-            viewModel.AddQueryParameterCommand.Execute(null);
-            var added = viewModel.RequestQueryParameters.Last();
+            viewModel.RequestEditor.AddQueryParameterCommand.Execute(null);
+            var added = viewModel.RequestEditor.RequestQueryParameters.Last();
             added.Key = "third";
             added.Value = "3";
 
-            viewModel.RequestUrl.Should().Be("https://example.com/items?second=2&third=3#keep");
+            viewModel.RequestEditor.RequestUrl.Should().Be("https://example.com/items?second=2&third=3#keep");
 
             return true;
         }, CancellationToken.None);
@@ -399,12 +398,11 @@ public class MainWindowUiTests
                 new InMemoryEnvironmentRepository(),
                 new InMemoryScheduledJobRepository(),
                 scheduledJobService,
-                logWindowViewModel)
-            {
-                RequestName = "response test",
-                RequestUrl = "https://example.com/data",
-                SelectedMethod = "GET"
-            };
+                logWindowViewModel);
+
+            viewModel.RequestEditor.RequestName = "response test";
+            viewModel.RequestEditor.RequestUrl = "https://example.com/data";
+            viewModel.RequestEditor.SelectedMethod = "GET";
 
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
@@ -461,13 +459,12 @@ public class MainWindowUiTests
                 new InMemoryEnvironmentRepository(),
                 new InMemoryScheduledJobRepository(),
                 scheduledJobService,
-                logWindowViewModel)
-            {
-                RequestName = "variable resolution test",
-                SelectedMethod = "POST",
-                RequestUrl = "https://{{host}}/api?{{queryKey}}={{queryValue}}",
-                RequestBody = "{\"token\":\"{{token}}\",\"env\":\"{{environment}}\"}"
-            };
+                logWindowViewModel);
+
+            viewModel.RequestEditor.RequestName = "variable resolution test";
+            viewModel.RequestEditor.SelectedMethod = "POST";
+            viewModel.RequestEditor.RequestUrl = "https://{{host}}/api?{{queryKey}}={{queryValue}}";
+            viewModel.RequestEditor.RequestBody = "{\"token\":\"{{token}}\",\"env\":\"{{environment}}\"}";
 
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "example.com"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryKey", "search"));
@@ -477,17 +474,17 @@ public class MainWindowUiTests
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "abc123"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("environment", "dev"));
 
-            viewModel.RequestHeaders.Add(new RequestHeaderViewModel
+            viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
             {
                 Name = "X-{{headerName}}",
                 Value = "{{headerValue}}",
                 IsEnabled = true
             });
 
-            viewModel.RequestPreview.Should().Contain("POST https://example.com/api?search=term HTTP/");
-            viewModel.RequestPreview.Should().Contain("X-Tenant: blue");
-            viewModel.RequestPreview.Should().Contain("\"token\":\"abc123\"");
-            viewModel.RequestPreview.Should().Contain("\"env\":\"dev\"");
+            viewModel.RequestEditor.RequestPreview.Should().Contain("POST https://example.com/api?search=term HTTP/");
+            viewModel.RequestEditor.RequestPreview.Should().Contain("X-Tenant: blue");
+            viewModel.RequestEditor.RequestPreview.Should().Contain("\"token\":\"abc123\"");
+            viewModel.RequestEditor.RequestPreview.Should().Contain("\"env\":\"dev\"");
 
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
@@ -537,16 +534,15 @@ public class MainWindowUiTests
                 new InMemoryEnvironmentRepository(),
                 new InMemoryScheduledJobRepository(),
                 scheduledJobService,
-                logWindowViewModel)
-            {
-                RequestName = "auth helper test",
-                SelectedMethod = "GET",
-                RequestUrl = "https://example.com/api",
-                SelectedAuthModeOption = MainWindowViewModel.AuthBearerOption,
-                AuthBearerToken = "{{token}}"
-            };
+                logWindowViewModel);
 
-            viewModel.RequestHeaders.Add(new RequestHeaderViewModel
+            viewModel.RequestEditor.RequestName = "auth helper test";
+            viewModel.RequestEditor.SelectedMethod = "GET";
+            viewModel.RequestEditor.RequestUrl = "https://example.com/api";
+            viewModel.RequestEditor.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
+            viewModel.RequestEditor.AuthBearerToken = "{{token}}";
+
+            viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
             {
                 Name = "Authorization",
                 Value = "Bearer old-token",
@@ -554,8 +550,8 @@ public class MainWindowUiTests
             });
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "abc123"));
 
-            viewModel.RequestPreview.Should().Contain("Authorization: Bearer abc123");
-            viewModel.RequestPreview.Should().NotContain("Bearer old-token");
+            viewModel.RequestEditor.RequestPreview.Should().Contain("Authorization: Bearer abc123");
+            viewModel.RequestEditor.RequestPreview.Should().NotContain("Bearer old-token");
 
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
@@ -627,7 +623,7 @@ public class MainWindowUiTests
                 EventArgs.Empty);
 
             requestUrlEditor.Text.Should().Be("{{token}}");
-            mainViewModel.RequestUrl.Should().Be("{{token}}");
+            mainViewModel.RequestEditor.RequestUrl.Should().Be("{{token}}");
 
             window.Close();
             return true;
@@ -982,11 +978,10 @@ public class MainWindowUiTests
                 environmentRepository,
                 new InMemoryScheduledJobRepository(),
                 scheduledJobService,
-                logWindowViewModel)
-            {
-                RequestUrl = "https://{{host}}/api",
-                SelectedMethod = "GET"
-            };
+                logWindowViewModel);
+
+            viewModel.RequestEditor.RequestUrl = "https://{{host}}/api";
+            viewModel.RequestEditor.SelectedMethod = "GET";
 
             // Simulate "+ New Environment" → fills in name and a variable
             viewModel.NewEnvironmentCommand.Execute(null);
@@ -1001,7 +996,7 @@ public class MainWindowUiTests
             viewModel.ActiveEnvironment!.Name.Should().Be("myenv");
 
             // Variables should now be reflected in the preview
-            viewModel.RequestPreview.Should().Contain("https://example.com/api",
+            viewModel.RequestEditor.RequestPreview.Should().Contain("https://example.com/api",
                 "{{host}} should be resolved to 'example.com' in the preview");
 
             // And the actual request should also resolve variables
@@ -1044,11 +1039,10 @@ public class MainWindowUiTests
                 new InMemoryEnvironmentRepository(),
                 new InMemoryScheduledJobRepository(),
                 scheduledJobService,
-                logWindowViewModel)
-            {
-                RequestUrl = "https://{{host}}/api",
-                SelectedMethod = "GET"
-            };
+                logWindowViewModel);
+
+            viewModel.RequestEditor.RequestUrl = "https://{{host}}/api";
+            viewModel.RequestEditor.SelectedMethod = "GET";
 
             viewModel.NewEnvironmentCommand.Execute(null);
             viewModel.NewEnvironmentName = "myenv";
@@ -1056,7 +1050,7 @@ public class MainWindowUiTests
 
             await viewModel.SaveEnvironmentCommand.ExecuteAsync(null);
 
-            viewModel.RequestPreview.Should().NotContain("example.com");
+            viewModel.RequestEditor.RequestPreview.Should().NotContain("example.com");
 
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
@@ -1332,19 +1326,18 @@ public class MainWindowUiTests
                 new InMemoryEnvironmentRepository(),
                 new InMemoryScheduledJobRepository(),
                 scheduledJobService,
-                logWindowViewModel)
-            {
-                RequestName = "redirect test",
-                SelectedMethod = "GET",
-                RequestUrl = server.RedirectUrl
-            };
+                logWindowViewModel);
 
-            viewModel.FollowRedirectsForRequest = false;
+            viewModel.RequestEditor.RequestName = "redirect test";
+            viewModel.RequestEditor.SelectedMethod = "GET";
+            viewModel.RequestEditor.RequestUrl = server.RedirectUrl;
+
+            viewModel.RequestEditor.FollowRedirectsForRequest = false;
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
             viewModel.ResponseStatus.Should().StartWith("302");
 
-            viewModel.FollowRedirectsForRequest = true;
+            viewModel.RequestEditor.FollowRedirectsForRequest = true;
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
             viewModel.ResponseStatus.Should().Be("200 OK");
