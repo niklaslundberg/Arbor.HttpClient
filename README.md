@@ -41,6 +41,10 @@ Cross-platform desktop HTTP client built with **.NET 10**, **Avalonia 12**, and 
 - `src/Arbor.HttpClient.Core.Tests` - xUnit + AwesomeAssertions unit tests
 - `src/Arbor.HttpClient.Desktop.E2E.Tests` - headless UI automation tests
 
+## Architecture
+
+- [`docs/architecture-review.md`](docs/architecture-review.md) - current architecture assessment and feature-separation recommendations
+
 ## Run
 
 ```bash
