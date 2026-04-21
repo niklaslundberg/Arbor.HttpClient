@@ -917,6 +917,54 @@ public class MainWindowUiTests
     }
 
     [Fact]
+    public async Task AddEnvironmentVariable_ShouldKeepDraftRowWhileEditingEnvironment()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+            var environmentRepository = new StoringInMemoryEnvironmentRepository();
+            var environmentId = await environmentRepository.SaveAsync("dev",
+            [
+                new EnvironmentVariable("host", "example.com")
+            ]);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                environmentRepository,
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            await viewModel.InitializeAsync();
+
+            var environment = viewModel.Environments.Single(e => e.Id == environmentId);
+            viewModel.EditEnvironmentCommand.Execute(environment);
+            viewModel.ActiveEnvironmentVariables.Should().HaveCount(1);
+
+            viewModel.AddEnvironmentVariableCommand.Execute(null);
+            viewModel.ActiveEnvironmentVariables.Should().HaveCount(2);
+
+            await Task.Delay(700);
+
+            viewModel.ActiveEnvironmentVariables.Should().HaveCount(2,
+                "a new blank variable row should remain visible while the user is still editing it");
+            viewModel.ActiveEnvironmentVariables.Last().Name.Should().BeEmpty();
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task FloatingWindow_PositionShouldSurviveLayoutSwitching()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));

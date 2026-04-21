@@ -2319,7 +2319,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void QueueEnvironmentAutoSave()
     {
-        if (_suppressEnvironmentAutoSave || _isSavingEnvironment || !IsEnvironmentPanelVisible || string.IsNullOrWhiteSpace(NewEnvironmentName))
+        if (_suppressEnvironmentAutoSave ||
+            _isSavingEnvironment ||
+            !IsEnvironmentPanelVisible ||
+            string.IsNullOrWhiteSpace(NewEnvironmentName) ||
+            ActiveEnvironmentVariables.Any(variable => string.IsNullOrWhiteSpace(variable.Name)))
         {
             return;
         }
