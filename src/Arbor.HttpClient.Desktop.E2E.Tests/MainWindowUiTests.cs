@@ -9,7 +9,6 @@ using Avalonia.Skia;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
 using AvaloniaEdit.Document;
-using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Desktop;
@@ -18,6 +17,8 @@ using Arbor.HttpClient.Desktop.Models;
 using Arbor.HttpClient.Desktop.Services;
 using Arbor.HttpClient.Desktop.ViewModels;
 using Arbor.HttpClient.Desktop.Views;
+using Arbor.HttpClient.Testing.Fakes;
+using Arbor.HttpClient.Testing.Repositories;
 using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.Mvvm.Controls;
@@ -37,7 +38,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -90,7 +91,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -149,7 +150,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -184,7 +185,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -230,7 +231,7 @@ public class MainWindowUiTests
                 60,
                 true));
 
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -272,7 +273,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ =>
+            var handler = new StubHttpMessageHandler(_ =>
                 new HttpResponseMessage(HttpStatusCode.Accepted)
                 {
                     ReasonPhrase = "Accepted",
@@ -333,7 +334,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -378,7 +379,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ =>
+            var handler = new StubHttpMessageHandler(_ =>
                 new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     ReasonPhrase = "OK",
@@ -428,7 +429,7 @@ public class MainWindowUiTests
             string? capturedHeaderValue = null;
             string? capturedBody = null;
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(request =>
+            var handler = new StubHttpMessageHandler(request =>
             {
                 capturedUri = request.RequestUri;
                 if (request.Headers.TryGetValues("X-Tenant", out var headerValues))
@@ -509,7 +510,7 @@ public class MainWindowUiTests
         {
             string? capturedAuthorization = null;
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(request =>
+            var handler = new StubHttpMessageHandler(request =>
             {
                 if (request.Headers.TryGetValues("Authorization", out var headerValues))
                 {
@@ -572,7 +573,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -641,7 +642,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -698,7 +699,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -738,8 +739,8 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var environmentRepository = new StoringInMemoryEnvironmentRepository();
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var environmentRepository = new InMemoryEnvironmentRepository();
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -779,7 +780,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var scheduledJobRepository = new InMemoryScheduledJobRepository();
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
@@ -820,7 +821,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -882,7 +883,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -961,13 +962,13 @@ public class MainWindowUiTests
         {
             Uri? capturedUri = null;
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(req =>
+            var handler = new StubHttpMessageHandler(req =>
             {
                 capturedUri = req.RequestUri;
                 return new HttpResponseMessage(HttpStatusCode.OK);
             });
 
-            var environmentRepository = new StoringInMemoryEnvironmentRepository();
+            var environmentRepository = new InMemoryEnvironmentRepository();
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -1024,7 +1025,7 @@ public class MainWindowUiTests
         {
             Uri? capturedUri = null;
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(req =>
+            var handler = new StubHttpMessageHandler(req =>
             {
                 capturedUri = req.RequestUri;
                 return new HttpResponseMessage(HttpStatusCode.OK);
@@ -1074,13 +1075,13 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
             var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
             var logWindowViewModel = new LogWindowViewModel(inMemorySink);
-            var environmentRepository = new StoringInMemoryEnvironmentRepository();
+            var environmentRepository = new InMemoryEnvironmentRepository();
             var environmentId = await environmentRepository.SaveAsync("dev",
             [
                 new EnvironmentVariable("host", "example.com")
@@ -1122,7 +1123,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -1187,7 +1188,7 @@ public class MainWindowUiTests
         {
             // ── First "application run" ──────────────────────────────────────
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -1223,7 +1224,7 @@ public class MainWindowUiTests
             viewModel.Layout.Windows.Should().BeEmpty("CloseFloatingWindows should remove all floating windows");
 
             // ── Second "application run" ─────────────────────────────────────
-            var handler2 = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler2 = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService2 = new HttpRequestService(new global::System.Net.Http.HttpClient(handler2), repository);
             var inMemorySink2 = new InMemorySink();
             var logger2 = new LoggerConfiguration().WriteTo.Sink(inMemorySink2).CreateLogger();
@@ -1264,7 +1265,7 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
@@ -1420,122 +1421,6 @@ public class MainWindowUiTests
             })
             .WithInterFont()
             .LogToTrace();
-    }
-
-    private sealed class InMemoryRequestHistoryRepository : IRequestHistoryRepository
-    {
-        private readonly List<SavedRequest> _items = [];
-
-        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public Task SaveAsync(SavedRequest request, CancellationToken cancellationToken = default)
-        {
-            _items.Add(request);
-            return Task.CompletedTask;
-        }
-
-        public Task<IReadOnlyList<SavedRequest>> GetRecentAsync(int limit, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<SavedRequest>>(_items.Take(limit).ToList());
-    }
-
-    private sealed class InMemoryCollectionRepository : ICollectionRepository
-    {
-        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public Task<int> SaveAsync(string name, string? sourcePath, string? baseUrl, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken = default)
-            => Task.FromResult(1);
-
-        public Task<IReadOnlyList<Collection>> GetAllAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<Collection>>([]);
-
-        public Task DeleteAsync(int collectionId, CancellationToken cancellationToken = default)
-            => Task.CompletedTask;
-    }
-
-    private sealed class InMemoryEnvironmentRepository : IEnvironmentRepository
-    {
-        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public Task<int> SaveAsync(string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default)
-            => Task.FromResult(1);
-
-        public Task UpdateAsync(int environmentId, string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default)
-            => Task.CompletedTask;
-
-        public Task<IReadOnlyList<RequestEnvironment>> GetAllAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<RequestEnvironment>>([]);
-
-        public Task DeleteAsync(int environmentId, CancellationToken cancellationToken = default)
-            => Task.CompletedTask;
-    }
-
-    private sealed class InMemoryScheduledJobRepository : IScheduledJobRepository
-    {
-        private readonly List<ScheduledJobConfig> _items = [];
-        private int _nextId = 1;
-
-        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public Task<int> SaveAsync(ScheduledJobConfig config, CancellationToken cancellationToken = default)
-        {
-            var id = _nextId++;
-            _items.Add(config with { Id = id });
-            return Task.FromResult(id);
-        }
-
-        public Task UpdateAsync(ScheduledJobConfig config, CancellationToken cancellationToken = default)
-        {
-            var idx = _items.FindIndex(x => x.Id == config.Id);
-            if (idx >= 0) _items[idx] = config;
-            return Task.CompletedTask;
-        }
-
-        public Task DeleteAsync(int id, CancellationToken cancellationToken = default)
-        {
-            _items.RemoveAll(x => x.Id == id);
-            return Task.CompletedTask;
-        }
-
-        public Task<IReadOnlyList<ScheduledJobConfig>> GetAllAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<ScheduledJobConfig>>(_items.ToList());
-    }
-
-    private sealed class StubMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> send)
-        : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => Task.FromResult(send(request));
-    }
-
-    private sealed class StoringInMemoryEnvironmentRepository : IEnvironmentRepository
-    {
-        private readonly List<RequestEnvironment> _items = [];
-        private int _nextId = 1;
-
-        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public Task<int> SaveAsync(string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default)
-        {
-            var id = _nextId++;
-            _items.Add(new RequestEnvironment(id, name, variables.ToList()));
-            return Task.FromResult(id);
-        }
-
-        public Task UpdateAsync(int environmentId, string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default)
-        {
-            var idx = _items.FindIndex(e => e.Id == environmentId);
-            if (idx >= 0) _items[idx] = new RequestEnvironment(environmentId, name, variables.ToList());
-            return Task.CompletedTask;
-        }
-
-        public Task<IReadOnlyList<RequestEnvironment>> GetAllAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<RequestEnvironment>>(_items.ToList());
-
-        public Task DeleteAsync(int environmentId, CancellationToken cancellationToken = default)
-        {
-            _items.RemoveAll(e => e.Id == environmentId);
-            return Task.CompletedTask;
-        }
     }
 
     private sealed class RedirectTestServer : IDisposable
