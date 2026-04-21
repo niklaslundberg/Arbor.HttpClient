@@ -179,6 +179,57 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="Auth">
+                <Grid Margin="0,8,0,0" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="8">
+                    <Grid ColumnDefinitions="130,*" ColumnSpacing="8">
+                        <TextBlock Text="Type" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding App.AuthModeOptions}"
+                                  SelectedItem="{Binding App.SelectedAuthModeOption, Mode=TwoWay}" />
+                    </Grid>
+
+                    <Grid Grid.Row="1" ColumnDefinitions="130,*" ColumnSpacing="8"
+                          IsVisible="{Binding App.IsBearerAuthMode}">
+                        <TextBlock Text="Token" VerticalAlignment="Center" />
+                        <views:VariableTextBox Grid.Column="1" PlaceholderText="Bearer token"
+                                               AppViewModel="{Binding App}"
+                                               Text="{Binding App.AuthBearerToken, Mode=TwoWay}" />
+                    </Grid>
+
+                    <Grid Grid.Row="2" ColumnDefinitions="130,*" ColumnSpacing="8"
+                          IsVisible="{Binding App.IsBasicAuthMode}">
+                        <TextBlock Text="Username" VerticalAlignment="Center" />
+                        <views:VariableTextBox Grid.Column="1" PlaceholderText="Username"
+                                               AppViewModel="{Binding App}"
+                                               Text="{Binding App.AuthBasicUsername, Mode=TwoWay}" />
+                    </Grid>
+
+                    <Grid Grid.Row="3" ColumnDefinitions="130,*" ColumnSpacing="8"
+                          IsVisible="{Binding App.IsBasicAuthMode}">
+                        <TextBlock Text="Password" VerticalAlignment="Center" />
+                        <views:VariableTextBox Grid.Column="1" PlaceholderText="Password"
+                                               AppViewModel="{Binding App}"
+                                               Text="{Binding App.AuthBasicPassword, Mode=TwoWay}" />
+                    </Grid>
+
+                    <Grid Grid.Row="4" ColumnDefinitions="130,*" ColumnSpacing="8"
+                          IsVisible="{Binding App.IsApiKeyAuthMode}">
+                        <TextBlock Text="API key" VerticalAlignment="Center" />
+                        <views:VariableTextBox Grid.Column="1" PlaceholderText="API key"
+                                               AppViewModel="{Binding App}"
+                                               Text="{Binding App.AuthApiKey, Mode=TwoWay}" />
+                    </Grid>
+
+                    <Grid Grid.Row="5" ColumnDefinitions="130,*" ColumnSpacing="8"
+                          IsVisible="{Binding App.IsOAuth2ClientCredentialsAuthMode}">
+                        <TextBlock Text="Access token" VerticalAlignment="Center" />
+                        <views:VariableTextBox Grid.Column="1" PlaceholderText="OAuth 2 access token"
+                                               AppViewModel="{Binding App}"
+                                               Text="{Binding App.AuthOAuth2AccessToken, Mode=TwoWay}" />
+                    </Grid>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="Preview">
                 <Grid Margin="0,8,0,0" RowDefinitions="Auto,*">
                     <TextBlock Text="Rendered request (as sent)" FontWeight="SemiBold" VerticalAlignment="Center" />
