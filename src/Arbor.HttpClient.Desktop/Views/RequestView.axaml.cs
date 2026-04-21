@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -6,6 +8,7 @@ using Arbor.HttpClient.Desktop.ViewModels;
 using AvaloniaEdit;
 using AvaloniaEdit.TextMate;
 using TextMateSharp.Grammars;
+using System.Linq;
 
 namespace Arbor.HttpClient.Desktop.Views;
 
@@ -22,6 +25,8 @@ public partial class RequestView : UserControl
     private readonly VariableTokenColorizer _urlVariableColorizer = new();
     private readonly VariableTokenColorizer _bodyVariableColorizer = new();
     private readonly VariableTokenColorizer _previewVariableColorizer = new();
+    private VariableAutoCompleteController? _requestUrlAutoCompleteController;
+    private VariableAutoCompleteController? _requestBodyAutoCompleteController;
 
     public RequestView()
     {
@@ -48,6 +53,11 @@ public partial class RequestView : UserControl
         {
             _requestUrlEditor.Document.TextChanged -= OnRequestUrlEditorTextChanged;
         }
+
+        _requestUrlAutoCompleteController?.Dispose();
+        _requestUrlAutoCompleteController = null;
+        _requestBodyAutoCompleteController?.Dispose();
+        _requestBodyAutoCompleteController = null;
 
         if (_requestTextMate is not null)
         {
@@ -80,6 +90,8 @@ public partial class RequestView : UserControl
             {
                 _requestBodyEditor.TextArea.TextView.LineTransformers.Add(_bodyVariableColorizer);
             }
+
+            _requestBodyAutoCompleteController = new VariableAutoCompleteController(_requestBodyEditor, GetVariableNames);
         }
 
         if (_requestUrlEditor is not null)
@@ -92,6 +104,8 @@ public partial class RequestView : UserControl
             {
                 _requestUrlEditor.TextArea.TextView.LineTransformers.Add(_urlVariableColorizer);
             }
+
+            _requestUrlAutoCompleteController = new VariableAutoCompleteController(_requestUrlEditor, GetVariableNames);
         }
 
         if (_requestPreviewEditor is not null)
@@ -230,6 +244,11 @@ public partial class RequestView : UserControl
             _requestUrlEditor.Document.TextChanged -= OnRequestUrlEditorTextChanged;
             _requestUrlEditor = null;
         }
+
+        _requestUrlAutoCompleteController?.Dispose();
+        _requestUrlAutoCompleteController = null;
+        _requestBodyAutoCompleteController?.Dispose();
+        _requestBodyAutoCompleteController = null;
 
         _requestPreviewEditor = null;
 
@@ -376,5 +395,13 @@ public partial class RequestView : UserControl
 
         _requestTextMate.SetTheme(theme);
     }
+
+    private IReadOnlyList<string> GetVariableNames() =>
+        _appVm?.ActiveEnvironmentVariables
+            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
+            .Select(variable => variable.Name.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList()
+        ?? [];
 }
 

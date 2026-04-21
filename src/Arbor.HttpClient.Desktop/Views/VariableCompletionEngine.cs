@@ -1,0 +1,63 @@
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Arbor.HttpClient.Desktop.Views;
+
+public static class VariableCompletionEngine
+{
+    public static bool TryGetContext(string text, int caretOffset, out VariableCompletionContext context)
+    {
+        context = default;
+        if (string.IsNullOrEmpty(text) || caretOffset < 0 || caretOffset > text.Length)
+        {
+            return false;
+        }
+
+        var beforeCaret = text[..caretOffset];
+        var tokenStart = beforeCaret.LastIndexOf("{{", StringComparison.Ordinal);
+        if (tokenStart < 0)
+        {
+            return false;
+        }
+
+        var lastTokenEnd = beforeCaret.LastIndexOf("}}", StringComparison.Ordinal);
+        if (lastTokenEnd > tokenStart)
+        {
+            return false;
+        }
+
+        var prefixStart = tokenStart + 2;
+        var prefix = text[prefixStart..caretOffset];
+        if (prefix.IndexOfAny(['{', '}', '\r', '\n']) >= 0)
+        {
+            return false;
+        }
+
+        context = new VariableCompletionContext(prefixStart, prefix);
+        return true;
+    }
+
+    public static List<string> GetSuggestions(IEnumerable<string> variableNames, string prefix)
+    {
+        var effectivePrefix = prefix ?? string.Empty;
+        return variableNames
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(name => name.StartsWith(effectivePrefix, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public static string BuildInsertionText(string fullText, int endOffset, string variableName)
+    {
+        var hasClosingBraces =
+            endOffset + 1 < fullText.Length &&
+            fullText[endOffset] == '}' &&
+            fullText[endOffset + 1] == '}';
+
+        return hasClosingBraces ? variableName : $"{variableName}}}";
+    }
+}
+
+public readonly record struct VariableCompletionContext(int ReplaceStartOffset, string Prefix);
