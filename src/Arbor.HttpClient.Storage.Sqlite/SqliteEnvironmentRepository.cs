@@ -24,11 +24,13 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 environment_id INTEGER NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
                 name TEXT NOT NULL,
-                value TEXT NOT NULL
+                value TEXT NOT NULL,
+                is_enabled INTEGER NOT NULL DEFAULT 1
             );
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureEnvironmentVariableEnabledColumnAsync(connection, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<int> SaveAsync(string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default)
@@ -90,7 +92,7 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
         await using var cmd = connection.CreateCommand();
         cmd.CommandText =
             """
-            SELECT e.id, e.name, v.name, v.value
+            SELECT e.id, e.name, v.name, v.value, v.is_enabled
             FROM environments e
             LEFT JOIN environment_variables v ON v.environment_id = e.id
             ORDER BY e.id, v.id;
@@ -110,7 +112,7 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
 
             if (!reader.IsDBNull(2))
             {
-                entry.Variables.Add(new EnvironmentVariable(reader.GetString(2), reader.GetString(3)));
+                entry.Variables.Add(new EnvironmentVariable(reader.GetString(2), reader.GetString(3), reader.GetInt32(4) == 1));
             }
         }
 
@@ -149,12 +151,13 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
         cmd.Transaction = transaction;
         cmd.CommandText =
             """
-            INSERT INTO environment_variables (environment_id, name, value)
-            VALUES ($envId, $name, $value);
+            INSERT INTO environment_variables (environment_id, name, value, is_enabled)
+            VALUES ($envId, $name, $value, $isEnabled);
             """;
         var pEnvId = cmd.Parameters.Add("$envId", SqliteType.Integer);
         var pName = cmd.Parameters.Add("$name", SqliteType.Text);
         var pValue = cmd.Parameters.Add("$value", SqliteType.Text);
+        var pIsEnabled = cmd.Parameters.Add("$isEnabled", SqliteType.Integer);
         pEnvId.Value = environmentId;
 
         await cmd.PrepareAsync(cancellationToken).ConfigureAwait(false);
@@ -163,7 +166,36 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
         {
             pName.Value = variable.Name;
             pValue.Value = variable.Value;
+            pIsEnabled.Value = variable.IsEnabled ? 1 : 0;
             await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    private static async Task EnsureEnvironmentVariableEnabledColumnAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var columnInfo = connection.CreateCommand();
+        columnInfo.CommandText = "PRAGMA table_info(environment_variables);";
+
+        var hasEnabledColumn = false;
+        await using (var reader = await columnInfo.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+        {
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                if (string.Equals(reader.GetString(1), "is_enabled", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasEnabledColumn = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasEnabledColumn)
+        {
+            return;
+        }
+
+        await using var alter = connection.CreateCommand();
+        alter.CommandText = "ALTER TABLE environment_variables ADD COLUMN is_enabled INTEGER NOT NULL DEFAULT 1;";
+        await alter.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 }

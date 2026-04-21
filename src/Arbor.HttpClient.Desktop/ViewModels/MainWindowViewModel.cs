@@ -170,6 +170,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public const int MinScheduledJobIntervalSeconds = 1;
     private const string VariableTokenStart = "{{";
     private const string OptionsPageBreadcrumbSeparator = " \u203a  ";
+    private sealed record ExportEnvironmentVariable(string Key, string Value, bool Enabled);
+    private sealed record ExportEnvironment(string Name, IReadOnlyList<ExportEnvironmentVariable> Variables);
+    private sealed record EnvironmentExportPayload(string Format, int Version, IReadOnlyList<ExportEnvironment> Environments);
 
     public IReadOnlyList<string> ThemeOptions { get; } =
     [
@@ -1003,8 +1006,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private List<EnvironmentVariable> GetResolvedVariables() =>
         ActiveEnvironmentVariables
-            .Where(v => !string.IsNullOrWhiteSpace(v.Name))
-            .Select(v => new EnvironmentVariable(v.Name, v.Value))
+            .Where(v => v.IsEnabled && !string.IsNullOrWhiteSpace(v.Name))
+            .Select(v => new EnvironmentVariable(v.Name, v.Value, v.IsEnabled))
             .ToList();
 
     private static (string Prefix, string Query, string Fragment) SplitUrl(string url)
@@ -1231,7 +1234,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 foreach (var v in value.Variables)
                 {
-                    ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(v.Name, v.Value));
+                    ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(v.Name, v.Value, v.IsEnabled));
                 }
             }
         }
@@ -1279,7 +1282,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private void ToggleEnvironmentPanel() => IsEnvironmentPanelVisible = !IsEnvironmentPanelVisible;
+    private void OpenEnvironments()
+    {
+        IsEnvironmentPanelVisible = true;
+        if (_dockFactory?.LeftToolDock is { } dock &&
+            _dockFactory.EnvironmentsViewModel is { } environmentsVm)
+        {
+            dock.ActiveDockable = environmentsVm;
+        }
+    }
 
     [RelayCommand]
     private void ToggleLayoutPanel() => IsLayoutPanelVisible = !IsLayoutPanelVisible;
@@ -1523,6 +1534,49 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
+    private async Task ExportEnvironmentsAsync()
+    {
+        if (StorageProvider is null)
+        {
+            return;
+        }
+
+        var json = JsonSerializer.Serialize(new EnvironmentExportPayload(
+            "arbor.httpclient.environments",
+            1,
+            Environments.Select(environment => new ExportEnvironment(
+                environment.Name,
+                environment.Variables
+                    .Select(variable => new ExportEnvironmentVariable(variable.Name, variable.Value, variable.IsEnabled))
+                    .ToList()))
+            .ToList()), new JsonSerializerOptions { WriteIndented = true });
+
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export Environments",
+            SuggestedFileName = $"arbor-environments-{DateTime.UtcNow:yyyyMMddHHmmss}.json",
+            FileTypeChoices =
+            [
+                new FilePickerFileType("JSON")
+                {
+                    Patterns = ["*.json"]
+                }
+            ]
+        });
+
+        if (file is null)
+        {
+            return;
+        }
+
+        await using var stream = await file.OpenWriteAsync();
+        await using var writer = new StreamWriter(stream);
+        await writer.WriteAsync(json);
+        await writer.FlushAsync();
+        _debugLogger.Information("Exported environments to {Path}", file.Path.LocalPath);
+    }
+
+    [RelayCommand]
     private async Task ImportOptionsAsync()
     {
         if (StorageProvider is null || _applicationOptionsStore is null)
@@ -1566,7 +1620,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void AddEnvironmentVariable()
     {
-        ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(string.Empty, string.Empty));
+        ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(string.Empty, string.Empty, true));
         _debugLogger.Information("Added environment variable placeholder");
     }
 
@@ -1602,7 +1656,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
         var variables = ActiveEnvironmentVariables
             .Where(v => !string.IsNullOrWhiteSpace(v.Name))
-            .Select(v => new EnvironmentVariable(v.Name, v.Value))
+            .Select(v => new EnvironmentVariable(v.Name, v.Value, v.IsEnabled))
             .ToList();
 
         int? newEnvId = null;
@@ -1672,7 +1726,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ActiveEnvironmentVariables.Clear();
             foreach (var v in environment.Variables)
             {
-                ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(v.Name, v.Value));
+                ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(v.Name, v.Value, v.IsEnabled));
             }
 
             IsEnvironmentPanelVisible = true;

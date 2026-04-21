@@ -177,6 +177,41 @@ public class MainWindowUiTests
     }
 
     [Fact]
+    public async Task OpenEnvironmentsCommand_ShouldActivateDockableEnvironmentsPanel()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+            leftToolDock.Should().NotBeNull();
+            leftToolDock!.VisibleDockables!.Should().Contain(d => d.Id == "environments");
+
+            viewModel.OpenEnvironmentsCommand.Execute(null);
+
+            leftToolDock.ActiveDockable?.Id.Should().Be("environments");
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task InitializeAsync_ShouldNotAutoStartScheduledJobs_WhenApplicationOptionIsDisabled()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
@@ -975,6 +1010,57 @@ public class MainWindowUiTests
             capturedUri.Should().NotBeNull();
             capturedUri!.AbsoluteUri.Should().Be("https://example.com/api",
                 "{{host}} must be resolved to 'example.com' when the request is sent");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DisabledEnvironmentVariable_ShouldNotResolveInPreviewOrSend()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            Uri? capturedUri = null;
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubMessageHandler(req =>
+            {
+                capturedUri = req.RequestUri;
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            });
+
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel)
+            {
+                RequestUrl = "https://{{host}}/api",
+                SelectedMethod = "GET"
+            };
+
+            viewModel.NewEnvironmentCommand.Execute(null);
+            viewModel.NewEnvironmentName = "myenv";
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "example.com", false));
+
+            await viewModel.SaveEnvironmentCommand.ExecuteAsync(null);
+
+            viewModel.RequestPreview.Should().NotContain("example.com");
+
+            viewModel.SendRequestCommand.Execute(null);
+            await viewModel.SendRequestCommand.ExecutionTask!;
+
+            capturedUri.Should().BeNull("request should not be sent when a disabled variable leaves an invalid URL");
 
             return true;
         }, CancellationToken.None);
