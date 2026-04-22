@@ -18,6 +18,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -36,6 +38,9 @@ jobs:
 
       - name: Restore
         run: dotnet restore Arbor.HttpClient.slnx
+
+      - name: Audit NuGet dependencies for vulnerabilities
+        run: dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive
 
       - name: Build
         run: dotnet build Arbor.HttpClient.slnx --no-restore --configuration Release
@@ -111,6 +116,17 @@ jobs:
           Write-Host "signtool: $signtool"
           & $signtool sign /fd SHA256 /a /f packaging.pfx /p "CI_SIGN_CERT" Arbor.HttpClient.Desktop.msix
 
+      - name: Generate artifact checksums
+        shell: pwsh
+        run: |
+          Get-FileHash Arbor.HttpClient.Desktop.msix -Algorithm SHA256 | ForEach-Object {
+            "$($_.Hash.ToLowerInvariant()) *Arbor.HttpClient.Desktop.msix"
+          } | Set-Content Arbor.HttpClient.Desktop.msix.sha256 -Encoding UTF8
+
+          Get-FileHash Arbor.HttpClient.Desktop.cer -Algorithm SHA256 | ForEach-Object {
+            "$($_.Hash.ToLowerInvariant()) *Arbor.HttpClient.Desktop.cer"
+          } | Set-Content Arbor.HttpClient.Desktop.cer.sha256 -Encoding UTF8
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -120,3 +136,5 @@ jobs:
           --title "Release ${{ steps.version.outputs.TAG }}"
           Arbor.HttpClient.Desktop.msix
           Arbor.HttpClient.Desktop.cer
+          Arbor.HttpClient.Desktop.msix.sha256
+          Arbor.HttpClient.Desktop.cer.sha256

@@ -21,6 +21,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -29,6 +31,9 @@ jobs:
 
       - name: Restore
         run: dotnet restore Arbor.HttpClient.slnx
+
+      - name: Audit NuGet dependencies for vulnerabilities
+        run: dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive
 
       - name: Build
         run: dotnet build Arbor.HttpClient.slnx --no-restore --configuration Release
@@ -43,6 +48,8 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -79,6 +86,7 @@ jobs:
           name: unit-test-coverage
           # Keep coverage optional so missing files do not hide unit test outcomes in CI.
           path: "**/coverage.cobertura.xml"
+          retention-days: 14
           if-no-files-found: ignore
 
       - name: Generate unit test HTML report
@@ -94,6 +102,7 @@ jobs:
         with:
           name: unit-test-results
           path: TestResults/unit/*.trx
+          retention-days: 14
           if-no-files-found: error
 
       - name: Upload unit test HTML report
@@ -103,6 +112,7 @@ jobs:
         with:
           name: unit-test-results-html
           path: TestResults/unit/html/*.html
+          retention-days: 14
           if-no-files-found: error
 
       - name: Summarize unit test artifacts
@@ -129,6 +139,8 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -171,6 +183,7 @@ jobs:
         with:
           name: e2e-test-results
           path: TestResults/e2e/*.trx
+          retention-days: 14
           if-no-files-found: error
 
       - name: Upload E2E test HTML report
@@ -180,6 +193,7 @@ jobs:
         with:
           name: e2e-test-results-html
           path: TestResults/e2e/html/*.html
+          retention-days: 14
           if-no-files-found: error
 
       - name: Upload E2E screenshots
@@ -189,6 +203,7 @@ jobs:
         with:
           name: e2e-screenshots
           path: TestResults/screenshots/*.png
+          retention-days: 14
           if-no-files-found: ignore
 
       - name: Summarize E2E test artifacts
