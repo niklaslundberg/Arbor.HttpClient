@@ -13,10 +13,12 @@ namespace Arbor.HttpClient.Desktop.ViewModels;
 public sealed class DockFactory : Factory
 {
     private readonly MainWindowViewModel _mainVm;
+    private readonly EnvironmentsViewModel _environmentsViewModel;
 
-    public DockFactory(MainWindowViewModel mainVm)
+    public DockFactory(MainWindowViewModel mainVm, EnvironmentsViewModel environmentsViewModel)
     {
         _mainVm = mainVm;
+        _environmentsViewModel = environmentsViewModel;
     }
 
     /// <summary>The left-side ToolDock; used to activate the Options tool programmatically.</summary>
@@ -31,7 +33,7 @@ public sealed class DockFactory : Factory
     {
         var leftPanel = new LeftPanelViewModel(_mainVm);
         var options = new OptionsViewModel(_mainVm);
-        var environments = new EnvironmentsViewModel(_mainVm);
+        var environments = _environmentsViewModel;
         var logs = new LogPanelViewModel(_mainVm);
         OptionsViewModel = options;
         EnvironmentsViewModel = environments;

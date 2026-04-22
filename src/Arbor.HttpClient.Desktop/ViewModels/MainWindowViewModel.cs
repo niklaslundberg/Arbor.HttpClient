@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -38,7 +36,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly HttpRequestService _httpRequestService;
     private readonly IRequestHistoryRepository _requestHistoryRepository;
     private readonly ICollectionRepository _collectionRepository;
-    private readonly IEnvironmentRepository _environmentRepository;
     private readonly IScheduledJobRepository _scheduledJobRepository;
     private readonly ScheduledJobService _scheduledJobService;
     private readonly LogWindowViewModel _logWindowViewModel;
@@ -49,6 +46,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly ILogger _debugLogger;
     private readonly ILogger _httpRequestsLogger;
     private RequestEditorViewModel _requestEditor = null!;
+    private EnvironmentsViewModel _environmentsViewModel = null!;
     private readonly List<string> _tempFiles = [];
     private readonly List<SavedRequest> _allHistory = [];
     private FileSystemWatcher? _requestBodyWatcher;
@@ -59,10 +57,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private int _layoutNameCounter = 1;
     private bool _suppressLayoutRestore;
     private bool _suppressOptionsAutoSave;
-    private bool _suppressEnvironmentAutoSave;
-    private bool _isSavingEnvironment;
     private CancellationTokenSource? _optionsAutoSaveCts;
-    private CancellationTokenSource? _environmentAutoSaveCts;
     private DockLayoutSnapshot? _defaultLayout;
     private byte[] _lastResponseBodyBytes = Array.Empty<byte>();
 
@@ -128,15 +123,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private string _leftPanelTab = "History"; // "History" | "Collections"
 
     [ObservableProperty]
-    private RequestEnvironment? _activeEnvironment;
-
-    [ObservableProperty]
-    private bool _isEnvironmentPanelVisible;
-
-    [ObservableProperty]
-    private string _newEnvironmentName = string.Empty;
-
-    [ObservableProperty]
     private Collection? _selectedCollection;
 
     [ObservableProperty]
@@ -150,9 +136,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public const string LightThemeOption = "Light";
     public const int MinScheduledJobIntervalSeconds = 1;
     private const string OptionsPageBreadcrumbSeparator = " \u203a  ";
-    private sealed record ExportEnvironmentVariable(string Key, string Value, bool Enabled);
-    private sealed record ExportEnvironment(string Name, IReadOnlyList<ExportEnvironmentVariable> Variables);
-    private sealed record EnvironmentExportPayload(string Format, int Version, IReadOnlyList<ExportEnvironment> Environments);
 
     public IReadOnlyList<string> ThemeOptions { get; } =
     [
@@ -306,9 +289,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     partial void OnDefaultScheduledJobIntervalSecondsChanged(int value) =>
         QueueOptionsAutoSave();
 
-    partial void OnNewEnvironmentNameChanged(string value) =>
-        QueueEnvironmentAutoSave();
-
     private void OnUiFontSizeTextChangedCore()
     {
         OnPropertyChanged(nameof(UiFontSize));
@@ -337,7 +317,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _httpRequestService = httpRequestService;
         _requestHistoryRepository = requestHistoryRepository;
         _collectionRepository = collectionRepository;
-        _environmentRepository = environmentRepository;
         _scheduledJobRepository = scheduledJobRepository;
         _scheduledJobService = scheduledJobService;
         _logWindowViewModel = logWindowViewModel;
@@ -354,21 +333,23 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             GetActiveVariablesForEditor,
             _debugLogger,
             QueueOptionsAutoSave);
+        _environmentsViewModel = new EnvironmentsViewModel(
+            environmentRepository,
+            _requestEditor,
+            () => StorageProvider,
+            _debugLogger);
+        _environmentsViewModel.PropertyChanged += OnEnvironmentsViewModelPropertyChanged;
 
         History = [];
         Collections = [];
         CollectionItems = [];
-        Environments = [];
-        ActiveEnvironmentVariables = [];
         ScheduledJobs = [];
         SavedLayoutNames = [];
-
-        ActiveEnvironmentVariables.CollectionChanged += OnActiveEnvironmentVariablesCollectionChanged;
 
         SendRequestCommand = new AsyncRelayCommand(SendRequestAsync);
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
 
-        _dockFactory = new DockFactory(this);
+        _dockFactory = new DockFactory(this, _environmentsViewModel);
         Layout = _dockFactory.CreateLayout();
         _dockFactory.InitLayout(Layout);
         _defaultLayout = CaptureLayoutSnapshot();
@@ -384,42 +365,60 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public ObservableCollection<SavedRequest> History { get; }
     public ObservableCollection<Collection> Collections { get; }
     public ObservableCollection<CollectionItemViewModel> CollectionItems { get; }
-    public ObservableCollection<RequestEnvironment> Environments { get; }
-    public ObservableCollection<EnvironmentVariableViewModel> ActiveEnvironmentVariables { get; }
+    public ObservableCollection<RequestEnvironment> Environments => _environmentsViewModel.Environments;
+    public ObservableCollection<EnvironmentVariableViewModel> ActiveEnvironmentVariables => _environmentsViewModel.ActiveEnvironmentVariables;
     public ObservableCollection<ScheduledJobViewModel> ScheduledJobs { get; }
     public ObservableCollection<string> SavedLayoutNames { get; }
     public LogWindowViewModel LogWindowViewModel => _logWindowViewModel;
     public RequestEditorViewModel RequestEditor => _requestEditor;
+    public EnvironmentsViewModel EnvironmentsPanel => _environmentsViewModel;
+    public RequestEnvironment? ActiveEnvironment
+    {
+        get => _environmentsViewModel.ActiveEnvironment;
+        set => _environmentsViewModel.ActiveEnvironment = value;
+    }
+
+    public bool IsEnvironmentPanelVisible
+    {
+        get => _environmentsViewModel.IsEnvironmentPanelVisible;
+        set => _environmentsViewModel.IsEnvironmentPanelVisible = value;
+    }
+
+    public string NewEnvironmentName
+    {
+        get => _environmentsViewModel.NewEnvironmentName;
+        set => _environmentsViewModel.NewEnvironmentName = value;
+    }
 
     public IAsyncRelayCommand SendRequestCommand { get; }
     public IAsyncRelayCommand LoadHistoryCommand { get; }
 
-    private void OnActiveEnvironmentVariablesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    public IRelayCommand AddEnvironmentVariableCommand => _environmentsViewModel.AddEnvironmentVariableCommand;
+    public IRelayCommand<EnvironmentVariableViewModel?> RemoveEnvironmentVariableCommand => _environmentsViewModel.RemoveEnvironmentVariableCommand;
+    public IAsyncRelayCommand SaveEnvironmentCommand => _environmentsViewModel.SaveEnvironmentCommand;
+    public IAsyncRelayCommand<RequestEnvironment?> DeleteEnvironmentCommand => _environmentsViewModel.DeleteEnvironmentCommand;
+    public IRelayCommand<RequestEnvironment?> EditEnvironmentCommand => _environmentsViewModel.EditEnvironmentCommand;
+    public IRelayCommand NewEnvironmentCommand => _environmentsViewModel.NewEnvironmentCommand;
+    public IAsyncRelayCommand ExportEnvironmentsCommand => _environmentsViewModel.ExportEnvironmentsCommand;
+
+    private void OnEnvironmentsViewModelPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.NewItems is not null)
+        if (string.Equals(e.PropertyName, nameof(EnvironmentsViewModel.ActiveEnvironment), StringComparison.Ordinal))
         {
-            foreach (EnvironmentVariableViewModel variable in e.NewItems)
-            {
-                variable.PropertyChanged += OnActiveEnvironmentVariablePropertyChanged;
-            }
+            OnPropertyChanged(nameof(ActiveEnvironment));
+            return;
         }
 
-        if (e.OldItems is not null)
+        if (string.Equals(e.PropertyName, nameof(EnvironmentsViewModel.NewEnvironmentName), StringComparison.Ordinal))
         {
-            foreach (EnvironmentVariableViewModel variable in e.OldItems)
-            {
-                variable.PropertyChanged -= OnActiveEnvironmentVariablePropertyChanged;
-            }
+            OnPropertyChanged(nameof(NewEnvironmentName));
+            return;
         }
 
-        _requestEditor.RefreshRequestPreview();
-        QueueEnvironmentAutoSave();
-    }
-
-    private void OnActiveEnvironmentVariablePropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        _requestEditor.RefreshRequestPreview();
-        QueueEnvironmentAutoSave();
+        if (string.Equals(e.PropertyName, nameof(EnvironmentsViewModel.IsEnvironmentPanelVisible), StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(IsEnvironmentPanelVisible));
+        }
     }
 
     private ApplicationOptions BuildOptionsFromCurrentState()
@@ -639,15 +638,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return false;
         }
     }
-    private static Version ParseHttpVersion(string value) => value switch
-    {
-        "1.0" => global::System.Net.HttpVersion.Version10,
-        "1.1" => global::System.Net.HttpVersion.Version11,
-        "2.0" => global::System.Net.HttpVersion.Version20,
-        "3.0" => global::System.Net.HttpVersion.Version30,
-        _ => global::System.Net.HttpVersion.Version11
-    };
-
     [RelayCommand]
     private void AddScheduledJob()
     {
@@ -678,29 +668,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     partial void OnHistorySearchQueryChanged(string value) => ApplyHistoryFilter(value);
-
-    partial void OnActiveEnvironmentChanged(RequestEnvironment? value)
-    {
-        var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
-        _suppressEnvironmentAutoSave = true;
-        try
-        {
-            ActiveEnvironmentVariables.Clear();
-            if (value is not null)
-            {
-                foreach (var v in value.Variables)
-                {
-                    ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(v.Name, v.Value, v.IsEnabled));
-                }
-            }
-        }
-        finally
-        {
-            _suppressEnvironmentAutoSave = previousSuppressEnvironmentAutoSave;
-        }
-
-        _requestEditor.RefreshRequestPreview();
-    }
 
     [RelayCommand]
     private void ShowHistoryTab()=> LeftPanelTab = "History";
@@ -990,49 +957,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private async Task ExportEnvironmentsAsync()
-    {
-        if (StorageProvider is null)
-        {
-            return;
-        }
-
-        var json = JsonSerializer.Serialize(new EnvironmentExportPayload(
-            "arbor.httpclient.environments",
-            1,
-            Environments.Select(environment => new ExportEnvironment(
-                environment.Name,
-                environment.Variables
-                    .Select(variable => new ExportEnvironmentVariable(variable.Name, variable.Value, variable.IsEnabled))
-                    .ToList()))
-            .ToList()), new JsonSerializerOptions { WriteIndented = true });
-
-        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = "Export Environments",
-            SuggestedFileName = $"arbor-environments-{DateTime.UtcNow:yyyyMMddHHmmss}.json",
-            FileTypeChoices =
-            [
-                new FilePickerFileType("JSON")
-                {
-                    Patterns = ["*.json"]
-                }
-            ]
-        });
-
-        if (file is null)
-        {
-            return;
-        }
-
-        await using var stream = await file.OpenWriteAsync();
-        await using var writer = new StreamWriter(stream);
-        await writer.WriteAsync(json);
-        await writer.FlushAsync();
-        _debugLogger.Information("Exported environments to {Path}", file.Path.LocalPath);
-    }
-
-    [RelayCommand]
     private async Task ImportOptionsAsync()
     {
         if (StorageProvider is null || _applicationOptionsStore is null)
@@ -1070,145 +994,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         catch (Exception exception)
         {
             ErrorMessage = $"Options import failed: {exception.Message}";
-        }
-    }
-
-    [RelayCommand]
-    private void AddEnvironmentVariable()
-    {
-        ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(string.Empty, string.Empty, true));
-        _debugLogger.Information("Added environment variable placeholder");
-    }
-
-    [RelayCommand]
-    private void RemoveEnvironmentVariable(EnvironmentVariableViewModel? variable)
-    {
-        if (variable is not null)
-        {
-            ActiveEnvironmentVariables.Remove(variable);
-            _debugLogger.Information("Removed environment variable {VariableName}", variable.Name);
-        }
-    }
-
-    [RelayCommand]
-    private Task SaveEnvironmentAsync() => SaveEnvironmentCoreAsync(closeEnvironmentPanel: true);
-
-    private async Task SaveEnvironmentCoreAsync(bool closeEnvironmentPanel)
-    {
-        if (string.IsNullOrWhiteSpace(NewEnvironmentName))
-        {
-            return;
-        }
-
-        if (_isSavingEnvironment)
-        {
-            return;
-        }
-
-        _isSavingEnvironment = true;
-        var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
-        _suppressEnvironmentAutoSave = true;
-        try
-        {
-        var variables = ActiveEnvironmentVariables
-            .Where(v => !string.IsNullOrWhiteSpace(v.Name))
-            .Select(v => new EnvironmentVariable(v.Name, v.Value, v.IsEnabled))
-            .ToList();
-
-        int? newEnvId = null;
-        if (ActiveEnvironment is not null)
-        {
-            await _environmentRepository.UpdateAsync(ActiveEnvironment.Id, NewEnvironmentName, variables);
-            _debugLogger.Information("Updated environment {EnvironmentName}", NewEnvironmentName);
-        }
-        else
-        {
-            newEnvId = await _environmentRepository.SaveAsync(NewEnvironmentName, variables);
-            _debugLogger.Information("Created environment {EnvironmentName}", NewEnvironmentName);
-        }
-
-        await LoadEnvironmentsAsync();
-
-        if (newEnvId.HasValue)
-        {
-            ActiveEnvironment = Environments.FirstOrDefault(e => e.Id == newEnvId.Value);
-        }
-
-        if (closeEnvironmentPanel)
-        {
-            IsEnvironmentPanelVisible = false;
-        }
-        }
-        finally
-        {
-            _suppressEnvironmentAutoSave = previousSuppressEnvironmentAutoSave;
-            _isSavingEnvironment = false;
-        }
-    }
-
-    [RelayCommand]
-    private async Task DeleteEnvironmentAsync(RequestEnvironment? environment)
-    {
-        if (environment is null)
-        {
-            return;
-        }
-
-        await _environmentRepository.DeleteAsync(environment.Id);
-        _debugLogger.Information("Deleted environment {EnvironmentName}", environment.Name);
-        if (ActiveEnvironment?.Id == environment.Id)
-        {
-            ActiveEnvironment = null;
-        }
-
-        await LoadEnvironmentsAsync();
-    }
-
-    [RelayCommand]
-    private void EditEnvironment(RequestEnvironment? environment)
-    {
-        if (environment is null)
-        {
-            return;
-        }
-
-        var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
-        _suppressEnvironmentAutoSave = true;
-        try
-        {
-            ActiveEnvironment = environment;
-            NewEnvironmentName = environment.Name;
-            _debugLogger.Information("Editing environment {EnvironmentName}", environment.Name);
-            ActiveEnvironmentVariables.Clear();
-            foreach (var v in environment.Variables)
-            {
-                ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(v.Name, v.Value, v.IsEnabled));
-            }
-
-            IsEnvironmentPanelVisible = true;
-        }
-        finally
-        {
-            _suppressEnvironmentAutoSave = previousSuppressEnvironmentAutoSave;
-        }
-    }
-
-    [RelayCommand]
-    private void NewEnvironment()
-    {
-        var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
-        _suppressEnvironmentAutoSave = true;
-        try
-        {
-            ActiveEnvironment = null;
-            NewEnvironmentName = string.Empty;
-            ActiveEnvironmentVariables.Clear();
-            IsEnvironmentPanelVisible = true;
-            _debugLogger.Information("Creating new environment");
-        }
-        finally
-        {
-            _suppressEnvironmentAutoSave = previousSuppressEnvironmentAutoSave;
         }
     }
 
@@ -1290,10 +1075,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        _environmentsViewModel.PropertyChanged -= OnEnvironmentsViewModelPropertyChanged;
+        _environmentsViewModel.Dispose();
         _optionsAutoSaveCts?.Cancel();
         _optionsAutoSaveCts?.Dispose();
-        _environmentAutoSaveCts?.Cancel();
-        _environmentAutoSaveCts?.Dispose();
         _scheduledJobService.Dispose();
         _requestBodyWatcher?.Dispose();
         _requestBodyWatcher = null;
@@ -1341,7 +1126,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         await Task.WhenAll(
             LoadHistoryAsync(cancellationToken),
             LoadCollectionsAsync(cancellationToken),
-            LoadEnvironmentsAsync(cancellationToken),
+            _environmentsViewModel.LoadEnvironmentsAsync(cancellationToken),
             LoadScheduledJobsAsync(cancellationToken)).ConfigureAwait(false);
     }
 
@@ -1878,37 +1663,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private async Task LoadEnvironmentsAsync(CancellationToken cancellationToken = default)
-    {
-        var all = await _environmentRepository.GetAllAsync(cancellationToken);
-
-        var previousId = ActiveEnvironment?.Id;
-
-        var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
-        _suppressEnvironmentAutoSave = true;
-        try
-        {
-            // Explicitly null out ActiveEnvironment before clearing the collection so that
-            // the ComboBox TwoWay binding cannot write null back after we restore below.
-            ActiveEnvironment = null;
-
-            Environments.Clear();
-            foreach (var e in all)
-            {
-                Environments.Add(e);
-            }
-
-            if (previousId.HasValue)
-            {
-                ActiveEnvironment = Environments.FirstOrDefault(e => e.Id == previousId.Value);
-            }
-        }
-        finally
-        {
-            _suppressEnvironmentAutoSave = previousSuppressEnvironmentAutoSave;
-        }
-    }
-
     private void QueueOptionsAutoSave()
     {
         if (_suppressOptionsAutoSave || _applicationOptionsStore is null)
@@ -1935,36 +1689,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void QueueEnvironmentAutoSave()
-    {
-        if (_suppressEnvironmentAutoSave ||
-            _isSavingEnvironment ||
-            !IsEnvironmentPanelVisible ||
-            string.IsNullOrWhiteSpace(NewEnvironmentName) ||
-            ActiveEnvironmentVariables.Any(variable => string.IsNullOrWhiteSpace(variable.Name)))
-        {
-            return;
-        }
-
-        _environmentAutoSaveCts?.Cancel();
-        _environmentAutoSaveCts?.Dispose();
-        _environmentAutoSaveCts = new CancellationTokenSource();
-        _ = TriggerEnvironmentAutoSaveAsync(_environmentAutoSaveCts.Token);
-    }
-
-    private async Task TriggerEnvironmentAutoSaveAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(450), cancellationToken).ConfigureAwait(false);
-            await Dispatcher.UIThread.InvokeAsync(async () => await SaveEnvironmentCoreAsync(closeEnvironmentPanel: false));
-        }
-        catch (OperationCanceledException)
-        {
-            // Debounced auto-save was superseded by a newer edit.
-        }
-    }
-
     private async Task LoadScheduledJobsAsync(CancellationToken cancellationToken = default)
     {
         var all = await _scheduledJobRepository.GetAllAsync(cancellationToken);
@@ -1984,7 +1708,5 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     private IReadOnlyList<EnvironmentVariable> GetActiveVariablesForEditor() =>
-        ActiveEnvironmentVariables
-            .Select(v => new EnvironmentVariable(v.Name, v.Value, v.IsEnabled))
-            .ToList();
+        _environmentsViewModel.GetActiveVariablesForEditor();
 }
