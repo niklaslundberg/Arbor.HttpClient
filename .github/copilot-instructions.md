@@ -86,7 +86,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## 7. Code Quality Requirements for New Work
 
 - Treat compiler warnings, analyzer warnings, and runtime errors as real defects. Do not ignore or suppress them unless there is a documented and justified reason.
+- **Analyzer severity policy**: Promote correctness and security-sensitive Roslyn/CA rules to `warning` (or `error`). Keep style-only rules as `suggestion` to avoid noisy CI failures. Never silently suppress an analyzer diagnostic — add a code comment with the justification when suppression is truly necessary.
 - Any new or changed production code must include test coverage. Prefer isolated unit tests first, then integration/E2E tests when unit tests are not sufficient.
+- **Test naming convention**: Name tests using the `Method_Scenario_ExpectedResult` pattern (e.g. `Parse_EmptyInput_ThrowsArgumentException`). Each test should verify one behavioral intent; arrange test data explicitly rather than relying on implicit state.
 - Maintain reasonably high coverage in the changed area. If code can be tested, add tests.
 - For feature work, generate coverage reports and review them. CI must publish test and coverage outputs so they are visible during code review.
 - Profiling-oriented validation is required when changing request execution hot paths, scheduled/background job loops, data-processing loops, or code that introduces disposable/resource-heavy objects.
@@ -107,6 +109,33 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
        ```
        GitHub renders relative repository paths in PR descriptions inline — the image appears immediately without any download step.
   - Do **not** save screenshots only to `/tmp/` or to any path outside the repository tree — those files disappear and reviewers cannot see them.
+
+## 8. Public API Change Policy
+
+- Document and review public API changes, especially in `Arbor.HttpClient.Core`.
+- Surface breaking changes (removed members, signature changes, changed semantics) explicitly in the PR description.
+- Optionally introduce API baseline tooling if package or public API stability becomes important in the future.
+
+## 9. Async and Cancellation Conventions
+
+- Every async method that performs I/O or can block must accept a `CancellationToken` parameter.
+- Pass the token through to all downstream async calls unless there is a clear, documented reason not to (e.g. a fire-and-forget cleanup path).
+- Name the parameter `cancellationToken` (not `ct` or other abbreviations) for consistency with the .NET BCL.
+
+## 10. Logging and Observability Conventions
+
+- Use structured logging fields consistently: `requestId`, `environment`, `jobId`, `statusCode`, `durationMs`.
+- Severity guidance:
+  - `Information` — routine, expected events (job invoked, request sent).
+  - `Warning` — unexpected but recoverable situations (retry attempt, fallback used).
+  - `Error` — failures that require attention (connection refused, unhandled exception).
+- Do not log sensitive data (credentials, PII, raw request bodies that may contain secrets).
+
+## 11. Exception-Handling Conventions
+
+- Prefer domain-specific exception types (or result/discriminated-union types) at subsystem boundaries instead of leaking generic `Exception`.
+- When rethrowing, use bare `throw;` to preserve the original stack trace — never `throw ex;`.
+- Catch only exceptions you can handle meaningfully; let the rest propagate to a top-level handler.
 
 ---
 
@@ -149,6 +178,13 @@ Do **not** add packages under these licenses without explicit approval:
    - A note if the dependency is test-only or debug-only (not redistributed)
 4. Update the package version in `Directory.Packages.props` (this project uses [Central Package Management](https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management)).
 5. Do **not** add a `Version` attribute directly in any `.csproj` file.
+
+### Dependency governance
+
+- Keep dependencies up to date on a regular cadence (at least monthly review via Dependabot alerts).
+- Triage CVEs within 7 days of disclosure for direct dependencies, 30 days for transitive dependencies.
+- Prefer dependencies with active maintenance and a compatible open-source license.
+- Avoid adding dependencies that duplicate functionality already available in the BCL or an existing project dependency.
 
 ### Example THIRD_PARTY_NOTICES.md entry
 
@@ -207,6 +243,7 @@ Before merging any PR that touches UI code or theme resources:
 - [ ] All new/changed color pairs have been verified with the contrast-ratio formula in `AccessibilityContrastTests.cs` and meet WCAG AA.
 - [ ] Interactive elements remain keyboard-accessible (Tab, Enter/Space, arrow keys where applicable).
 - [ ] No purely visual text label has been replaced by an icon without an accessible name.
+- [ ] New interactive controls have been manually verified with keyboard-only navigation.
 
 ## UI Consistency
 
