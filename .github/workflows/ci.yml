@@ -82,7 +82,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Restore
-        run: dotnet restore Arbor.HttpClient.slnx
+        run: dotnet restore Arbor.HttpClient.slnx --locked-mode
 
       - name: Audit NuGet dependencies for vulnerabilities
         run: dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive
@@ -109,7 +109,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Restore
-        run: dotnet restore Arbor.HttpClient.slnx
+        run: dotnet restore Arbor.HttpClient.slnx --locked-mode
 
       - name: Install test reporting tools
         run: |
@@ -200,7 +200,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Restore
-        run: dotnet restore Arbor.HttpClient.slnx
+        run: dotnet restore Arbor.HttpClient.slnx --locked-mode
 
       - name: Install test reporting tools
         run: |
