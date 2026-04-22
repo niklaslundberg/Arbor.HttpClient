@@ -68,7 +68,7 @@ This document answers the architecture questions raised in [issue #33](https://g
 ## Ordered next steps
 
 1. Extract `RequestEditorViewModel` and move request-specific logic out of `MainWindowViewModel` into a dedicated VM; cover with focused unit tests.
-2. Apply the same pattern to environments, options, and scheduler — one slice per PR.
+2. Apply the same pattern to options and scheduler — one slice per PR (`EnvironmentsViewModel` extraction is complete).
 3. Refactor `DockFactory` to consume feature registrations and stop requiring a `MainWindowViewModel` reference.
 4. Evaluate whether a mediator/event-bus is needed after 1–2 successful slice extractions.
 5. Introduce a DI container (e.g., `Microsoft.Extensions.DependencyInjection`) only when constructor/composition friction remains significant after slice extraction.

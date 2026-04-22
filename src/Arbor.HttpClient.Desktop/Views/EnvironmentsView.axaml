@@ -13,12 +13,12 @@
                        VerticalAlignment="Center" />
             <Button Grid.Column="1"
                     Content="+ New Environment"
-                    Command="{Binding App.NewEnvironmentCommand}" />
+                    Command="{Binding NewEnvironmentCommand}" />
         </Grid>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="8">
-                <ItemsControl ItemsSource="{Binding App.Environments}">
+                <ItemsControl ItemsSource="{Binding Environments}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="models:RequestEnvironment">
                             <Border BorderBrush="{DynamicResource PanelBorderBrush}"
@@ -36,10 +36,10 @@
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                                         <Button Content="Edit"
-                                                Command="{Binding $parent[UserControl].DataContext.App.EditEnvironmentCommand}"
+                                                Command="{Binding $parent[UserControl].DataContext.EditEnvironmentCommand}"
                                                 CommandParameter="{Binding}" />
                                         <Button Content="Delete"
-                                                Command="{Binding $parent[UserControl].DataContext.App.DeleteEnvironmentCommand}"
+                                                Command="{Binding $parent[UserControl].DataContext.DeleteEnvironmentCommand}"
                                                 CommandParameter="{Binding}" />
                                     </StackPanel>
                                 </Grid>
@@ -53,7 +53,7 @@
                         <TextBlock Text="Environment name" FontWeight="SemiBold" />
                         <TextBox Grid.Row="1"
                                  PlaceholderText="Environment name"
-                                 Text="{Binding App.NewEnvironmentName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                 Text="{Binding NewEnvironmentName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                         <Grid Grid.Row="2" ColumnDefinitions="Auto,*,*,Auto" ColumnSpacing="8" Margin="0,4,0,0">
                             <TextBlock Text="Active" FontWeight="SemiBold" />
@@ -61,7 +61,7 @@
                             <TextBlock Grid.Column="2" Text="Variable value" FontWeight="SemiBold" />
                         </Grid>
 
-                        <ItemsControl Grid.Row="3" ItemsSource="{Binding App.ActiveEnvironmentVariables}">
+                        <ItemsControl Grid.Row="3" ItemsSource="{Binding ActiveEnvironmentVariables}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:EnvironmentVariableViewModel">
                                     <Grid ColumnDefinitions="Auto,*,*,Auto" ColumnSpacing="8" Margin="0,2">
@@ -75,7 +75,7 @@
                                                  Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                         <Button Grid.Column="3"
                                                 Content="✕"
-                                                Command="{Binding $parent[UserControl].DataContext.App.RemoveEnvironmentVariableCommand}"
+                                                Command="{Binding $parent[UserControl].DataContext.RemoveEnvironmentVariableCommand}"
                                                 CommandParameter="{Binding}" />
                                     </Grid>
                                 </DataTemplate>
@@ -84,9 +84,9 @@
 
                         <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="6">
                             <Button Content="+ Add Variable"
-                                    Command="{Binding App.AddEnvironmentVariableCommand}" />
+                                    Command="{Binding AddEnvironmentVariableCommand}" />
                             <Button Content="Export JSON"
-                                    Command="{Binding App.ExportEnvironmentsCommand}" />
+                                    Command="{Binding ExportEnvironmentsCommand}" />
                         </StackPanel>
                     </Grid>
                 </Border>
