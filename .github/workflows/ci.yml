@@ -14,21 +14,74 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - name: Install gitleaks
+        run: |
+          GITLEAKS_VERSION="8.24.3"
+          curl -sSLo /tmp/gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+
+      - name: Scan for secrets (gitleaks)
+        id: gitleaks
+        run: |
+          set +e
+          gitleaks detect --source . --redact --report-format sarif --report-path gitleaks.sarif
+          exit_code=$?
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload gitleaks report
+        if: ${{ always() && hashFiles('gitleaks.sarif') != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gitleaks-report
+          path: gitleaks.sarif
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload SARIF to code scanning
+        if: ${{ always() && hashFiles('gitleaks.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a
+        with:
+          sarif_file: gitleaks.sarif
+
+      - name: Fail if secrets were detected
+        if: ${{ steps.gitleaks.outputs.exit_code != '0' }}
+        run: |
+          echo "Gitleaks detected potential secrets. See uploaded SARIF results for details."
+          exit 1
+
   build:
     name: Build
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
         with:
           dotnet-version: "10.0.x"
 
       - name: Restore
         run: dotnet restore Arbor.HttpClient.slnx
+
+      - name: Audit NuGet dependencies for vulnerabilities
+        run: dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive
 
       - name: Build
         run: dotnet build Arbor.HttpClient.slnx --no-restore --configuration Release
@@ -42,10 +95,12 @@ jobs:
       # dotnet-trx uses this to post test result comments on pull requests.
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
         with:
           dotnet-version: "10.0.x"
 
@@ -74,11 +129,12 @@ jobs:
       - name: Upload coverage
         if: ${{ !cancelled() }}
         id: upload-unit-coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unit-test-coverage
           # Keep coverage optional so missing files do not hide unit test outcomes in CI.
           path: "**/coverage.cobertura.xml"
+          retention-days: 14
           if-no-files-found: ignore
 
       - name: Generate unit test HTML report
@@ -90,19 +146,21 @@ jobs:
       - name: Upload unit test results
         if: always()
         id: upload-unit-trx
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unit-test-results
           path: TestResults/unit/*.trx
+          retention-days: 14
           if-no-files-found: error
 
       - name: Upload unit test HTML report
         if: always()
         id: upload-unit-html
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unit-test-results-html
           path: TestResults/unit/html/*.html
+          retention-days: 14
           if-no-files-found: error
 
       - name: Summarize unit test artifacts
@@ -128,10 +186,12 @@ jobs:
       # dotnet-trx uses this to post test result comments on pull requests.
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
         with:
           dotnet-version: "10.0.x"
 
@@ -167,28 +227,31 @@ jobs:
       - name: Upload E2E test results
         if: always()
         id: upload-e2e-trx
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: e2e-test-results
           path: TestResults/e2e/*.trx
+          retention-days: 14
           if-no-files-found: error
 
       - name: Upload E2E test HTML report
         if: always()
         id: upload-e2e-html
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: e2e-test-results-html
           path: TestResults/e2e/html/*.html
+          retention-days: 14
           if-no-files-found: error
 
       - name: Upload E2E screenshots
         if: always()
         id: upload-e2e-screenshots
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: e2e-screenshots
           path: TestResults/screenshots/*.png
+          retention-days: 14
           if-no-files-found: ignore
 
       - name: Summarize E2E test artifacts
