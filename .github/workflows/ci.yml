@@ -14,18 +14,49 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - name: Scan for secrets (gitleaks)
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7
+        with:
+          args: detect --source . --redact --report-format sarif --report-path gitleaks.sarif
+
+      - name: Upload gitleaks report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gitleaks-report
+          path: gitleaks.sarif
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload SARIF to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@b2f9ef845756500b97acbdaf5c1dd4e9c1d15734
+        with:
+          sarif_file: gitleaks.sarif
+
   build:
     name: Build
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           persist-credentials: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
         with:
           dotnet-version: "10.0.x"
 
@@ -47,12 +78,12 @@ jobs:
       # dotnet-trx uses this to post test result comments on pull requests.
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           persist-credentials: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
         with:
           dotnet-version: "10.0.x"
 
@@ -81,7 +112,7 @@ jobs:
       - name: Upload coverage
         if: ${{ !cancelled() }}
         id: upload-unit-coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unit-test-coverage
           # Keep coverage optional so missing files do not hide unit test outcomes in CI.
@@ -98,7 +129,7 @@ jobs:
       - name: Upload unit test results
         if: always()
         id: upload-unit-trx
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unit-test-results
           path: TestResults/unit/*.trx
@@ -108,7 +139,7 @@ jobs:
       - name: Upload unit test HTML report
         if: always()
         id: upload-unit-html
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unit-test-results-html
           path: TestResults/unit/html/*.html
@@ -138,12 +169,12 @@ jobs:
       # dotnet-trx uses this to post test result comments on pull requests.
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           persist-credentials: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
         with:
           dotnet-version: "10.0.x"
 
@@ -179,7 +210,7 @@ jobs:
       - name: Upload E2E test results
         if: always()
         id: upload-e2e-trx
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: e2e-test-results
           path: TestResults/e2e/*.trx
@@ -189,7 +220,7 @@ jobs:
       - name: Upload E2E test HTML report
         if: always()
         id: upload-e2e-html
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: e2e-test-results-html
           path: TestResults/e2e/html/*.html
@@ -199,7 +230,7 @@ jobs:
       - name: Upload E2E screenshots
         if: always()
         id: upload-e2e-screenshots
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: e2e-screenshots
           path: TestResults/screenshots/*.png

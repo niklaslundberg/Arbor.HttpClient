@@ -1,0 +1,44 @@
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "01:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "niklaslundberg"
+    assignees:
+      - "niklaslundberg"
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "-"
+    insecure-external-code-execution: "deny"
+    allow:
+      - dependency-type: "all"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "02:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "niklaslundberg"
+    assignees:
+      - "niklaslundberg"
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "-"
+    insecure-external-code-execution: "deny"
