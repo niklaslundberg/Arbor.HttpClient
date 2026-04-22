@@ -25,10 +25,21 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install gitleaks
+        run: |
+          GITLEAKS_VERSION="8.24.3"
+          curl -sSLo /tmp/gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+
       - name: Scan for secrets (gitleaks)
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: gitleaks
+        run: |
+          set +e
+          gitleaks detect --source . --redact --report-format sarif --report-path gitleaks.sarif
+          exit_code=$?
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: Upload gitleaks report
         if: ${{ always() && hashFiles('gitleaks.sarif') != '' }}
@@ -44,6 +55,12 @@ jobs:
         uses: github/codeql-action/upload-sarif@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a
         with:
           sarif_file: gitleaks.sarif
+
+      - name: Fail if secrets were detected
+        if: ${{ steps.gitleaks.outputs.exit_code != '0' }}
+        run: |
+          echo "Gitleaks detected potential secrets. See uploaded SARIF results for details."
+          exit 1
 
   build:
     name: Build
