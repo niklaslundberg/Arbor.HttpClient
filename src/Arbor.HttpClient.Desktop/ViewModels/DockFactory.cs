@@ -14,11 +14,13 @@ public sealed class DockFactory : Factory
 {
     private readonly MainWindowViewModel _mainVm;
     private readonly EnvironmentsViewModel _environmentsViewModel;
+    private readonly OptionsViewModel _optionsViewModel;
 
-    public DockFactory(MainWindowViewModel mainVm, EnvironmentsViewModel environmentsViewModel)
+    public DockFactory(MainWindowViewModel mainVm, EnvironmentsViewModel environmentsViewModel, OptionsViewModel optionsViewModel)
     {
         _mainVm = mainVm;
         _environmentsViewModel = environmentsViewModel;
+        _optionsViewModel = optionsViewModel;
     }
 
     /// <summary>The left-side ToolDock; used to activate the Options tool programmatically.</summary>
@@ -32,7 +34,7 @@ public sealed class DockFactory : Factory
     public override IRootDock CreateLayout()
     {
         var leftPanel = new LeftPanelViewModel(_mainVm);
-        var options = new OptionsViewModel(_mainVm);
+        var options = _optionsViewModel;
         var environments = _environmentsViewModel;
         var logs = new LogPanelViewModel(_mainVm);
         OptionsViewModel = options;

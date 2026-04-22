@@ -47,6 +47,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly ILogger _httpRequestsLogger;
     private RequestEditorViewModel _requestEditor = null!;
     private EnvironmentsViewModel _environmentsViewModel = null!;
+    private OptionsViewModel _optionsViewModel = null!;
     private readonly List<string> _tempFiles = [];
     private readonly List<SavedRequest> _allHistory = [];
     private FileSystemWatcher? _requestBodyWatcher;
@@ -135,7 +136,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public const string DarkThemeOption = "Dark";
     public const string LightThemeOption = "Light";
     public const int MinScheduledJobIntervalSeconds = 1;
-    private const string OptionsPageBreadcrumbSeparator = " \u203a  ";
 
     public IReadOnlyList<string> ThemeOptions { get; } =
     [
@@ -189,25 +189,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private int _defaultScheduledJobIntervalSeconds = 60;
-
-    [ObservableProperty]
-    private string _selectedOptionsPage = "HTTP";
-
-    partial void OnSelectedOptionsPageChanged(string value)
-    {
-        OnPropertyChanged(nameof(SelectedOptionsPageTitle));
-        OnPropertyChanged(nameof(SelectedOptionsPageBreadcrumb));
-    }
-
-    public string SelectedOptionsPageTitle => SelectedOptionsPage switch
-    {
-        "HTTP" => "HTTP",
-        "ScheduledJobs" => "Scheduled Jobs",
-        "LookAndFeel" => "Look & Feel",
-        _ => SelectedOptionsPage
-    };
-
-    public string SelectedOptionsPageBreadcrumb => $"Options{OptionsPageBreadcrumbSeparator}{SelectedOptionsPageTitle}";
 
     public double UiFontSize =>
         double.TryParse(UiFontSizeText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
@@ -338,6 +319,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _requestEditor,
             () => StorageProvider,
             _debugLogger);
+        _optionsViewModel = new OptionsViewModel(this);
         _environmentsViewModel.PropertyChanged += OnEnvironmentsViewModelPropertyChanged;
 
         History = [];
@@ -349,7 +331,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         SendRequestCommand = new AsyncRelayCommand(SendRequestAsync);
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
 
-        _dockFactory = new DockFactory(this, _environmentsViewModel);
+        _dockFactory = new DockFactory(this, _environmentsViewModel, _optionsViewModel);
         Layout = _dockFactory.CreateLayout();
         _dockFactory.InitLayout(Layout);
         _defaultLayout = CaptureLayoutSnapshot();
@@ -372,6 +354,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public LogWindowViewModel LogWindowViewModel => _logWindowViewModel;
     public RequestEditorViewModel RequestEditor => _requestEditor;
     public EnvironmentsViewModel EnvironmentsPanel => _environmentsViewModel;
+    public OptionsViewModel OptionsPanel => _optionsViewModel;
     public RequestEnvironment? ActiveEnvironment
     {
         get => _environmentsViewModel.ActiveEnvironment;
