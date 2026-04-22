@@ -21,7 +21,7 @@
 
         <Grid ColumnDefinitions="120,*,120" ColumnSpacing="8">
             <TextBox Grid.Column="0" PlaceholderText="Request name"
-                     Text="{Binding App.RequestName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                     Text="{Binding App.RequestEditor.RequestName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
             <!-- Unified composer: method + URL + Send are rendered as one seamless control
                  (Hoppscotch / Insomnia style). Wrap them in a single Border and strip
@@ -35,8 +35,8 @@
                               BorderThickness="0"
                               CornerRadius="0"
                               Background="Transparent"
-                              ItemsSource="{Binding App.Methods}"
-                              SelectedItem="{Binding App.SelectedMethod, Mode=TwoWay}">
+                              ItemsSource="{Binding App.RequestEditor.Methods}"
+                              SelectedItem="{Binding App.RequestEditor.SelectedMethod, Mode=TwoWay}">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding}"
@@ -62,7 +62,7 @@
                                    Opacity="0.5"
                                    Padding="10,6,5,6"
                                    VerticalAlignment="Center"
-                                   IsVisible="{Binding App.RequestUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                                   IsVisible="{Binding App.RequestEditor.RequestUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
                     </Grid>
                 </Grid>
             </Border>
@@ -76,7 +76,7 @@
         </Grid>
 
         <CheckBox Grid.Row="1" Content="Follow redirects"
-                  IsChecked="{Binding App.FollowRedirectsForRequest, Mode=TwoWay}" />
+                  IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
 
         <TextBlock Grid.Row="2" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
 
@@ -86,11 +86,11 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Text="Query parameters" FontWeight="SemiBold" VerticalAlignment="Center" />
                         <Button Grid.Column="1" Content="+ Add Query"
-                                Command="{Binding App.AddQueryParameterCommand}" />
+                                Command="{Binding App.RequestEditor.AddQueryParameterCommand}" />
                     </Grid>
 
                     <ScrollViewer Grid.Row="1">
-                        <ItemsControl ItemsSource="{Binding App.RequestQueryParameters}">
+                        <ItemsControl ItemsSource="{Binding App.RequestEditor.RequestQueryParameters}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:RequestQueryParameterViewModel">
                                     <Grid ColumnDefinitions="Auto,*,*,*,Auto" ColumnSpacing="6" Margin="0,2,0,0">
@@ -137,23 +137,23 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Text="Headers" FontWeight="SemiBold" VerticalAlignment="Center" />
                         <Button Grid.Column="1" Content="+ Add Header"
-                                Command="{Binding App.AddHeaderCommand}" />
+                                Command="{Binding App.RequestEditor.AddHeaderCommand}" />
                     </Grid>
 
                     <Grid Grid.Row="1" ColumnDefinitions="110,*,*" ColumnSpacing="6">
                         <TextBlock Text="Content-Type" VerticalAlignment="Center" Opacity="0.8" />
                         <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding App.ContentTypeOptions}"
-                                  SelectedItem="{Binding App.SelectedContentTypeOption, Mode=TwoWay}"
+                                  ItemsSource="{Binding App.RequestEditor.ContentTypeOptions}"
+                                  SelectedItem="{Binding App.RequestEditor.SelectedContentTypeOption, Mode=TwoWay}"
                                   HorizontalAlignment="Stretch" />
                         <TextBox Grid.Column="2"
                                  PlaceholderText="e.g. application/vnd.api+json"
-                                 Text="{Binding App.CustomContentType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 IsVisible="{Binding App.IsCustomContentType}" />
+                                 Text="{Binding App.RequestEditor.CustomContentType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 IsVisible="{Binding App.RequestEditor.IsCustomContentType}" />
                     </Grid>
 
                     <ScrollViewer Grid.Row="2">
-                        <ItemsControl ItemsSource="{Binding App.RequestHeaders}">
+                        <ItemsControl ItemsSource="{Binding App.RequestEditor.RequestHeaders}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:RequestHeaderViewModel">
                                     <Grid ColumnDefinitions="Auto,*,*,*,Auto" ColumnSpacing="6" Margin="0,2,0,0">
@@ -184,48 +184,48 @@
                     <Grid ColumnDefinitions="130,*" ColumnSpacing="8">
                         <TextBlock Text="Type" VerticalAlignment="Center" />
                         <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding App.AuthModeOptions}"
-                                  SelectedItem="{Binding App.SelectedAuthModeOption, Mode=TwoWay}" />
+                                  ItemsSource="{Binding App.RequestEditor.AuthModeOptions}"
+                                  SelectedItem="{Binding App.RequestEditor.SelectedAuthModeOption, Mode=TwoWay}" />
                     </Grid>
 
                     <Grid Grid.Row="1" ColumnDefinitions="130,*" ColumnSpacing="8"
-                          IsVisible="{Binding App.IsBearerAuthMode}">
+                          IsVisible="{Binding App.RequestEditor.IsBearerAuthMode}">
                         <TextBlock Text="Token" VerticalAlignment="Center" />
                         <views:VariableTextBox Grid.Column="1" PlaceholderText="Bearer token"
                                                AppViewModel="{Binding App}"
-                                               Text="{Binding App.AuthBearerToken, Mode=TwoWay}" />
+                                               Text="{Binding App.RequestEditor.AuthBearerToken, Mode=TwoWay}" />
                     </Grid>
 
                     <Grid Grid.Row="2" ColumnDefinitions="130,*" ColumnSpacing="8"
-                          IsVisible="{Binding App.IsBasicAuthMode}">
+                          IsVisible="{Binding App.RequestEditor.IsBasicAuthMode}">
                         <TextBlock Text="Username" VerticalAlignment="Center" />
                         <views:VariableTextBox Grid.Column="1" PlaceholderText="Username"
                                                AppViewModel="{Binding App}"
-                                               Text="{Binding App.AuthBasicUsername, Mode=TwoWay}" />
+                                               Text="{Binding App.RequestEditor.AuthBasicUsername, Mode=TwoWay}" />
                     </Grid>
 
                     <Grid Grid.Row="3" ColumnDefinitions="130,*" ColumnSpacing="8"
-                          IsVisible="{Binding App.IsBasicAuthMode}">
+                          IsVisible="{Binding App.RequestEditor.IsBasicAuthMode}">
                         <TextBlock Text="Password" VerticalAlignment="Center" />
                         <views:VariableTextBox Grid.Column="1" PlaceholderText="Password"
                                                AppViewModel="{Binding App}"
-                                               Text="{Binding App.AuthBasicPassword, Mode=TwoWay}" />
+                                               Text="{Binding App.RequestEditor.AuthBasicPassword, Mode=TwoWay}" />
                     </Grid>
 
                     <Grid Grid.Row="4" ColumnDefinitions="130,*" ColumnSpacing="8"
-                          IsVisible="{Binding App.IsApiKeyAuthMode}">
+                          IsVisible="{Binding App.RequestEditor.IsApiKeyAuthMode}">
                         <TextBlock Text="API key" VerticalAlignment="Center" />
                         <views:VariableTextBox Grid.Column="1" PlaceholderText="API key"
                                                AppViewModel="{Binding App}"
-                                               Text="{Binding App.AuthApiKey, Mode=TwoWay}" />
+                                               Text="{Binding App.RequestEditor.AuthApiKey, Mode=TwoWay}" />
                     </Grid>
 
                     <Grid Grid.Row="5" ColumnDefinitions="130,*" ColumnSpacing="8"
-                          IsVisible="{Binding App.IsOAuth2ClientCredentialsAuthMode}">
+                          IsVisible="{Binding App.RequestEditor.IsOAuth2ClientCredentialsAuthMode}">
                         <TextBlock Text="Access token" VerticalAlignment="Center" />
                         <views:VariableTextBox Grid.Column="1" PlaceholderText="OAuth 2 access token"
                                                AppViewModel="{Binding App}"
-                                               Text="{Binding App.AuthOAuth2AccessToken, Mode=TwoWay}" />
+                                               Text="{Binding App.RequestEditor.AuthOAuth2AccessToken, Mode=TwoWay}" />
                     </Grid>
                 </Grid>
             </TabItem>

@@ -66,8 +66,8 @@
 
                             <StackPanel Spacing="4">
                                 <TextBlock Text="HTTP version" FontWeight="SemiBold" />
-                                <ComboBox ItemsSource="{Binding App.HttpVersionOptions}"
-                                          SelectedItem="{Binding App.SelectedHttpVersionOption, Mode=TwoWay}"
+                                <ComboBox ItemsSource="{Binding App.RequestEditor.HttpVersionOptions}"
+                                          SelectedItem="{Binding App.RequestEditor.SelectedHttpVersionOption, Mode=TwoWay}"
                                           MinWidth="200" HorizontalAlignment="Left" />
                             </StackPanel>
 

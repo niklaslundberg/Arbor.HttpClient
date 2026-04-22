@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Arbor.HttpClient.Core\Arbor.HttpClient.Core.csproj" />
+    <ProjectReference Include="..\Arbor.HttpClient.Testing\Arbor.HttpClient.Testing.csproj" />
   </ItemGroup>
 
 </Project>

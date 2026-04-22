@@ -40,6 +40,11 @@ Cross-platform desktop HTTP client built with **.NET 10**, **Avalonia 12**, and 
 - `src/Arbor.HttpClient.Desktop` - Avalonia desktop UI app (Windows/Linux/macOS)
 - `src/Arbor.HttpClient.Core.Tests` - xUnit + AwesomeAssertions unit tests
 - `src/Arbor.HttpClient.Desktop.E2E.Tests` - headless UI automation tests
+- `src/Arbor.HttpClient.Testing` - shared in-memory test doubles and fakes for use across test projects
+
+## Architecture
+
+- [`docs/architecture/clean-feature-separation.md`](docs/architecture/clean-feature-separation.md) — current architecture assessment, findings, and ordered next steps for feature isolation
 
 ## Run
 

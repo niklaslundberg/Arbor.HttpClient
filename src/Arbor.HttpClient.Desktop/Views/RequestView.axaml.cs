@@ -17,6 +17,7 @@ public partial class RequestView : UserControl
     private TextEditor? _requestUrlEditor;
     private TextEditor? _requestPreviewEditor;
     private MainWindowViewModel? _appVm;
+    private RequestEditorViewModel? _requestEditorVm;
     private RegistryOptions? _registryOptions;
     private TextMate.Installation? _requestTextMate;
     private EventHandler<TextMate.Installation>? _appliedThemeHandler;
@@ -47,6 +48,11 @@ public partial class RequestView : UserControl
             _appVm.PropertyChanged -= OnAppVmPropertyChanged;
         }
 
+        if (_requestEditorVm is not null)
+        {
+            _requestEditorVm.PropertyChanged -= OnRequestEditorVmPropertyChanged;
+        }
+
         if (_requestBodyEditor is not null)
         {
             _requestBodyEditor.Document.TextChanged -= OnRequestEditorTextChanged;
@@ -72,6 +78,7 @@ public partial class RequestView : UserControl
         }
 
         _appVm = GetAppVm();
+        _requestEditorVm = _appVm?.RequestEditor;
         _requestBodyEditor = this.FindControl<TextEditor>("RequestBodyEditor");
         _requestUrlEditor = this.FindControl<TextEditor>("RequestUrlEditor");
         _requestPreviewEditor = this.FindControl<TextEditor>("RequestPreviewEditor");
@@ -125,21 +132,26 @@ public partial class RequestView : UserControl
             if (_requestBodyEditor is not null)
             {
                 ApplyEditorFont(_requestBodyEditor, _appVm);
-                _requestBodyEditor.Text = _appVm.RequestBody;
-                ApplyGrammarForContent(_requestTextMate, _appVm.RequestBody, ref _requestGrammarScope);
+                _requestBodyEditor.Text = _requestEditorVm?.RequestBody ?? string.Empty;
+                ApplyGrammarForContent(_requestTextMate, _requestEditorVm?.RequestBody ?? string.Empty, ref _requestGrammarScope);
             }
 
             if (_requestUrlEditor is not null)
             {
                 ApplyEditorFont(_requestUrlEditor, _appVm);
-                _requestUrlEditor.Text = _appVm.RequestUrl;
+                _requestUrlEditor.Text = _requestEditorVm?.RequestUrl ?? string.Empty;
             }
 
             if (_requestPreviewEditor is not null)
             {
                 ApplyEditorFont(_requestPreviewEditor, _appVm);
-                _requestPreviewEditor.Text = _appVm.RequestPreview;
+                _requestPreviewEditor.Text = _requestEditorVm?.RequestPreview ?? string.Empty;
             }
+        }
+
+        if (_requestEditorVm is not null)
+        {
+            _requestEditorVm.PropertyChanged += OnRequestEditorVmPropertyChanged;
         }
 
         ApplyVariableColorTheme();
@@ -147,10 +159,10 @@ public partial class RequestView : UserControl
 
     private void OnRequestEditorTextChanged(object? sender, System.EventArgs e)
     {
-        if (_appVm is not null && _requestBodyEditor is not null
-            && _appVm.RequestBody != _requestBodyEditor.Text)
+        if (_requestEditorVm is not null && _requestBodyEditor is not null
+            && _requestEditorVm.RequestBody != _requestBodyEditor.Text)
         {
-            _appVm.RequestBody = _requestBodyEditor.Text;
+            _requestEditorVm.RequestBody = _requestBodyEditor.Text;
         }
 
         ApplyGrammarForContent(_requestTextMate, _requestBodyEditor?.Text ?? string.Empty, ref _requestGrammarScope);
@@ -158,46 +170,49 @@ public partial class RequestView : UserControl
 
     private void OnRequestUrlEditorTextChanged(object? sender, EventArgs e)
     {
-        if (_appVm is not null && _requestUrlEditor is not null
-            && _appVm.RequestUrl != _requestUrlEditor.Text)
+        if (_requestEditorVm is not null && _requestUrlEditor is not null
+            && _requestEditorVm.RequestUrl != _requestUrlEditor.Text)
         {
-            _appVm.RequestUrl = _requestUrlEditor.Text;
+            _requestEditorVm.RequestUrl = _requestUrlEditor.Text;
+        }
+    }
+
+    private void OnRequestEditorVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(RequestEditorViewModel.RequestBody)
+            && _requestBodyEditor is not null
+            && _requestEditorVm is not null
+            && _requestBodyEditor.Text != _requestEditorVm.RequestBody)
+        {
+            _requestBodyEditor.Text = _requestEditorVm.RequestBody;
+            ApplyGrammarForContent(_requestTextMate, _requestEditorVm.RequestBody, ref _requestGrammarScope);
+        }
+
+        if (e.PropertyName == nameof(RequestEditorViewModel.RequestUrl)
+            && _requestUrlEditor is not null
+            && _requestEditorVm is not null
+            && _requestUrlEditor.Text != _requestEditorVm.RequestUrl)
+        {
+            _requestUrlEditor.Text = _requestEditorVm.RequestUrl;
+        }
+
+        if (e.PropertyName == nameof(RequestEditorViewModel.RequestPreview)
+            && _requestPreviewEditor is not null
+            && _requestEditorVm is not null
+            && _requestPreviewEditor.Text != _requestEditorVm.RequestPreview)
+        {
+            _requestPreviewEditor.Text = _requestEditorVm.RequestPreview;
+        }
+
+        if (e.PropertyName == nameof(RequestEditorViewModel.ContentType))
+        {
+            _requestGrammarScope = string.Empty;
+            ApplyGrammarForContent(_requestTextMate, _requestBodyEditor?.Text ?? string.Empty, ref _requestGrammarScope);
         }
     }
 
     private void OnAppVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainWindowViewModel.RequestBody)
-            && _requestBodyEditor is not null
-            && _appVm is not null
-            && _requestBodyEditor.Text != _appVm.RequestBody)
-        {
-            _requestBodyEditor.Text = _appVm.RequestBody;
-            ApplyGrammarForContent(_requestTextMate, _appVm.RequestBody, ref _requestGrammarScope);
-        }
-
-        if (e.PropertyName == nameof(MainWindowViewModel.RequestUrl)
-            && _requestUrlEditor is not null
-            && _appVm is not null
-            && _requestUrlEditor.Text != _appVm.RequestUrl)
-        {
-            _requestUrlEditor.Text = _appVm.RequestUrl;
-        }
-
-        if (e.PropertyName == nameof(MainWindowViewModel.RequestPreview)
-            && _requestPreviewEditor is not null
-            && _appVm is not null
-            && _requestPreviewEditor.Text != _appVm.RequestPreview)
-        {
-            _requestPreviewEditor.Text = _appVm.RequestPreview;
-        }
-
-        if (e.PropertyName == nameof(MainWindowViewModel.ContentType))
-        {
-            _requestGrammarScope = string.Empty;
-            ApplyGrammarForContent(_requestTextMate, _requestBodyEditor?.Text ?? string.Empty, ref _requestGrammarScope);
-        }
-
         if ((e.PropertyName == nameof(MainWindowViewModel.UiFontFamily)
              || e.PropertyName == nameof(MainWindowViewModel.UiFontSize))
             && _appVm is not null)
@@ -233,6 +248,12 @@ public partial class RequestView : UserControl
         {
             _appVm.PropertyChanged -= OnAppVmPropertyChanged;
             _appVm = null;
+        }
+
+        if (_requestEditorVm is not null)
+        {
+            _requestEditorVm.PropertyChanged -= OnRequestEditorVmPropertyChanged;
+            _requestEditorVm = null;
         }
 
         if (_requestBodyEditor is not null)
@@ -273,7 +294,7 @@ public partial class RequestView : UserControl
             return;
         }
 
-        var explicitContentType = _appVm?.ContentType ?? string.Empty;
+        var explicitContentType = _requestEditorVm?.ContentType ?? string.Empty;
         var ext = !string.IsNullOrEmpty(explicitContentType)
             ? MainWindowViewModel.ExtensionFromContentType(explicitContentType)
             : MainWindowViewModel.DetectExtensionFromContent(content);

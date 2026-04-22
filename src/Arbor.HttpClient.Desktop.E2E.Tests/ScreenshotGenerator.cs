@@ -156,13 +156,13 @@ public class ScreenshotGenerator
                 method: "POST",
                 url: "{{baseUrl}}/get?env={{environment}}&{{queryKey}}={{queryValue}}");
 
-            viewModel.RequestBody = """
+            viewModel.RequestEditor.RequestBody = """
                 {
                   "apiKey": "{{token}}",
                   "environment": "{{environment}}"
                 }
                 """;
-            viewModel.RequestHeaders.Add(new RequestHeaderViewModel
+            viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
             {
                 Name = "X-{{headerName}}",
                 Value = "{{headerValue}}",
@@ -216,19 +216,19 @@ public class ScreenshotGenerator
                 method: "GET",
                 url: "{{baseUrl}}/search");
 
-            viewModel.RequestQueryParameters.Add(new RequestQueryParameterViewModel
+            viewModel.RequestEditor.RequestQueryParameters.Add(new RequestQueryParameterViewModel
             {
                 Key = "{{queryKey}}",
                 Value = "{{queryValue}}",
                 IsEnabled = true
             });
-            viewModel.RequestQueryParameters.Add(new RequestQueryParameterViewModel
+            viewModel.RequestEditor.RequestQueryParameters.Add(new RequestQueryParameterViewModel
             {
                 Key = "env",
                 Value = "{{environment}}",
                 IsEnabled = true
             });
-            viewModel.RequestHeaders.Add(new RequestHeaderViewModel
+            viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
             {
                 Name = "X-{{headerName}}",
                 Value = "{{headerValue}}",
@@ -277,13 +277,13 @@ public class ScreenshotGenerator
                 method: "POST",
                 url: "{{baseUrl}}/api");
 
-            viewModel.RequestHeaders.Add(new RequestHeaderViewModel
+            viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
             {
                 Name = "X-{{headerName}}",
                 Value = "{{headerValue}}",
                 IsEnabled = true
             });
-            viewModel.RequestHeaders.Add(new RequestHeaderViewModel
+            viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
             {
                 Name = "Authorization",
                 Value = "Bearer {{token}}",
@@ -334,12 +334,12 @@ public class ScreenshotGenerator
                 method: "POST",
                 url: "{{baseUrl}}/get?env={{environment}}");
 
-            viewModel.RequestBody = """
+            viewModel.RequestEditor.RequestBody = """
                 {
                   "apiKey": "{{token}}"
                 }
                 """;
-            viewModel.RequestHeaders.Add(new RequestHeaderViewModel
+            viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
             {
                 Name = "X-{{headerName}}",
                 Value = "{{headerValue}}",
@@ -429,7 +429,7 @@ public class ScreenshotGenerator
                 method: "GET",
                 url: "https://postman-echo.com/redirect-to?url=https://postman-echo.com/get");
 
-            viewModel.FollowRedirectsForRequest = false;
+            viewModel.RequestEditor.FollowRedirectsForRequest = false;
             viewModel.LeftPanelTab = "ScheduledJobs";
             viewModel.ScheduledJobs.Add(new ScheduledJobViewModel(new InMemoryScheduledJobRepo(), new ScheduledJobService(
                 new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryHistoryRepo()),
@@ -608,12 +608,11 @@ public class ScreenshotGenerator
             new InMemoryEnvironmentRepo(),
             new InMemoryScheduledJobRepo(),
             scheduledJobService,
-            logWindowVm)
-        {
-            RequestName = requestName,
-            SelectedMethod = method,
-            RequestUrl = url
-        };
+            logWindowVm);
+
+        viewModel.RequestEditor.RequestName = requestName;
+        viewModel.RequestEditor.SelectedMethod = method;
+        viewModel.RequestEditor.RequestUrl = url;
 
         return (viewModel, new MainWindow { DataContext = viewModel });
     }
