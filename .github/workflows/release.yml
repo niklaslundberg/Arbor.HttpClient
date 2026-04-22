@@ -37,7 +37,7 @@ jobs:
           Write-Host "Version: $ver  Tag: $tag"
 
       - name: Restore
-        run: dotnet restore Arbor.HttpClient.slnx
+        run: dotnet restore Arbor.HttpClient.slnx --locked-mode
 
       - name: Install SBOM tool
         run: dotnet tool install --global microsoft.sbom.dotnettool --version 4.1.5

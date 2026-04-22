@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "Microsoft.OpenApi": {
+        "type": "Transitive",
+        "resolved": "1.6.29",
+        "contentHash": "mLoYWWwRP3C7Iier4dDzepq0kw1Tpdlh+B6KZ1SNcgq/tWI8aC41WYvIsJpsAS4UG1IV4c0AAnZs8qCPobzBkQ=="
+      },
+      "SharpYaml": {
+        "type": "Transitive",
+        "resolved": "2.1.1",
+        "contentHash": "BISoFuW2AwZYXxrZGaBnedo21BvrdgC4kkWd6QYrOdhOGSsZB0RSqcBw09l9caUE1g3sykJoRfSbtSzZS6tYig=="
+      },
+      "arbor.httpclient.core": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.OpenApi.Readers": "[1.6.29, )"
+        }
+      },
+      "Microsoft.OpenApi.Readers": {
+        "type": "CentralTransitive",
+        "requested": "[1.6.29, )",
+        "resolved": "1.6.29",
+        "contentHash": "GYtIRq1iUO6zwnrUa63ELQHHSgMXRAxkXhtSyOKvH8tVPXql0HOjPTgJv7ZzGuzEzCIDZNujKUjrfi+36xxDSg==",
+        "dependencies": {
+          "Microsoft.OpenApi": "1.6.29",
+          "SharpYaml": "2.1.1"
+        }
+      }
+    }
+  }
+}
