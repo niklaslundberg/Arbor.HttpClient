@@ -563,7 +563,7 @@ public class ScreenshotGenerator
                 url: "https://postman-echo.com/get");
 
             // Show HTTP options page (includes the new "Enable HTTP diagnostics" checkbox)
-            viewModel.SelectedOptionsPage = "HTTP";
+            viewModel.OptionsPanel.SelectedOptionsPage = "HTTP";
 
             var optionsWindow = new OptionsWindow { DataContext = viewModel };
             optionsWindow.Show();

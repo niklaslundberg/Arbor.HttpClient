@@ -18,7 +18,7 @@ public partial class OptionsWindow : Window
         if (CategoryTree.SelectedItem is TreeViewItem { Tag: string tag } &&
             DataContext is MainWindowViewModel vm)
         {
-            vm.SelectedOptionsPage = tag;
+            vm.OptionsPanel.SelectedOptionsPage = tag;
         }
     }
 }

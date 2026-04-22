@@ -56,7 +56,7 @@ public class ScreenshotCaptureTests
             window.Show();
 
             // Navigate to the Scheduled Jobs page via the ViewModel
-            viewModel.SelectedOptionsPage = "ScheduledJobs";
+            optionsVm.SelectedOptionsPage = "ScheduledJobs";
 
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
 

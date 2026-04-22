@@ -46,11 +46,11 @@
                         BorderBrush="{DynamicResource PanelBorderBrush}"
                         BorderThickness="0,0,0,1">
                     <StackPanel Spacing="4">
-                        <TextBlock Text="{Binding SelectedOptionsPageBreadcrumb}"
+                        <TextBlock Text="{Binding OptionsPanel.SelectedOptionsPageBreadcrumb}"
                                    FontSize="11"
                                    Opacity="0.55"
                                    TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="{Binding SelectedOptionsPageTitle}"
+                        <TextBlock Text="{Binding OptionsPanel.SelectedOptionsPageTitle}"
                                    FontSize="18"
                                    FontWeight="SemiBold" />
                     </StackPanel>
@@ -65,7 +65,7 @@
 
                         <!-- HTTP page -->
                         <StackPanel Spacing="20"
-                                    IsVisible="{Binding SelectedOptionsPage,
+                                    IsVisible="{Binding OptionsPanel.SelectedOptionsPage,
                                         Converter={x:Static conv:StringEqualityConverter.Instance},
                                         ConverterParameter=HTTP}">
 
@@ -106,7 +106,7 @@
 
                         <!-- Scheduled Jobs page -->
                         <StackPanel Spacing="20"
-                                    IsVisible="{Binding SelectedOptionsPage,
+                                    IsVisible="{Binding OptionsPanel.SelectedOptionsPage,
                                         Converter={x:Static conv:StringEqualityConverter.Instance},
                                         ConverterParameter=ScheduledJobs}">
 
@@ -126,7 +126,7 @@
 
                         <!-- Look & Feel page -->
                         <StackPanel Spacing="20"
-                                    IsVisible="{Binding SelectedOptionsPage,
+                                    IsVisible="{Binding OptionsPanel.SelectedOptionsPage,
                                         Converter={x:Static conv:StringEqualityConverter.Instance},
                                         ConverterParameter=LookAndFeel}">
 

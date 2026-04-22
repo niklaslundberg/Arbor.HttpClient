@@ -16,7 +16,7 @@ public partial class OptionsView : UserControl
         if (CategoryTree.SelectedItem is TreeViewItem { Tag: string tag } &&
             DataContext is OptionsViewModel vm)
         {
-            vm.App.SelectedOptionsPage = tag;
+            vm.SelectedOptionsPage = tag;
         }
     }
 }
