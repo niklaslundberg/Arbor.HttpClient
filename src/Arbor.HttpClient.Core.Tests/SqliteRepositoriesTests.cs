@@ -148,7 +148,7 @@ public class SqliteRepositoriesTests
     [Fact]
     public async Task SqliteEnvironmentRepository_DeleteAsync_ShouldRemoveEnvironment()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"test_env_delete_{Guid.NewGuid()}.db");
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_env_delete_{Guid.NewGuid()}.db");
         try
         {
             var connectionString = $"Data Source={dbPath}";
