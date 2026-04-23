@@ -8,19 +8,21 @@ namespace Arbor.HttpClient.Desktop.ViewModels;
 
 /// <summary>
 /// Builds the initial Dock layout for the main window.
-    /// Panels: Explorer tool (left), Options tool (left), Environments tool (left), Logs tool (left), Request document, Response document.
+    /// Panels: Explorer tool (left), Options tool (left), Environments tool (left), Logs tool (left), Cookie Jar tool (left), Request document, Response document.
 /// </summary>
 public sealed class DockFactory : Factory
 {
     private readonly MainWindowViewModel _mainVm;
     private readonly EnvironmentsViewModel _environmentsViewModel;
     private readonly OptionsViewModel _optionsViewModel;
+    private readonly CookieJarViewModel _cookieJarViewModel;
 
-    public DockFactory(MainWindowViewModel mainVm, EnvironmentsViewModel environmentsViewModel, OptionsViewModel optionsViewModel)
+    public DockFactory(MainWindowViewModel mainVm, EnvironmentsViewModel environmentsViewModel, OptionsViewModel optionsViewModel, CookieJarViewModel cookieJarViewModel)
     {
         _mainVm = mainVm;
         _environmentsViewModel = environmentsViewModel;
         _optionsViewModel = optionsViewModel;
+        _cookieJarViewModel = cookieJarViewModel;
     }
 
     /// <summary>The left-side ToolDock; used to activate the Options tool programmatically.</summary>
@@ -30,6 +32,7 @@ public sealed class DockFactory : Factory
     public OptionsViewModel? OptionsViewModel { get; private set; }
     public EnvironmentsViewModel? EnvironmentsViewModel { get; private set; }
     public LogPanelViewModel? LogPanelViewModel { get; private set; }
+    public CookieJarViewModel? CookieJarViewModel { get; private set; }
 
     public override IRootDock CreateLayout()
     {
@@ -37,16 +40,18 @@ public sealed class DockFactory : Factory
         var options = _optionsViewModel;
         var environments = _environmentsViewModel;
         var logs = new LogPanelViewModel(_mainVm);
+        var cookieJar = _cookieJarViewModel;
         OptionsViewModel = options;
         EnvironmentsViewModel = environments;
         LogPanelViewModel = logs;
+        CookieJarViewModel = cookieJar;
 
         var leftToolDock = new ToolDock
         {
             Id = "left-tool-dock",
             Proportion = 0.25,
             ActiveDockable = leftPanel,
-            VisibleDockables = CreateList<IDockable>(leftPanel, options, environments, logs),
+            VisibleDockables = CreateList<IDockable>(leftPanel, options, environments, logs, cookieJar),
             Alignment = Alignment.Left,
             GripMode = GripMode.Visible
         };

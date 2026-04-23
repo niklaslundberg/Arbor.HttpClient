@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -48,6 +49,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private RequestEditorViewModel _requestEditor = null!;
     private EnvironmentsViewModel _environmentsViewModel = null!;
     private OptionsViewModel _optionsViewModel = null!;
+    private CookieJarViewModel _cookieJarViewModel = null!;
     private readonly List<string> _tempFiles = [];
     private readonly List<SavedRequest> _allHistory = [];
     private FileSystemWatcher? _requestBodyWatcher;
@@ -300,7 +302,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ILogger? logger = null,
         ApplicationOptionsStore? applicationOptionsStore = null,
         ApplicationOptions? initialOptions = null,
-        Action<ApplicationOptions>? onApplicationOptionsChanged = null)
+        Action<ApplicationOptions>? onApplicationOptionsChanged = null,
+        CookieContainer? cookieContainer = null)
     {
         _httpRequestService = httpRequestService;
         _requestHistoryRepository = requestHistoryRepository;
@@ -327,6 +330,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             () => StorageProvider,
             _debugLogger);
         _optionsViewModel = new OptionsViewModel(this);
+        _cookieJarViewModel = new CookieJarViewModel(cookieContainer);
         _environmentsViewModel.PropertyChanged += OnEnvironmentsViewModelPropertyChanged;
 
         History = [];
@@ -338,7 +342,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         SendRequestCommand = new AsyncRelayCommand(SendRequestAsync);
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
 
-        _dockFactory = new DockFactory(this, _environmentsViewModel, _optionsViewModel);
+        _dockFactory = new DockFactory(this, _environmentsViewModel, _optionsViewModel, _cookieJarViewModel);
         Layout = _dockFactory.CreateLayout();
         _dockFactory.InitLayout(Layout);
         _defaultLayout = CaptureLayoutSnapshot();
@@ -678,6 +682,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _dockFactory.LogPanelViewModel is { } logPanelVm)
         {
             dock.ActiveDockable = logPanelVm;
+        }
+    }
+
+    [RelayCommand]
+    private void OpenCookieJar()
+    {
+        if (_dockFactory?.LeftToolDock is { } dock &&
+            _dockFactory.CookieJarViewModel is { } cookieJarVm)
+        {
+            cookieJarVm.RefreshCookies();
+            dock.ActiveDockable = cookieJarVm;
         }
     }
 
@@ -1646,6 +1661,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             HasTextResponse = HasResponseHeaders && !IsBinaryResponse;
             _httpRequestsLogger.Information("Manual request completed: {StatusCode} {ReasonPhrase}", response.StatusCode, response.ReasonPhrase);
 
+            _cookieJarViewModel.RefreshCookies();
             await LoadHistoryAsync();
         }
         catch (Exception exception)

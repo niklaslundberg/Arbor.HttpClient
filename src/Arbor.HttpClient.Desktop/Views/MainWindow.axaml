@@ -32,7 +32,7 @@
 
         <!-- Top toolbar -->
         <Border DockPanel.Dock="Top" Padding="16,10" BorderBrush="{DynamicResource TopToolbarBorderBrush}" BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto">
                 <TextBlock Text="Arbor Http Client" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" />
 
                 <!-- Environment selector -->
@@ -55,7 +55,9 @@
                         Command="{Binding OpenEnvironmentsCommand}" />
                 <Button Grid.Column="4" Content="Import OpenAPI" Margin="0,0,6,0"
                         Command="{Binding ImportCollectionCommand}" />
-                <Button Grid.Column="5" Content="📋 Logs"
+                <Button Grid.Column="5" Content="🍪 Cookies" Margin="0,0,6,0"
+                        Command="{Binding OpenCookieJarCommand}" />
+                <Button Grid.Column="6" Content="📋 Logs"
                         Command="{Binding OpenLogWindowCommand}" />
             </Grid>
         </Border>
