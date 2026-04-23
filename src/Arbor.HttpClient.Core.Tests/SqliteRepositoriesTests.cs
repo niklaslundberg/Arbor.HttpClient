@@ -39,7 +39,7 @@ public class SqliteRepositoriesTests
     [Fact]
     public async Task SqliteRequestHistoryRepository_GetRecentAsync_ShouldReturnLimitedResults()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"test_history_limit_{Guid.NewGuid()}.db");
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_history_limit_{Guid.NewGuid()}.db");
         try
         {
             var connectionString = $"Data Source={dbPath}";
@@ -68,7 +68,7 @@ public class SqliteRepositoriesTests
     [Fact]
     public async Task SqliteEnvironmentRepository_SaveAndGetAllAsync_ShouldPersistAndRetrieveEnvironments()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"test_env_{Guid.NewGuid()}.db");
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_env_{Guid.NewGuid()}.db");
         try
         {
             var connectionString = $"Data Source={dbPath}";
@@ -106,7 +106,7 @@ public class SqliteRepositoriesTests
     [Fact]
     public async Task SqliteEnvironmentRepository_UpdateAsync_ShouldModifyExistingEnvironment()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"test_env_update_{Guid.NewGuid()}.db");
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_env_update_{Guid.NewGuid()}.db");
         try
         {
             var connectionString = $"Data Source={dbPath}";
@@ -181,7 +181,7 @@ public class SqliteRepositoriesTests
     [Fact]
     public async Task SqliteCollectionRepository_SaveAndGetAllAsync_ShouldPersistAndRetrieveCollections()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"test_collection_{Guid.NewGuid()}.db");
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_collection_{Guid.NewGuid()}.db");
         try
         {
             var connectionString = $"Data Source={dbPath}";
@@ -220,7 +220,7 @@ public class SqliteRepositoriesTests
     [Fact]
     public async Task SqliteCollectionRepository_DeleteAsync_ShouldRemoveCollectionAndRequests()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"test_collection_delete_{Guid.NewGuid()}.db");
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_collection_delete_{Guid.NewGuid()}.db");
         try
         {
             var connectionString = $"Data Source={dbPath}";
