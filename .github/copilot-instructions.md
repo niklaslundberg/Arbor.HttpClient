@@ -128,10 +128,15 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 - Treat compiler warnings, analyzer warnings, and runtime errors as real defects. Do not ignore or suppress them unless there is a documented and justified reason.
 - **Analyzer severity policy**: Promote correctness and security-sensitive Roslyn/CA rules to `warning` (or `error`). Keep style-only rules as `suggestion` to avoid noisy CI failures. Never silently suppress an analyzer diagnostic — add a code comment with the justification when suppression is truly necessary.
-- Any new or changed production code must include test coverage. Prefer isolated unit tests first, then integration/E2E tests when unit tests are not sufficient.
+- **Code coverage requirements**:
+  - Any new or changed production code must include test coverage
+  - Prefer isolated unit tests first, then integration/E2E tests when unit tests are not sufficient
+  - Maintain reasonably high coverage in the changed area. If code can be tested, add tests
+  - For feature work, generate coverage reports locally and review them before committing
+  - Current project coverage baseline: 57.9% line coverage, 77.9% branch coverage (see `docs/coverage.md`)
+  - New code should not lower the overall coverage percentage
+  - CI automatically generates and publishes coverage reports to the job summary
 - **Test naming convention**: Name tests using the `Method_Scenario_ExpectedResult` pattern (e.g. `Parse_EmptyInput_ThrowsArgumentException`). Each test should verify one behavioral intent; arrange test data explicitly rather than relying on implicit state.
-- Maintain reasonably high coverage in the changed area. If code can be tested, add tests.
-- For feature work, generate coverage reports and review them. CI must publish test and coverage outputs so they are visible during code review.
 - Profiling-oriented validation is required when changing request execution hot paths, scheduled/background job loops, data-processing loops, or code that introduces disposable/resource-heavy objects.
 - Treat code as a hot path when it runs on every request, for each item in a collection, or on a recurring timer. Profiling is optional for isolated admin/one-off flows.
 - Use JetBrains dotMemory Unit or equivalent tools (for example `dotnet-counters` or BenchmarkDotNet) to catch memory leaks, performance bottlenecks, or resource leaks. Attach profiling evidence in the PR when this requirement applies.

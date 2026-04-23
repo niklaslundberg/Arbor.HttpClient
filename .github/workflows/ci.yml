@@ -115,6 +115,7 @@ jobs:
         run: |
           dotnet tool install -g dotnet-trx --version 1.0.1
           dotnet tool install -g trxlog2html --version 1.0.4
+          dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.5.6
 
       - name: Run unit tests
         run: >
@@ -130,6 +131,18 @@ jobs:
         if: always()
         run: trx --path TestResults/unit --verbosity normal
 
+      - name: Generate code coverage report
+        if: ${{ !cancelled() }}
+        run: |
+          reportgenerator \
+            -reports:"TestResults/unit/*/coverage.cobertura.xml" \
+            -targetdir:"TestResults/coverage-report" \
+            -reporttypes:"MarkdownSummaryGithub;Cobertura"
+
+      - name: Add coverage report to job summary
+        if: ${{ !cancelled() && hashFiles('TestResults/coverage-report/SummaryGithub.md') != '' }}
+        run: cat TestResults/coverage-report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload coverage
         if: ${{ !cancelled() }}
         id: upload-unit-coverage
@@ -137,7 +150,9 @@ jobs:
         with:
           name: unit-test-coverage
           # Keep coverage optional so missing files do not hide unit test outcomes in CI.
-          path: "**/coverage.cobertura.xml"
+          path: |
+            TestResults/unit/*/coverage.cobertura.xml
+            TestResults/coverage-report/SummaryGithub.md
           retention-days: 14
           if-no-files-found: ignore
 

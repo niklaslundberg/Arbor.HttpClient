@@ -83,6 +83,7 @@ Before merging any PR that touches UI code or theme resources:
 - [ ] No compiler warnings introduced.
 - [ ] No unrelated files modified.
 - [ ] PR description explains *what* changed and *why*.
+- [ ] Code coverage maintained or improved (check CI job summary for coverage report).
 
 ## UX Ideas Maintenance
 
