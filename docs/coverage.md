@@ -4,10 +4,16 @@ This document describes the code coverage infrastructure and current status.
 
 ## Current Coverage Status
 
-As of the latest build:
+As of the latest build (2026-04-23):
 
-- **Line coverage:** 60.7% (260 of 428 lines)
-- **Branch coverage:** 77.9% (92 of 118 branches)
+- **Line coverage:** 71% (3923 of 5523 lines)
+- **Branch coverage:** 60% (1056 of 1760 branches)
+
+**By project:**
+- **Arbor.HttpClient.Core:** 90.1% line coverage, 90.1% branch coverage ✅
+- **Arbor.HttpClient.Storage.Sqlite:** 91.4% line coverage, 87.9% branch coverage ✅
+- **Arbor.HttpClient.Desktop:** 68.2% line coverage, 54.8% branch coverage
+- **Arbor.HttpClient.Testing:** 47.5% line coverage (test infrastructure - indirect coverage acceptable)
 
 Coverage reports are generated automatically in every CI build and available as artifacts.
 
@@ -61,21 +67,35 @@ start TestResults/coverage-report/index.html  # Windows
 
 ### Core Library (Arbor.HttpClient.Core)
 
-Current: **85.1%** line coverage, **80.7%** branch coverage
+Current: **90.1%** line coverage, **90.1%** branch coverage ✅
 
-Areas needing improvement:
-- `HttpResponseDetails` (71.4%) - some paths untested
-- `Collection` (66.6%) - some paths untested
-- `HttpRequestDiagnostics` (66.6%) - some paths untested
+All models and services now have excellent coverage. Remaining gaps:
+- `HttpRequestService` (82.5%) - TLS negotiation and DNS lookup error paths
+- `OpenApiImportService` (93.7%) - some edge cases in OpenAPI parsing
 
 Recently improved:
+- `Collection`: 66.6% → **100%** ✅
+- `HttpRequestDiagnostics`: 66.6% → **100%** ✅
 - `RequestEnvironment`: 0% → **100%** ✅
 - `SavedRequest`: 25% → **100%** ✅
 - `ScheduledJobConfig`: 20% → **100%** ✅
+- `HttpRequestService`: 78.5% → **82.5%**
+
+### Storage Layer (Arbor.HttpClient.Storage.Sqlite)
+
+Current: **91.4%** line coverage, **87.9%** branch coverage ✅
+
+Recently improved:
+- `SqliteRequestHistoryRepository`: 0% → **100%** ✅
+- `SqliteEnvironmentRepository`: 0% → **96.7%** ✅
+- `SqliteCollectionRepository`: 0% → **97.8%** ✅
+- `SqliteScheduledJobRepository`: Already had 70.3% coverage
+
+All repositories now have comprehensive integration tests.
 
 ### Testing Infrastructure (Arbor.HttpClient.Testing)
 
-Current: **13.1%** line coverage
+Current: **47.5%** line coverage
 
 This low coverage is expected because the Testing project provides test doubles and fakes used by other test projects. The in-memory repositories are exercised indirectly through integration tests but not through dedicated unit tests.
 
