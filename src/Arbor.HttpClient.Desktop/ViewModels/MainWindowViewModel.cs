@@ -201,6 +201,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private bool _hasResponseHeaders;
 
+    /// <summary>
+    /// True when a non-binary text response has been received and the response shortcuts
+    /// toolbar (Copy body / Save as file / Copy as cURL) should be visible.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasTextResponse;
+
     partial void OnSelectedTlsVersionOptionChanged(string value) =>
         LogAndQueueOptionsAutoSave("Selected TLS version changed to {TlsVersion}", value);
 
@@ -1056,6 +1063,77 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         await Clipboard.SetTextAsync(command);
     }
 
+    /// <summary>
+    /// Copies the current (pretty-printed) response body text to the clipboard.
+    /// No-op when the clipboard is unavailable or the response body is empty.
+    /// </summary>
+    [RelayCommand]
+    private async Task CopyResponseBodyAsync()
+    {
+        if (Clipboard is null || string.IsNullOrEmpty(ResponseBody))
+        {
+            return;
+        }
+
+        await Clipboard.SetTextAsync(ResponseBody);
+    }
+
+    /// <summary>
+    /// Opens a save-file dialog and writes the raw response body to the chosen path.
+    /// The suggested file extension is derived from the response <c>Content-Type</c>.
+    /// No-op when the storage provider is unavailable or the response body is empty.
+    /// </summary>
+    [RelayCommand]
+    private async Task SaveResponseBodyAsFileAsync()
+    {
+        if (StorageProvider is null || string.IsNullOrEmpty(RawResponseBody))
+        {
+            return;
+        }
+
+        var extension = !string.IsNullOrWhiteSpace(ResponseContentType)
+            ? ExtensionFromContentType(ResponseContentType)
+            : DetectExtensionFromContent(RawResponseBody);
+
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save Response Body",
+            SuggestedFileName = $"response{extension}",
+            FileTypeChoices =
+            [
+                new FilePickerFileType("Response file")
+                {
+                    Patterns = [$"*{extension}"]
+                }
+            ]
+        });
+
+        if (file is null)
+        {
+            return;
+        }
+
+        await File.WriteAllTextAsync(file.Path.LocalPath, RawResponseBody, Encoding.UTF8);
+    }
+
+    /// <summary>
+    /// Copies the current request (as configured in the request editor) to the
+    /// clipboard formatted as a single-line <c>curl</c> command.
+    /// No-op when the clipboard is unavailable.
+    /// </summary>
+    [RelayCommand]
+    private async Task CopyCurrentRequestAsCurlAsync()
+    {
+        if (Clipboard is null)
+        {
+            return;
+        }
+
+        var draft = _requestEditor.BuildDraft();
+        var command = CurlFormatter.Format(draft.Method, draft.Url, draft.Body, draft.Headers);
+        await Clipboard.SetTextAsync(command);
+    }
+
     public void Dispose()
     {
         _environmentsViewModel.PropertyChanged -= OnEnvironmentsViewModelPropertyChanged;
@@ -1565,6 +1643,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             HasResponseHeaders = ResponseHeaders.Count > 0;
             UpdateResponsePresentation(response.Body, response.Headers);
+            HasTextResponse = HasResponseHeaders && !IsBinaryResponse;
             _httpRequestsLogger.Information("Manual request completed: {StatusCode} {ReasonPhrase}", response.StatusCode, response.ReasonPhrase);
 
             await LoadHistoryAsync();
