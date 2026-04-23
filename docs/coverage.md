@@ -6,7 +6,7 @@ This document describes the code coverage infrastructure and current status.
 
 As of the latest build:
 
-- **Line coverage:** 57.9% (248 of 428 lines)
+- **Line coverage:** 60.7% (260 of 428 lines)
 - **Branch coverage:** 77.9% (92 of 118 branches)
 
 Coverage reports are generated automatically in every CI build and available as artifacts.
@@ -61,14 +61,17 @@ start TestResults/coverage-report/index.html  # Windows
 
 ### Core Library (Arbor.HttpClient.Core)
 
-Current: **80.9%** line coverage, **80.7%** branch coverage
+Current: **85.1%** line coverage, **80.7%** branch coverage
 
 Areas needing improvement:
-- `RequestEnvironment` (0%) - no tests exist
-- `SavedRequest` (25%) - minimal coverage
-- `ScheduledJobConfig` (20%) - minimal coverage
 - `HttpResponseDetails` (71.4%) - some paths untested
 - `Collection` (66.6%) - some paths untested
+- `HttpRequestDiagnostics` (66.6%) - some paths untested
+
+Recently improved:
+- `RequestEnvironment`: 0% → **100%** ✅
+- `SavedRequest`: 25% → **100%** ✅
+- `ScheduledJobConfig`: 20% → **100%** ✅
 
 ### Testing Infrastructure (Arbor.HttpClient.Testing)
 

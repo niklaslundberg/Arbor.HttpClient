@@ -133,7 +133,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   - Prefer isolated unit tests first, then integration/E2E tests when unit tests are not sufficient
   - Maintain reasonably high coverage in the changed area. If code can be tested, add tests
   - For feature work, generate coverage reports locally and review them before committing
-  - Current project coverage baseline: 57.9% line coverage, 77.9% branch coverage (see `docs/coverage.md`)
+  - Current project coverage baseline: 60.7% line coverage, 77.9% branch coverage (see `docs/coverage.md`)
   - New code should not lower the overall coverage percentage
   - CI automatically generates and publishes coverage reports to the job summary
 - **Test naming convention**: Name tests using the `Method_Scenario_ExpectedResult` pattern (e.g. `Parse_EmptyInput_ThrowsArgumentException`). Each test should verify one behavioral intent; arrange test data explicitly rather than relying on implicit state.
