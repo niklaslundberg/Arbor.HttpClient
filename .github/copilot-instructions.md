@@ -32,6 +32,8 @@ Different agent surfaces load these instructions differently. The table below de
 | **GitHub Copilot coding agent** (cloud) | Loads `.github/copilot-instructions.md` automatically as system context | Nothing — automatic |
 | **Copilot Chat in VS Code** | Loads `.github/copilot-instructions.md` via `.vscode/settings.json` `codeGeneration.instructions` | Open the repository folder; settings take effect automatically |
 | **Copilot Chat (review selection)** | Loads `.github/copilot-instructions.md` + `docs/review-checklist.md` via `.vscode/settings.json` `reviewSelection.instructions` | Same as above |
+| **Claude coding agent** (Anthropic) | Loads `CLAUDE.md` automatically at session start | Nothing — automatic; `CLAUDE.md` references the canonical `.github/copilot-instructions.md` |
+| **Codex agent** (OpenAI) | Loads `AGENTS.md` automatically at session start | Nothing — automatic; `AGENTS.md` references the canonical `.github/copilot-instructions.md` |
 | **Reusable prompt files** | `.github/prompts/*.prompt.md` — reference with `#<filename>.prompt.md` in Copilot Chat | Type `#pr-checklist.prompt.md` etc. in the chat input |
 | **Third-party agents** (Cursor, Aider, etc.) | Do not auto-load; must be explicitly referenced | Start your session with: `Read and follow .github/copilot-instructions.md` — or use the `#code-standards.prompt.md` shorthand |
 
@@ -128,10 +130,15 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 - Treat compiler warnings, analyzer warnings, and runtime errors as real defects. Do not ignore or suppress them unless there is a documented and justified reason.
 - **Analyzer severity policy**: Promote correctness and security-sensitive Roslyn/CA rules to `warning` (or `error`). Keep style-only rules as `suggestion` to avoid noisy CI failures. Never silently suppress an analyzer diagnostic — add a code comment with the justification when suppression is truly necessary.
-- Any new or changed production code must include test coverage. Prefer isolated unit tests first, then integration/E2E tests when unit tests are not sufficient.
+- **Code coverage requirements**:
+  - Any new or changed production code must include test coverage
+  - Prefer isolated unit tests first, then integration/E2E tests when unit tests are not sufficient
+  - Maintain reasonably high coverage in the changed area. If code can be tested, add tests
+  - For feature work, generate coverage reports locally and review them before committing
+  - Current project coverage baseline: 60.7% line coverage, 77.9% branch coverage (see `docs/coverage.md`)
+  - New code should not lower the overall coverage percentage
+  - CI automatically generates and publishes coverage reports to the job summary
 - **Test naming convention**: Name tests using the `Method_Scenario_ExpectedResult` pattern (e.g. `Parse_EmptyInput_ThrowsArgumentException`). Each test should verify one behavioral intent; arrange test data explicitly rather than relying on implicit state.
-- Maintain reasonably high coverage in the changed area. If code can be tested, add tests.
-- For feature work, generate coverage reports and review them. CI must publish test and coverage outputs so they are visible during code review.
 - Profiling-oriented validation is required when changing request execution hot paths, scheduled/background job loops, data-processing loops, or code that introduces disposable/resource-heavy objects.
 - Treat code as a hot path when it runs on every request, for each item in a collection, or on a recurring timer. Profiling is optional for isolated admin/one-off flows.
 - Use JetBrains dotMemory Unit or equivalent tools (for example `dotnet-counters` or BenchmarkDotNet) to catch memory leaks, performance bottlenecks, or resource leaks. Attach profiling evidence in the PR when this requirement applies.

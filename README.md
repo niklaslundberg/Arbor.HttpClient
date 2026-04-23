@@ -46,6 +46,12 @@ Cross-platform desktop HTTP client built with **.NET 10**, **Avalonia 12**, and 
 
 - [`docs/architecture/clean-feature-separation.md`](docs/architecture/clean-feature-separation.md) — current architecture assessment, findings, and ordered next steps for feature isolation
 
+## Code Coverage
+
+- [`docs/coverage.md`](docs/coverage.md) — code coverage status, CI integration, and local report generation
+- Current coverage: **60.7%** line coverage, **77.9%** branch coverage
+- Coverage reports are generated automatically in every CI build
+
 ## Run
 
 ```bash
