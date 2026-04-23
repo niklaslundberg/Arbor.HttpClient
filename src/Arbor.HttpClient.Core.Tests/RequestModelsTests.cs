@@ -94,4 +94,79 @@ public class RequestModelsTests
         env.Variables[0].Name.Should().Be("baseUrl");
         env.Variables[1].Name.Should().Be("apiKey");
     }
+
+    [Fact]
+    public void Collection_ShouldStoreAllProperties()
+    {
+        var requests = new List<CollectionRequest>
+        {
+            new("Get Users", "GET", "/users", "Retrieves all users"),
+            new("Create User", "POST", "/users", "Creates a new user", "Requires admin role")
+        };
+
+        var collection = new Collection(42, "My Collection", "/path/to/source", "https://api.example.com", requests);
+
+        collection.Id.Should().Be(42);
+        collection.Name.Should().Be("My Collection");
+        collection.SourcePath.Should().Be("/path/to/source");
+        collection.BaseUrl.Should().Be("https://api.example.com");
+        collection.Requests.Should().HaveCount(2);
+        collection.Requests[0].Name.Should().Be("Get Users");
+        collection.Requests[1].Name.Should().Be("Create User");
+    }
+
+    [Fact]
+    public void Collection_ShouldAllowNullSourcePath()
+    {
+        var collection = new Collection(1, "Test", null, "https://example.com", new List<CollectionRequest>());
+
+        collection.SourcePath.Should().BeNull();
+    }
+
+    [Fact]
+    public void Collection_ShouldAllowNullBaseUrl()
+    {
+        var collection = new Collection(1, "Test", "/path", null, new List<CollectionRequest>());
+
+        collection.BaseUrl.Should().BeNull();
+    }
+
+    [Fact]
+    public void HttpRequestDiagnostics_ShouldStoreAllProperties()
+    {
+        var diagnostics = new HttpRequestDiagnostics(
+            "POST",
+            "https://api.example.com/endpoint",
+            "1.1",
+            "2.0",
+            "127.0.0.1",
+            "Tls12",
+            5.5,
+            12.3,
+            45.7,
+            102.4,
+            165.9);
+
+        diagnostics.Method.Should().Be("POST");
+        diagnostics.Url.Should().Be("https://api.example.com/endpoint");
+        diagnostics.RequestedHttpVersion.Should().Be("1.1");
+        diagnostics.ResponseHttpVersion.Should().Be("2.0");
+        diagnostics.DnsLookup.Should().Be("127.0.0.1");
+        diagnostics.TlsNegotiation.Should().Be("Tls12");
+        diagnostics.DnsLookupMilliseconds.Should().Be(5.5);
+        diagnostics.TlsNegotiationMilliseconds.Should().Be(12.3);
+        diagnostics.ResponseHeadersMilliseconds.Should().Be(45.7);
+        diagnostics.ResponseBodyMilliseconds.Should().Be(102.4);
+        diagnostics.TotalMilliseconds.Should().Be(165.9);
+    }
+
+    [Fact]
+    public void HttpRequestDiagnostics_ShouldHandleZeroTimings()
+    {
+        var diagnostics = new HttpRequestDiagnostics("GET", "https://example.com", "1.1", "1.1", "Skipped", "Not applicable", 0, 0, 0, 0, 0);
+
+        diagnostics.DnsLookupMilliseconds.Should().Be(0);
+        diagnostics.TlsNegotiationMilliseconds.Should().Be(0);
+        diagnostics.TotalMilliseconds.Should().Be(0);
+    }
 }
