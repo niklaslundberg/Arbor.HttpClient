@@ -12,9 +12,13 @@ Each idea includes a description of what it means in practice, notes on how it c
 | L | Large — 1–2 weeks; new subsystem, cross-cutting model change, or significant UI restructuring |
 | XL | Extra-large — multi-week; architectural change or major new feature area |
 
+> **Maintenance note:** On every PR, move implemented ideas to the [Implemented](#implemented) section at the bottom and add a reference to the PR number, commit SHA, and relevant file(s). See `.github/copilot-instructions.md` section 13 for the full workflow.
+
 ---
 
-## 1. Composer / Request Authoring
+## Not Yet Implemented
+
+### 1. Composer / Request Authoring
 
 ### 1.1 Paste cURL import
 **What it means:** A button or keyboard shortcut that detects a cURL command on the clipboard and pre-fills the method, URL, headers, and body automatically. Used daily in Postman and Insomnia to capture requests from browser DevTools.
