@@ -400,4 +400,16 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ---
 
+## Implemented
+
+> Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
+
+*No ideas have been implemented yet. When an idea ships, move its entry here from "Not Yet Implemented" and add an implementation reference in the format:*
+
+```
+> Implemented in PR #<number> (commit `<short-sha>`) — `src/path/to/Feature.cs`
+```
+
+---
+
 *Last updated: April 2026. Suggestions sourced from comparative review of Hoppscotch, Insomnia, Postman, Bruno, and browser DevTools.*

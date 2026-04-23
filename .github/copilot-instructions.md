@@ -23,6 +23,28 @@ The repository contains documentation that shapes how every task should be appro
 
 Reading these files ensures you apply the correct standards, avoid known pitfalls, and build on prior decisions rather than re-litigating them.
 
+### How agents consume these instructions
+
+Different agent surfaces load these instructions differently. The table below describes how each surface picks them up and what to do when a surface does not load them automatically.
+
+| Agent / Surface | How instructions are loaded | What to do if not auto-loaded |
+|---|---|---|
+| **GitHub Copilot coding agent** (cloud) | Loads `.github/copilot-instructions.md` automatically as system context | Nothing — automatic |
+| **Copilot Chat in VS Code** | Loads `.github/copilot-instructions.md` via `.vscode/settings.json` `codeGeneration.instructions` | Open the repository folder; settings take effect automatically |
+| **Copilot Chat (review selection)** | Loads `copilot-instructions.md` + `docs/review-checklist.md` via `.vscode/settings.json` `reviewSelection.instructions` | Same as above |
+| **Reusable prompt files** | `.github/prompts/*.prompt.md` — reference with `#<filename>.prompt.md` in Copilot Chat | Type `#pr-checklist.prompt.md` etc. in the chat input |
+| **Third-party agents** (Cursor, Aider, etc.) | Do not auto-load; must be explicitly referenced | Start your session with: `Read and follow .github/copilot-instructions.md` — or use the `#code-standards.prompt.md` shorthand |
+
+### Reusable prompt files
+
+The `.github/prompts/` directory contains focused, self-contained prompts for specific tasks. Each file can be used standalone (it contains the key rules) or as a shortcut that points to the full instructions.
+
+| Prompt file | When to use |
+|---|---|
+| `code-standards.prompt.md` | Start of any coding session with an agent that does not auto-load this file |
+| `pr-checklist.prompt.md` | End of every PR — generates the compliance checklist for the PR description |
+| `ux-review.prompt.md` | Any PR — guides the UX ideas maintenance task (section 13) |
+
 ## 1. Think Before Coding
 
 **Don't assume. Don't hide confusion. Surface tradeoffs.**
