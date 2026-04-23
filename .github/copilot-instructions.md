@@ -32,6 +32,8 @@ Different agent surfaces load these instructions differently. The table below de
 | **GitHub Copilot coding agent** (cloud) | Loads `.github/copilot-instructions.md` automatically as system context | Nothing — automatic |
 | **Copilot Chat in VS Code** | Loads `.github/copilot-instructions.md` via `.vscode/settings.json` `codeGeneration.instructions` | Open the repository folder; settings take effect automatically |
 | **Copilot Chat (review selection)** | Loads `.github/copilot-instructions.md` + `docs/review-checklist.md` via `.vscode/settings.json` `reviewSelection.instructions` | Same as above |
+| **Claude coding agent** (Anthropic) | Loads `CLAUDE.md` automatically at session start | Nothing — automatic; `CLAUDE.md` references the canonical `.github/copilot-instructions.md` |
+| **Codex agent** (OpenAI) | Loads `AGENTS.md` automatically at session start | Nothing — automatic; `AGENTS.md` references the canonical `.github/copilot-instructions.md` |
 | **Reusable prompt files** | `.github/prompts/*.prompt.md` — reference with `#<filename>.prompt.md` in Copilot Chat | Type `#pr-checklist.prompt.md` etc. in the chat input |
 | **Third-party agents** (Cursor, Aider, etc.) | Do not auto-load; must be explicitly referenced | Start your session with: `Read and follow .github/copilot-instructions.md` — or use the `#code-standards.prompt.md` shorthand |
 
