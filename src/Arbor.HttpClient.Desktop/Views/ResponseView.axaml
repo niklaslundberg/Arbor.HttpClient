@@ -48,8 +48,27 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="2" RowDefinitions="Auto,*">
-            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding App.IsBinaryResponse}">
+        <Grid Grid.Row="2" RowDefinitions="Auto,Auto,*">
+            <StackPanel Grid.Row="0"
+                        Orientation="Horizontal" Spacing="4"
+                        HorizontalAlignment="Right"
+                        IsVisible="{Binding App.HasTextResponse}"
+                        Margin="0,0,0,4">
+                <Button Content="📋 Copy body"
+                        AutomationProperties.Name="Copy response body to clipboard"
+                        ToolTip.Tip="Copy response body to clipboard"
+                        Command="{Binding App.CopyResponseBodyCommand}" />
+                <Button Content="💾 Save as file"
+                        AutomationProperties.Name="Save response body as file"
+                        ToolTip.Tip="Save response body as file"
+                        Command="{Binding App.SaveResponseBodyAsFileCommand}" />
+                <Button Content="⌨ Copy as cURL"
+                        AutomationProperties.Name="Copy current request as cURL"
+                        ToolTip.Tip="Copy current request as cURL command"
+                        Command="{Binding App.CopyCurrentRequestAsCurlCommand}" />
+            </StackPanel>
+
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" IsVisible="{Binding App.IsBinaryResponse}">
                 <TextBlock Text="Binary response" FontWeight="SemiBold" VerticalAlignment="Center" />
                 <Button Grid.Column="1" Content="Save and Open"
                         AutomationProperties.Name="Save binary response and open in external application"
@@ -57,7 +76,7 @@
                         Command="{Binding App.SaveBinaryResponseAndOpenCommand}" />
             </Grid>
 
-            <TabControl Grid.Row="1">
+            <TabControl Grid.Row="2">
                 <TabItem Header="{Binding App.ResponseBodyTabLabel}">
                     <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
                         <aedit:TextEditor x:Name="ResponseBodyEditor"
