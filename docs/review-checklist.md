@@ -1,0 +1,85 @@
+# PR Review Checklist
+
+This checklist collects review issues that have appeared in multiple pull requests. Apply these checks before every PR is marked ready for review.
+
+## CodeQL / Static Analysis
+
+These findings have recurred across multiple PRs and are caught by the CodeQL security workflow. Address them before pushing to avoid post-review fix commits.
+
+### Dispose IDisposable locals
+
+Wrap every locally created `IDisposable` in a `using` declaration or statement so it is disposed even when an exception is thrown.
+
+**Recurring locations:** `HttpResponseMessage` instances in test methods, `StreamReader`, `MemoryStream`.
+
+```csharp
+// ✗ Triggers CodeQL: CA2000 / Missing Dispose call on local IDisposable
+var response = new HttpResponseMessage();
+
+// ✓ Correct
+using var response = new HttpResponseMessage();
+```
+
+### Use `.Where()` instead of implicit filtering in `foreach`
+
+When a `foreach` loop filters its target sequence with an inner `if` condition, replace the `if` with a `.Where()` call on the collection. This makes the intent explicit and avoids the CodeQL "Missed opportunity to use Where" diagnostic.
+
+```csharp
+// ✗ Triggers CodeQL: implicit filter inside foreach
+foreach (var item in collection)
+{
+    if (item.IsActive)
+    {
+        Process(item);
+    }
+}
+
+// ✓ Correct
+foreach (var item in collection.Where(x => x.IsActive))
+{
+    Process(item);
+}
+```
+
+### Mark fields `readonly` when not mutated after construction
+
+Fields that are only assigned in the constructor and never mutated should be declared `readonly`. CodeQL reports this as "Missed 'readonly' opportunity".
+
+```csharp
+// ✗ Triggers CodeQL
+private SomeService _service;
+
+// ✓ Correct
+private readonly SomeService _service;
+```
+
+## UI Pull Requests
+
+Before merging any PR that touches UI code or theme resources:
+
+- [ ] All new/changed color pairs have been verified with the contrast-ratio formula in `AccessibilityContrastTests.cs` and meet WCAG AA (≥ 4.5:1 for normal text, ≥ 3:1 for large text).
+- [ ] Interactive elements remain keyboard-accessible (Tab, Enter/Space, arrow keys where applicable).
+- [ ] No purely visual text label has been replaced by an icon without an accessible name.
+- [ ] New interactive controls have been manually verified with keyboard-only navigation.
+- [ ] E2E screenshot tests have been run and output committed to `docs/screenshots/`.
+
+## Security
+
+- [ ] No secrets, tokens, or credentials committed.
+- [ ] No new HTTP/TLS configuration that downgrades security.
+- [ ] No sensitive data logged (credentials, PII, raw request bodies).
+- [ ] `persist-credentials: false` retained on `actions/checkout` steps.
+- [ ] Vulnerability audit (`dotnet list package --vulnerable --include-transitive`) passes with no findings.
+
+## Dependencies
+
+- [ ] New NuGet packages have a license compatible with MIT (see [license policy](.github/copilot-instructions.md#license-compatibility)).
+- [ ] New packages are declared in `Directory.Packages.props` (not inline in `.csproj`).
+- [ ] New packages are documented in `THIRD_PARTY_NOTICES.md`.
+
+## General
+
+- [ ] All tests pass (`dotnet test Arbor.HttpClient.slnx`).
+- [ ] No compiler warnings introduced.
+- [ ] No unrelated files modified.
+- [ ] PR description explains *what* changed and *why*.
