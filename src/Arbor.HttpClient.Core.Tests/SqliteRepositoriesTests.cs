@@ -9,7 +9,7 @@ public class SqliteRepositoriesTests
     [Fact]
     public async Task SqliteRequestHistoryRepository_SaveAndGetAsync_ShouldPersistAndRetrieveRequests()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"test_history_{Guid.NewGuid()}.db");
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_history_{Guid.NewGuid()}.db");
         try
         {
             var connectionString = $"Data Source={dbPath}";
