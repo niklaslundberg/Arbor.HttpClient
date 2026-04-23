@@ -1,0 +1,22 @@
+{
+  // Copilot Chat always-on instructions — ensures every chat session
+  // in this repository loads the project coding guidelines automatically.
+  "github.copilot.chat.codeGeneration.instructions": [
+    {
+      "file": ".github/copilot-instructions.md"
+    }
+  ],
+  "github.copilot.chat.reviewSelection.instructions": [
+    {
+      "file": ".github/copilot-instructions.md"
+    },
+    {
+      "file": "docs/review-checklist.md"
+    }
+  ],
+  "github.copilot.chat.commitMessageGeneration.instructions": [
+    {
+      "text": "Write commit messages in the imperative mood, lowercase, max 72 characters on the first line. Reference a GitHub issue number if the change closes one (e.g. 'fix null check in HttpRequestService, closes #42')."
+    }
+  ]
+}
