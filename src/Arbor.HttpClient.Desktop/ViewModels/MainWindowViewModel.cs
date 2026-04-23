@@ -827,6 +827,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         _requestEditor.RequestUrl = baseUrl.TrimEnd('/') + item.Path;
         _requestEditor.RequestName = item.Name;
+        _requestEditor.RequestNotes = item.Notes ?? string.Empty;
 
         if (item.Method is "POST" or "PUT" or "PATCH")
         {

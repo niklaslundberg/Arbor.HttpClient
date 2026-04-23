@@ -93,6 +93,9 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isRequestHeadersPreviewVisible;
 
+    [ObservableProperty]
+    private string _requestNotes = string.Empty;
+
     // ── Derived bool properties ───────────────────────────────────────────────
 
     public bool IsBearerAuthMode => SelectedAuthModeOption == AuthBearerOption;

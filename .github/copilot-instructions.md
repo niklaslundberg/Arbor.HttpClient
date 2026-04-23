@@ -4,6 +4,25 @@ Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-s
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
+## 0. Read All Markdown Files First
+
+**At the start of every session, read all Markdown files in the repository before making any decisions or changes.**
+
+The repository contains documentation that shapes how every task should be approached:
+
+| File | Purpose |
+|------|---------|
+| `README.md` | Project overview and quick-start |
+| `docs/ux-ideas.md` | UX enhancement backlog with scope estimates |
+| `docs/review-checklist.md` | Common CodeQL / security / UI review items to check before every PR |
+| `docs/security-review.md` | Security posture, findings, and guidelines for future PRs |
+| `docs/coding-guideline-suggestions.md` | Additional coding standards beyond those in this file |
+| `docs/architecture/clean-feature-separation.md` | Architecture decisions, findings, and ordered next steps |
+| `THIRD_PARTY_NOTICES.md` | Third-party dependency attribution |
+| `.github/copilot-instructions.md` | This file |
+
+Reading these files ensures you apply the correct standards, avoid known pitfalls, and build on prior decisions rather than re-litigating them.
+
 ## 1. Think Before Coding
 
 **Don't assume. Don't hide confusion. Surface tradeoffs.**

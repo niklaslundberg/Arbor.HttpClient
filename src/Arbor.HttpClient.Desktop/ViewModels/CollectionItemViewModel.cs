@@ -8,5 +8,6 @@ public sealed class CollectionItemViewModel(CollectionRequest request)
     public string Method { get; } = request.Method;
     public string Path { get; } = request.Path;
     public string? Description { get; } = request.Description;
+    public string? Notes { get; } = request.Notes;
     public CollectionRequest Request { get; } = request;
 }

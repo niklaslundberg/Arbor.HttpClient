@@ -29,11 +29,26 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
                 name TEXT NOT NULL,
                 method TEXT NOT NULL,
                 path TEXT NOT NULL,
-                description TEXT NULL
+                description TEXT NULL,
+                notes TEXT NULL
             );
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+        await using var migrateCommand = connection.CreateCommand();
+        migrateCommand.CommandText =
+            """
+            ALTER TABLE collection_requests ADD COLUMN notes TEXT NULL;
+            """;
+        try
+        {
+            await migrateCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (SqliteException)
+        {
+            // Column already exists — safe to ignore
+        }
     }
 
     public async Task<int> SaveAsync(string name, string? sourcePath, string? baseUrl, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken = default)
@@ -75,7 +90,7 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         cmd.CommandText =
             """
             SELECT c.id, c.name, c.source_path, c.base_url,
-                   r.name, r.method, r.path, r.description
+                   r.name, r.method, r.path, r.description, r.notes
             FROM collections c
             LEFT JOIN collection_requests r ON r.collection_id = c.id
             ORDER BY c.id, r.id;
@@ -99,7 +114,8 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
                     reader.GetString(4),
                     reader.GetString(5),
                     reader.GetString(6),
-                    reader.IsDBNull(7) ? null : reader.GetString(7)));
+                    reader.IsDBNull(7) ? null : reader.GetString(7),
+                    reader.IsDBNull(8) ? null : reader.GetString(8)));
             }
         }
 
@@ -138,14 +154,15 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         cmd.Transaction = transaction;
         cmd.CommandText =
             """
-            INSERT INTO collection_requests (collection_id, name, method, path, description)
-            VALUES ($collectionId, $name, $method, $path, $description);
+            INSERT INTO collection_requests (collection_id, name, method, path, description, notes)
+            VALUES ($collectionId, $name, $method, $path, $description, $notes);
             """;
         var pCollectionId = cmd.Parameters.Add("$collectionId", SqliteType.Integer);
         var pName = cmd.Parameters.Add("$name", SqliteType.Text);
         var pMethod = cmd.Parameters.Add("$method", SqliteType.Text);
         var pPath = cmd.Parameters.Add("$path", SqliteType.Text);
         var pDescription = cmd.Parameters.Add("$description", SqliteType.Text);
+        var pNotes = cmd.Parameters.Add("$notes", SqliteType.Text);
         pCollectionId.Value = collectionId;
 
         await cmd.PrepareAsync(cancellationToken).ConfigureAwait(false);
@@ -156,6 +173,7 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
             pMethod.Value = request.Method;
             pPath.Value = request.Path;
             pDescription.Value = request.Description ?? (object)DBNull.Value;
+            pNotes.Value = request.Notes ?? (object)DBNull.Value;
             await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
     }

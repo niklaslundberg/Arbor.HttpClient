@@ -242,6 +242,18 @@
                     </Border>
                 </Grid>
             </TabItem>
+
+            <TabItem Header="Notes">
+                <Grid Margin="0,8,0,0" RowDefinitions="Auto,*" RowSpacing="6">
+                    <TextBlock Text="Request notes (Markdown supported)" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBox Grid.Row="1"
+                             PlaceholderText="Document the purpose, expected responses, known quirks…"
+                             Text="{Binding App.RequestEditor.RequestNotes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             MinHeight="150" />
+                </Grid>
+            </TabItem>
         </TabControl>
     </Grid>
 </UserControl>
