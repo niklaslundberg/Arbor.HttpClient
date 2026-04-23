@@ -119,7 +119,7 @@ public partial class App : Application
                     inverseRedirectHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects, cookieContainer: sharedCookieContainer);
                     httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
                 },
-                sharedCookieContainer);
+                cookieContainer: sharedCookieContainer);
 
             var window = new MainWindow
             {

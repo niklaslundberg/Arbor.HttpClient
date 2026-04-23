@@ -39,6 +39,8 @@ public sealed partial class CookieJarViewModel : Tool
     {
         foreach (var entry in Cookies)
         {
+            // Setting Expires to the past is the standard way to evict a cookie from
+            // CookieContainer — the container holds references to the same Cookie objects.
             entry.Cookie.Expires = DateTime.UtcNow.AddDays(-1);
         }
 
@@ -53,6 +55,8 @@ public sealed partial class CookieJarViewModel : Tool
             return;
         }
 
+        // Setting Expires to the past is the standard way to evict a cookie from
+        // CookieContainer — the container holds references to the same Cookie objects.
         entry.Cookie.Expires = DateTime.UtcNow.AddDays(-1);
         RefreshCookies();
     }

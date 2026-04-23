@@ -95,6 +95,17 @@ public class CookieJarViewModelTests
     }
 
     [Fact]
+    public void CookieEntryViewModel_ValueChange_ShouldSyncToUnderlyingCookie()
+    {
+        var cookie = new Cookie("key", "original", "/", "example.com");
+        var entry = new CookieEntryViewModel(cookie);
+
+        entry.Value = "updated";
+
+        cookie.Value.Should().Be("updated");
+    }
+
+    [Fact]
     public void ClearAllCommand_ShouldExpireAllCookiesAndEmptyList()
     {
         var container = new CookieContainer();

@@ -9,6 +9,8 @@ public sealed partial class CookieEntryViewModel : ViewModelBase
     [ObservableProperty]
     private string _value;
 
+    partial void OnValueChanged(string value) => Cookie.Value = value;
+
     public string Name { get; }
     public string Domain { get; }
     public string Path { get; }
