@@ -138,6 +138,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   - Current project coverage baseline: 60.7% line coverage, 77.9% branch coverage (see `docs/coverage.md`)
   - New code should not lower the overall coverage percentage
   - CI automatically generates and publishes coverage reports to the job summary
+  - **[REQUIRED]** Coverage numbers reported in `docs/coverage.md` and the PR description must be sourced from an actual `dotnet test --collect:"XPlat Code Coverage"` run, not estimated. Never write coverage percentages unless you have collected and read the coverage XML output yourself.
 - **Test naming convention**: Name tests using the `Method_Scenario_ExpectedResult` pattern (e.g. `Parse_EmptyInput_ThrowsArgumentException`). Each test should verify one behavioral intent; arrange test data explicitly rather than relying on implicit state.
 - Profiling-oriented validation is required when changing request execution hot paths, scheduled/background job loops, data-processing loops, or code that introduces disposable/resource-heavy objects.
 - Treat code as a hot path when it runs on every request, for each item in a collection, or on a recurring timer. Profiling is optional for isolated admin/one-off flows.
@@ -295,6 +296,8 @@ Each PR is a learning event. When a task is complete, reflect on any friction, a
 
 At the end of every PR session, re-read all markdown files listed in section 0 and complete the following checklist. Include the completed checklist (with actual ✅ / ❌ / N/A values, not blank boxes) in the PR description.
 
+> **[BLOCKING]** The completed checklist **must** appear in the `prDescription` field of the **final** `report_progress` call that closes out the session. A `report_progress` call without the filled-in checklist in `prDescription` is non-compliant. Do not end the session until this step is complete.
+
 ```markdown
 ## PR Compliance Checklist
 
@@ -320,6 +323,7 @@ At the end of every PR session, re-read all markdown files listed in section 0 a
 ### From docs/architecture/clean-feature-separation.md
 - [ ] [RECOMMENDED] No new logic added to MainWindowViewModel that belongs in a feature VM
 - [ ] [RECOMMENDED] New features have at least one focused unit test not requiring the full UI runtime
+- [ ] [REQUIRED] Test project boundaries respected: tests for a library reference only that library (plus Arbor.HttpClient.Testing); no cross-layer project references added to existing test projects
 
 ### Instruction Improvement Loop (section 14)
 - [ ] [RECOMMENDED] Instruction Retrospective block written in PR description

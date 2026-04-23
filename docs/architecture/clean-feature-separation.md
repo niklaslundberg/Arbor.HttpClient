@@ -49,6 +49,7 @@ This document answers the architecture questions raised in [issue #33](https://g
 4. **Testing approach**
    - Add focused unit tests per feature VM using injected fakes from `Arbor.HttpClient.Testing`. Reserve E2E tests for integration confidence.
    - Start with the request editor (URL/headers/body/variables) and scheduler once their dependencies are interface-based.
+   - **[REQUIRED]** Test project boundaries must mirror library boundaries. Tests for a library project (e.g. `Arbor.HttpClient.Storage.Sqlite`) must live in a test project that references **only** that library plus `Arbor.HttpClient.Testing`. Do not add cross-layer `<ProjectReference>` entries to an existing test project. If no dedicated test project exists for the library being tested, create one (e.g. `Arbor.HttpClient.Storage.Sqlite.Tests`).
 
 5. **Reuse guidelines**
    - Extract reusable UI controls (request headers list, query parameters list, response body viewer) so they consume feature interfaces instead of the whole main VM.
