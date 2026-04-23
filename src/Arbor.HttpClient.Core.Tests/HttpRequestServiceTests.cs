@@ -216,4 +216,197 @@ public class HttpRequestServiceTests
         diagnostics.ResponseBodyMilliseconds.Should().BeGreaterThanOrEqualTo(0);
         diagnostics.TotalMilliseconds.Should().BeGreaterThanOrEqualTo(0);
     }
+
+    [Fact]
+    public async Task SendAsync_ShouldNotPublishDiagnostics_WhenDisabled()
+    {
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent("test")
+            });
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        HttpRequestDiagnostics? diagnostics = null;
+        service.SetHttpDiagnosticsObserver(entry => diagnostics = entry);
+        service.SetHttpDiagnosticsEnabled(false);
+
+        await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000/test", null));
+
+        diagnostics.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldRejectEmptyMethod()
+    {
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
+
+        var action = () => service.SendAsync(new HttpRequestDraft("Test", "", "https://example.com", null));
+
+        await action.Should().ThrowAsync<ArgumentException>().WithMessage("*HTTP method is required*");
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldRejectNullMethod()
+    {
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
+
+        var action = () => service.SendAsync(new HttpRequestDraft("Test", null!, "https://example.com", null));
+
+        await action.Should().ThrowAsync<ArgumentException>().WithMessage("*HTTP method is required*");
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldHandleResponseWithCustomCharset()
+    {
+        var handler = new StubHttpMessageHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent("test", Encoding.UTF8)
+            };
+            response.Content.Headers.ContentType!.CharSet = "utf-8";
+            return response;
+        });
+
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+
+        var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null));
+
+        response.Body.Should().Be("test");
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldHandleInvalidCharset()
+    {
+        var handler = new StubHttpMessageHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent("test", Encoding.UTF8)
+            };
+            response.Content.Headers.ContentType!.CharSet = "invalid-charset-name";
+            return response;
+        });
+
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+
+        var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null));
+
+        response.Body.Should().Be("test");
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldSkipHeadersWithEmptyName()
+    {
+        HttpRequestMessage? capturedRequest = null;
+        var handler = new StubHttpMessageHandler(req =>
+        {
+            capturedRequest = req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent(string.Empty)
+            };
+        });
+
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+
+        var headers = new[] { new RequestHeader("", "value") };
+        await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null, headers));
+
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.Headers.Count().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldIncludeResponseHeaders()
+    {
+        var handler = new StubHttpMessageHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent("test")
+            };
+            response.Headers.Add("X-Custom-Header", "custom-value");
+            return response;
+        });
+
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+
+        var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null));
+
+        response.Headers.Should().Contain(h => h.Name == "X-Custom-Header" && h.Value == "custom-value");
+    }
+
+    [Fact]
+    public void SetHttpClientFactory_ShouldThrowOnNull()
+    {
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
+
+        var action = () => service.SetHttpClientFactory((Func<global::System.Net.Http.HttpClient>)null!);
+
+        action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void SetHttpClientFactoryWithRedirectOverride_ShouldThrowOnNull()
+    {
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
+
+        var action = () => service.SetHttpClientFactory((Func<bool?, global::System.Net.Http.HttpClient>)null!);
+
+        action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void SetHttpDiagnosticsObserver_ShouldThrowOnNull()
+    {
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
+
+        var action = () => service.SetHttpDiagnosticsObserver(null!);
+
+        action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldUseRequestNameInHistory_WhenProvided()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent("test")
+            });
+
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+
+        await service.SendAsync(new HttpRequestDraft("My Custom Request", "GET", "https://example.com/path", null));
+
+        repository.Items.Should().ContainSingle();
+        repository.Items[0].Name.Should().Be("My Custom Request");
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldUseUrlAsName_WhenNameIsEmpty()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent("test")
+            });
+
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+
+        await service.SendAsync(new HttpRequestDraft("", "GET", "https://example.com/path", null));
+
+        repository.Items.Should().ContainSingle();
+        repository.Items[0].Name.Should().Be("https://example.com/path");
+    }
 }
