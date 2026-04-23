@@ -18,7 +18,7 @@ description: Review docs/ux-ideas.md and update the Implemented / Not Yet Implem
 ## Format for implemented entries
 
 ```markdown
-### N.N Feature Name ✅ Implemented
+### 1.1 Feature Name ✅ Implemented
 > Implemented in PR #<number> (commit `<short-sha>`) — `src/path/to/Feature.cs`
 
 **What it means:** <original description retained verbatim>
