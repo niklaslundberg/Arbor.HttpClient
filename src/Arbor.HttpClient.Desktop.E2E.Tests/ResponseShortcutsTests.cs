@@ -65,7 +65,8 @@ public class ResponseShortcutsTests
 
         var result = await session.Dispatch(() =>
         {
-            using var viewModel = CreateViewModel(new HttpResponseMessage(HttpStatusCode.OK));
+            using var response = new HttpResponseMessage(HttpStatusCode.OK);
+            using var viewModel = CreateViewModel(response);
             return Task.FromResult(viewModel.HasTextResponse);
         }, CancellationToken.None);
 
@@ -79,7 +80,7 @@ public class ResponseShortcutsTests
 
         var result = await session.Dispatch(async () =>
         {
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            using var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
             };
@@ -102,7 +103,7 @@ public class ResponseShortcutsTests
 
         var result = await session.Dispatch(async () =>
         {
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            using var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new ByteArrayContent([0xFF, 0xD8, 0xFF])
             };
@@ -127,7 +128,7 @@ public class ResponseShortcutsTests
 
         var clipboardText = await session.Dispatch(async () =>
         {
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            using var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("{\"hello\":\"world\"}", Encoding.UTF8, "application/json")
             };
@@ -161,7 +162,7 @@ public class ResponseShortcutsTests
 
         await session.Dispatch(async () =>
         {
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            using var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("test body", Encoding.UTF8, "text/plain")
             };
@@ -186,7 +187,7 @@ public class ResponseShortcutsTests
 
         var clipboardText = await session.Dispatch(async () =>
         {
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            using var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("{}", Encoding.UTF8, "application/json")
             };
@@ -223,7 +224,7 @@ public class ResponseShortcutsTests
 
         await session.Dispatch(async () =>
         {
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            using var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("body text", Encoding.UTF8, "text/plain")
             };
