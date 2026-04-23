@@ -65,6 +65,7 @@ public partial class App : Application
             }
 
             // Services
+            var sharedCookieContainer = new System.Net.CookieContainer();
             var httpClient = new global::System.Net.Http.HttpClient();
             var httpRequestService = new HttpRequestService(httpClient, historyRepository);
             httpRequestService.SetHttpDiagnosticsObserver(diagnostics =>
@@ -82,8 +83,8 @@ public partial class App : Application
                     diagnostics.ResponseBodyMilliseconds,
                     diagnostics.TotalMilliseconds));
             httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
-            var configuredHttpClient = CreateHttpClient(currentOptions.Http);
-            var inverseRedirectHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects);
+            var configuredHttpClient = CreateHttpClient(currentOptions.Http, cookieContainer: sharedCookieContainer);
+            var inverseRedirectHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects, cookieContainer: sharedCookieContainer);
             var retiredHttpClients = new List<global::System.Net.Http.HttpClient>();
             httpRequestService.SetHttpClientFactory(followRedirectsOverride =>
             {
@@ -114,10 +115,11 @@ public partial class App : Application
                     currentOptions = updatedOptions;
                     retiredHttpClients.Add(configuredHttpClient);
                     retiredHttpClients.Add(inverseRedirectHttpClient);
-                    configuredHttpClient = CreateHttpClient(currentOptions.Http);
-                    inverseRedirectHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects);
+                    configuredHttpClient = CreateHttpClient(currentOptions.Http, cookieContainer: sharedCookieContainer);
+                    inverseRedirectHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects, cookieContainer: sharedCookieContainer);
                     httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
-                });
+                },
+                sharedCookieContainer);
 
             var window = new MainWindow
             {
@@ -165,7 +167,7 @@ public partial class App : Application
         }
     }
 
-    private static global::System.Net.Http.HttpClient CreateHttpClient(HttpOptions options, bool? followRedirectsOverride = null)
+    private static global::System.Net.Http.HttpClient CreateHttpClient(HttpOptions options, bool? followRedirectsOverride = null, System.Net.CookieContainer? cookieContainer = null)
     {
         // SslProtocols.Tls/Tls11 are obsolete symbols, so their numeric values are used explicitly
         // to support import/export compatibility for legacy protocol selections.
@@ -187,6 +189,12 @@ public partial class App : Application
                 }
             }
         };
+
+        if (cookieContainer is not null)
+        {
+            handler.UseCookies = true;
+            handler.CookieContainer = cookieContainer;
+        }
 
         return new global::System.Net.Http.HttpClient(handler, disposeHandler: true);
     }
