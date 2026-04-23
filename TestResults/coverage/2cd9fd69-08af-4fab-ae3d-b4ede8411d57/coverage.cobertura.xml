@@ -1,0 +1,1790 @@
+<?xml version="1.0" encoding="utf-8"?>
+<coverage line-rate="0.5794" branch-rate="0.7796" version="1.9" timestamp="1776980370" lines-covered="248" lines-valid="428" branches-covered="92" branches-valid="118">
+  <sources>
+    <source>/home/runner/work/Arbor.HttpClient/Arbor.HttpClient/src/</source>
+  </sources>
+  <packages>
+    <package name="Arbor.HttpClient.Core" line-rate="0.8090999999999999" branch-rate="0.807" complexity="170">
+      <classes>
+        <class name="Arbor.HttpClient.Core.Services.CurlFormatter" filename="Arbor.HttpClient.Core/Services/CurlFormatter.cs" line-rate="1" branch-rate="0.9375" complexity="18">
+          <methods>
+            <method name="Format" signature="(System.String,System.String,System.String,System.Collections.Generic.IReadOnlyList`1&lt;Arbor.HttpClient.Core.Models.RequestHeader&gt;)" line-rate="1" branch-rate="0.9375" complexity="16">
+              <lines>
+                <line number="21" hits="9" branch="False" />
+                <line number="22" hits="9" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="9" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="23" hits="1" branch="False" />
+                <line number="24" hits="1" branch="False" />
+                <line number="27" hits="8" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="34" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="28" hits="8" branch="False" />
+                <line number="29" hits="8" branch="False" />
+                <line number="31" hits="8" branch="False" />
+                <line number="32" hits="8" branch="False" />
+                <line number="34" hits="8" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="108" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="35" hits="1" branch="False" />
+                <line number="36" hits="9" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="231" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="37" hits="3" branch="False" />
+                <line number="38" hits="3" branch="True" condition-coverage="100% (4/4)">
+                  <conditions>
+                    <condition number="142" type="jump" coverage="100%" />
+                    <condition number="163" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="39" hits="1" branch="False" />
+                <line number="40" hits="1" branch="False" />
+                <line number="43" hits="2" branch="True" condition-coverage="50% (1/2)">
+                  <conditions>
+                    <condition number="199" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="44" hits="2" branch="False" />
+                <line number="45" hits="1" branch="False" />
+                <line number="47" hits="8" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="262" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="48" hits="3" branch="False" />
+                <line number="49" hits="3" branch="False" />
+                <line number="50" hits="3" branch="False" />
+                <line number="52" hits="8" branch="False" />
+                <line number="53" hits="8" branch="False" />
+              </lines>
+            </method>
+            <method name="Format" signature="(Arbor.HttpClient.Core.Models.SavedRequest,System.Collections.Generic.IReadOnlyList`1&lt;Arbor.HttpClient.Core.Models.RequestHeader&gt;)" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="56" hits="1" branch="False" />
+                <line number="57" hits="1" branch="False" />
+                <line number="58" hits="1" branch="False" />
+                <line number="59" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="ShellEscape" signature="(System.String)" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="62" hits="13" branch="False" />
+                <line number="65" hits="13" branch="False" />
+                <line number="66" hits="13" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="21" hits="9" branch="False" />
+            <line number="22" hits="9" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="9" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="23" hits="1" branch="False" />
+            <line number="24" hits="1" branch="False" />
+            <line number="27" hits="8" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="34" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="28" hits="8" branch="False" />
+            <line number="29" hits="8" branch="False" />
+            <line number="31" hits="8" branch="False" />
+            <line number="32" hits="8" branch="False" />
+            <line number="34" hits="8" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="108" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="35" hits="1" branch="False" />
+            <line number="36" hits="9" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="231" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="37" hits="3" branch="False" />
+            <line number="38" hits="3" branch="True" condition-coverage="100% (4/4)">
+              <conditions>
+                <condition number="142" type="jump" coverage="100%" />
+                <condition number="163" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="39" hits="1" branch="False" />
+            <line number="40" hits="1" branch="False" />
+            <line number="43" hits="2" branch="True" condition-coverage="50% (1/2)">
+              <conditions>
+                <condition number="199" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="44" hits="2" branch="False" />
+            <line number="45" hits="1" branch="False" />
+            <line number="47" hits="8" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="262" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="48" hits="3" branch="False" />
+            <line number="49" hits="3" branch="False" />
+            <line number="50" hits="3" branch="False" />
+            <line number="52" hits="8" branch="False" />
+            <line number="53" hits="8" branch="False" />
+            <line number="56" hits="1" branch="False" />
+            <line number="57" hits="1" branch="False" />
+            <line number="58" hits="1" branch="False" />
+            <line number="59" hits="1" branch="False" />
+            <line number="62" hits="13" branch="False" />
+            <line number="65" hits="13" branch="False" />
+            <line number="66" hits="13" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Services.HttpRequestService" filename="Arbor.HttpClient.Core/Services/HttpRequestService.cs" line-rate="1" branch-rate="0.625" complexity="9">
+          <methods>
+            <method name="SetHttpClientFactory" signature="(System.Func`1&lt;System.Net.Http.HttpClient&gt;)" line-rate="1" branch-rate="0.5" complexity="2">
+              <lines>
+                <line number="24" hits="1" branch="False" />
+                <line number="25" hits="1" branch="True" condition-coverage="50% (1/2)">
+                  <conditions>
+                    <condition number="4" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="26" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="SetHttpClientFactory" signature="(System.Func`2&lt;System.Nullable`1&lt;System.Boolean&gt;,System.Net.Http.HttpClient&gt;)" line-rate="1" branch-rate="0.5" complexity="2">
+              <lines>
+                <line number="29" hits="1" branch="False" />
+                <line number="30" hits="1" branch="True" condition-coverage="50% (1/2)">
+                  <conditions>
+                    <condition number="4" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="31" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="SetHttpDiagnosticsEnabled" signature="(System.Boolean)" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="33" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="SetHttpDiagnosticsObserver" signature="(System.Action`1&lt;Arbor.HttpClient.Core.Models.HttpRequestDiagnostics&gt;)" line-rate="1" branch-rate="0.5" complexity="2">
+              <lines>
+                <line number="36" hits="1" branch="False" />
+                <line number="37" hits="1" branch="True" condition-coverage="50% (1/2)">
+                  <conditions>
+                    <condition number="4" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="38" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name=".ctor" signature="(System.Net.Http.HttpClient,Arbor.HttpClient.Core.Abstractions.IRequestHistoryRepository,System.TimeProvider)" line-rate="1" branch-rate="1" complexity="2">
+              <lines>
+                <line number="13" hits="9" branch="False" />
+                <line number="15" hits="9" branch="False" />
+                <line number="16" hits="9" branch="False" />
+                <line number="17" hits="9" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="17" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="24" hits="1" branch="False" />
+            <line number="25" hits="1" branch="True" condition-coverage="50% (1/2)">
+              <conditions>
+                <condition number="4" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="26" hits="1" branch="False" />
+            <line number="29" hits="1" branch="False" />
+            <line number="30" hits="1" branch="True" condition-coverage="50% (1/2)">
+              <conditions>
+                <condition number="4" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="31" hits="1" branch="False" />
+            <line number="33" hits="1" branch="False" />
+            <line number="36" hits="1" branch="False" />
+            <line number="37" hits="1" branch="True" condition-coverage="50% (1/2)">
+              <conditions>
+                <condition number="4" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="38" hits="1" branch="False" />
+            <line number="13" hits="9" branch="False" />
+            <line number="15" hits="9" branch="False" />
+            <line number="16" hits="9" branch="False" />
+            <line number="17" hits="9" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="17" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Services.HttpRequestService/&lt;&gt;c" filename="Arbor.HttpClient.Core/Services/HttpRequestService.cs" line-rate="1" branch-rate="1" complexity="4">
+          <methods>
+            <method name="&lt;SendAsync&gt;b__12_0" signature="(Arbor.HttpClient.Core.Models.RequestHeader)" line-rate="1" branch-rate="1" complexity="2">
+              <lines>
+                <line number="60" hits="12" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="6" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+              </lines>
+            </method>
+            <method name="&lt;SendAsync&gt;b__12_2" signature="(System.Net.IPAddress)" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="101" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="&lt;SendAsync&gt;b__12_1" signature="(System.Collections.Generic.KeyValuePair`2&lt;System.String,System.Collections.Generic.IEnumerable`1&lt;System.String&gt;&gt;)" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="141" hits="36" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="60" hits="12" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="6" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="101" hits="1" branch="False" />
+            <line number="141" hits="36" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Services.HttpRequestService/&lt;ProbeTlsAsync&gt;d__13" filename="Arbor.HttpClient.Core/Services/HttpRequestService.cs" line-rate="0" branch-rate="0" complexity="2">
+          <methods>
+            <method name="MoveNext" signature="()" line-rate="0" branch-rate="0" complexity="2">
+              <lines>
+                <line number="184" hits="0" branch="False" />
+                <line number="186" hits="0" branch="False" />
+                <line number="187" hits="0" branch="False" />
+                <line number="188" hits="0" branch="True" condition-coverage="0% (0/2)">
+                  <conditions>
+                    <condition number="72" type="jump" coverage="0%" />
+                  </conditions>
+                </line>
+                <line number="189" hits="0" branch="False" />
+                <line number="190" hits="0" branch="False" />
+                <line number="191" hits="0" branch="False" />
+                <line number="192" hits="0" branch="False" />
+                <line number="193" hits="0" branch="False" />
+                <line number="194" hits="0" branch="False" />
+                <line number="195" hits="0" branch="False" />
+                <line number="196" hits="0" branch="False" />
+                <line number="197" hits="0" branch="False" />
+                <line number="198" hits="0" branch="False" />
+                <line number="199" hits="0" branch="False" />
+                <line number="201" hits="0" branch="False" />
+                <line number="202" hits="0" branch="False" />
+                <line number="203" hits="0" branch="False" />
+                <line number="205" hits="0" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="184" hits="0" branch="False" />
+            <line number="186" hits="0" branch="False" />
+            <line number="187" hits="0" branch="False" />
+            <line number="188" hits="0" branch="True" condition-coverage="0% (0/2)">
+              <conditions>
+                <condition number="72" type="jump" coverage="0%" />
+              </conditions>
+            </line>
+            <line number="189" hits="0" branch="False" />
+            <line number="190" hits="0" branch="False" />
+            <line number="191" hits="0" branch="False" />
+            <line number="192" hits="0" branch="False" />
+            <line number="193" hits="0" branch="False" />
+            <line number="194" hits="0" branch="False" />
+            <line number="195" hits="0" branch="False" />
+            <line number="196" hits="0" branch="False" />
+            <line number="197" hits="0" branch="False" />
+            <line number="198" hits="0" branch="False" />
+            <line number="199" hits="0" branch="False" />
+            <line number="201" hits="0" branch="False" />
+            <line number="202" hits="0" branch="False" />
+            <line number="203" hits="0" branch="False" />
+            <line number="205" hits="0" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Services.HttpRequestService/&lt;SendAsync&gt;d__12" filename="Arbor.HttpClient.Core/Services/HttpRequestService.cs" line-rate="0.8848999999999999" branch-rate="0.862" complexity="58">
+          <methods>
+            <method name="MoveNext" signature="()" line-rate="0.8848999999999999" branch-rate="0.862" complexity="58">
+              <lines>
+                <line number="41" hits="10" branch="False" />
+                <line number="42" hits="10" branch="True" condition-coverage="50% (1/2)">
+                  <conditions>
+                    <condition number="37" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="43" hits="0" branch="False" />
+                <line number="44" hits="0" branch="False" />
+                <line number="47" hits="10" branch="True" condition-coverage="100% (8/8)">
+                  <conditions>
+                    <condition number="106" type="jump" coverage="100%" />
+                    <condition number="133" type="jump" coverage="100%" />
+                    <condition number="147" type="jump" coverage="100%" />
+                    <condition number="178" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="48" hits="1" branch="False" />
+                <line number="49" hits="1" branch="False" />
+                <line number="52" hits="9" branch="False" />
+                <line number="53" hits="9" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="300" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="54" hits="1" branch="False" />
+                <line number="55" hits="1" branch="False" />
+                <line number="56" hits="1" branch="False" />
+                <line number="57" hits="1" branch="False" />
+                <line number="59" hits="9" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="353" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="62" hits="9" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="423" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="63" hits="1" branch="False" />
+                <line number="64" hits="1" branch="True" condition-coverage="50% (1/2)">
+                  <conditions>
+                    <condition number="438" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="65" hits="1" branch="False" />
+                <line number="66" hits="1" branch="False" />
+                <line number="67" hits="1" branch="False" />
+                <line number="69" hits="9" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="518" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="70" hits="3" branch="False" />
+                <line number="71" hits="15" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="700" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="72" hits="3" branch="False" />
+                <line number="73" hits="3" branch="True" condition-coverage="100% (4/4)">
+                  <conditions>
+                    <condition number="581" type="jump" coverage="100%" />
+                    <condition number="606" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="74" hits="1" branch="False" />
+                <line number="75" hits="1" branch="False" />
+                <line number="78" hits="2" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="637" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="79" hits="1" branch="False" />
+                <line number="80" hits="1" branch="False" />
+                <line number="83" hits="1" branch="False" />
+                <line number="84" hits="1" branch="False" />
+                <line number="85" hits="3" branch="False" />
+                <line number="87" hits="9" branch="True" condition-coverage="100% (8/8)">
+                  <conditions>
+                    <condition number="753" type="jump" coverage="100%" />
+                    <condition number="776" type="jump" coverage="100%" />
+                    <condition number="791" type="jump" coverage="100%" />
+                    <condition number="803" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="88" hits="9" branch="False" />
+                <line number="89" hits="9" branch="False" />
+                <line number="91" hits="9" branch="False" />
+                <line number="92" hits="9" branch="False" />
+                <line number="93" hits="9" branch="False" />
+                <line number="94" hits="9" branch="False" />
+                <line number="95" hits="9" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="893" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="96" hits="1" branch="False" />
+                <line number="98" hits="1" branch="False" />
+                <line number="99" hits="1" branch="False" />
+                <line number="100" hits="1" branch="True" condition-coverage="50% (1/2)">
+                  <conditions>
+                    <condition number="1066" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="102" hits="1" branch="False" />
+                <line number="103" hits="1" branch="False" />
+                <line number="104" hits="0" branch="False" />
+                <line number="105" hits="0" branch="False" />
+                <line number="106" hits="0" branch="False" />
+                <line number="107" hits="0" branch="False" />
+                <line number="108" hits="1" branch="False" />
+                <line number="109" hits="9" branch="False" />
+                <line number="111" hits="9" branch="False" />
+                <line number="112" hits="9" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="1229" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="113" hits="9" branch="True" condition-coverage="75% (3/4)">
+                  <conditions>
+                    <condition number="1259" type="jump" coverage="100%" />
+                    <condition number="1289" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="114" hits="0" branch="False" />
+                <line number="115" hits="0" branch="False" />
+                <line number="116" hits="0" branch="False" />
+                <line number="117" hits="9" branch="False" />
+                <line number="119" hits="9" branch="False" />
+                <line number="120" hits="9" branch="False" />
+                <line number="121" hits="9" branch="False" />
+                <line number="123" hits="9" branch="False" />
+                <line number="124" hits="9" branch="False" />
+                <line number="125" hits="9" branch="False" />
+                <line number="126" hits="9" branch="True" condition-coverage="50% (1/2)">
+                  <conditions>
+                    <condition number="1844" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="129" hits="9" branch="False" />
+                <line number="130" hits="9" branch="True" condition-coverage="50% (1/2)">
+                  <conditions>
+                    <condition number="1873" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="131" hits="9" branch="False" />
+                <line number="132" hits="0" branch="False" />
+                <line number="133" hits="0" branch="False" />
+                <line number="134" hits="0" branch="False" />
+                <line number="135" hits="0" branch="False" />
+                <line number="137" hits="9" branch="False" />
+                <line number="139" hits="9" branch="False" />
+                <line number="140" hits="9" branch="False" />
+                <line number="142" hits="9" branch="False" />
+                <line number="144" hits="9" branch="True" condition-coverage="50% (1/2)">
+                  <conditions>
+                    <condition number="2046" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="145" hits="9" branch="False" />
+                <line number="146" hits="9" branch="False" />
+                <line number="147" hits="9" branch="False" />
+                <line number="148" hits="9" branch="False" />
+                <line number="149" hits="9" branch="False" />
+                <line number="150" hits="9" branch="False" />
+                <line number="151" hits="9" branch="False" />
+                <line number="153" hits="9" branch="True" condition-coverage="100% (4/4)">
+                  <conditions>
+                    <condition number="2252" type="jump" coverage="100%" />
+                    <condition number="2278" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="154" hits="1" branch="False" />
+                <line number="155" hits="1" branch="False" />
+                <line number="156" hits="1" branch="False" />
+                <line number="157" hits="1" branch="False" />
+                <line number="158" hits="1" branch="False" />
+                <line number="159" hits="1" branch="False" />
+                <line number="160" hits="1" branch="False" />
+                <line number="161" hits="1" branch="False" />
+                <line number="162" hits="1" branch="False" />
+                <line number="163" hits="1" branch="False" />
+                <line number="164" hits="1" branch="False" />
+                <line number="165" hits="1" branch="False" />
+                <line number="166" hits="1" branch="False" />
+                <line number="167" hits="1" branch="False" />
+                <line number="168" hits="1" branch="False" />
+                <line number="170" hits="8" branch="False" />
+                <line number="171" hits="8" branch="False" />
+                <line number="172" hits="8" branch="False" />
+                <line number="174" hits="9" branch="True" condition-coverage="50% (1/2)">
+                  <conditions>
+                    <condition number="2515" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="175" hits="9" branch="False" />
+                <line number="176" hits="9" branch="False" />
+                <line number="177" hits="9" branch="False" />
+                <line number="178" hits="9" branch="False" />
+                <line number="179" hits="9" branch="False" />
+                <line number="180" hits="9" branch="False" />
+                <line number="181" hits="9" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="41" hits="10" branch="False" />
+            <line number="42" hits="10" branch="True" condition-coverage="50% (1/2)">
+              <conditions>
+                <condition number="37" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="43" hits="0" branch="False" />
+            <line number="44" hits="0" branch="False" />
+            <line number="47" hits="10" branch="True" condition-coverage="100% (8/8)">
+              <conditions>
+                <condition number="106" type="jump" coverage="100%" />
+                <condition number="133" type="jump" coverage="100%" />
+                <condition number="147" type="jump" coverage="100%" />
+                <condition number="178" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="48" hits="1" branch="False" />
+            <line number="49" hits="1" branch="False" />
+            <line number="52" hits="9" branch="False" />
+            <line number="53" hits="9" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="300" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="54" hits="1" branch="False" />
+            <line number="55" hits="1" branch="False" />
+            <line number="56" hits="1" branch="False" />
+            <line number="57" hits="1" branch="False" />
+            <line number="59" hits="9" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="353" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="62" hits="9" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="423" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="63" hits="1" branch="False" />
+            <line number="64" hits="1" branch="True" condition-coverage="50% (1/2)">
+              <conditions>
+                <condition number="438" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="65" hits="1" branch="False" />
+            <line number="66" hits="1" branch="False" />
+            <line number="67" hits="1" branch="False" />
+            <line number="69" hits="9" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="518" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="70" hits="3" branch="False" />
+            <line number="71" hits="15" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="700" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="72" hits="3" branch="False" />
+            <line number="73" hits="3" branch="True" condition-coverage="100% (4/4)">
+              <conditions>
+                <condition number="581" type="jump" coverage="100%" />
+                <condition number="606" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="74" hits="1" branch="False" />
+            <line number="75" hits="1" branch="False" />
+            <line number="78" hits="2" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="637" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="79" hits="1" branch="False" />
+            <line number="80" hits="1" branch="False" />
+            <line number="83" hits="1" branch="False" />
+            <line number="84" hits="1" branch="False" />
+            <line number="85" hits="3" branch="False" />
+            <line number="87" hits="9" branch="True" condition-coverage="100% (8/8)">
+              <conditions>
+                <condition number="753" type="jump" coverage="100%" />
+                <condition number="776" type="jump" coverage="100%" />
+                <condition number="791" type="jump" coverage="100%" />
+                <condition number="803" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="88" hits="9" branch="False" />
+            <line number="89" hits="9" branch="False" />
+            <line number="91" hits="9" branch="False" />
+            <line number="92" hits="9" branch="False" />
+            <line number="93" hits="9" branch="False" />
+            <line number="94" hits="9" branch="False" />
+            <line number="95" hits="9" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="893" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="96" hits="1" branch="False" />
+            <line number="98" hits="1" branch="False" />
+            <line number="99" hits="1" branch="False" />
+            <line number="100" hits="1" branch="True" condition-coverage="50% (1/2)">
+              <conditions>
+                <condition number="1066" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="102" hits="1" branch="False" />
+            <line number="103" hits="1" branch="False" />
+            <line number="104" hits="0" branch="False" />
+            <line number="105" hits="0" branch="False" />
+            <line number="106" hits="0" branch="False" />
+            <line number="107" hits="0" branch="False" />
+            <line number="108" hits="1" branch="False" />
+            <line number="109" hits="9" branch="False" />
+            <line number="111" hits="9" branch="False" />
+            <line number="112" hits="9" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="1229" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="113" hits="9" branch="True" condition-coverage="75% (3/4)">
+              <conditions>
+                <condition number="1259" type="jump" coverage="100%" />
+                <condition number="1289" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="114" hits="0" branch="False" />
+            <line number="115" hits="0" branch="False" />
+            <line number="116" hits="0" branch="False" />
+            <line number="117" hits="9" branch="False" />
+            <line number="119" hits="9" branch="False" />
+            <line number="120" hits="9" branch="False" />
+            <line number="121" hits="9" branch="False" />
+            <line number="123" hits="9" branch="False" />
+            <line number="124" hits="9" branch="False" />
+            <line number="125" hits="9" branch="False" />
+            <line number="126" hits="9" branch="True" condition-coverage="50% (1/2)">
+              <conditions>
+                <condition number="1844" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="129" hits="9" branch="False" />
+            <line number="130" hits="9" branch="True" condition-coverage="50% (1/2)">
+              <conditions>
+                <condition number="1873" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="131" hits="9" branch="False" />
+            <line number="132" hits="0" branch="False" />
+            <line number="133" hits="0" branch="False" />
+            <line number="134" hits="0" branch="False" />
+            <line number="135" hits="0" branch="False" />
+            <line number="137" hits="9" branch="False" />
+            <line number="139" hits="9" branch="False" />
+            <line number="140" hits="9" branch="False" />
+            <line number="142" hits="9" branch="False" />
+            <line number="144" hits="9" branch="True" condition-coverage="50% (1/2)">
+              <conditions>
+                <condition number="2046" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="145" hits="9" branch="False" />
+            <line number="146" hits="9" branch="False" />
+            <line number="147" hits="9" branch="False" />
+            <line number="148" hits="9" branch="False" />
+            <line number="149" hits="9" branch="False" />
+            <line number="150" hits="9" branch="False" />
+            <line number="151" hits="9" branch="False" />
+            <line number="153" hits="9" branch="True" condition-coverage="100% (4/4)">
+              <conditions>
+                <condition number="2252" type="jump" coverage="100%" />
+                <condition number="2278" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="154" hits="1" branch="False" />
+            <line number="155" hits="1" branch="False" />
+            <line number="156" hits="1" branch="False" />
+            <line number="157" hits="1" branch="False" />
+            <line number="158" hits="1" branch="False" />
+            <line number="159" hits="1" branch="False" />
+            <line number="160" hits="1" branch="False" />
+            <line number="161" hits="1" branch="False" />
+            <line number="162" hits="1" branch="False" />
+            <line number="163" hits="1" branch="False" />
+            <line number="164" hits="1" branch="False" />
+            <line number="165" hits="1" branch="False" />
+            <line number="166" hits="1" branch="False" />
+            <line number="167" hits="1" branch="False" />
+            <line number="168" hits="1" branch="False" />
+            <line number="170" hits="8" branch="False" />
+            <line number="171" hits="8" branch="False" />
+            <line number="172" hits="8" branch="False" />
+            <line number="174" hits="9" branch="True" condition-coverage="50% (1/2)">
+              <conditions>
+                <condition number="2515" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="175" hits="9" branch="False" />
+            <line number="176" hits="9" branch="False" />
+            <line number="177" hits="9" branch="False" />
+            <line number="178" hits="9" branch="False" />
+            <line number="179" hits="9" branch="False" />
+            <line number="180" hits="9" branch="False" />
+            <line number="181" hits="9" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Services.OpenApiImportService" filename="Arbor.HttpClient.Core/Services/OpenApiImportService.cs" line-rate="0.9375" branch-rate="0.6363" complexity="23">
+          <methods>
+            <method name="Import" signature="(System.IO.Stream,System.String)" line-rate="0.9354" branch-rate="0.6363" complexity="22">
+              <lines>
+                <line number="12" hits="6" branch="False" />
+                <line number="13" hits="6" branch="False" />
+                <line number="14" hits="6" branch="False" />
+                <line number="16" hits="6" branch="True" condition-coverage="50% (1/2)">
+                  <conditions>
+                    <condition number="26" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="17" hits="0" branch="False" />
+                <line number="18" hits="0" branch="False" />
+                <line number="21" hits="6" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="53" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="22" hits="1" branch="False" />
+                <line number="23" hits="1" branch="False" />
+                <line number="26" hits="5" branch="True" condition-coverage="50% (3/6)">
+                  <conditions>
+                    <condition number="74" type="jump" coverage="50%" />
+                    <condition number="86" type="jump" coverage="50%" />
+                    <condition number="96" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="27" hits="5" branch="True" condition-coverage="50% (2/4)">
+                  <conditions>
+                    <condition number="112" type="jump" coverage="50%" />
+                    <condition number="126" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="29" hits="5" branch="False" />
+                <line number="31" hits="35" branch="True" condition-coverage="75% (3/4)">
+                  <conditions>
+                    <condition number="165" type="jump" coverage="50%" />
+                    <condition number="425" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="32" hits="10" branch="False" />
+                <line number="33" hits="60" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="397" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="34" hits="15" branch="False" />
+                <line number="35" hits="15" branch="False" />
+                <line number="36" hits="15" branch="False" />
+                <line number="38" hits="15" branch="True" condition-coverage="50% (1/2)">
+                  <conditions>
+                    <condition number="280" type="jump" coverage="50%" />
+                  </conditions>
+                </line>
+                <line number="39" hits="15" branch="False" />
+                <line number="40" hits="15" branch="False" />
+                <line number="43" hits="20" branch="False" />
+                <line number="45" hits="15" branch="False" />
+                <line number="46" hits="15" branch="False" />
+                <line number="47" hits="15" branch="False" />
+                <line number="48" hits="15" branch="False" />
+                <line number="49" hits="15" branch="False" />
+                <line number="50" hits="15" branch="False" />
+                <line number="51" hits="10" branch="False" />
+                <line number="53" hits="5" branch="False" />
+                <line number="54" hits="5" branch="False" />
+              </lines>
+            </method>
+            <method name=".cctor" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="9" hits="1" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="12" hits="6" branch="False" />
+            <line number="13" hits="6" branch="False" />
+            <line number="14" hits="6" branch="False" />
+            <line number="16" hits="6" branch="True" condition-coverage="50% (1/2)">
+              <conditions>
+                <condition number="26" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="17" hits="0" branch="False" />
+            <line number="18" hits="0" branch="False" />
+            <line number="21" hits="6" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="53" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="22" hits="1" branch="False" />
+            <line number="23" hits="1" branch="False" />
+            <line number="26" hits="5" branch="True" condition-coverage="50% (3/6)">
+              <conditions>
+                <condition number="74" type="jump" coverage="50%" />
+                <condition number="86" type="jump" coverage="50%" />
+                <condition number="96" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="27" hits="5" branch="True" condition-coverage="50% (2/4)">
+              <conditions>
+                <condition number="112" type="jump" coverage="50%" />
+                <condition number="126" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="29" hits="5" branch="False" />
+            <line number="31" hits="35" branch="True" condition-coverage="75% (3/4)">
+              <conditions>
+                <condition number="165" type="jump" coverage="50%" />
+                <condition number="425" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="32" hits="10" branch="False" />
+            <line number="33" hits="60" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="397" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="34" hits="15" branch="False" />
+            <line number="35" hits="15" branch="False" />
+            <line number="36" hits="15" branch="False" />
+            <line number="38" hits="15" branch="True" condition-coverage="50% (1/2)">
+              <conditions>
+                <condition number="280" type="jump" coverage="50%" />
+              </conditions>
+            </line>
+            <line number="39" hits="15" branch="False" />
+            <line number="40" hits="15" branch="False" />
+            <line number="43" hits="20" branch="False" />
+            <line number="45" hits="15" branch="False" />
+            <line number="46" hits="15" branch="False" />
+            <line number="47" hits="15" branch="False" />
+            <line number="48" hits="15" branch="False" />
+            <line number="49" hits="15" branch="False" />
+            <line number="50" hits="15" branch="False" />
+            <line number="51" hits="10" branch="False" />
+            <line number="53" hits="5" branch="False" />
+            <line number="54" hits="5" branch="False" />
+            <line number="9" hits="1" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Services.VariableResolver" filename="Arbor.HttpClient.Core/Services/VariableResolver.cs" line-rate="1" branch-rate="1" complexity="7">
+          <methods>
+            <method name="Resolve" signature="(System.String,System.Collections.Generic.IReadOnlyList`1&lt;Arbor.HttpClient.Core.Models.EnvironmentVariable&gt;)" line-rate="1" branch-rate="1" complexity="6">
+              <lines>
+                <line number="11" hits="17" branch="False" />
+                <line number="12" hits="17" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="22" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="13" hits="1" branch="False" />
+                <line number="14" hits="1" branch="False" />
+                <line number="17" hits="16" branch="False" />
+                <line number="18" hits="21" branch="False" />
+                <line number="19" hits="21" branch="False" />
+                <line number="20" hits="87" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="82" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="21" hits="19" branch="False" />
+                <line number="22" hits="19" branch="True" condition-coverage="100% (2/2)">
+                  <conditions>
+                    <condition number="62" type="jump" coverage="100%" />
+                  </conditions>
+                </line>
+                <line number="23" hits="14" branch="False" />
+                <line number="24" hits="14" branch="False" />
+                <line number="25" hits="16" branch="False" />
+                <line number="26" hits="5" branch="False" />
+                <line number="27" hits="16" branch="False" />
+                <line number="28" hits="7" branch="False" />
+                <line number="29" hits="37" branch="False" />
+                <line number="30" hits="17" branch="False" />
+              </lines>
+            </method>
+            <method name=".cctor" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="8" hits="1" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="11" hits="17" branch="False" />
+            <line number="12" hits="17" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="22" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="13" hits="1" branch="False" />
+            <line number="14" hits="1" branch="False" />
+            <line number="17" hits="16" branch="False" />
+            <line number="18" hits="21" branch="False" />
+            <line number="19" hits="21" branch="False" />
+            <line number="20" hits="87" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="82" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="21" hits="19" branch="False" />
+            <line number="22" hits="19" branch="True" condition-coverage="100% (2/2)">
+              <conditions>
+                <condition number="62" type="jump" coverage="100%" />
+              </conditions>
+            </line>
+            <line number="23" hits="14" branch="False" />
+            <line number="24" hits="14" branch="False" />
+            <line number="25" hits="16" branch="False" />
+            <line number="26" hits="5" branch="False" />
+            <line number="27" hits="16" branch="False" />
+            <line number="28" hits="7" branch="False" />
+            <line number="29" hits="37" branch="False" />
+            <line number="30" hits="17" branch="False" />
+            <line number="8" hits="1" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Models.Collection" filename="Arbor.HttpClient.Core/Models/Collection.cs" line-rate="0.6666" branch-rate="1" complexity="6">
+          <methods>
+            <method name="get_Id" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="4" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_Name" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="5" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="get_SourcePath" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="6" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_BaseUrl" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="7" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="get_Requests" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="8" hits="9" branch="False" />
+              </lines>
+            </method>
+            <method name=".ctor" signature="(System.Int32,System.String,System.String,System.String,System.Collections.Generic.IReadOnlyList`1&lt;Arbor.HttpClient.Core.Models.CollectionRequest&gt;)" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="3" hits="5" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="4" hits="0" branch="False" />
+            <line number="5" hits="1" branch="False" />
+            <line number="6" hits="0" branch="False" />
+            <line number="7" hits="1" branch="False" />
+            <line number="8" hits="9" branch="False" />
+            <line number="3" hits="5" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Models.CollectionRequest" filename="Arbor.HttpClient.Core/Models/CollectionRequest.cs" line-rate="1" branch-rate="1" complexity="1">
+          <methods>
+            <method name="get_Name" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="3" hits="23" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="3" hits="23" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Models.EnvironmentVariable" filename="Arbor.HttpClient.Core/Models/EnvironmentVariable.cs" line-rate="1" branch-rate="1" complexity="1">
+          <methods>
+            <method name="get_Name" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="3" hits="49" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="3" hits="49" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Models.HttpRequestDiagnostics" filename="Arbor.HttpClient.Core/Models/HttpRequestDiagnostics.cs" line-rate="0.6666" branch-rate="1" complexity="12">
+          <methods>
+            <method name="get_Method" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="4" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="get_Url" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="5" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="get_RequestedHttpVersion" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="6" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_ResponseHttpVersion" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="7" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="get_DnsLookup" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="8" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="get_TlsNegotiation" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="9" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_DnsLookupMilliseconds" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="10" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_TlsNegotiationMilliseconds" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="11" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_ResponseHeadersMilliseconds" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="12" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="get_ResponseBodyMilliseconds" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="13" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="get_TotalMilliseconds" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="14" hits="2" branch="False" />
+              </lines>
+            </method>
+            <method name=".ctor" signature="(System.String,System.String,System.String,System.String,System.String,System.String,System.Double,System.Double,System.Double,System.Double,System.Double)" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="3" hits="1" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="4" hits="1" branch="False" />
+            <line number="5" hits="1" branch="False" />
+            <line number="6" hits="0" branch="False" />
+            <line number="7" hits="1" branch="False" />
+            <line number="8" hits="1" branch="False" />
+            <line number="9" hits="0" branch="False" />
+            <line number="10" hits="0" branch="False" />
+            <line number="11" hits="0" branch="False" />
+            <line number="12" hits="1" branch="False" />
+            <line number="13" hits="1" branch="False" />
+            <line number="14" hits="2" branch="False" />
+            <line number="3" hits="1" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Models.HttpRequestDraft" filename="Arbor.HttpClient.Core/Models/HttpRequestDraft.cs" line-rate="1" branch-rate="1" complexity="8">
+          <methods>
+            <method name="get_Name" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="4" hits="18" branch="False" />
+              </lines>
+            </method>
+            <method name="get_Method" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="5" hits="29" branch="False" />
+              </lines>
+            </method>
+            <method name="get_Url" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="6" hits="20" branch="False" />
+              </lines>
+            </method>
+            <method name="get_Body" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="7" hits="19" branch="False" />
+              </lines>
+            </method>
+            <method name="get_Headers" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="8" hits="21" branch="False" />
+              </lines>
+            </method>
+            <method name="get_HttpVersion" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="9" hits="10" branch="False" />
+              </lines>
+            </method>
+            <method name="get_FollowRedirects" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="10" hits="16" branch="False" />
+              </lines>
+            </method>
+            <method name=".ctor" signature="(System.String,System.String,System.String,System.String,System.Collections.Generic.IReadOnlyList`1&lt;Arbor.HttpClient.Core.Models.RequestHeader&gt;,System.Version,System.Nullable`1&lt;System.Boolean&gt;)" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="3" hits="12" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="4" hits="18" branch="False" />
+            <line number="5" hits="29" branch="False" />
+            <line number="6" hits="20" branch="False" />
+            <line number="7" hits="19" branch="False" />
+            <line number="8" hits="21" branch="False" />
+            <line number="9" hits="10" branch="False" />
+            <line number="10" hits="16" branch="False" />
+            <line number="3" hits="12" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Models.HttpResponseDetails" filename="Arbor.HttpClient.Core/Models/HttpResponseDetails.cs" line-rate="0.7142000000000001" branch-rate="1" complexity="7">
+          <methods>
+            <method name="get_StatusCode" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="4" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="get_ReasonPhrase" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="5" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_Body" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="6" hits="4" branch="False" />
+              </lines>
+            </method>
+            <method name="get_Headers" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="7" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_BodyBytes" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="8" hits="2" branch="False" />
+              </lines>
+            </method>
+            <method name="get_ElapsedMilliseconds" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="9" hits="10" branch="False" />
+              </lines>
+            </method>
+            <method name=".ctor" signature="(System.Int32,System.String,System.String,System.Collections.Generic.IReadOnlyList`1&lt;System.ValueTuple`2&lt;System.String,System.String&gt;&gt;,System.Byte[],System.Double)" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="3" hits="9" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="4" hits="1" branch="False" />
+            <line number="5" hits="0" branch="False" />
+            <line number="6" hits="4" branch="False" />
+            <line number="7" hits="0" branch="False" />
+            <line number="8" hits="2" branch="False" />
+            <line number="9" hits="10" branch="False" />
+            <line number="3" hits="9" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Models.RequestEnvironment" filename="Arbor.HttpClient.Core/Models/RequestEnvironment.cs" line-rate="0" branch-rate="1" complexity="1">
+          <methods>
+            <method name="get_Id" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="3" hits="0" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="3" hits="0" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Models.RequestHeader" filename="Arbor.HttpClient.Core/Models/RequestHeader.cs" line-rate="1" branch-rate="1" complexity="1">
+          <methods>
+            <method name="get_Name" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="3" hits="30" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="3" hits="30" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Models.SavedRequest" filename="Arbor.HttpClient.Core/Models/SavedRequest.cs" line-rate="0.25" branch-rate="1" complexity="2">
+          <methods>
+            <method name="get_Name" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="5" hits="15" branch="False" />
+              </lines>
+            </method>
+            <method name="get_CreatedAtLocalDisplay" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="7" hits="0" branch="False" />
+                <line number="8" hits="0" branch="False" />
+                <line number="9" hits="0" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="5" hits="15" branch="False" />
+            <line number="7" hits="0" branch="False" />
+            <line number="8" hits="0" branch="False" />
+            <line number="9" hits="0" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Core.Models.ScheduledJobConfig" filename="Arbor.HttpClient.Core/Models/ScheduledJobConfig.cs" line-rate="0.2" branch-rate="1" complexity="10">
+          <methods>
+            <method name="get_Id" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="4" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_Name" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="5" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_Method" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="6" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_Url" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="7" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_Body" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="8" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_HeadersJson" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="9" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_IntervalSeconds" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="10" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_AutoStart" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="11" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_FollowRedirects" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="12" hits="2" branch="False" />
+              </lines>
+            </method>
+            <method name=".ctor" signature="(System.Int32,System.String,System.String,System.String,System.String,System.String,System.Int32,System.Boolean,System.Nullable`1&lt;System.Boolean&gt;)" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="3" hits="1" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="4" hits="0" branch="False" />
+            <line number="5" hits="0" branch="False" />
+            <line number="6" hits="0" branch="False" />
+            <line number="7" hits="0" branch="False" />
+            <line number="8" hits="0" branch="False" />
+            <line number="9" hits="0" branch="False" />
+            <line number="10" hits="0" branch="False" />
+            <line number="11" hits="0" branch="False" />
+            <line number="12" hits="2" branch="False" />
+            <line number="3" hits="1" branch="False" />
+          </lines>
+        </class>
+      </classes>
+    </package>
+    <package name="Arbor.HttpClient.Testing" line-rate="0.131" branch-rate="0" complexity="34">
+      <classes>
+        <class name="Arbor.HttpClient.Testing.Repositories.InMemoryCollectionRepository" filename="Arbor.HttpClient.Testing/Repositories/InMemoryCollectionRepository.cs" line-rate="0" branch-rate="1" complexity="6">
+          <methods>
+            <method name="InitializeAsync" signature="(System.Threading.CancellationToken)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="15" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="SaveAsync" signature="(System.String,System.String,System.String,System.Collections.Generic.IReadOnlyList`1&lt;Arbor.HttpClient.Core.Models.CollectionRequest&gt;,System.Threading.CancellationToken)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="23" hits="0" branch="False" />
+                <line number="24" hits="0" branch="False" />
+                <line number="25" hits="0" branch="False" />
+                <line number="26" hits="0" branch="False" />
+                <line number="27" hits="0" branch="False" />
+                <line number="28" hits="0" branch="False" />
+                <line number="30" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="GetAllAsync" signature="(System.Threading.CancellationToken)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="33" hits="0" branch="False" />
+                <line number="34" hits="0" branch="False" />
+                <line number="35" hits="0" branch="False" />
+                <line number="36" hits="0" branch="False" />
+                <line number="38" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="DeleteAsync" signature="(System.Int32,System.Threading.CancellationToken)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="41" hits="0" branch="False" />
+                <line number="42" hits="0" branch="False" />
+                <line number="43" hits="0" branch="False" />
+                <line number="44" hits="0" branch="False" />
+                <line number="45" hits="0" branch="False" />
+                <line number="47" hits="0" branch="False" />
+                <line number="48" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="Clear" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="52" hits="0" branch="False" />
+                <line number="53" hits="0" branch="False" />
+                <line number="54" hits="0" branch="False" />
+                <line number="55" hits="0" branch="False" />
+                <line number="56" hits="0" branch="False" />
+                <line number="57" hits="0" branch="False" />
+                <line number="58" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name=".ctor" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="11" hits="0" branch="False" />
+                <line number="12" hits="0" branch="False" />
+                <line number="13" hits="0" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="15" hits="0" branch="False" />
+            <line number="23" hits="0" branch="False" />
+            <line number="24" hits="0" branch="False" />
+            <line number="25" hits="0" branch="False" />
+            <line number="26" hits="0" branch="False" />
+            <line number="27" hits="0" branch="False" />
+            <line number="28" hits="0" branch="False" />
+            <line number="30" hits="0" branch="False" />
+            <line number="33" hits="0" branch="False" />
+            <line number="34" hits="0" branch="False" />
+            <line number="35" hits="0" branch="False" />
+            <line number="36" hits="0" branch="False" />
+            <line number="38" hits="0" branch="False" />
+            <line number="41" hits="0" branch="False" />
+            <line number="42" hits="0" branch="False" />
+            <line number="43" hits="0" branch="False" />
+            <line number="44" hits="0" branch="False" />
+            <line number="45" hits="0" branch="False" />
+            <line number="47" hits="0" branch="False" />
+            <line number="48" hits="0" branch="False" />
+            <line number="52" hits="0" branch="False" />
+            <line number="53" hits="0" branch="False" />
+            <line number="54" hits="0" branch="False" />
+            <line number="55" hits="0" branch="False" />
+            <line number="56" hits="0" branch="False" />
+            <line number="57" hits="0" branch="False" />
+            <line number="58" hits="0" branch="False" />
+            <line number="11" hits="0" branch="False" />
+            <line number="12" hits="0" branch="False" />
+            <line number="13" hits="0" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Testing.Repositories.InMemoryEnvironmentRepository" filename="Arbor.HttpClient.Testing/Repositories/InMemoryEnvironmentRepository.cs" line-rate="0" branch-rate="0" complexity="8">
+          <methods>
+            <method name="InitializeAsync" signature="(System.Threading.CancellationToken)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="15" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="SaveAsync" signature="(System.String,System.Collections.Generic.IReadOnlyList`1&lt;Arbor.HttpClient.Core.Models.EnvironmentVariable&gt;,System.Threading.CancellationToken)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="21" hits="0" branch="False" />
+                <line number="22" hits="0" branch="False" />
+                <line number="23" hits="0" branch="False" />
+                <line number="24" hits="0" branch="False" />
+                <line number="25" hits="0" branch="False" />
+                <line number="26" hits="0" branch="False" />
+                <line number="28" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="UpdateAsync" signature="(System.Int32,System.String,System.Collections.Generic.IReadOnlyList`1&lt;Arbor.HttpClient.Core.Models.EnvironmentVariable&gt;,System.Threading.CancellationToken)" line-rate="0" branch-rate="0" complexity="2">
+              <lines>
+                <line number="35" hits="0" branch="False" />
+                <line number="36" hits="0" branch="False" />
+                <line number="37" hits="0" branch="False" />
+                <line number="38" hits="0" branch="False" />
+                <line number="39" hits="0" branch="True" condition-coverage="0% (0/2)">
+                  <conditions>
+                    <condition number="68" type="jump" coverage="0%" />
+                  </conditions>
+                </line>
+                <line number="40" hits="0" branch="False" />
+                <line number="41" hits="0" branch="False" />
+                <line number="42" hits="0" branch="False" />
+                <line number="43" hits="0" branch="False" />
+                <line number="45" hits="0" branch="False" />
+                <line number="46" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="GetAllAsync" signature="(System.Threading.CancellationToken)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="49" hits="0" branch="False" />
+                <line number="50" hits="0" branch="False" />
+                <line number="51" hits="0" branch="False" />
+                <line number="52" hits="0" branch="False" />
+                <line number="54" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="DeleteAsync" signature="(System.Int32,System.Threading.CancellationToken)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="57" hits="0" branch="False" />
+                <line number="58" hits="0" branch="False" />
+                <line number="59" hits="0" branch="False" />
+                <line number="60" hits="0" branch="False" />
+                <line number="61" hits="0" branch="False" />
+                <line number="63" hits="0" branch="False" />
+                <line number="64" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="Clear" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="68" hits="0" branch="False" />
+                <line number="69" hits="0" branch="False" />
+                <line number="70" hits="0" branch="False" />
+                <line number="71" hits="0" branch="False" />
+                <line number="72" hits="0" branch="False" />
+                <line number="73" hits="0" branch="False" />
+                <line number="74" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name=".ctor" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="11" hits="0" branch="False" />
+                <line number="12" hits="0" branch="False" />
+                <line number="13" hits="0" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="15" hits="0" branch="False" />
+            <line number="21" hits="0" branch="False" />
+            <line number="22" hits="0" branch="False" />
+            <line number="23" hits="0" branch="False" />
+            <line number="24" hits="0" branch="False" />
+            <line number="25" hits="0" branch="False" />
+            <line number="26" hits="0" branch="False" />
+            <line number="28" hits="0" branch="False" />
+            <line number="35" hits="0" branch="False" />
+            <line number="36" hits="0" branch="False" />
+            <line number="37" hits="0" branch="False" />
+            <line number="38" hits="0" branch="False" />
+            <line number="39" hits="0" branch="True" condition-coverage="0% (0/2)">
+              <conditions>
+                <condition number="68" type="jump" coverage="0%" />
+              </conditions>
+            </line>
+            <line number="40" hits="0" branch="False" />
+            <line number="41" hits="0" branch="False" />
+            <line number="42" hits="0" branch="False" />
+            <line number="43" hits="0" branch="False" />
+            <line number="45" hits="0" branch="False" />
+            <line number="46" hits="0" branch="False" />
+            <line number="49" hits="0" branch="False" />
+            <line number="50" hits="0" branch="False" />
+            <line number="51" hits="0" branch="False" />
+            <line number="52" hits="0" branch="False" />
+            <line number="54" hits="0" branch="False" />
+            <line number="57" hits="0" branch="False" />
+            <line number="58" hits="0" branch="False" />
+            <line number="59" hits="0" branch="False" />
+            <line number="60" hits="0" branch="False" />
+            <line number="61" hits="0" branch="False" />
+            <line number="63" hits="0" branch="False" />
+            <line number="64" hits="0" branch="False" />
+            <line number="68" hits="0" branch="False" />
+            <line number="69" hits="0" branch="False" />
+            <line number="70" hits="0" branch="False" />
+            <line number="71" hits="0" branch="False" />
+            <line number="72" hits="0" branch="False" />
+            <line number="73" hits="0" branch="False" />
+            <line number="74" hits="0" branch="False" />
+            <line number="11" hits="0" branch="False" />
+            <line number="12" hits="0" branch="False" />
+            <line number="13" hits="0" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Testing.Repositories.InMemoryRequestHistoryRepository" filename="Arbor.HttpClient.Testing/Repositories/InMemoryRequestHistoryRepository.cs" line-rate="0.5384" branch-rate="1" complexity="6">
+          <methods>
+            <method name="InitializeAsync" signature="(System.Threading.CancellationToken)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="14" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="SaveAsync" signature="(Arbor.HttpClient.Core.Models.SavedRequest,System.Threading.CancellationToken)" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="17" hits="9" branch="False" />
+                <line number="18" hits="9" branch="False" />
+                <line number="19" hits="9" branch="False" />
+                <line number="20" hits="9" branch="False" />
+                <line number="21" hits="9" branch="False" />
+                <line number="23" hits="9" branch="False" />
+                <line number="24" hits="9" branch="False" />
+              </lines>
+            </method>
+            <method name="GetRecentAsync" signature="(System.Int32,System.Threading.CancellationToken)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="27" hits="0" branch="False" />
+                <line number="28" hits="0" branch="False" />
+                <line number="29" hits="0" branch="False" />
+                <line number="30" hits="0" branch="False" />
+                <line number="32" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="get_Items" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="38" hits="3" branch="False" />
+                <line number="39" hits="3" branch="False" />
+                <line number="40" hits="3" branch="False" />
+                <line number="41" hits="3" branch="False" />
+                <line number="43" hits="3" branch="False" />
+              </lines>
+            </method>
+            <method name="Clear" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="48" hits="0" branch="False" />
+                <line number="49" hits="0" branch="False" />
+                <line number="50" hits="0" branch="False" />
+                <line number="51" hits="0" branch="False" />
+                <line number="52" hits="0" branch="False" />
+                <line number="53" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name=".ctor" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="11" hits="9" branch="False" />
+                <line number="12" hits="9" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="14" hits="0" branch="False" />
+            <line number="17" hits="9" branch="False" />
+            <line number="18" hits="9" branch="False" />
+            <line number="19" hits="9" branch="False" />
+            <line number="20" hits="9" branch="False" />
+            <line number="21" hits="9" branch="False" />
+            <line number="23" hits="9" branch="False" />
+            <line number="24" hits="9" branch="False" />
+            <line number="27" hits="0" branch="False" />
+            <line number="28" hits="0" branch="False" />
+            <line number="29" hits="0" branch="False" />
+            <line number="30" hits="0" branch="False" />
+            <line number="32" hits="0" branch="False" />
+            <line number="38" hits="3" branch="False" />
+            <line number="39" hits="3" branch="False" />
+            <line number="40" hits="3" branch="False" />
+            <line number="41" hits="3" branch="False" />
+            <line number="43" hits="3" branch="False" />
+            <line number="48" hits="0" branch="False" />
+            <line number="49" hits="0" branch="False" />
+            <line number="50" hits="0" branch="False" />
+            <line number="51" hits="0" branch="False" />
+            <line number="52" hits="0" branch="False" />
+            <line number="53" hits="0" branch="False" />
+            <line number="11" hits="9" branch="False" />
+            <line number="12" hits="9" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Testing.Repositories.InMemoryScheduledJobRepository" filename="Arbor.HttpClient.Testing/Repositories/InMemoryScheduledJobRepository.cs" line-rate="0" branch-rate="0" complexity="8">
+          <methods>
+            <method name="InitializeAsync" signature="(System.Threading.CancellationToken)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="15" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="SaveAsync" signature="(Arbor.HttpClient.Core.Models.ScheduledJobConfig,System.Threading.CancellationToken)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="18" hits="0" branch="False" />
+                <line number="19" hits="0" branch="False" />
+                <line number="20" hits="0" branch="False" />
+                <line number="21" hits="0" branch="False" />
+                <line number="22" hits="0" branch="False" />
+                <line number="23" hits="0" branch="False" />
+                <line number="25" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="UpdateAsync" signature="(Arbor.HttpClient.Core.Models.ScheduledJobConfig,System.Threading.CancellationToken)" line-rate="0" branch-rate="0" complexity="2">
+              <lines>
+                <line number="28" hits="0" branch="False" />
+                <line number="29" hits="0" branch="False" />
+                <line number="30" hits="0" branch="False" />
+                <line number="31" hits="0" branch="False" />
+                <line number="32" hits="0" branch="True" condition-coverage="0% (0/2)">
+                  <conditions>
+                    <condition number="68" type="jump" coverage="0%" />
+                  </conditions>
+                </line>
+                <line number="33" hits="0" branch="False" />
+                <line number="34" hits="0" branch="False" />
+                <line number="35" hits="0" branch="False" />
+                <line number="36" hits="0" branch="False" />
+                <line number="38" hits="0" branch="False" />
+                <line number="39" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="DeleteAsync" signature="(System.Int32,System.Threading.CancellationToken)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="42" hits="0" branch="False" />
+                <line number="43" hits="0" branch="False" />
+                <line number="44" hits="0" branch="False" />
+                <line number="45" hits="0" branch="False" />
+                <line number="46" hits="0" branch="False" />
+                <line number="48" hits="0" branch="False" />
+                <line number="49" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="GetAllAsync" signature="(System.Threading.CancellationToken)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="52" hits="0" branch="False" />
+                <line number="53" hits="0" branch="False" />
+                <line number="54" hits="0" branch="False" />
+                <line number="55" hits="0" branch="False" />
+                <line number="57" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="Clear" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="61" hits="0" branch="False" />
+                <line number="62" hits="0" branch="False" />
+                <line number="63" hits="0" branch="False" />
+                <line number="64" hits="0" branch="False" />
+                <line number="65" hits="0" branch="False" />
+                <line number="66" hits="0" branch="False" />
+                <line number="67" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name=".ctor" signature="()" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="11" hits="0" branch="False" />
+                <line number="12" hits="0" branch="False" />
+                <line number="13" hits="0" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="15" hits="0" branch="False" />
+            <line number="18" hits="0" branch="False" />
+            <line number="19" hits="0" branch="False" />
+            <line number="20" hits="0" branch="False" />
+            <line number="21" hits="0" branch="False" />
+            <line number="22" hits="0" branch="False" />
+            <line number="23" hits="0" branch="False" />
+            <line number="25" hits="0" branch="False" />
+            <line number="28" hits="0" branch="False" />
+            <line number="29" hits="0" branch="False" />
+            <line number="30" hits="0" branch="False" />
+            <line number="31" hits="0" branch="False" />
+            <line number="32" hits="0" branch="True" condition-coverage="0% (0/2)">
+              <conditions>
+                <condition number="68" type="jump" coverage="0%" />
+              </conditions>
+            </line>
+            <line number="33" hits="0" branch="False" />
+            <line number="34" hits="0" branch="False" />
+            <line number="35" hits="0" branch="False" />
+            <line number="36" hits="0" branch="False" />
+            <line number="38" hits="0" branch="False" />
+            <line number="39" hits="0" branch="False" />
+            <line number="42" hits="0" branch="False" />
+            <line number="43" hits="0" branch="False" />
+            <line number="44" hits="0" branch="False" />
+            <line number="45" hits="0" branch="False" />
+            <line number="46" hits="0" branch="False" />
+            <line number="48" hits="0" branch="False" />
+            <line number="49" hits="0" branch="False" />
+            <line number="52" hits="0" branch="False" />
+            <line number="53" hits="0" branch="False" />
+            <line number="54" hits="0" branch="False" />
+            <line number="55" hits="0" branch="False" />
+            <line number="57" hits="0" branch="False" />
+            <line number="61" hits="0" branch="False" />
+            <line number="62" hits="0" branch="False" />
+            <line number="63" hits="0" branch="False" />
+            <line number="64" hits="0" branch="False" />
+            <line number="65" hits="0" branch="False" />
+            <line number="66" hits="0" branch="False" />
+            <line number="67" hits="0" branch="False" />
+            <line number="11" hits="0" branch="False" />
+            <line number="12" hits="0" branch="False" />
+            <line number="13" hits="0" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Testing.Fakes.FakeTimeProvider" filename="Arbor.HttpClient.Testing/Fakes/FakeTimeProvider.cs" line-rate="0.6" branch-rate="1" complexity="4">
+          <methods>
+            <method name="GetUtcNow" signature="()" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="11" hits="1" branch="False" />
+              </lines>
+            </method>
+            <method name="Advance" signature="(System.TimeSpan)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="14" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name="SetTime" signature="(System.DateTimeOffset)" line-rate="0" branch-rate="1" complexity="1">
+              <lines>
+                <line number="17" hits="0" branch="False" />
+              </lines>
+            </method>
+            <method name=".ctor" signature="(System.DateTimeOffset)" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="7" hits="1" branch="False" />
+                <line number="9" hits="1" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="11" hits="1" branch="False" />
+            <line number="14" hits="0" branch="False" />
+            <line number="17" hits="0" branch="False" />
+            <line number="7" hits="1" branch="False" />
+            <line number="9" hits="1" branch="False" />
+          </lines>
+        </class>
+        <class name="Arbor.HttpClient.Testing.Fakes.StubHttpMessageHandler" filename="Arbor.HttpClient.Testing/Fakes/StubHttpMessageHandler.cs" line-rate="1" branch-rate="1" complexity="2">
+          <methods>
+            <method name="SendAsync" signature="(System.Net.Http.HttpRequestMessage,System.Threading.CancellationToken)" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="15" hits="9" branch="False" />
+              </lines>
+            </method>
+            <method name=".ctor" signature="(System.Func`2&lt;System.Net.Http.HttpRequestMessage,System.Net.Http.HttpResponseMessage&gt;)" line-rate="1" branch-rate="1" complexity="1">
+              <lines>
+                <line number="9" hits="12" branch="False" />
+              </lines>
+            </method>
+          </methods>
+          <lines>
+            <line number="15" hits="9" branch="False" />
+            <line number="9" hits="12" branch="False" />
+          </lines>
+        </class>
+      </classes>
+    </package>
+  </packages>
+</coverage>
