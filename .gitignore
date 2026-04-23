@@ -25,3 +25,5 @@ _NCrunch_*
 
 # Visual Studio Code
 **/.vscode/
+# Allow shared Copilot Chat settings so all contributors and agents get the same instructions
+!**/.vscode/settings.json
