@@ -83,3 +83,22 @@ Before merging any PR that touches UI code or theme resources:
 - [ ] No compiler warnings introduced.
 - [ ] No unrelated files modified.
 - [ ] PR description explains *what* changed and *why*.
+
+## UX Ideas Maintenance
+
+> See `.github/copilot-instructions.md` section 13 and `.github/prompts/ux-review.prompt.md` for the full workflow.
+
+- [ ] `docs/ux-ideas.md` reviewed for this PR's changes.
+- [ ] Implemented ideas moved from "Not Yet Implemented" to the "Implemented" section with PR number, commit SHA, and file reference.
+- [ ] New UX ideas discovered during this PR added to "Not Yet Implemented" (if any).
+
+## Instruction Improvement Loop
+
+> See `.github/copilot-instructions.md` section 14.
+
+- [ ] Instruction Retrospective block included in the PR description.
+- [ ] Proposed instruction improvement applied to `.github/copilot-instructions.md` (or tracked as a GitHub issue with a link in the retrospective).
+
+## Full Compliance Checklist
+
+Use `.github/prompts/pr-checklist.prompt.md` to generate the complete checklist (paste output into the PR description). The items above are the most commonly missed; the prompt covers every blocking and required item from all docs.

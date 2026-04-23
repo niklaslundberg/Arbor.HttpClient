@@ -23,6 +23,28 @@ The repository contains documentation that shapes how every task should be appro
 
 Reading these files ensures you apply the correct standards, avoid known pitfalls, and build on prior decisions rather than re-litigating them.
 
+### How agents consume these instructions
+
+Different agent surfaces load these instructions differently. The table below describes how each surface picks them up and what to do when a surface does not load them automatically.
+
+| Agent / Surface | How instructions are loaded | What to do if not auto-loaded |
+|---|---|---|
+| **GitHub Copilot coding agent** (cloud) | Loads `.github/copilot-instructions.md` automatically as system context | Nothing — automatic |
+| **Copilot Chat in VS Code** | Loads `.github/copilot-instructions.md` via `.vscode/settings.json` `codeGeneration.instructions` | Open the repository folder; settings take effect automatically |
+| **Copilot Chat (review selection)** | Loads `.github/copilot-instructions.md` + `docs/review-checklist.md` via `.vscode/settings.json` `reviewSelection.instructions` | Same as above |
+| **Reusable prompt files** | `.github/prompts/*.prompt.md` — reference with `#<filename>.prompt.md` in Copilot Chat | Type `#pr-checklist.prompt.md` etc. in the chat input |
+| **Third-party agents** (Cursor, Aider, etc.) | Do not auto-load; must be explicitly referenced | Start your session with: `Read and follow .github/copilot-instructions.md` — or use the `#code-standards.prompt.md` shorthand |
+
+### Reusable prompt files
+
+The `.github/prompts/` directory contains focused, self-contained prompts for specific tasks. Each file can be used standalone (it contains the key rules) or as a shortcut that points to the full instructions.
+
+| Prompt file | When to use |
+|---|---|
+| `code-standards.prompt.md` | Start of any coding session with an agent that does not auto-load this file |
+| `pr-checklist.prompt.md` | End of every PR — generates the compliance checklist for the PR description |
+| `ux-review.prompt.md` | Any PR — guides the UX ideas maintenance task (section 13) |
+
 ## 1. Think Before Coding
 
 **Don't assume. Don't hide confusion. Surface tradeoffs.**
@@ -155,6 +177,151 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - Prefer domain-specific exception types (or result/discriminated-union types) at subsystem boundaries instead of leaking generic `Exception`.
 - When rethrowing, use bare `throw;` to preserve the original stack trace — never `throw ex;`.
 - Catch only exceptions you can handle meaningfully; let the rest propagate to a top-level handler.
+
+## 12. Structured Instruction Format
+
+**Instructions benefit from machine-readable attributes, not just prose.**
+
+Free-text guidelines are easy to write but hard to enforce consistently. Where possible, annotate instructions with structured markers that make severity and category explicit — both to you (the agent) and to future contributors reading or extending this file.
+
+### Severity attributes
+
+Prefix each instruction or checklist item with one of the following tags so that priority is unambiguous:
+
+| Tag | Meaning |
+|-----|---------|
+| `[BLOCKING]` | Must be satisfied before a PR can be merged. Failure is a hard stop. |
+| `[REQUIRED]` | Must be satisfied in normal circumstances. Skip only with an explicit documented justification. |
+| `[RECOMMENDED]` | Should be satisfied. Deviations are acceptable with a brief note explaining why. |
+| `[OPTIONAL]` | Nice to have. No justification needed if omitted. |
+
+### Category attributes
+
+Tag each instruction with one or more of the following categories so tooling or future automation can filter by concern:
+
+| Tag | Concern |
+|-----|---------|
+| `[SECURITY]` | Security posture, credentials, TLS, injection risk |
+| `[QUALITY]` | Test coverage, compiler warnings, analyzer findings |
+| `[PROCESS]` | Workflow steps, PR lifecycle, documentation updates |
+| `[ACCESSIBILITY]` | WCAG compliance, keyboard navigation, screen-reader labels |
+| `[ARCHITECTURE]` | Separation of concerns, dependency direction, testability |
+| `[PERFORMANCE]` | Hot paths, memory leaks, profiling evidence |
+
+### How to apply
+
+When adding a new instruction to this file, format it as:
+
+```
+**[BLOCKING][SECURITY]** No secrets, tokens, or credentials may be committed.
+**[REQUIRED][QUALITY]** All tests must pass before committing (`dotnet test Arbor.HttpClient.slnx`).
+**[RECOMMENDED][PROCESS]** Screenshot evidence committed to `docs/screenshots/` for UI changes.
+```
+
+Existing prose sections do not need to be retroactively reformatted all at once; apply the tags incrementally when a section is edited. This creates a gradual migration path rather than a big-bang rewrite.
+
+### Attribute-based enforcement loop
+
+At the end of every PR, scan the instructions for `[BLOCKING]` items and verify each one explicitly in the compliance checklist (see section 15). For `[REQUIRED]` items, either confirm compliance or record a justification. `[RECOMMENDED]` and `[OPTIONAL]` items can be marked as skipped without further explanation.
+
+## 13. PR Task: UX Ideas Maintenance `[REQUIRED][PROCESS]`
+
+**Every PR must keep `docs/ux-ideas.md` current.**
+
+`docs/ux-ideas.md` is the product backlog for UX improvements. It must always reflect two clearly separated lists so that contributors know what is available to work on and what has already shipped.
+
+### What to do on every PR
+
+1. Open `docs/ux-ideas.md` and read every idea.
+2. For each idea that was **fully or partially implemented** by this PR, move its entry from the "Not Yet Implemented" section to the "Implemented" section and add a reference:
+   - PR number (e.g. `#42`)
+   - Commit SHA (short form, 7 characters)
+   - File or component where the feature lives (e.g. `src/Arbor.HttpClient.Desktop/ViewModels/MainWindowViewModel.cs`)
+3. If this PR introduces a **new UX idea** (discovered during implementation or review), add it to the "Not Yet Implemented" section with the standard description and scope estimate.
+4. Do **not** delete ideas from either list; the "Implemented" section is a historical record.
+
+### Format for implemented entries
+
+```markdown
+### 1.1 Feature Name ✅ Implemented
+> Implemented in PR #42 (commit `a1b2c3d`) — `src/path/to/Feature.cs`
+
+**What it means:** (original description retained)
+...
+```
+
+### What counts as "implemented"
+
+An idea is considered implemented when its primary UX behaviour is usable in the application, even if polish items remain. Record those polish gaps as sub-items in the implemented entry rather than keeping the whole idea in "Not Yet Implemented".
+
+## 14. PR Task: Instruction Improvement Loop `[RECOMMENDED][PROCESS]`
+
+**After every PR, propose at least one instruction improvement.**
+
+Each PR is a learning event. When a task is complete, reflect on any friction, ambiguity, or repeated decision-making that occurred and propose concrete changes to this instructions file or the other docs that would reduce that friction in future sessions.
+
+### Workflow
+
+1. At the end of the PR (after code is ready and tests pass), write a short "Instruction Retrospective" block in the PR description:
+
+   ```markdown
+   ## Instruction Retrospective
+   - **What was unclear:** [describe any guideline that was ambiguous or missing]
+   - **What caused rework:** [describe any decision that had to be revisited]
+   - **Proposed addition:** [draft wording for a new or updated instruction, with severity/category tags]
+   ```
+
+2. If the proposed addition is clearly beneficial and self-contained, apply it directly to `.github/copilot-instructions.md` (or the relevant doc) as part of the same PR. This is the improvement loop.
+
+3. If the proposed addition requires discussion (e.g. it changes a `[BLOCKING]` rule or touches architectural decisions), add it as a GitHub issue and link it from the retrospective block instead of applying it immediately.
+
+### What to look for
+
+- Instructions that said "do X" but the codebase made X impossible without extra steps not mentioned.
+- Instructions that were silent on a decision that had to be made repeatedly.
+- Checklists that were hard to verify because the criterion was vague.
+- Instructions whose scope or category tag was missing and caused uncertainty about priority.
+
+## 15. End-of-PR Compliance Checklist `[BLOCKING][PROCESS]`
+
+**Before marking any PR ready for review, verify every blocking principle.**
+
+At the end of every PR session, re-read all markdown files listed in section 0 and complete the following checklist. Include the completed checklist (with actual ✅ / ❌ / N/A values, not blank boxes) in the PR description.
+
+```markdown
+## PR Compliance Checklist
+
+### From docs/review-checklist.md
+- [ ] [BLOCKING] All tests pass (`dotnet test Arbor.HttpClient.slnx`)
+- [ ] [BLOCKING] No secrets or credentials committed
+- [ ] [BLOCKING] No compiler warnings introduced
+- [ ] [REQUIRED] CodeQL / static analysis findings addressed
+- [ ] [REQUIRED] UI PRs: screenshot evidence in docs/screenshots/ and embedded in PR description
+- [ ] [REQUIRED] UI PRs: accessibility contrast tests updated
+- [ ] [REQUIRED] New NuGet packages: license verified, THIRD_PARTY_NOTICES.md updated, Directory.Packages.props updated
+
+### From docs/security-review.md
+- [ ] [BLOCKING] No HTTP/TLS configuration downgrade
+- [ ] [BLOCKING] No sensitive data logged
+- [ ] [REQUIRED] Vulnerability audit passes (dotnet list package --vulnerable --include-transitive)
+- [ ] [REQUIRED] persist-credentials: false retained on actions/checkout
+
+### From docs/ux-ideas.md
+- [ ] [REQUIRED] docs/ux-ideas.md reviewed; implemented ideas moved to the "Implemented" section with PR/commit references
+- [ ] [RECOMMENDED] New UX ideas discovered during this PR added to the "Not Yet Implemented" section
+
+### From docs/architecture/clean-feature-separation.md
+- [ ] [RECOMMENDED] No new logic added to MainWindowViewModel that belongs in a feature VM
+- [ ] [RECOMMENDED] New features have at least one focused unit test not requiring the full UI runtime
+
+### Instruction Improvement Loop (section 14)
+- [ ] [RECOMMENDED] Instruction Retrospective block written in PR description
+- [ ] [RECOMMENDED] Proposed instruction improvement applied (or tracked as a GitHub issue)
+
+### Final self-check
+- [ ] [BLOCKING] Every changed line traces directly to the user's request (no unrelated edits)
+- [ ] [REQUIRED] PR description explains what changed and why
+```
 
 ---
 
