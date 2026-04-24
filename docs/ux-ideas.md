@@ -374,18 +374,6 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ---
 
-### 6.6 Auto-save drafts per tab
-**What it means:** The current in-progress request (URL, headers, body, selected environment) is saved automatically every few seconds so that an unexpected crash does not lose unsaved work.
-
-**How to implement:**
-- Add a `DraftPersistenceService` that serialises `RequestTabViewModel` state to a dedicated `drafts/` folder in the app data directory on a `DispatcherTimer` (e.g., every 30 s).
-- On startup, if draft files exist, offer to restore them.
-- Clear a draft file when the user explicitly saves or closes the tab cleanly.
-
-**Scope:** M
-
----
-
 ## Implemented
 
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
@@ -398,6 +386,17 @@ Each idea includes a description of what it means in practice, notes on how it c
 **What shipped:** `RequestType` enum, GraphQL service + VM + UI (query/variables/introspection), WebSocket service + VM + UI (connect/send/receive), SSE service + VM + UI (event streaming), gRPC UI placeholder. 23 new unit tests.
 
 **Polish items remaining:** gRPC proto import, WebSocket binary frames, SSE auto-reconnect, GraphQL variable completion from schema.
+
+---
+
+### 6.6 Auto-save drafts per tab ✅ Implemented
+> Implemented in PR (commit TBD) — `src/Arbor.HttpClient.Desktop/Services/DraftPersistenceService.cs`, `src/Arbor.HttpClient.Desktop/Models/DraftState.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Views/MainWindow.axaml`
+
+**What it means:** The current in-progress request (URL, headers, body, selected environment) is saved automatically every few seconds so that an unexpected crash does not lose unsaved work.
+
+**What shipped:** `DraftPersistenceService` serialises `RequestEditorViewModel` state to `drafts/draft.json` in the app data directory on a 30-second `PeriodicTimer`. On startup, if a draft file exists, a banner is shown offering to restore or discard it. The draft file is cleared on clean application exit. 10 unit tests added.
+
+**Polish items remaining:** Per-tab drafts once tabbed request UI (3.1) is implemented; offer to restore environment selection alongside the request state.
 
 ---
 

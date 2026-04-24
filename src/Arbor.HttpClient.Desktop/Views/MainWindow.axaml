@@ -85,6 +85,23 @@
             </StackPanel>
         </Border>
 
+        <!-- Draft restore banner: shown after a crash or unexpected exit -->
+        <Border DockPanel.Dock="Top"
+                IsVisible="{Binding HasDraftToRestore}"
+                Background="{DynamicResource SecondaryPanelBackgroundBrush}"
+                Padding="16,8"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="{Binding DraftRestoreMessage}"
+                           VerticalAlignment="Center" />
+                <Button Content="Restore"
+                        Command="{Binding RestoreDraftCommand}" />
+                <Button Content="Discard"
+                        Command="{Binding DiscardDraftCommand}" />
+            </StackPanel>
+        </Border>
+
         <!-- Dockable main content area -->
         <dock:DockControl Layout="{Binding Layout}"
                           Factory="{Binding Factory}" />

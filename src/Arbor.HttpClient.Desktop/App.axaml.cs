@@ -54,6 +54,11 @@ public partial class App : Application
             var environmentRepository = new SqliteEnvironmentRepository(connectionString);
             var scheduledJobRepository = new SqliteScheduledJobRepository(connectionString);
             var optionsStore = new ApplicationOptionsStore(optionsPath);
+            var draftsFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Arbor.HttpClient",
+                "drafts");
+            var draftPersistenceService = new DraftPersistenceService(draftsFolder);
             ApplicationOptions currentOptions;
             try
             {
@@ -119,7 +124,8 @@ public partial class App : Application
                     inverseRedirectHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects, cookieContainer: sharedCookieContainer);
                     httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
                 },
-                cookieContainer: sharedCookieContainer);
+                cookieContainer: sharedCookieContainer,
+                draftPersistenceService: draftPersistenceService);
 
             var window = new MainWindow
             {
