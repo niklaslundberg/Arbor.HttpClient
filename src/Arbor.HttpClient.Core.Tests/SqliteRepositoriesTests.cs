@@ -1,6 +1,7 @@
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Storage.Sqlite;
 using AwesomeAssertions;
+using Microsoft.Data.Sqlite;
 
 namespace Arbor.HttpClient.Core.Tests;
 
@@ -12,8 +13,7 @@ public class SqliteRepositoriesTests
         var dbPath = Path.Join(Path.GetTempPath(), $"test_history_{Guid.NewGuid()}.db");
         try
         {
-            var connectionString = $"Data Source={dbPath}";
-            var repository = new SqliteRequestHistoryRepository(connectionString);
+            var repository = new SqliteRequestHistoryRepository(dbPath);
 
             await repository.InitializeAsync();
 
@@ -29,6 +29,7 @@ public class SqliteRepositoriesTests
         }
         finally
         {
+            SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath))
             {
                 File.Delete(dbPath);
@@ -42,8 +43,7 @@ public class SqliteRepositoriesTests
         var dbPath = Path.Join(Path.GetTempPath(), $"test_history_limit_{Guid.NewGuid()}.db");
         try
         {
-            var connectionString = $"Data Source={dbPath}";
-            var repository = new SqliteRequestHistoryRepository(connectionString);
+            var repository = new SqliteRequestHistoryRepository(dbPath);
 
             await repository.InitializeAsync();
 
@@ -58,6 +58,7 @@ public class SqliteRepositoriesTests
         }
         finally
         {
+            SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath))
             {
                 File.Delete(dbPath);
@@ -96,6 +97,7 @@ public class SqliteRepositoriesTests
         }
         finally
         {
+            SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath))
             {
                 File.Delete(dbPath);
@@ -138,6 +140,7 @@ public class SqliteRepositoriesTests
         }
         finally
         {
+            SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath))
             {
                 File.Delete(dbPath);
@@ -171,6 +174,7 @@ public class SqliteRepositoriesTests
         }
         finally
         {
+            SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath))
             {
                 File.Delete(dbPath);
@@ -210,6 +214,7 @@ public class SqliteRepositoriesTests
         }
         finally
         {
+            SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath))
             {
                 File.Delete(dbPath);
@@ -243,6 +248,7 @@ public class SqliteRepositoriesTests
         }
         finally
         {
+            SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath))
             {
                 File.Delete(dbPath);
