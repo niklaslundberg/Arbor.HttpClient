@@ -404,7 +404,7 @@ The desktop application (`Arbor.HttpClient.Desktop`) is distributed as a signed 
 
 - The MSIX manifest template lives at `src/Arbor.HttpClient.Desktop/packaging/AppxManifest.xml`.
 - `VERSION_PLACEHOLDER` in the manifest is substituted at build time with the 4-part version derived from the GitHub Actions run number (`1.0.{run_number}.0`).
-- The release workflow (`.github/workflows/release.yml`) runs automatically on every push to `main`. It:
+- The release workflow (`.github/workflows/release.yml`) runs automatically on every push to `main` and can also be triggered manually via `workflow_dispatch`. It:
   1. Builds and runs unit tests on `windows-latest`.
   2. Publishes a `win-x64` self-contained executable via `dotnet publish`.
   3. Generates required MSIX logo assets using ImageMagick.
@@ -418,6 +418,7 @@ The desktop application (`Arbor.HttpClient.Desktop`) is distributed as a signed 
 - Do **not** change `ProcessorArchitecture` in the manifest without also changing the `-r` runtime identifier in the release workflow's `dotnet publish` step.
 - The `Publisher` value in `AppxManifest.xml` must exactly match the `Subject` of the signing certificate. If you change the publisher, update both.
 - Required MSIX logo sizes: `Square44x44Logo` (44×44), `Square150x150Logo` (150×150), `Wide310x150Logo` (310×150), `StoreLogo` (50×50), `SplashScreen` (620×300). Update the workflow if real brand assets replace the generated placeholders.
+- **`[RECOMMENDED][PROCESS]`** Release workflows must include a `workflow_dispatch` trigger and handle existing releases/tags idempotently (e.g. delete before re-creating) so that they can be re-triggered without pushing a new commit to `main`.
 
 ## Accessibility
 
