@@ -99,14 +99,13 @@ jobs:
       - name: Generate SBOM (build artifacts)
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path publish/win-x64/_manifest | Out-Null
           sbom-tool Generate `
             -b publish/win-x64 `
             -bc . `
             -pn "Arbor.HttpClient.Desktop" `
             -pv "${{ steps.version.outputs.VERSION }}" `
             -ps "Niklas Lundberg" `
-            -m publish/win-x64/_manifest `
+            -m publish/win-x64 `
             -V Information
 
       - name: Attest build provenance
