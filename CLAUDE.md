@@ -2,7 +2,7 @@
 
 > **Canonical source**: `.github/copilot-instructions.md` contains the full behavioral guidelines for this repository. Read it at the start of every session.
 >
-> **Sync note**: `CLAUDE.md` and `AGENTS.md` have identical body content (only the first-line title differs). If you modify the body of one, apply the same change to the other. Verify locally before committing: `diff <(tail -n +2 CLAUDE.md) <(tail -n +2 AGENTS.md)`. CI also asserts this and will fail the `agent-instructions-sync` job if the files diverge.
+> **Sync note**: `CLAUDE.md` and `AGENTS.md` have identical body content (only the first-line title differs). If you modify the body of one, apply the same change to the other. Verify locally before committing. Bash/WSL/Git Bash: `diff <(tail -n +2 CLAUDE.md) <(tail -n +2 AGENTS.md)`. PowerShell: ``Compare-Object ((Get-Content CLAUDE.md) | Select-Object -Skip 1) ((Get-Content AGENTS.md) | Select-Object -Skip 1)``. CI also asserts this and will fail the `agent-instructions-sync` job if the files diverge.
 
 ## Quick start
 
