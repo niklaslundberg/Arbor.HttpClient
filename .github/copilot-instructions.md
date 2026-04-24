@@ -147,6 +147,23 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - `git commit --no-verify` bypasses the hook. Use it only in genuinely exceptional circumstances (e.g. committing a work-in-progress branch where tests are intentionally broken and you will fix them in the next commit). Never push to `main` with failing tests.
 - If a pre-existing test was already failing before your changes, note it explicitly in the PR description rather than silently ignoring it.
 
+### CI Parity — Run the Same Checks Locally Before Committing
+
+**The goal is to catch issues before they reach GitHub Actions.** CI runs require user consent, which adds an extra feedback loop. Running equivalent checks locally before committing short-circuits that delay and surfaces problems immediately.
+
+The following local commands mirror the CI jobs in `.github/workflows/ci.yml`. Run them in order before every commit:
+
+| CI job | Local equivalent |
+|--------|-----------------|
+| **Restore** | `dotnet restore Arbor.HttpClient.slnx --locked-mode` |
+| **Vulnerability audit** | `dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive` |
+| **Build** | `dotnet build Arbor.HttpClient.slnx --no-restore --configuration Release` |
+| **Unit tests** | `dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj --no-restore --configuration Release` |
+| **E2E tests** | `dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj --no-restore --configuration Release` |
+| **Agent instructions sync** | Bash: `diff <(tail -n +2 CLAUDE.md) <(tail -n +2 AGENTS.md)` · PowerShell: `Compare-Object (Get-Content CLAUDE.md \| Select-Object -Skip 1) (Get-Content AGENTS.md \| Select-Object -Skip 1)` |
+
+If any step fails locally, fix it before pushing — this avoids triggering a CI run only to discover a preventable failure.
+
 ## 6. Runtime Validation Before PR Ready
 
 **Run the application headlessly and fix every console error before the PR is ready.**
