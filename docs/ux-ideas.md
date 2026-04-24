@@ -390,7 +390,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### 6.6 Auto-save drafts per tab ✅ Implemented
-> Implemented in PR (commit TBD) — `src/Arbor.HttpClient.Desktop/Services/DraftPersistenceService.cs`, `src/Arbor.HttpClient.Desktop/Models/DraftState.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Views/MainWindow.axaml`
+> Implemented in PR #62 (commit `0feb9e9`) — `src/Arbor.HttpClient.Desktop/Services/DraftPersistenceService.cs`, `src/Arbor.HttpClient.Desktop/Models/DraftState.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Views/MainWindow.axaml`
 
 **What it means:** The current in-progress request (URL, headers, body, selected environment) is saved automatically every few seconds so that an unexpected crash does not lose unsaved work.
 

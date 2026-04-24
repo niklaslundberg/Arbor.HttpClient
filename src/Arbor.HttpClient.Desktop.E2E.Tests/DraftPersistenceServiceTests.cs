@@ -18,7 +18,7 @@ public class DraftPersistenceServiceTests
         new(new VariableResolver(), () => []);
 
     private static string CreateTempDraftsFolder() =>
-        Path.Combine(Path.GetTempPath(), $"arbor-drafts-{Guid.NewGuid():N}");
+        Path.Join(Path.GetTempPath(), $"arbor-drafts-{Guid.NewGuid():N}");
 
     // ── LoadDraft ─────────────────────────────────────────────────────────────
 
@@ -38,7 +38,7 @@ public class DraftPersistenceServiceTests
     {
         var folder = CreateTempDraftsFolder();
         Directory.CreateDirectory(folder);
-        File.WriteAllText(Path.Combine(folder, "draft.json"), "not valid json{{{{");
+        File.WriteAllText(Path.Join(folder, "draft.json"), "not valid json{{{{");
         var service = new DraftPersistenceService(folder);
 
         var result = service.LoadDraft();

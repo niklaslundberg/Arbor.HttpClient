@@ -68,8 +68,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private CancellationTokenSource? _optionsAutoSaveCts;
     private DockLayoutSnapshot? _defaultLayout;
     private byte[] _lastResponseBodyBytes = Array.Empty<byte>();
-    private DraftPersistenceService? _draftPersistenceService;
+    private readonly DraftPersistenceService? _draftPersistenceService;
     private CancellationTokenSource? _draftAutoSaveCts;
+    private DraftState? _pendingDraft;
 
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
@@ -1269,17 +1270,23 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _environmentsViewModel.LoadEnvironmentsAsync(cancellationToken),
             LoadScheduledJobsAsync(cancellationToken)).ConfigureAwait(false);
 
-        if (_draftPersistenceService?.LoadDraft() is { } savedDraft)
+        var savedDraft = _draftPersistenceService?.LoadDraft();
+        if (savedDraft is not null)
         {
+            _pendingDraft = savedDraft;
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 HasDraftToRestore = true;
                 DraftRestoreMessage =
                     $"An unsaved draft from {savedDraft.SavedAt.LocalDateTime:g} was found. Restore it?";
             });
+            // Auto-save is deferred until the user dismisses the banner to avoid
+            // overwriting the pending draft before they can restore it.
         }
-
-        StartDraftAutoSave();
+        else
+        {
+            StartDraftAutoSave();
+        }
     }
 
     private void OnRequestBodyFileChanged(object sender, FileSystemEventArgs e)
@@ -1978,19 +1985,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void RestoreDraft()
     {
-        if (_draftPersistenceService?.LoadDraft() is { } draft)
+        var draft = _pendingDraft ?? _draftPersistenceService?.LoadDraft();
+        if (draft is not null)
         {
             DraftPersistenceService.RestoreToEditor(draft, _requestEditor);
         }
 
+        _pendingDraft = null;
         HasDraftToRestore = false;
+        StartDraftAutoSave();
     }
 
     [RelayCommand]
     private void DiscardDraft()
     {
+        _pendingDraft = null;
         _draftPersistenceService?.ClearDraft();
         HasDraftToRestore = false;
+        StartDraftAutoSave();
     }
 
     private void StartDraftAutoSave()
@@ -2014,18 +2026,26 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
-        while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+        try
         {
-            try
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
             {
-                var state = await Dispatcher.UIThread.InvokeAsync(
-                    () => DraftPersistenceService.CaptureFromEditor(_requestEditor));
-                _draftPersistenceService.SaveDraft(state);
+                try
+                {
+                    var state = await Dispatcher.UIThread.InvokeAsync(
+                        () => DraftPersistenceService.CaptureFromEditor(_requestEditor));
+                    cancellationToken.ThrowIfCancellationRequested();
+                    _draftPersistenceService.SaveDraft(state);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _debugLogger.Warning(ex, "Auto-save draft failed");
+                }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _debugLogger.Warning(ex, "Auto-save draft failed");
-            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Normal shutdown — timer cancelled.
         }
     }
 }

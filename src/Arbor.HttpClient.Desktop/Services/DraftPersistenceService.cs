@@ -23,7 +23,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
         WriteIndented = true
     };
 
-    internal string DraftFilePath => Path.Combine(draftsFolder, "draft.json");
+    internal string DraftFilePath => Path.Join(draftsFolder, "draft.json");
 
     /// <summary>
     /// Reads the persisted draft file and returns the deserialised state,
@@ -50,14 +50,47 @@ public sealed class DraftPersistenceService(string draftsFolder)
         {
             return null;
         }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
-    /// <summary>Serialises <paramref name="state"/> and writes it to the draft file.</summary>
+    /// <summary>Serialises <paramref name="state"/> and writes it to the draft file atomically.</summary>
     public void SaveDraft(DraftState state)
     {
         Directory.CreateDirectory(draftsFolder);
         var json = JsonSerializer.Serialize(state, SerializerOptions);
-        File.WriteAllText(DraftFilePath, json);
+        var draftFilePath = DraftFilePath;
+        var tempFilePath = Path.Join(draftsFolder, Path.GetRandomFileName());
+        try
+        {
+            File.WriteAllText(tempFilePath, json);
+            if (File.Exists(draftFilePath))
+            {
+                File.Replace(tempFilePath, draftFilePath, null);
+            }
+            else
+            {
+                File.Move(tempFilePath, draftFilePath);
+            }
+        }
+        catch
+        {
+            try
+            {
+                if (File.Exists(tempFilePath))
+                {
+                    File.Delete(tempFilePath);
+                }
+            }
+            catch (IOException)
+            {
+                // best-effort cleanup of temp file
+            }
+
+            throw;
+        }
     }
 
     /// <summary>Deletes the draft file if it exists (best-effort; ignores errors).</summary>
@@ -71,6 +104,10 @@ public sealed class DraftPersistenceService(string draftsFolder)
             }
         }
         catch (IOException)
+        {
+            // best-effort cleanup
+        }
+        catch (UnauthorizedAccessException)
         {
             // best-effort cleanup
         }
