@@ -1,5 +1,7 @@
 # Suggested Additional Coding Guidelines
 
+> **Status: Historical planning record.** All 8 suggestions below have been fully incorporated into `.github/copilot-instructions.md` (sections 7–11 and the Accessibility/Dependency sections). This file is preserved for traceability only. Do not treat it as an authoritative source of rules — always defer to `.github/copilot-instructions.md`.
+
 This report lists potential coding guidelines that can be added incrementally on top of the current repository standards.
 
 ## 1. Analyzer severity policy

@@ -48,8 +48,7 @@ Cross-platform desktop HTTP client built with **.NET 10**, **Avalonia 12**, and 
 
 ## Code Coverage
 
-- [`docs/coverage.md`](docs/coverage.md) — code coverage status, CI integration, and local report generation
-- Current coverage: **60.7%** line coverage, **77.9%** branch coverage
+- [`docs/coverage.md`](docs/coverage.md) — code coverage status, CI integration, and local report generation (see that file for current numbers)
 - Coverage reports are generated automatically in every CI build
 
 ## Run
