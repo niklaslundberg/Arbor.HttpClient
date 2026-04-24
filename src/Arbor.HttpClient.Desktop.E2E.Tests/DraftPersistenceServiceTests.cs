@@ -23,33 +23,33 @@ public class DraftPersistenceServiceTests
     // ── LoadDraft ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public void LoadDraft_ReturnsNull_WhenDraftFileDoesNotExist()
+    public async Task LoadDraftAsync_ReturnsNull_WhenDraftFileDoesNotExist()
     {
         var folder = CreateTempDraftsFolder();
         var service = new DraftPersistenceService(folder);
 
-        var result = service.LoadDraft();
+        var result = await service.LoadDraftAsync();
 
         result.Should().BeNull();
     }
 
     [Fact]
-    public void LoadDraft_ReturnsNull_WhenDraftFileIsCorrupted()
+    public async Task LoadDraftAsync_ReturnsNull_WhenDraftFileIsCorrupted()
     {
         var folder = CreateTempDraftsFolder();
         Directory.CreateDirectory(folder);
-        File.WriteAllText(Path.Join(folder, "draft.json"), "not valid json{{{{");
+        await File.WriteAllTextAsync(Path.Join(folder, "draft.json"), "not valid json{{{{");
         var service = new DraftPersistenceService(folder);
 
-        var result = service.LoadDraft();
+        var result = await service.LoadDraftAsync();
 
         result.Should().BeNull();
     }
 
-    // ── SaveDraft / LoadDraft round-trip ──────────────────────────────────────
+    // ── SaveDraftAsync / LoadDraftAsync round-trip ────────────────────────────
 
     [Fact]
-    public void SaveAndLoadDraft_ShouldRoundtripAllFields()
+    public async Task SaveAndLoadDraftAsync_ShouldRoundtripAllFields()
     {
         var folder = CreateTempDraftsFolder();
         var service = new DraftPersistenceService(folder);
@@ -77,8 +77,8 @@ public class DraftPersistenceServiceTests
             SavedAt = savedAt
         };
 
-        service.SaveDraft(draft);
-        var loaded = service.LoadDraft();
+        await service.SaveDraftAsync(draft);
+        var loaded = await service.LoadDraftAsync();
 
         loaded.Should().NotBeNull();
         loaded!.RequestName.Should().Be("My Request");
@@ -102,11 +102,11 @@ public class DraftPersistenceServiceTests
     // ── ClearDraft ────────────────────────────────────────────────────────────
 
     [Fact]
-    public void ClearDraft_DeletesDraftFile()
+    public async Task ClearDraft_DeletesDraftFile()
     {
         var folder = CreateTempDraftsFolder();
         var service = new DraftPersistenceService(folder);
-        service.SaveDraft(new DraftState());
+        await service.SaveDraftAsync(new DraftState());
 
         service.ClearDraft();
 
@@ -207,15 +207,15 @@ public class DraftPersistenceServiceTests
         editor.SelectedRequestType.Should().Be(RequestType.Http);
     }
 
-    // ── SaveDraft creates folder if missing ───────────────────────────────────
+    // ── SaveDraftAsync creates folder if missing ──────────────────────────────
 
     [Fact]
-    public void SaveDraft_CreatesDirectoryIfMissing()
+    public async Task SaveDraftAsync_CreatesDirectoryIfMissing()
     {
         var folder = CreateTempDraftsFolder(); // folder does not exist yet
         var service = new DraftPersistenceService(folder);
 
-        service.SaveDraft(new DraftState { Url = "https://example.com" });
+        await service.SaveDraftAsync(new DraftState { Url = "https://example.com" });
 
         Directory.Exists(folder).Should().BeTrue();
         File.Exists(service.DraftFilePath).Should().BeTrue();

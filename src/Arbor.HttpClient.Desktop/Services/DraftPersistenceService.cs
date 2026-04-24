@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Desktop.Models;
 using Arbor.HttpClient.Desktop.ViewModels;
@@ -29,7 +31,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
     /// Reads the persisted draft file and returns the deserialised state,
     /// or <see langword="null"/> if the file does not exist or cannot be parsed.
     /// </summary>
-    public DraftState? LoadDraft()
+    public async Task<DraftState?> LoadDraftAsync(CancellationToken cancellationToken = default)
     {
         var path = DraftFilePath;
         if (!File.Exists(path))
@@ -39,7 +41,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
 
         try
         {
-            var json = File.ReadAllText(path);
+            var json = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
             return JsonSerializer.Deserialize<DraftState>(json, SerializerOptions);
         }
         catch (JsonException)
@@ -57,7 +59,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
     }
 
     /// <summary>Serialises <paramref name="state"/> and writes it to the draft file atomically.</summary>
-    public void SaveDraft(DraftState state)
+    public async Task SaveDraftAsync(DraftState state, CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(draftsFolder);
         var json = JsonSerializer.Serialize(state, SerializerOptions);
@@ -65,7 +67,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
         var tempFilePath = Path.Join(draftsFolder, Path.GetRandomFileName());
         try
         {
-            File.WriteAllText(tempFilePath, json);
+            await File.WriteAllTextAsync(tempFilePath, json, cancellationToken).ConfigureAwait(false);
             if (File.Exists(draftFilePath))
             {
                 File.Replace(tempFilePath, draftFilePath, null);

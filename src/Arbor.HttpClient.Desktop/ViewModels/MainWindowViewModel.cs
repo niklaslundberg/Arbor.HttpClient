@@ -1270,7 +1270,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _environmentsViewModel.LoadEnvironmentsAsync(cancellationToken),
             LoadScheduledJobsAsync(cancellationToken)).ConfigureAwait(false);
 
-        var savedDraft = _draftPersistenceService?.LoadDraft();
+        var savedDraft = _draftPersistenceService is not null
+            ? await _draftPersistenceService.LoadDraftAsync(cancellationToken).ConfigureAwait(false)
+            : null;
         if (savedDraft is not null)
         {
             _pendingDraft = savedDraft;
@@ -1983,12 +1985,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _environmentsViewModel.GetActiveVariablesForEditor();
 
     [RelayCommand]
-    private void RestoreDraft()
+    private async Task RestoreDraftAsync()
     {
-        var draft = _pendingDraft ?? _draftPersistenceService?.LoadDraft();
+        var draft = _pendingDraft
+            ?? (_draftPersistenceService is not null
+                ? await _draftPersistenceService.LoadDraftAsync().ConfigureAwait(false)
+                : null);
         if (draft is not null)
         {
-            DraftPersistenceService.RestoreToEditor(draft, _requestEditor);
+            await Dispatcher.UIThread.InvokeAsync(() => DraftPersistenceService.RestoreToEditor(draft, _requestEditor));
         }
 
         _pendingDraft = null;
@@ -2035,7 +2040,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                     var state = await Dispatcher.UIThread.InvokeAsync(
                         () => DraftPersistenceService.CaptureFromEditor(_requestEditor));
                     cancellationToken.ThrowIfCancellationRequested();
-                    _draftPersistenceService.SaveDraft(state);
+                    await _draftPersistenceService.SaveDraftAsync(state, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
