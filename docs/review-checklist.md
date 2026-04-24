@@ -69,7 +69,7 @@ Before merging any PR that touches UI code or theme resources:
 - [ ] No new HTTP/TLS configuration that downgrades security.
 - [ ] No sensitive data logged (credentials, PII, raw request bodies).
 - [ ] `persist-credentials: false` retained on `actions/checkout` steps.
-- [ ] Vulnerability audit (`dotnet list package --vulnerable --include-transitive`) passes with no findings.
+- [ ] Vulnerability audit (`dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive`) passes with no findings.
 
 ## Dependencies
 
