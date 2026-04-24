@@ -196,6 +196,153 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+  release-verification:
+    name: Release Build Verification
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Set version
+        id: version
+        shell: pwsh
+        run: |
+          $ver = "1.0.${{ github.run_number }}.0"
+          $tag = "v1.0.${{ github.run_number }}"
+          "VERSION=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "TAG=$tag"     | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Version: $ver  Tag: $tag"
+
+      - name: Restore
+        run: dotnet restore Arbor.HttpClient.slnx --locked-mode
+
+      - name: Install SBOM tool
+        run: dotnet tool install --global microsoft.sbom.dotnettool --version 4.1.5
+
+      - name: Audit NuGet dependencies for vulnerabilities
+        run: dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive
+
+      - name: Build
+        run: dotnet build Arbor.HttpClient.slnx --no-restore --configuration Release
+
+      - name: Run unit tests
+        run: >
+          dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj
+          --no-restore
+          --configuration Release
+          --logger "console;verbosity=normal"
+
+      - name: Publish win-x64 self-contained
+        run: >
+          dotnet publish src/Arbor.HttpClient.Desktop/Arbor.HttpClient.Desktop.csproj
+          --configuration Release
+          -r win-x64
+          --self-contained true
+          -o publish/win-x64
+
+      - name: Create MSIX package layout
+        shell: pwsh
+        run: |
+          $publishDir = "publish/win-x64"
+          $assetsDir  = "$publishDir/Assets"
+          New-Item -ItemType Directory -Force -Path $assetsDir | Out-Null
+
+          # Inject version into AppxManifest and write it to the publish directory
+          $manifest = Get-Content "src/Arbor.HttpClient.Desktop/packaging/AppxManifest.xml" -Raw
+          $manifest  = $manifest -replace 'VERSION_PLACEHOLDER', '${{ steps.version.outputs.VERSION }}'
+          $manifest | Set-Content "$publishDir/AppxManifest.xml" -Encoding UTF8
+
+          # Generate the required MSIX logo images using ImageMagick (pre-installed on windows-latest)
+          $color = "#0078D4"
+          magick -size  44x44  xc:"$color" "$assetsDir/Square44x44Logo.png"
+          magick -size 150x150 xc:"$color" "$assetsDir/Square150x150Logo.png"
+          magick -size 310x150 xc:"$color" "$assetsDir/Wide310x150Logo.png"
+          magick -size  50x50  xc:"$color" "$assetsDir/StoreLogo.png"
+          magick -size 620x300 xc:"$color" "$assetsDir/SplashScreen.png"
+
+      - name: Create MSIX package
+        shell: pwsh
+        run: |
+          $makeappx = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "makeappx.exe" |
+            Where-Object { $_.FullName -like "*x64*" } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+          Write-Host "makeappx: $makeappx"
+          & $makeappx pack /d publish/win-x64 /p Arbor.HttpClient.Desktop.msix
+
+      - name: Generate SBOM (build artifacts)
+        shell: pwsh
+        run: |
+          sbom-tool Generate `
+            -b publish/win-x64 `
+            -bc . `
+            -pn "Arbor.HttpClient.Desktop" `
+            -pv "${{ steps.version.outputs.VERSION }}" `
+            -ps "Niklas Lundberg" `
+            -m publish/win-x64 `
+            -V Information
+
+      - name: Verify SBOM manifest exists
+        shell: pwsh
+        run: |
+          $sbomPath = "publish/win-x64/_manifest/spdx_2.2/manifest.spdx.json"
+          if (-not (Test-Path $sbomPath)) {
+            Write-Error "SBOM manifest not found at expected path: $sbomPath"
+            exit 1
+          }
+          Write-Host "SBOM manifest verified at: $sbomPath"
+
+      # Attest build provenance is skipped here — it requires id-token: write which is
+      # not granted to CI jobs. Attestation runs only in the release workflow on main.
+
+      - name: Create self-signed signing certificate
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject "CN=Arbor.HttpClient" `
+            -KeyUsage DigitalSignature `
+            -FriendlyName "Arbor.HttpClient" `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+
+          $pwd = ConvertTo-SecureString -String "CI_SIGN_CERT" -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath packaging.pfx -Password $pwd | Out-Null
+          Export-Certificate    -Cert $cert -FilePath Arbor.HttpClient.Desktop.cer  | Out-Null
+          Write-Host "Certificate thumbprint: $($cert.Thumbprint)"
+
+      - name: Sign MSIX
+        shell: pwsh
+        run: |
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" |
+            Where-Object { $_.FullName -like "*x64*" } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+          Write-Host "signtool: $signtool"
+          & $signtool sign /fd SHA256 /a /f packaging.pfx /p "CI_SIGN_CERT" Arbor.HttpClient.Desktop.msix
+
+      - name: Generate artifact checksums
+        shell: pwsh
+        run: |
+          Get-FileHash Arbor.HttpClient.Desktop.msix -Algorithm SHA256 | ForEach-Object {
+            "$($_.Hash.ToLowerInvariant()) *Arbor.HttpClient.Desktop.msix"
+          } | Set-Content Arbor.HttpClient.Desktop.msix.sha256 -Encoding UTF8
+
+          Get-FileHash Arbor.HttpClient.Desktop.cer -Algorithm SHA256 | ForEach-Object {
+            "$($_.Hash.ToLowerInvariant()) *Arbor.HttpClient.Desktop.cer"
+          } | Set-Content Arbor.HttpClient.Desktop.cer.sha256 -Encoding UTF8
+
+      # GitHub Release creation is intentionally omitted — this job verifies the packaging
+      # pipeline only; the actual release is created by the release workflow on main.
+
   e2e-tests:
     name: E2E Tests
     needs: build
