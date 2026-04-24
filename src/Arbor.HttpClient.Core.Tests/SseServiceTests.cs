@@ -220,4 +220,95 @@ public class SseServiceTests
         captured.Should().NotBeNull();
         captured!.Headers.Accept.Should().Contain(h => h.MediaType == "text/event-stream");
     }
+
+    [Fact]
+    public async Task ConnectAsync_ShouldForwardEnabledCustomHeaders()
+    {
+        HttpRequestMessage? captured = null;
+
+        var handler = new StubHttpMessageHandler(req =>
+        {
+            captured = req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(Array.Empty<byte>())
+            };
+        });
+
+        var service = new SseService(new global::System.Net.Http.HttpClient(handler));
+        var headers = new[] { new RequestHeader("X-Api-Key", "secret-token") };
+
+        await service.ConnectAsync("https://example.com/stream", _ => { }, headers);
+
+        captured!.Headers.Should().Contain(h => h.Key == "X-Api-Key" && h.Value.Contains("secret-token"));
+    }
+
+    [Fact]
+    public async Task ConnectAsync_ShouldSkipAcceptHeaderFromCustomHeaders()
+    {
+        // The service always sets Accept: text/event-stream; a custom Accept header should be dropped
+        HttpRequestMessage? captured = null;
+
+        var handler = new StubHttpMessageHandler(req =>
+        {
+            captured = req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(Array.Empty<byte>())
+            };
+        });
+
+        var service = new SseService(new global::System.Net.Http.HttpClient(handler));
+        var headers = new[] { new RequestHeader("Accept", "text/html") };
+
+        await service.ConnectAsync("https://example.com/stream", _ => { }, headers);
+
+        // Should still carry exactly one Accept value: text/event-stream
+        captured!.Headers.Accept.Should().ContainSingle(h => h.MediaType == "text/event-stream");
+    }
+
+    [Fact]
+    public async Task ConnectAsync_ShouldSkipDisabledHeaders()
+    {
+        HttpRequestMessage? captured = null;
+
+        var handler = new StubHttpMessageHandler(req =>
+        {
+            captured = req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(Array.Empty<byte>())
+            };
+        });
+
+        var service = new SseService(new global::System.Net.Http.HttpClient(handler));
+        var headers = new[] { new RequestHeader("X-Disabled", "value", IsEnabled: false) };
+
+        await service.ConnectAsync("https://example.com/stream", _ => { }, headers);
+
+        captured!.Headers.Should().NotContain(h => h.Key == "X-Disabled");
+    }
+
+    [Fact]
+    public async Task ConnectAsync_ShouldSkipHeadersWithBlankName()
+    {
+        HttpRequestMessage? captured = null;
+
+        var handler = new StubHttpMessageHandler(req =>
+        {
+            captured = req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(Array.Empty<byte>())
+            };
+        });
+
+        var service = new SseService(new global::System.Net.Http.HttpClient(handler));
+        var headers = new[] { new RequestHeader("  ", "value") };
+
+        // Blank-name headers must be silently dropped (no exception)
+        var action = () => service.ConnectAsync("https://example.com/stream", _ => { }, headers);
+
+        await action.Should().NotThrowAsync();
+    }
 }

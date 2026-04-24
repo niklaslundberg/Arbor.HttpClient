@@ -135,10 +135,16 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   - Prefer isolated unit tests first, then integration/E2E tests when unit tests are not sufficient
   - Maintain reasonably high coverage in the changed area. If code can be tested, add tests
   - For feature work, generate coverage reports locally and review them before committing
-  - Current project coverage baseline: 60.7% line coverage, 77.9% branch coverage (see `docs/coverage.md`)
+  - Current project coverage baseline: 60.0% line coverage, 49.4% branch coverage (see `docs/coverage.md`)
   - New code should not lower the overall coverage percentage
   - CI automatically generates and publishes coverage reports to the job summary
   - **[REQUIRED]** Coverage numbers reported in `docs/coverage.md` and the PR description must be sourced from an actual `dotnet test --collect:"XPlat Code Coverage"` run, not estimated. Never write coverage percentages unless you have collected and read the coverage XML output yourself.
+  - **Coverage targets for new code** — enforced per PR:
+    - `Arbor.HttpClient.Core` (pure logic, no UI): **100% line coverage** for new or changed classes. If a code path genuinely cannot be exercised without real network connectivity (e.g. `WebSocketService.ConnectAsync` requires a live server), document the gap explicitly in the PR and cover all testable branches (validation, error paths, disposal).
+    - `Arbor.HttpClient.Desktop` (UI/integration): **90% line coverage** for new or changed ViewModels and services. UI-thread dispatch paths and Avalonia lifecycle hooks that cannot run in the headless test harness are exempt; document any such exemption.
+    - `Arbor.HttpClient.Storage.Sqlite`: **90% line coverage** for new or changed repositories.
+    - `Arbor.HttpClient.Testing`: no minimum — this project provides test doubles and its coverage is driven indirectly.
+  - After every feature PR, run coverage, read the XML output, update `docs/coverage.md`, and include the numbers in the PR description.
 - **Test naming convention**: Name tests using the `Method_Scenario_ExpectedResult` pattern (e.g. `Parse_EmptyInput_ThrowsArgumentException`). Each test should verify one behavioral intent; arrange test data explicitly rather than relying on implicit state.
 - Profiling-oriented validation is required when changing request execution hot paths, scheduled/background job loops, data-processing loops, or code that introduces disposable/resource-heavy objects.
 - Treat code as a hot path when it runs on every request, for each item in a collection, or on a recurring timer. Profiling is optional for isolated admin/one-off flows.

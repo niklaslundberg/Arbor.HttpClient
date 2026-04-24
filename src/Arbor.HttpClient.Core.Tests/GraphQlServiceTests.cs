@@ -221,4 +221,91 @@ public class GraphQlServiceTests
         await action.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*401*");
     }
+
+    [Fact]
+    public async Task SendQueryAsync_ShouldFallBackToUtf8_WhenCharsetIsInvalid()
+    {
+        // Arrange: response carries an unrecognised charset; service should not throw
+        var handler = new StubHttpMessageHandler(_ =>
+        {
+            var content = new System.Net.Http.ByteArrayContent(Encoding.UTF8.GetBytes("""{"data":{}}"""));
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json")
+            {
+                CharSet = "not-a-real-charset"
+            };
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+        });
+
+        var service = new GraphQlService(new global::System.Net.Http.HttpClient(handler));
+        var draft = new GraphQlDraft("https://example.com/graphql", "{ __typename }", null, null);
+
+        var result = await service.SendQueryAsync(draft);
+
+        result.StatusCode.Should().Be(200);
+        result.Body.Should().Contain("data");
+    }
+
+    [Fact]
+    public async Task IntrospectSchemaAsync_ShouldReturnBodyAsIs_WhenResponseBodyIsNotJson()
+    {
+        // Arrange: server returns 200 with a plain-text body (not JSON)
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("not-json-content", Encoding.UTF8, "text/plain")
+            });
+
+        var service = new GraphQlService(new global::System.Net.Http.HttpClient(handler));
+
+        var result = await service.IntrospectSchemaAsync("https://example.com/graphql");
+
+        result.Should().Be("not-json-content");
+    }
+
+    [Fact]
+    public async Task SendQueryAsync_ShouldSkipContentTypeHeaderFromCustomHeaders()
+    {
+        // Arrange: a custom Content-Type header should be ignored (service sets its own)
+        HttpRequestMessage? captured = null;
+        var handler = new StubHttpMessageHandler(req =>
+        {
+            captured = req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"data":{}}""", Encoding.UTF8, "application/json")
+            };
+        });
+
+        var service = new GraphQlService(new global::System.Net.Http.HttpClient(handler));
+        var headers = new[] { new RequestHeader("Content-Type", "text/plain") };
+        var draft = new GraphQlDraft("https://example.com/graphql", "{ __typename }", null, null, headers);
+
+        await service.SendQueryAsync(draft);
+
+        // The request's Content-Type should still be application/json (not text/plain)
+        captured.Should().NotBeNull();
+        captured!.Content!.Headers.ContentType!.MediaType.Should().Be("application/json");
+    }
+
+    [Fact]
+    public async Task SendQueryAsync_ShouldSkipDisabledHeaders()
+    {
+        HttpRequestMessage? captured = null;
+        var handler = new StubHttpMessageHandler(req =>
+        {
+            captured = req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"data":{}}""", Encoding.UTF8, "application/json")
+            };
+        });
+
+        var service = new GraphQlService(new global::System.Net.Http.HttpClient(handler));
+        var headers = new[] { new RequestHeader("X-Disabled", "value", IsEnabled: false) };
+        var draft = new GraphQlDraft("https://example.com/graphql", "{ __typename }", null, null, headers);
+
+        await service.SendQueryAsync(draft);
+
+        captured!.Headers.Should().NotContain(h => h.Key == "X-Disabled");
+    }
 }
