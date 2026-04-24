@@ -68,6 +68,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private CancellationTokenSource? _optionsAutoSaveCts;
     private DockLayoutSnapshot? _defaultLayout;
     private byte[] _lastResponseBodyBytes = Array.Empty<byte>();
+    private readonly DraftPersistenceService? _draftPersistenceService;
+    private CancellationTokenSource? _draftAutoSaveCts;
+    private DraftState? _pendingDraft;
 
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
@@ -215,6 +218,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private bool _hasTextResponse;
 
+    [ObservableProperty]
+    private bool _hasDraftToRestore;
+
+    [ObservableProperty]
+    private string _draftRestoreMessage = string.Empty;
+
     partial void OnSelectedTlsVersionOptionChanged(string value) =>
         LogAndQueueOptionsAutoSave("Selected TLS version changed to {TlsVersion}", value);
 
@@ -308,7 +317,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ApplicationOptionsStore? applicationOptionsStore = null,
         ApplicationOptions? initialOptions = null,
         Action<ApplicationOptions>? onApplicationOptionsChanged = null,
-        CookieContainer? cookieContainer = null)
+        CookieContainer? cookieContainer = null,
+        DraftPersistenceService? draftPersistenceService = null)
     {
         _httpRequestService = httpRequestService;
         _requestHistoryRepository = requestHistoryRepository;
@@ -320,6 +330,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _variableResolver = new VariableResolver();
         _applicationOptionsStore = applicationOptionsStore;
         _onApplicationOptionsChanged = onApplicationOptionsChanged;
+        _draftPersistenceService = draftPersistenceService;
         var appLogger = (logger ?? Log.Logger).ForContext<MainWindowViewModel>();
         _debugLogger = appLogger.ForContext("LogTab", Logging.LogTab.Debug);
         _httpRequestsLogger = appLogger.ForContext("LogTab", Logging.LogTab.HttpRequests);
@@ -1201,6 +1212,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _environmentsViewModel.Dispose();
         _optionsAutoSaveCts?.Cancel();
         _optionsAutoSaveCts?.Dispose();
+        _draftAutoSaveCts?.Cancel();
+        _draftAutoSaveCts?.Dispose();
+        _draftPersistenceService?.ClearDraft();
         _scheduledJobService.Dispose();
         _requestBodyWatcher?.Dispose();
         _requestBodyWatcher = null;
@@ -1255,6 +1269,26 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             LoadCollectionsAsync(cancellationToken),
             _environmentsViewModel.LoadEnvironmentsAsync(cancellationToken),
             LoadScheduledJobsAsync(cancellationToken)).ConfigureAwait(false);
+
+        var savedDraft = _draftPersistenceService is not null
+            ? await _draftPersistenceService.LoadDraftAsync(cancellationToken).ConfigureAwait(false)
+            : null;
+        if (savedDraft is not null)
+        {
+            _pendingDraft = savedDraft;
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                HasDraftToRestore = true;
+                DraftRestoreMessage =
+                    $"An unsaved draft from {savedDraft.SavedAt.LocalDateTime:g} was found. Restore it?";
+            });
+            // Auto-save is deferred until the user dismisses the banner to avoid
+            // overwriting the pending draft before they can restore it.
+        }
+        else
+        {
+            StartDraftAutoSave();
+        }
     }
 
     private void OnRequestBodyFileChanged(object sender, FileSystemEventArgs e)
@@ -1949,4 +1983,74 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private IReadOnlyList<EnvironmentVariable> GetActiveVariablesForEditor() =>
         _environmentsViewModel.GetActiveVariablesForEditor();
+
+    [RelayCommand]
+    private async Task RestoreDraftAsync()
+    {
+        var draft = _pendingDraft
+            ?? (_draftPersistenceService is not null
+                ? await _draftPersistenceService.LoadDraftAsync().ConfigureAwait(false)
+                : null);
+        if (draft is not null)
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => DraftPersistenceService.RestoreToEditor(draft, _requestEditor));
+        }
+
+        _pendingDraft = null;
+        HasDraftToRestore = false;
+        StartDraftAutoSave();
+    }
+
+    [RelayCommand]
+    private void DiscardDraft()
+    {
+        _pendingDraft = null;
+        _draftPersistenceService?.ClearDraft();
+        HasDraftToRestore = false;
+        StartDraftAutoSave();
+    }
+
+    private void StartDraftAutoSave()
+    {
+        if (_draftPersistenceService is null)
+        {
+            return;
+        }
+
+        _draftAutoSaveCts?.Cancel();
+        _draftAutoSaveCts?.Dispose();
+        _draftAutoSaveCts = new CancellationTokenSource();
+        _ = RunDraftAutoSaveAsync(_draftAutoSaveCts.Token);
+    }
+
+    private async Task RunDraftAutoSaveAsync(CancellationToken cancellationToken)
+    {
+        if (_draftPersistenceService is null)
+        {
+            return;
+        }
+
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+            {
+                try
+                {
+                    var state = await Dispatcher.UIThread.InvokeAsync(
+                        () => DraftPersistenceService.CaptureFromEditor(_requestEditor));
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await _draftPersistenceService.SaveDraftAsync(state, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _debugLogger.Warning(ex, "Auto-save draft failed");
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Normal shutdown — timer cancelled.
+        }
+    }
 }
