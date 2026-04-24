@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -151,12 +152,16 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release create "${{ steps.version.outputs.TAG }}"
-          --generate-notes
-          --title "Release ${{ steps.version.outputs.TAG }}"
-          Arbor.HttpClient.Desktop.msix
-          Arbor.HttpClient.Desktop.cer
-          Arbor.HttpClient.Desktop.msix.sha256
-          Arbor.HttpClient.Desktop.cer.sha256
-          publish/win-x64/_manifest/spdx_2.2/manifest.spdx.json
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.TAG }}"
+          # Delete existing release and tag if present so re-runs are idempotent
+          gh release delete $tag --yes --cleanup-tag 2>$null || $true
+          gh release create $tag `
+            --generate-notes `
+            --title "Release $tag" `
+            Arbor.HttpClient.Desktop.msix `
+            Arbor.HttpClient.Desktop.cer `
+            Arbor.HttpClient.Desktop.msix.sha256 `
+            Arbor.HttpClient.Desktop.cer.sha256 `
+            publish/win-x64/_manifest/spdx_2.2/manifest.spdx.json
