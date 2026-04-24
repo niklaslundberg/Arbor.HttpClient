@@ -1751,18 +1751,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private async Task SendGraphQlRequestAsync()
+    private async Task SendGraphQlRequestAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             var url = _requestEditor.GetResolvedUrl();
             var headers = _requestEditor.GetResolvedHeaders();
-            var draft = _graphQlViewModel.BuildDraft(url, headers);
 
-            _httpRequestsLogger.Information("GraphQL request started: {Url}", draft.Url);
+            _httpRequestsLogger.Information("GraphQL request started: {Url}", url);
 
-            var graphQlService = new GraphQlService(_protocolHttpClient);
-            var response = await graphQlService.SendQueryAsync(draft);
+            var response = await _graphQlViewModel.SendQueryAsync(url, headers, cancellationToken);
 
             ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
             ResponseStatusCode = response.StatusCode;

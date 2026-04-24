@@ -50,6 +50,25 @@ public sealed partial class GraphQlViewModel : ViewModelBase
         return new GraphQlDraft(url, Query, VariablesJson, OperationName, headers);
     }
 
+    /// <summary>
+    /// Sends the current query to <paramref name="url"/> and returns the raw response details.
+    /// </summary>
+    /// <param name="url">The GraphQL endpoint URL (must be http:// or https://).</param>
+    /// <param name="headers">Optional extra request headers to include.</param>
+    /// <param name="cancellationToken">Token to cancel the in-flight request.</param>
+    /// <returns>
+    /// An <see cref="HttpResponseDetails"/> containing the status code, response body, headers,
+    /// elapsed time, and raw response bytes.
+    /// </returns>
+    public Task<HttpResponseDetails> SendQueryAsync(
+        string url,
+        IReadOnlyList<RequestHeader>? headers = null,
+        CancellationToken cancellationToken = default)
+    {
+        var draft = BuildDraft(url, headers);
+        return _service.SendQueryAsync(draft, cancellationToken);
+    }
+
     /// <summary>Runs a GraphQL introspection query against the supplied URL and populates <see cref="SchemaJson"/>.</summary>
     [RelayCommand]
     private async Task IntrospectSchemaAsync(string url)

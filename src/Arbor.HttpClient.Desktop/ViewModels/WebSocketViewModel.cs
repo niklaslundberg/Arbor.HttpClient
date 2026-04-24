@@ -66,7 +66,7 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
                 headers,
                 _connectionCts.Token).ConfigureAwait(false);
 
-            IsConnected = true;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => IsConnected = true);
             _logger.Information("WebSocket connected to {Url}", url);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -116,7 +116,8 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
         try
         {
             await _service.SendMessageAsync(text).ConfigureAwait(false);
-            Messages.Add(new WebSocketMessage(text, WebSocketMessageDirection.Sent, DateTimeOffset.UtcNow));
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                Messages.Add(new WebSocketMessage(text, WebSocketMessageDirection.Sent, DateTimeOffset.UtcNow)));
             _logger.Information("WebSocket message sent ({Length} bytes)", text.Length);
         }
         catch (Exception ex)
