@@ -17,8 +17,9 @@ Read these files before making any decision or change:
 | `docs/review-checklist.md` | PR review items (CodeQL, security, UI, dependencies) |
 | `docs/ux-ideas.md` | UX backlog — update on every PR |
 | `docs/security-review.md` | Security posture and guidelines |
-| `docs/coding-guideline-suggestions.md` | Additional coding standards |
+| `docs/coding-guideline-suggestions.md` | Historical planning record `[OPTIONAL]` — all items incorporated into copilot-instructions.md |
 | `docs/architecture/clean-feature-separation.md` | Architecture decisions and next steps |
+| `docs/coverage.md` | Code coverage baseline — single source of truth for coverage numbers |
 
 ## Severity key
 

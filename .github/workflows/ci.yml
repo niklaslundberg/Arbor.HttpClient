@@ -66,6 +66,28 @@ jobs:
           echo "Gitleaks detected potential secrets. See uploaded SARIF results for details."
           exit 1
 
+  agent-instructions-sync:
+    name: Agent Instructions Sync Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - name: Assert CLAUDE.md and AGENTS.md body is identical
+        run: |
+          # The first line (title heading) intentionally differs:
+          #   CLAUDE.md: "# Claude Agent Instructions"
+          #   AGENTS.md: "# Codex Agent Instructions"
+          # All other content must be identical.
+          if ! diff <(tail -n +2 CLAUDE.md) <(tail -n +2 AGENTS.md); then
+            echo "::error::CLAUDE.md and AGENTS.md body has diverged. They must be kept identical (except the first-line title) — update both files when making changes."
+            exit 1
+          fi
+          echo "CLAUDE.md and AGENTS.md body is identical ✓"
+
   build:
     name: Build
     runs-on: ubuntu-latest

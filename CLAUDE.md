@@ -1,6 +1,8 @@
 # Claude Agent Instructions
 
 > **Canonical source**: `.github/copilot-instructions.md` contains the full behavioral guidelines for this repository. Read it at the start of every session.
+>
+> **Sync note**: `CLAUDE.md` and `AGENTS.md` have identical body content (only the first-line title differs). If you modify the body of one, apply the same change to the other. Verify locally before committing: `diff <(tail -n +2 CLAUDE.md) <(tail -n +2 AGENTS.md)`. CI also asserts this and will fail the `agent-instructions-sync` job if the files diverge.
 
 ## Quick start
 
@@ -12,9 +14,9 @@ At the beginning of every session, read these files before making any decision o
 | `docs/review-checklist.md` | PR review items (CodeQL, security, UI, dependencies) |
 | `docs/ux-ideas.md` | UX backlog — update on every PR |
 | `docs/security-review.md` | Security posture and guidelines |
-| `docs/coding-guideline-suggestions.md` | Additional coding standards |
+| `docs/coding-guideline-suggestions.md` | Historical planning record — all items incorporated into copilot-instructions.md `[OPTIONAL]` |
 | `docs/architecture/clean-feature-separation.md` | Architecture decisions and next steps |
-| `docs/coverage.md` | Code coverage baseline and guidelines |
+| `docs/coverage.md` | Code coverage baseline and targets — single source of truth for coverage numbers |
 
 ## Hard stops (blocking rules)
 

@@ -16,7 +16,8 @@ The repository contains documentation that shapes how every task should be appro
 | `docs/ux-ideas.md` | UX enhancement backlog with scope estimates |
 | `docs/review-checklist.md` | Common CodeQL / security / UI review items to check before every PR |
 | `docs/security-review.md` | Security posture, findings, and guidelines for future PRs |
-| `docs/coding-guideline-suggestions.md` | Additional coding standards beyond those in this file |
+| `docs/coding-guideline-suggestions.md` | Historical planning record — all items now incorporated into this file `[OPTIONAL]` |
+| `docs/coverage.md` | Code coverage baseline, targets, and CI integration — **single source of truth for coverage numbers** |
 | `docs/architecture/clean-feature-separation.md` | Architecture decisions, findings, and ordered next steps |
 | `THIRD_PARTY_NOTICES.md` | Third-party dependency attribution |
 | `.github/copilot-instructions.md` | This file |
@@ -32,6 +33,7 @@ Different agent surfaces load these instructions differently. The table below de
 | **GitHub Copilot coding agent** (cloud) | Loads `.github/copilot-instructions.md` automatically as system context | Nothing — automatic |
 | **Copilot Chat in VS Code** | Loads `.github/copilot-instructions.md` via `.vscode/settings.json` `codeGeneration.instructions` | Open the repository folder; settings take effect automatically |
 | **Copilot Chat (review selection)** | Loads `.github/copilot-instructions.md` + `docs/review-checklist.md` via `.vscode/settings.json` `reviewSelection.instructions` | Same as above |
+| **Copilot Chat (commit messages)** | Loads commit message style via `.vscode/settings.json` `commitMessageGeneration.instructions` | Same as above — imperative mood, ≤ 72 chars, issue reference when applicable |
 | **Claude coding agent** (Anthropic) | Loads `CLAUDE.md` automatically at session start | Nothing — automatic; `CLAUDE.md` references the canonical `.github/copilot-instructions.md` |
 | **Codex agent** (OpenAI) | Loads `AGENTS.md` automatically at session start | Nothing — automatic; `AGENTS.md` references the canonical `.github/copilot-instructions.md` |
 | **Reusable prompt files** | `.github/prompts/*.prompt.md` — reference with `#<filename>.prompt.md` in Copilot Chat | Type `#pr-checklist.prompt.md` etc. in the chat input |
@@ -46,6 +48,35 @@ The `.github/prompts/` directory contains focused, self-contained prompts for sp
 | `code-standards.prompt.md` | Start of any coding session with an agent that does not auto-load this file |
 | `pr-checklist.prompt.md` | End of every PR — generates the compliance checklist for the PR description |
 | `ux-review.prompt.md` | Any PR — guides the UX ideas maintenance task (section 13) |
+
+### Scoped instruction files
+
+The `.github/instructions/` directory contains per-file-type instruction files that load automatically in supported editors (VS Code with GitHub Copilot extension). They extract the most relevant rules for each file type so agents only receive the rules that apply to the file being edited, reducing token cost.
+
+| Instruction file | Applies to | Key rules |
+|---|---|---|
+| `csharp.instructions.md` | `**/*.cs` | Async/CancellationToken, exception handling, test naming, `is null`, `nameof`, `readonly`, no AAA comments, DateTimeOffset |
+| `avalonia.instructions.md` | `**/*.axaml` | Fluent theme metrics, TextEditor styling, WCAG contrast, accessibility |
+| `github-actions.instructions.md` | `.github/workflows/*.yml` | DRY principle (ci.yml ↔ release.yml), persist-credentials, vulnerability audit command, sbom-tool convention |
+
+These files are supplements, not replacements. The full authoritative rules remain in this file.
+
+## Repository Constants
+
+The following values are used throughout instructions and workflows. They are listed here once so agents do not have to re-derive them from context.
+
+| Constant | Value |
+|---|---|
+| Solution file | `Arbor.HttpClient.slnx` |
+| Test command | `dotnet test Arbor.HttpClient.slnx` |
+| Vulnerability audit command | `dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive` |
+| Core project | `src/Arbor.HttpClient.Core` |
+| Desktop project | `src/Arbor.HttpClient.Desktop` |
+| Storage project | `src/Arbor.HttpClient.Storage.Sqlite` |
+| Test doubles | `src/Arbor.HttpClient.Testing` |
+| Screenshot E2E test filter | `--filter "Category=Screenshots"` |
+| Screenshot output env var | `SCREENSHOT_OUTPUT_DIR=docs/screenshots` |
+| Coverage baseline file | `docs/coverage.md` |
 
 ## 1. Think Before Coding
 
@@ -108,6 +139,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 **Never commit code that breaks the test suite.**
 
 - Run `dotnet test Arbor.HttpClient.slnx` and confirm it exits with no failures before every commit.
+- **Exception**: Analysis-only, planning, and informational requests that produce no file changes are exempt from this check.
 - A pre-commit Git hook is available to automate this check. Set it up once after cloning:
   ```
   ./scripts/install-hooks.sh
@@ -135,10 +167,11 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   - Prefer isolated unit tests first, then integration/E2E tests when unit tests are not sufficient
   - Maintain reasonably high coverage in the changed area. If code can be tested, add tests
   - For feature work, generate coverage reports locally and review them before committing
-  - Current project coverage baseline: 60.0% line coverage, 49.4% branch coverage (see `docs/coverage.md`)
+  - Current coverage baseline: see [`docs/coverage.md`](docs/coverage.md) — **that file is the single source of truth for coverage numbers; never write inline percentages here or in the PR description without reading the XML output yourself**
   - New code should not lower the overall coverage percentage
   - CI automatically generates and publishes coverage reports to the job summary
   - **[REQUIRED]** Coverage numbers reported in `docs/coverage.md` and the PR description must be sourced from an actual `dotnet test --collect:"XPlat Code Coverage"` run, not estimated. Never write coverage percentages unless you have collected and read the coverage XML output yourself.
+  - **[REQUIRED]** `docs/coverage.md` is the single source of truth for coverage numbers. Do not repeat coverage percentages in `copilot-instructions.md`, `README.md`, or other files — link to `docs/coverage.md` instead.
   - **Coverage targets for new code** — enforced per PR:
     - `Arbor.HttpClient.Core` (pure logic, no UI): **100% line coverage** for new or changed classes. If a code path genuinely cannot be exercised without real network connectivity (e.g. `WebSocketService.ConnectAsync` requires a live server), document the gap explicitly in the PR and cover all testable branches (validation, error paths, disposal).
     - `Arbor.HttpClient.Desktop` (UI/integration): **90% line coverage** for new or changed ViewModels and services. UI-thread dispatch paths and Avalonia lifecycle hooks that cannot run in the headless test harness are exempt; document any such exemption.
@@ -308,43 +341,55 @@ At the end of every PR session, re-read all markdown files listed in section 0 a
 ## PR Compliance Checklist
 
 ### From docs/review-checklist.md
-- [ ] [BLOCKING] All tests pass (`dotnet test Arbor.HttpClient.slnx`)
-- [ ] [BLOCKING] No secrets or credentials committed
-- [ ] [BLOCKING] No compiler warnings introduced
-- [ ] [REQUIRED] CodeQL / static analysis findings addressed
-- [ ] [REQUIRED] UI PRs: screenshot evidence in docs/screenshots/ and embedded in PR description
-- [ ] [REQUIRED] UI PRs: accessibility contrast tests updated
-- [ ] [REQUIRED] New NuGet packages: license verified, THIRD_PARTY_NOTICES.md updated, Directory.Packages.props updated
+- [ ] **[BLOCKING]** All tests pass (`dotnet test Arbor.HttpClient.slnx`)
+- [ ] **[BLOCKING]** No secrets or credentials committed
+- [ ] **[BLOCKING]** No compiler warnings introduced
+- [ ] **[REQUIRED]** CodeQL / static analysis findings addressed
+- [ ] **[REQUIRED]** UI PRs: screenshot evidence in docs/screenshots/ and embedded in PR description *(skip if no .axaml or ViewModel files changed)*
+- [ ] **[REQUIRED]** UI PRs: accessibility contrast tests updated *(skip if no .axaml or App.axaml colors changed)*
+- [ ] **[REQUIRED]** New NuGet packages: license verified, THIRD_PARTY_NOTICES.md updated, Directory.Packages.props updated
 
 ### From docs/security-review.md
-- [ ] [BLOCKING] No HTTP/TLS configuration downgrade
-- [ ] [BLOCKING] No sensitive data logged
-- [ ] [REQUIRED] Vulnerability audit passes (dotnet list package --vulnerable --include-transitive)
-- [ ] [REQUIRED] persist-credentials: false retained on actions/checkout
+- [ ] **[BLOCKING]** No HTTP/TLS configuration downgrade
+- [ ] **[BLOCKING]** No sensitive data logged
+- [ ] **[REQUIRED]** Vulnerability audit passes (`dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive`)
+- [ ] **[REQUIRED]** persist-credentials: false retained on actions/checkout
 
 ### From docs/ux-ideas.md
-- [ ] [REQUIRED] docs/ux-ideas.md reviewed; implemented ideas moved to the "Implemented" section with PR/commit references
-- [ ] [RECOMMENDED] New UX ideas discovered during this PR added to the "Not Yet Implemented" section
+- [ ] **[REQUIRED]** docs/ux-ideas.md reviewed; implemented ideas moved to the "Implemented" section with PR/commit references
+- [ ] **[RECOMMENDED]** New UX ideas discovered during this PR added to the "Not Yet Implemented" section
 
 ### From docs/architecture/clean-feature-separation.md
-- [ ] [RECOMMENDED] No new logic added to MainWindowViewModel that belongs in a feature VM
-- [ ] [RECOMMENDED] New features have at least one focused unit test not requiring the full UI runtime
-- [ ] [REQUIRED] Test project boundaries respected: tests for a library reference only that library (plus Arbor.HttpClient.Testing); no cross-layer project references added to existing test projects
+- [ ] **[RECOMMENDED]** No new logic added to MainWindowViewModel that belongs in a feature VM
+- [ ] **[RECOMMENDED]** New features have at least one focused unit test not requiring the full UI runtime
+- [ ] **[REQUIRED]** Test project boundaries respected: tests for a library reference only that library (plus Arbor.HttpClient.Testing); no cross-layer project references added to existing test projects
+
+### From section 16 (License Compatibility)
+- [ ] **[REQUIRED]** New NuGet packages have a license in the compatible list (MIT, Apache-2.0, BSD, ISC, OFL-1.1) *(skip if no new packages)*
+- [ ] **[REQUIRED]** New packages declared in Directory.Packages.props, not inline in .csproj *(skip if no new packages)*
+
+### From section 17 (MSIX Packaging and Releases)
+- [ ] **[REQUIRED]** release.yml changes mirrored in the release-verification job in ci.yml *(skip if no workflow changes)*
+- [ ] **[REQUIRED]** Shared workflow logic extracted to scripts/ — not duplicated inline *(skip if no workflow changes)*
+
+### From section 18 (Accessibility)
+- [ ] **[REQUIRED]** New color pairs in App.axaml covered by AccessibilityContrastTests.cs *(skip if no theme color changes)*
+- [ ] **[REQUIRED]** Interactive controls keyboard-accessible *(skip if no UI changes)*
 
 ### Instruction Improvement Loop (section 14)
-- [ ] [RECOMMENDED] Instruction Retrospective block written in PR description
-- [ ] [RECOMMENDED] Proposed instruction improvement applied (or tracked as a GitHub issue)
+- [ ] **[RECOMMENDED]** Instruction Retrospective block written in PR description
+- [ ] **[RECOMMENDED]** Proposed instruction improvement applied (or tracked as a GitHub issue)
 
 ### Final self-check
-- [ ] [BLOCKING] Every changed line traces directly to the user's request (no unrelated edits)
-- [ ] [REQUIRED] PR description explains what changed and why
+- [ ] **[BLOCKING]** Every changed line traces directly to the user's request (no unrelated edits)
+- [ ] **[REQUIRED]** PR description explains what changed and why
 ```
 
 ---
 
 *Behavioral guidelines adapted from [vlad-ko/claude-wizard](https://github.com/vlad-ko/claude-wizard), used under the [MIT License](https://github.com/vlad-ko/claude-wizard/blob/main/LICENSE) (Copyright 2026 Vlad Ko).*
 
-## License Compatibility
+## 16. License Compatibility
 
 This project is licensed under the **MIT License**. When adding new NuGet packages or any other third-party dependencies, you **must** verify that their licenses are compatible with MIT before including them.
 
@@ -402,7 +447,7 @@ Do **not** add packages under these licenses without explicit approval:
 **License:** MIT
 ```
 
-## MSIX Packaging and Releases
+## 17. MSIX Packaging and Releases
 
 The desktop application (`Arbor.HttpClient.Desktop`) is distributed as a signed MSIX package.
 
@@ -429,7 +474,7 @@ The desktop application (`Arbor.HttpClient.Desktop`) is distributed as a signed 
 - **`[REQUIRED][PROCESS]`** Build and packaging logic must never be duplicated across workflows or scripts. Extract any shell or PowerShell steps that are shared between `release.yml` and `ci.yml` into a reusable script under `scripts/` (e.g. `scripts/Build-Release.ps1`) and invoke that script from both workflows. The general rule is: a "thing" should exist in exactly one place. The only permitted exception is test code, where isolation and decoupling are more important than deduplication.
 - **`[RECOMMENDED][PROCESS]`** The `sbom-tool` always appends `_manifest` to the directory passed via `-m`. Pass `-m <build-drop-path>` (e.g. `-m publish/win-x64`) so the manifest is written to `<build-drop-path>/_manifest/spdx_2.2/manifest.spdx.json`. Never pass `-m <build-drop-path>/_manifest` or the tool will double-nest the directory.
 
-## Accessibility
+## 18. Accessibility
 
 All UI changes involving human interaction must consider accessibility from the start — not as an afterthought.
 
@@ -452,7 +497,7 @@ Before merging any PR that touches UI code or theme resources:
 - [ ] No purely visual text label has been replaced by an icon without an accessible name.
 - [ ] New interactive controls have been manually verified with keyboard-only navigation.
 
-## UI Consistency
+## 19. UI Consistency
 
 All text-input controls must have a consistent look and feel that matches the Avalonia Fluent theme.
 
@@ -465,10 +510,3 @@ All text-input controls must have a consistent look and feel that matches the Av
   - Font family and size must be explicitly propagated from the app-level `UiFontFamily`/`UiFontSize` bindings via `ApplyEditorFont`
 - **`TextBox` controls that remain as plain `TextBox`** do not need additional styling; they automatically inherit font and appearance from the Fluent theme and window-level `FontFamily`/`FontSize` bindings.
 - Never mix raw `TextEditor` controls and styled `TextBox` controls in the same row or form group without ensuring they have the same effective height and padding.
-
-
-
-All NuGet package versions are managed centrally in `Directory.Packages.props`.  
-- Always declare new packages with `<PackageVersion Include="PackageName" Version="x.y.z" />` in `Directory.Packages.props`.  
-- Reference packages in `.csproj` files using `<PackageReference Include="PackageName" />` **without** a `Version` attribute.  
-- Shared MSBuild properties (`TargetFramework`, `Nullable`, `ImplicitUsings`, etc.) live in `Directory.Build.props` and are inherited by all projects automatically.
