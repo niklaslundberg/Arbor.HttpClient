@@ -322,7 +322,7 @@ An idea is considered implemented when its primary UX behaviour is usable in the
 
 **After every PR, propose at least one instruction improvement.**
 
-Each PR is a learning event. When a task is complete, reflect on any friction, ambiguity, or repeated decision-making that occurred and propose concrete changes to this instructions file or the other docs that would reduce that friction in future sessions.
+Each PR is a learning event. When a task is complete, reflect on what was done, which instructions guided the work, ambiguities encountered, and how future user-agent interactions could be improved. Propose concrete changes to this instructions file or the other docs that would reduce friction in future sessions.
 
 ### Workflow
 
@@ -330,9 +330,29 @@ Each PR is a learning event. When a task is complete, reflect on any friction, a
 
    ```markdown
    ## Instruction Retrospective
-   - **What was unclear:** [describe any guideline that was ambiguous or missing]
-   - **What caused rework:** [describe any decision that had to be revisited]
-   - **Proposed addition:** [draft wording for a new or updated instruction, with severity/category tags]
+
+   ### What was done
+   [Summarise the work completed in this PR — features added, bugs fixed, docs updated.]
+
+   ### Instructions consulted
+   [List which sections of `.github/copilot-instructions.md` (and any other doc files) were actively
+   applied during the session — e.g. "§5 CI Parity, §7 Code Quality, §15 Compliance Checklist".]
+
+   ### Ambiguities encountered
+   - **In instructions:** [Describe any guideline that was unclear, missing, or contradictory.]
+   - **In user requests:** [Describe any part of the problem statement that required interpretation
+     or clarification — and what assumption was made.]
+
+   ### What caused rework
+   [Describe any decision that had to be revisited after initial implementation.]
+
+   ### Proposed improvement
+   [Draft wording for a new or updated instruction, including severity/category tags.
+   If nothing needs changing, write "None — instructions were clear and complete."]
+
+   ### User-agent interaction ideas
+   [Suggest anything that would make future task handoffs smoother — e.g. prompts that reduce
+   ambiguity, checklist items that should become blocking, workflow steps to automate.]
    ```
 
 2. If the proposed addition is clearly beneficial and self-contained, apply it directly to `.github/copilot-instructions.md` (or the relevant doc) as part of the same PR. This is the improvement loop.
@@ -345,6 +365,8 @@ Each PR is a learning event. When a task is complete, reflect on any friction, a
 - Instructions that were silent on a decision that had to be made repeatedly.
 - Checklists that were hard to verify because the criterion was vague.
 - Instructions whose scope or category tag was missing and caused uncertainty about priority.
+- User requests that were ambiguous — and what additional context upfront would have resolved the ambiguity immediately.
+- Patterns in user-agent back-and-forth that could be eliminated with a clearer prompt template or a pre-flight question.
 
 ## 15. End-of-PR Compliance Checklist `[BLOCKING][PROCESS]`
 
@@ -394,7 +416,7 @@ At the end of every PR session, re-read all markdown files listed in section 0 a
 - [ ] **[REQUIRED]** Interactive controls keyboard-accessible *(skip if no UI changes)*
 
 ### Instruction Improvement Loop (section 14)
-- [ ] **[RECOMMENDED]** Instruction Retrospective block written in PR description
+- [ ] **[RECOMMENDED]** Instruction Retrospective block written in PR description (work done, instructions consulted, ambiguities, user-agent interaction ideas)
 - [ ] **[RECOMMENDED]** Proposed instruction improvement applied (or tracked as a GitHub issue)
 
 ### Final self-check
