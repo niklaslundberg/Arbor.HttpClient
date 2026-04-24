@@ -16,8 +16,12 @@ public partial class RequestView : UserControl
     private TextEditor? _requestBodyEditor;
     private TextEditor? _requestUrlEditor;
     private TextEditor? _requestPreviewEditor;
+    private TextEditor? _graphQlQueryEditor;
+    private TextEditor? _graphQlVariablesEditor;
+    private TextEditor? _graphQlSchemaEditor;
     private MainWindowViewModel? _appVm;
     private RequestEditorViewModel? _requestEditorVm;
+    private GraphQlViewModel? _graphQlVm;
     private RegistryOptions? _registryOptions;
     private TextMate.Installation? _requestTextMate;
     private EventHandler<TextMate.Installation>? _appliedThemeHandler;
@@ -53,6 +57,11 @@ public partial class RequestView : UserControl
             _requestEditorVm.PropertyChanged -= OnRequestEditorVmPropertyChanged;
         }
 
+        if (_graphQlVm is not null)
+        {
+            _graphQlVm.PropertyChanged -= OnGraphQlVmPropertyChanged;
+        }
+
         if (_requestBodyEditor is not null)
         {
             _requestBodyEditor.Document.TextChanged -= OnRequestEditorTextChanged;
@@ -60,6 +69,16 @@ public partial class RequestView : UserControl
         if (_requestUrlEditor is not null)
         {
             _requestUrlEditor.Document.TextChanged -= OnRequestUrlEditorTextChanged;
+        }
+
+        if (_graphQlQueryEditor is not null)
+        {
+            _graphQlQueryEditor.Document.TextChanged -= OnGraphQlQueryEditorTextChanged;
+        }
+
+        if (_graphQlVariablesEditor is not null)
+        {
+            _graphQlVariablesEditor.Document.TextChanged -= OnGraphQlVariablesEditorTextChanged;
         }
 
         _requestUrlAutoCompleteController?.Dispose();
@@ -79,9 +98,13 @@ public partial class RequestView : UserControl
 
         _appVm = GetAppVm();
         _requestEditorVm = _appVm?.RequestEditor;
+        _graphQlVm = _appVm?.GraphQlEditor;
         _requestBodyEditor = this.FindControl<TextEditor>("RequestBodyEditor");
         _requestUrlEditor = this.FindControl<TextEditor>("RequestUrlEditor");
         _requestPreviewEditor = this.FindControl<TextEditor>("RequestPreviewEditor");
+        _graphQlQueryEditor = this.FindControl<TextEditor>("GraphQlQueryEditor");
+        _graphQlVariablesEditor = this.FindControl<TextEditor>("GraphQlVariablesEditor");
+        _graphQlSchemaEditor = this.FindControl<TextEditor>("GraphQlSchemaEditor");
 
         _registryOptions ??= new RegistryOptions(ThemeName.DarkPlus);
 
@@ -147,6 +170,30 @@ public partial class RequestView : UserControl
                 ApplyEditorFont(_requestPreviewEditor, _appVm);
                 _requestPreviewEditor.Text = _requestEditorVm?.RequestPreview ?? string.Empty;
             }
+
+            if (_graphQlQueryEditor is not null)
+            {
+                ApplyEditorFont(_graphQlQueryEditor, _appVm);
+                _graphQlQueryEditor.Text = _graphQlVm?.Query ?? string.Empty;
+                _graphQlQueryEditor.Document.TextChanged += OnGraphQlQueryEditorTextChanged;
+            }
+
+            if (_graphQlVariablesEditor is not null)
+            {
+                ApplyEditorFont(_graphQlVariablesEditor, _appVm);
+                _graphQlVariablesEditor.Text = _graphQlVm?.VariablesJson ?? string.Empty;
+                _graphQlVariablesEditor.Document.TextChanged += OnGraphQlVariablesEditorTextChanged;
+            }
+
+            if (_graphQlSchemaEditor is not null)
+            {
+                ApplyEditorFont(_graphQlSchemaEditor, _appVm);
+            }
+        }
+
+        if (_graphQlVm is not null)
+        {
+            _graphQlVm.PropertyChanged += OnGraphQlVmPropertyChanged;
         }
 
         if (_requestEditorVm is not null)
@@ -155,6 +202,51 @@ public partial class RequestView : UserControl
         }
 
         ApplyVariableColorTheme();
+    }
+
+    private void OnGraphQlQueryEditorTextChanged(object? sender, System.EventArgs e)
+    {
+        if (_graphQlVm is not null && _graphQlQueryEditor is not null
+            && _graphQlVm.Query != _graphQlQueryEditor.Text)
+        {
+            _graphQlVm.Query = _graphQlQueryEditor.Text;
+        }
+    }
+
+    private void OnGraphQlVariablesEditorTextChanged(object? sender, System.EventArgs e)
+    {
+        if (_graphQlVm is not null && _graphQlVariablesEditor is not null
+            && _graphQlVm.VariablesJson != _graphQlVariablesEditor.Text)
+        {
+            _graphQlVm.VariablesJson = _graphQlVariablesEditor.Text;
+        }
+    }
+
+    private void OnGraphQlVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(GraphQlViewModel.Query)
+            && _graphQlQueryEditor is not null
+            && _graphQlVm is not null
+            && _graphQlQueryEditor.Text != _graphQlVm.Query)
+        {
+            _graphQlQueryEditor.Text = _graphQlVm.Query;
+        }
+
+        if (e.PropertyName == nameof(GraphQlViewModel.VariablesJson)
+            && _graphQlVariablesEditor is not null
+            && _graphQlVm is not null
+            && _graphQlVariablesEditor.Text != _graphQlVm.VariablesJson)
+        {
+            _graphQlVariablesEditor.Text = _graphQlVm.VariablesJson;
+        }
+
+        if (e.PropertyName == nameof(GraphQlViewModel.SchemaJson)
+            && _graphQlSchemaEditor is not null
+            && _graphQlVm is not null
+            && _graphQlSchemaEditor.Text != _graphQlVm.SchemaJson)
+        {
+            _graphQlSchemaEditor.Text = _graphQlVm.SchemaJson;
+        }
     }
 
     private void OnRequestEditorTextChanged(object? sender, System.EventArgs e)
@@ -231,6 +323,21 @@ public partial class RequestView : UserControl
             {
                 ApplyEditorFont(_requestPreviewEditor, _appVm);
             }
+
+            if (_graphQlQueryEditor is not null)
+            {
+                ApplyEditorFont(_graphQlQueryEditor, _appVm);
+            }
+
+            if (_graphQlVariablesEditor is not null)
+            {
+                ApplyEditorFont(_graphQlVariablesEditor, _appVm);
+            }
+
+            if (_graphQlSchemaEditor is not null)
+            {
+                ApplyEditorFont(_graphQlSchemaEditor, _appVm);
+            }
         }
     }
 
@@ -267,6 +374,26 @@ public partial class RequestView : UserControl
             _requestUrlEditor.Document.TextChanged -= OnRequestUrlEditorTextChanged;
             _requestUrlEditor = null;
         }
+
+        if (_graphQlQueryEditor is not null)
+        {
+            _graphQlQueryEditor.Document.TextChanged -= OnGraphQlQueryEditorTextChanged;
+            _graphQlQueryEditor = null;
+        }
+
+        if (_graphQlVariablesEditor is not null)
+        {
+            _graphQlVariablesEditor.Document.TextChanged -= OnGraphQlVariablesEditorTextChanged;
+            _graphQlVariablesEditor = null;
+        }
+
+        if (_graphQlVm is not null)
+        {
+            _graphQlVm.PropertyChanged -= OnGraphQlVmPropertyChanged;
+            _graphQlVm = null;
+        }
+
+        _graphQlSchemaEditor = null;
 
         _requestUrlAutoCompleteController?.Dispose();
         _requestUrlAutoCompleteController = null;

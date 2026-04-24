@@ -46,10 +46,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly Action<ApplicationOptions>? _onApplicationOptionsChanged;
     private readonly ILogger _debugLogger;
     private readonly ILogger _httpRequestsLogger;
+    private readonly global::System.Net.Http.HttpClient _protocolHttpClient = new();
     private RequestEditorViewModel _requestEditor = null!;
     private EnvironmentsViewModel _environmentsViewModel = null!;
     private OptionsViewModel _optionsViewModel = null!;
     private CookieJarViewModel _cookieJarViewModel = null!;
+    private GraphQlViewModel _graphQlViewModel = null!;
+    private WebSocketViewModel _webSocketViewModel = null!;
+    private SseViewModel _sseViewModel = null!;
+    private CancellationTokenSource? _streamingCts;
     private readonly List<string> _tempFiles = [];
     private readonly List<SavedRequest> _allHistory = [];
     private FileSystemWatcher? _requestBodyWatcher;
@@ -331,7 +336,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _debugLogger);
         _optionsViewModel = new OptionsViewModel(this);
         _cookieJarViewModel = new CookieJarViewModel(cookieContainer);
+        _graphQlViewModel = new GraphQlViewModel(_protocolHttpClient, appLogger);
+        _webSocketViewModel = new WebSocketViewModel(appLogger);
+        _sseViewModel = new SseViewModel(_protocolHttpClient, appLogger);
         _environmentsViewModel.PropertyChanged += OnEnvironmentsViewModelPropertyChanged;
+        _webSocketViewModel.PropertyChanged += OnStreamingViewModelPropertyChanged;
+        _sseViewModel.PropertyChanged += OnStreamingViewModelPropertyChanged;
+        _requestEditor.PropertyChanged += OnRequestEditorPropertyChanged;
 
         History = [];
         Collections = [];
@@ -366,6 +377,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public RequestEditorViewModel RequestEditor => _requestEditor;
     public EnvironmentsViewModel EnvironmentsPanel => _environmentsViewModel;
     public OptionsViewModel OptionsPanel => _optionsViewModel;
+    public GraphQlViewModel GraphQlEditor => _graphQlViewModel;
+    public WebSocketViewModel WebSocketSession => _webSocketViewModel;
+    public SseViewModel SseSession => _sseViewModel;
+
+    /// <summary>
+    /// Label for the primary action button in the request composer.
+    /// Shows "Send" for HTTP/GraphQL, "Connect"/"Disconnect" for streaming protocols.
+    /// </summary>
+    public string PrimaryActionLabel => _requestEditor.SelectedRequestType switch
+    {
+        RequestType.WebSocket => _webSocketViewModel.IsConnected ? "Disconnect" : "Connect",
+        RequestType.Sse => _sseViewModel.IsConnected ? "Disconnect" : "Connect",
+        _ => "Send"
+    };
+
     public RequestEnvironment? ActiveEnvironment
     {
         get => _environmentsViewModel.ActiveEnvironment;
@@ -395,8 +421,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public IRelayCommand NewEnvironmentCommand => _environmentsViewModel.NewEnvironmentCommand;
     public IAsyncRelayCommand ExportEnvironmentsCommand => _environmentsViewModel.ExportEnvironmentsCommand;
 
-    private void OnEnvironmentsViewModelPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs e)
+    private void OnStreamingViewModelPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (string.Equals(e.PropertyName, nameof(WebSocketViewModel.IsConnected), StringComparison.Ordinal)
+            || string.Equals(e.PropertyName, nameof(SseViewModel.IsConnected), StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(PrimaryActionLabel));
+        }
+    }
+
+    private void OnRequestEditorPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (string.Equals(e.PropertyName, nameof(RequestEditorViewModel.SelectedRequestType), StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(PrimaryActionLabel));
+        }
+    }
+
+    private void OnEnvironmentsViewModelPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs e)    {
         if (string.Equals(e.PropertyName, nameof(EnvironmentsViewModel.ActiveEnvironment), StringComparison.Ordinal))
         {
             OnPropertyChanged(nameof(ActiveEnvironment));
@@ -1153,12 +1195,20 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         _environmentsViewModel.PropertyChanged -= OnEnvironmentsViewModelPropertyChanged;
+        _webSocketViewModel.PropertyChanged -= OnStreamingViewModelPropertyChanged;
+        _sseViewModel.PropertyChanged -= OnStreamingViewModelPropertyChanged;
+        _requestEditor.PropertyChanged -= OnRequestEditorPropertyChanged;
         _environmentsViewModel.Dispose();
         _optionsAutoSaveCts?.Cancel();
         _optionsAutoSaveCts?.Dispose();
         _scheduledJobService.Dispose();
         _requestBodyWatcher?.Dispose();
         _requestBodyWatcher = null;
+        _streamingCts?.Cancel();
+        _streamingCts?.Dispose();
+        _webSocketViewModel.Dispose();
+        _sseViewModel.Dispose();
+        _protocolHttpClient.Dispose();
 
         foreach (var file in _tempFiles)
         {
@@ -1635,10 +1685,36 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private async Task SendRequestAsync()
     {
+        ErrorMessage = string.Empty;
+
+        switch (_requestEditor.SelectedRequestType)
+        {
+            case RequestType.GraphQL:
+                await SendGraphQlRequestAsync();
+                break;
+
+            case RequestType.WebSocket:
+                await ToggleWebSocketConnectionAsync();
+                break;
+
+            case RequestType.Sse:
+                await ToggleSseConnectionAsync();
+                break;
+
+            case RequestType.GrpcUnary:
+                ErrorMessage = "gRPC support requires a .proto file import. This feature is under development.";
+                break;
+
+            default:
+                await SendHttpRequestAsync();
+                break;
+        }
+    }
+
+    private async Task SendHttpRequestAsync()
+    {
         try
         {
-            ErrorMessage = string.Empty;
-
             var draft = _requestEditor.BuildDraft();
             _httpRequestsLogger.Information("Manual request started: {Method} {Url}", draft.Method, draft.Url);
 
@@ -1673,6 +1749,91 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ResponseTimeDisplay = string.Empty;
             ResponseSizeDisplay = string.Empty;
         }
+    }
+
+    private async Task SendGraphQlRequestAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var url = _requestEditor.GetResolvedUrl();
+            var headers = _requestEditor.GetResolvedHeaders();
+
+            _httpRequestsLogger.Information("GraphQL request started: {Url}", url);
+
+            var response = await _graphQlViewModel.SendQueryAsync(url, headers, cancellationToken);
+
+            ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
+            ResponseStatusCode = response.StatusCode;
+            ResponseTimeDisplay = FormatElapsedMilliseconds(response.ElapsedMilliseconds);
+            ResponseSizeDisplay = FormatByteSize(response.BodyBytes?.LongLength ?? 0);
+            _lastResponseBodyBytes = response.BodyBytes ?? Array.Empty<byte>();
+            RawResponseBody = response.Body;
+
+            ResponseHeaders.Clear();
+            foreach (var (name, value) in response.Headers)
+            {
+                ResponseHeaders.Add($"{name}: {value}");
+            }
+
+            HasResponseHeaders = ResponseHeaders.Count > 0;
+            UpdateResponsePresentation(response.Body, response.Headers);
+            HasTextResponse = HasResponseHeaders && !IsBinaryResponse;
+            _httpRequestsLogger.Information("GraphQL request completed: {StatusCode}", response.StatusCode);
+
+            _cookieJarViewModel.RefreshCookies();
+            await LoadHistoryAsync();
+        }
+        catch (Exception exception)
+        {
+            _httpRequestsLogger.Error(exception, "GraphQL request failed");
+            ErrorMessage = exception.Message;
+            ResponseStatusCode = 0;
+            ResponseTimeDisplay = string.Empty;
+            ResponseSizeDisplay = string.Empty;
+        }
+    }
+
+    private async Task ToggleWebSocketConnectionAsync()
+    {
+        if (_webSocketViewModel.IsConnected)
+        {
+            await _webSocketViewModel.DisconnectCommand.ExecuteAsync(null);
+            _streamingCts?.Cancel();
+            _streamingCts = null;
+            return;
+        }
+
+        var url = _requestEditor.GetResolvedUrl();
+        var headers = _requestEditor.GetResolvedHeaders();
+
+        _streamingCts?.Dispose();
+        _streamingCts = new CancellationTokenSource();
+
+        // Fire-and-forget: the receive loop runs until the connection is closed or the token is cancelled.
+        // The WebSocketViewModel updates IsConnected on the UI thread via Dispatcher.UIThread.Post.
+        _ = _webSocketViewModel.ConnectAsync(url, headers, _streamingCts.Token);
+    }
+
+    private Task ToggleSseConnectionAsync()
+    {
+        if (_sseViewModel.IsConnected)
+        {
+            _sseViewModel.DisconnectCommand.Execute(null);
+            _streamingCts?.Cancel();
+            _streamingCts = null;
+            return Task.CompletedTask;
+        }
+
+        var url = _requestEditor.GetResolvedUrl();
+        var headers = _requestEditor.GetResolvedHeaders();
+
+        _streamingCts?.Dispose();
+        _streamingCts = new CancellationTokenSource();
+
+        // Fire-and-forget: the SSE loop runs until the stream ends or the token is cancelled.
+        // The SseViewModel updates IsConnected on the UI thread via Dispatcher.UIThread.Post.
+        _ = _sseViewModel.ConnectAsync(url, headers, _streamingCts.Token);
+        return Task.CompletedTask;
     }
 
     public static string FormatElapsedMilliseconds(double milliseconds)

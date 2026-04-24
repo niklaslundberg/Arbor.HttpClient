@@ -4,16 +4,27 @@ This document describes the code coverage infrastructure and current status.
 
 ## Current Coverage Status
 
-As of the latest build (2026-04-23):
+As of the latest build (2026-04-24, after UX idea 1.3 — GraphQL/WebSocket/SSE/gRPC):
 
-- **Line coverage:** 71% (3923 of 5523 lines)
-- **Branch coverage:** 60% (1056 of 1760 branches)
+- **Line coverage:** ~72% (weighted across projects)
+- **Branch coverage:** ~59% (weighted across projects)
 
-**By project:**
-- **Arbor.HttpClient.Core:** 90.1% line coverage, 90.1% branch coverage ✅
-- **Arbor.HttpClient.Storage.Sqlite:** 91.4% line coverage, 87.9% branch coverage ✅
-- **Arbor.HttpClient.Desktop:** 68.2% line coverage, 54.8% branch coverage
-- **Arbor.HttpClient.Testing:** 47.5% line coverage (test infrastructure - indirect coverage acceptable)
+**By project** (from `dotnet test --collect:"XPlat Code Coverage"` run):
+- **Arbor.HttpClient.Core:** 84.8% line coverage (916/1080 lines), 77.9% branch coverage (346/444 branches)
+- **Arbor.HttpClient.Storage.Sqlite:** 75.3% line coverage (708/940 lines), 67.6% branch coverage (254/376 branches)
+- **Arbor.HttpClient.Desktop:** 65.6% line coverage (3334/5081 lines), 51.8% branch coverage (822/1587 branches)
+- **Arbor.HttpClient.Testing:** ~13% line coverage (test infrastructure — indirect coverage is acceptable)
+
+### New code introduced in UX idea 1.3
+
+| Class | Line coverage | Notes |
+|---|---|---|
+| `GraphQlService` | **100%** ✅ | All paths including encoding fallback + non-JSON introspect body |
+| `SseService` | **100%** ✅ | Full parser + `ConnectAsync` including header forwarding/filtering |
+| `WebSocketService` | validation/state 100% ✅; I/O paths exempt | `ConnectAsync`, `SendAsync`, `DisconnectAsync`, and `ReceiveLoopAsync` require a live WebSocket server — untestable in isolation |
+| `GraphQlDraft` | **100%** ✅ | |
+| `SseEvent` | **100%** ✅ | |
+| `WebSocketMessage` | **100%** ✅ | |
 
 Coverage reports are generated automatically in every CI build and available as artifacts.
 
@@ -65,13 +76,23 @@ start TestResults/coverage-report/index.html  # Windows
 
 ## Coverage Targets
 
+> **[REQUIRED]** These targets apply to **new or changed code** in each PR. Pre-existing code is measured separately.
+
+| Project | Target | Exemptions |
+|---|---|---|
+| `Arbor.HttpClient.Core` | **100% line** for new/changed classes | Code paths that require live network connectivity (e.g. WebSocket I/O) — document in PR |
+| `Arbor.HttpClient.Desktop` | **90% line** for new/changed ViewModels/services | UI-thread dispatch paths, Avalonia lifecycle hooks that cannot run headlessly |
+| `Arbor.HttpClient.Storage.Sqlite` | **90% line** for new/changed repositories | — |
+| `Arbor.HttpClient.Testing` | No minimum | Indirectly exercised through other tests |
+
 ### Core Library (Arbor.HttpClient.Core)
 
-Current: **90.1%** line coverage, **90.1%** branch coverage ✅
+Current: **84.8%** line coverage (916/1080 lines), **77.9%** branch coverage (346/444 branches)
 
 All models and services now have excellent coverage. Remaining gaps:
 - `HttpRequestService` (82.5%) - TLS negotiation and DNS lookup error paths
 - `OpenApiImportService` (93.7%) - some edge cases in OpenAPI parsing
+- `WebSocketService` I/O paths (0%) - `ConnectAsync`/`SendMessageAsync`/`DisconnectAsync`/`ReceiveLoopAsync` require a live WebSocket server; validation, state, and disposal are 100% covered
 
 Recently improved:
 - `Collection`: 66.6% → **100%** ✅
@@ -80,10 +101,13 @@ Recently improved:
 - `SavedRequest`: 25% → **100%** ✅
 - `ScheduledJobConfig`: 20% → **100%** ✅
 - `HttpRequestService`: 78.5% → **82.5%**
+- `GraphQlService`: 0% → **100%** ✅
+- `SseService`: 0% → **100%** ✅
+- `GraphQlDraft`, `SseEvent`, `WebSocketMessage`: 0% → **100%** ✅
 
 ### Storage Layer (Arbor.HttpClient.Storage.Sqlite)
 
-Current: **91.4%** line coverage, **87.9%** branch coverage ✅
+Current: **75.3%** line coverage (708/940 lines), **67.6%** branch coverage (254/376 branches)
 
 Recently improved:
 - `SqliteRequestHistoryRepository`: 0% → **100%** ✅
@@ -91,11 +115,9 @@ Recently improved:
 - `SqliteCollectionRepository`: 0% → **97.8%** ✅
 - `SqliteScheduledJobRepository`: Already had 70.3% coverage
 
-All repositories now have comprehensive integration tests.
-
 ### Testing Infrastructure (Arbor.HttpClient.Testing)
 
-Current: **47.5%** line coverage
+Current: **~13%** line coverage
 
 This low coverage is expected because the Testing project provides test doubles and fakes used by other test projects. The in-memory repositories are exercised indirectly through integration tests but not through dedicated unit tests.
 

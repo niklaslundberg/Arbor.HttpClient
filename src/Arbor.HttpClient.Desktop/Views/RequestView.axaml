@@ -11,7 +11,7 @@
         <conv:MethodToColorConverter x:Key="MethodToColorConverter" />
     </UserControl.Resources>
 
-    <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
 
         <Grid.KeyBindings>
             <!-- Standard across Hoppscotch / Insomnia / Postman: Ctrl+Enter (or Cmd+Enter) sends the request -->
@@ -19,7 +19,16 @@
             <KeyBinding Gesture="Cmd+Return" Command="{Binding App.SendRequestCommand}" />
         </Grid.KeyBindings>
 
-        <Grid ColumnDefinitions="120,*,120" ColumnSpacing="8">
+        <!-- Row 0: Request type selector -->
+        <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="8">
+            <TextBlock Text="Type" VerticalAlignment="Center" Opacity="0.8" />
+            <ComboBox Grid.Column="1" MinWidth="160"
+                      ItemsSource="{Binding App.RequestEditor.RequestTypeOptions}"
+                      SelectedItem="{Binding App.RequestEditor.SelectedRequestType, Mode=TwoWay}" />
+        </Grid>
+
+        <!-- Row 1: Request name + method + URL + Send -->
+        <Grid Grid.Row="1" ColumnDefinitions="120,*,120" ColumnSpacing="8">
             <TextBox Grid.Column="0" PlaceholderText="Request name"
                      Text="{Binding App.RequestEditor.RequestName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
@@ -31,10 +40,12 @@
                     Background="{DynamicResource SurfaceBackgroundBrush}"
                     ClipToBounds="True">
                 <Grid ColumnDefinitions="Auto,Auto,*">
+                    <!-- Method selector: hidden for protocols with a fixed method -->
                     <ComboBox Grid.Column="0" MinWidth="100"
                               BorderThickness="0"
                               CornerRadius="0"
                               Background="Transparent"
+                              IsVisible="{Binding App.RequestEditor.IsHttpRequest}"
                               ItemsSource="{Binding App.RequestEditor.Methods}"
                               SelectedItem="{Binding App.RequestEditor.SelectedMethod, Mode=TwoWay}">
                         <ComboBox.ItemTemplate>
@@ -45,6 +56,27 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
+                    <!-- Fixed method badge for non-HTTP types -->
+                    <Border Grid.Column="0"
+                            IsVisible="{Binding App.RequestEditor.IsGraphQlRequest}"
+                            Padding="8,4" VerticalAlignment="Center">
+                        <TextBlock Text="POST" FontWeight="SemiBold" Opacity="0.7" />
+                    </Border>
+                    <Border Grid.Column="0"
+                            IsVisible="{Binding App.RequestEditor.IsWebSocketRequest}"
+                            Padding="8,4" VerticalAlignment="Center">
+                        <TextBlock Text="WS" FontWeight="SemiBold" Opacity="0.7" />
+                    </Border>
+                    <Border Grid.Column="0"
+                            IsVisible="{Binding App.RequestEditor.IsSseRequest}"
+                            Padding="8,4" VerticalAlignment="Center">
+                        <TextBlock Text="GET" FontWeight="SemiBold" Opacity="0.7" />
+                    </Border>
+                    <Border Grid.Column="0"
+                            IsVisible="{Binding App.RequestEditor.IsGrpcRequest}"
+                            Padding="8,4" VerticalAlignment="Center">
+                        <TextBlock Text="gRPC" FontWeight="SemiBold" Opacity="0.7" />
+                    </Border>
                     <Rectangle Grid.Column="1" Width="1" VerticalAlignment="Stretch"
                                Fill="{DynamicResource PanelBorderBrush}" />
                     <Grid Grid.Column="2">
@@ -67,21 +99,27 @@
                 </Grid>
             </Border>
 
-            <Button x:Name="SendButton" Grid.Column="2" Content="Send"
+            <Button x:Name="SendButton" Grid.Column="2" Content="{Binding App.PrimaryActionLabel}"
                     Classes="accent"
                     HorizontalContentAlignment="Center"
                     HorizontalAlignment="Stretch"
-                    ToolTip.Tip="Send request (Ctrl+Enter)"
+                    ToolTip.Tip="Send / Connect (Ctrl+Enter)"
                     Command="{Binding App.SendRequestCommand}" />
         </Grid>
 
-        <CheckBox Grid.Row="1" Content="Follow redirects"
+        <!-- Row 2: HTTP-only options (follow redirects) -->
+        <CheckBox Grid.Row="2"
+                  IsVisible="{Binding App.RequestEditor.IsHttpRequest}"
+                  Content="Follow redirects"
                   IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
 
-        <TextBlock Grid.Row="2" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
+        <TextBlock Grid.Row="3" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
 
-        <TabControl Grid.Row="3">
-            <TabItem Header="Query">
+        <!-- Row 4: Type-specific editor tabs -->
+        <TabControl Grid.Row="4">
+
+            <!-- ═══════════════════════════════ HTTP-only tabs ═══════════════════════════════ -->
+            <TabItem Header="Query" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
                 <Grid Margin="0,8,0,0" RowDefinitions="Auto,*" RowSpacing="6">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Text="Query parameters" FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -116,7 +154,8 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Body">
+            <!-- ─────────────────────── Body (HTTP) ─────────────────────────────────────────── -->
+            <TabItem Header="Body" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
                 <Grid Margin="0,8,0,0" RowDefinitions="Auto,*">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Text="Request Body" FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -132,6 +171,198 @@
                 </Grid>
             </TabItem>
 
+            <!-- ═══════════════════════════════ GraphQL tab ══════════════════════════════════ -->
+            <TabItem Header="GraphQL" IsVisible="{Binding App.RequestEditor.IsGraphQlRequest}">
+                <Grid Margin="0,8,0,0" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="8">
+                    <!-- Query editor -->
+                    <TextBlock Text="Query / Mutation" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4" MinHeight="120">
+                        <aedit:TextEditor x:Name="GraphQlQueryEditor"
+                                          ShowLineNumbers="True"
+                                          WordWrap="True" />
+                    </Border>
+
+                    <!-- Variables JSON editor -->
+                    <TextBlock Grid.Row="2" Text="Variables (JSON)" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border Grid.Row="3" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4" MinHeight="80">
+                        <aedit:TextEditor x:Name="GraphQlVariablesEditor"
+                                          ShowLineNumbers="True"
+                                          WordWrap="True" />
+                    </Border>
+
+                    <!-- Operation name + introspection -->
+                    <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                        <TextBlock Text="Operation name" VerticalAlignment="Center" Opacity="0.8" />
+                        <TextBox Grid.Column="1" PlaceholderText="(optional)"
+                                 Text="{Binding App.GraphQlEditor.OperationName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button Grid.Column="2"
+                                Content="Introspect Schema"
+                                IsEnabled="{Binding !App.GraphQlEditor.IsIntrospecting}"
+                                Command="{Binding App.GraphQlEditor.IntrospectSchemaCommand}"
+                                CommandParameter="{Binding App.RequestEditor.RequestUrl}"
+                                ToolTip.Tip="Fetch the GraphQL schema from the endpoint" />
+                    </Grid>
+
+                    <!-- Introspection result / error -->
+                    <StackPanel Grid.Row="5" Spacing="4">
+                        <TextBlock Text="{Binding App.GraphQlEditor.IntrospectionError}"
+                                   Foreground="{DynamicResource ErrorBrush}"
+                                   IsVisible="{Binding App.GraphQlEditor.IntrospectionError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                   TextWrapping="Wrap" />
+                        <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4"
+                                IsVisible="{Binding App.GraphQlEditor.SchemaJson, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                            <aedit:TextEditor x:Name="GraphQlSchemaEditor"
+                                              IsReadOnly="True"
+                                              ShowLineNumbers="False"
+                                              WordWrap="True"
+                                              MaxHeight="200" />
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══════════════════════════════ WebSocket tab ════════════════════════════════ -->
+            <TabItem Header="WebSocket" IsVisible="{Binding App.RequestEditor.IsWebSocketRequest}">
+                <Grid Margin="0,8,0,0" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8">
+                    <!-- Connection status -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock VerticalAlignment="Center"
+                                   Text="● Connected"
+                                   Foreground="{DynamicResource StatusSuccessBrush}"
+                                   IsVisible="{Binding App.WebSocketSession.IsConnected}" />
+                        <TextBlock VerticalAlignment="Center"
+                                   Text="○ Disconnected"
+                                   Opacity="0.6"
+                                   IsVisible="{Binding !App.WebSocketSession.IsConnected}" />
+                    </StackPanel>
+
+                    <!-- Error -->
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding App.WebSocketSession.ConnectionError}"
+                               Foreground="{DynamicResource ErrorBrush}"
+                               IsVisible="{Binding App.WebSocketSession.ConnectionError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                               TextWrapping="Wrap" />
+
+                    <!-- Message send area -->
+                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8"
+                          IsEnabled="{Binding App.WebSocketSession.IsConnected}">
+                        <TextBox PlaceholderText="Message to send…"
+                                 Text="{Binding App.WebSocketSession.MessageToSend, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 AcceptsReturn="False">
+                            <TextBox.KeyBindings>
+                                <KeyBinding Gesture="Return" Command="{Binding App.WebSocketSession.SendMessageCommand}" />
+                            </TextBox.KeyBindings>
+                        </TextBox>
+                        <Button Grid.Column="1" Content="Send"
+                                Command="{Binding App.WebSocketSession.SendMessageCommand}" />
+                    </Grid>
+
+                    <!-- Message log -->
+                    <Grid Grid.Row="3" RowDefinitions="Auto,*">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="Messages" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Content="Clear"
+                                    Command="{Binding App.WebSocketSession.ClearMessagesCommand}" />
+                        </Grid>
+                        <ScrollViewer Grid.Row="1">
+                            <ItemsControl ItemsSource="{Binding App.WebSocketSession.Messages}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,2,0,0" Padding="6,4" CornerRadius="4"
+                                                Background="{DynamicResource PreviewPanelBackgroundBrush}">
+                                            <Grid ColumnDefinitions="Auto,*">
+                                                <TextBlock Text="→" FontWeight="SemiBold" Margin="0,0,6,0"
+                                                           Opacity="0.6"
+                                                           IsVisible="{Binding Direction, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Content}"
+                                                           TextWrapping="Wrap"
+                                                           FontFamily="{Binding $parent[UserControl].DataContext.App.UiFontFamily}"
+                                                           FontSize="{Binding $parent[UserControl].DataContext.App.UiFontSize}" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══════════════════════════════ SSE tab ══════════════════════════════════════ -->
+            <TabItem Header="SSE" IsVisible="{Binding App.RequestEditor.IsSseRequest}">
+                <Grid Margin="0,8,0,0" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8">
+                    <!-- Connection status -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock VerticalAlignment="Center"
+                                   Text="{Binding App.SseSession.StatusMessage}"
+                                   Opacity="0.8" />
+                    </StackPanel>
+
+                    <!-- Error -->
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding App.SseSession.ConnectionError}"
+                               Foreground="{DynamicResource ErrorBrush}"
+                               IsVisible="{Binding App.SseSession.ConnectionError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                               TextWrapping="Wrap" />
+
+                    <!-- Events log -->
+                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+                        <TextBlock Text="Events" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Content="Clear"
+                                Command="{Binding App.SseSession.ClearEventsCommand}" />
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="3">
+                        <ItemsControl ItemsSource="{Binding App.SseSession.Events}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,2,0,0" Padding="6,4" CornerRadius="4"
+                                            Background="{DynamicResource PreviewPanelBackgroundBrush}">
+                                        <Grid RowDefinitions="Auto,Auto" RowSpacing="2">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding Timestamp}"
+                                                           FontSize="11" Opacity="0.6" />
+                                                <TextBlock Text="{Binding EventType}"
+                                                           FontWeight="SemiBold"
+                                                           IsVisible="{Binding EventType, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                                <TextBlock Text="{Binding Id}"
+                                                           Opacity="0.6"
+                                                           IsVisible="{Binding Id, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Row="1" Text="{Binding Data}"
+                                                       TextWrapping="Wrap"
+                                                       FontFamily="{Binding $parent[UserControl].DataContext.App.UiFontFamily}"
+                                                       FontSize="{Binding $parent[UserControl].DataContext.App.UiFontSize}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══════════════════════════════ gRPC tab ══════════════════════════════════════ -->
+            <TabItem Header="gRPC" IsVisible="{Binding App.RequestEditor.IsGrpcRequest}">
+                <StackPanel Margin="0,16,0,0" Spacing="12">
+                    <TextBlock Text="gRPC Unary Request" FontWeight="SemiBold" FontSize="14" />
+                    <Border Background="{DynamicResource PreviewPanelBackgroundBrush}"
+                            BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1"
+                            CornerRadius="4" Padding="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="⚠ .proto import required" FontWeight="SemiBold" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.8">
+                                gRPC calls require a compiled Protocol Buffer schema.
+                                Full proto file import and runtime compilation is in development.
+                                To test gRPC endpoints now, use the HTTP type with gRPC-JSON transcoding
+                                (Content-Type: application/grpc-web+json) if your server supports it.
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </TabItem>
+
+            <!-- ═══════════════════════════════ Shared: Headers tab ════════════════════════════ -->
             <TabItem Header="Headers">
                 <Grid Margin="0,8,0,0" RowDefinitions="Auto,Auto,*" RowSpacing="6">
                     <Grid ColumnDefinitions="*,Auto">
@@ -140,7 +371,8 @@
                                 Command="{Binding App.RequestEditor.AddHeaderCommand}" />
                     </Grid>
 
-                    <Grid Grid.Row="1" ColumnDefinitions="110,*,*" ColumnSpacing="6">
+                    <Grid Grid.Row="1" ColumnDefinitions="110,*,*" ColumnSpacing="6"
+                          IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
                         <TextBlock Text="Content-Type" VerticalAlignment="Center" Opacity="0.8" />
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding App.RequestEditor.ContentTypeOptions}"
@@ -179,6 +411,7 @@
                 </Grid>
             </TabItem>
 
+            <!-- ═══════════════════════════════ Auth tab (HTTP / GraphQL) ══════════════════════ -->
             <TabItem Header="Auth">
                 <Grid Margin="0,8,0,0" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="8">
                     <Grid ColumnDefinitions="130,*" ColumnSpacing="8">
@@ -230,7 +463,8 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Preview">
+            <!-- ═══════════════════════════════ Preview tab (HTTP only) ════════════════════════ -->
+            <TabItem Header="Preview" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
                 <Grid Margin="0,8,0,0" RowDefinitions="Auto,*">
                     <TextBlock Text="Rendered request (as sent)" FontWeight="SemiBold" VerticalAlignment="Center" />
                     <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
@@ -243,6 +477,7 @@
                 </Grid>
             </TabItem>
 
+            <!-- ═══════════════════════════════ Notes tab (all types) ═════════════════════════ -->
             <TabItem Header="Notes">
                 <Grid Margin="0,8,0,0" RowDefinitions="Auto,*" RowSpacing="6">
                     <TextBlock Text="Request notes (Markdown supported)" FontWeight="SemiBold" VerticalAlignment="Center" />
