@@ -44,20 +44,6 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ---
 
-### 1.3 GraphQL / WebSocket / SSE / gRPC request types
-**What it means:** First-class support for protocols beyond HTTP/1.1 REST. GraphQL sends a POST with a `query`/`variables` JSON body and introspects the schema. WebSocket and SSE connections stay open and stream events. gRPC uses Protobuf over HTTP/2.
-
-**How to implement:**
-- Introduce a `RequestType` discriminated union on the request model.
-- GraphQL: add a dedicated body editor tab with schema introspection via `HttpClient` + `Newtonsoft.Json` or `System.Text.Json`.
-- WebSocket: use `System.Net.WebSockets.ClientWebSocket`; stream incoming messages into an `ObservableCollection<string>` rendered in a scrolling panel.
-- SSE: use `HttpClient` with `ResponseHeadersRead` and parse `data:` lines in a `StreamReader` loop.
-- gRPC: integrate `Grpc.Net.Client`; requires schema (`.proto`) import UI.
-
-**Scope:** XL (each protocol is independently L–XL)
-
----
-
 ### 1.4 Auth helper tab
 **What it means:** A dedicated "Auth" tab next to Body/Headers that generates the correct `Authorization` header for common schemes — Bearer token, Basic (username/password), API Key, OAuth 2 client-credentials flow — so the user does not need to craft headers manually.
 
@@ -404,11 +390,16 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
 
-*No ideas have been implemented yet. When an idea ships, move its entry here from "Not Yet Implemented" and add an implementation reference in the format:*
+### 1.3 GraphQL / WebSocket / SSE / gRPC request types ✅ Implemented
+> Implemented in PR (commit TBD) — `src/Arbor.HttpClient.Core/Models/RequestType.cs`, `src/Arbor.HttpClient.Core/Services/GraphQlService.cs`, `src/Arbor.HttpClient.Core/Services/WebSocketService.cs`, `src/Arbor.HttpClient.Core/Services/SseService.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/GraphQlViewModel.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/WebSocketViewModel.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/SseViewModel.cs`, `src/Arbor.HttpClient.Desktop/Views/RequestView.axaml`
 
-```
-> Implemented in PR #<number> (commit `<short-sha>`) — `src/path/to/Feature.cs`
-```
+**What it means:** First-class support for protocols beyond HTTP/1.1 REST. GraphQL sends a POST with a `query`/`variables` JSON body and introspects the schema. WebSocket and SSE connections stay open and stream events. gRPC uses Protobuf over HTTP/2.
+
+**What shipped:** `RequestType` enum, GraphQL service + VM + UI (query/variables/introspection), WebSocket service + VM + UI (connect/send/receive), SSE service + VM + UI (event streaming), gRPC UI placeholder. 23 new unit tests.
+
+**Polish items remaining:** gRPC proto import, WebSocket binary frames, SSE auto-reconnect, GraphQL variable completion from schema.
+
+---
 
 ---
 

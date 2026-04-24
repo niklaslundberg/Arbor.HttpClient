@@ -96,7 +96,31 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     [ObservableProperty]
     private string _requestNotes = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsHttpRequest))]
+    [NotifyPropertyChangedFor(nameof(IsGraphQlRequest))]
+    [NotifyPropertyChangedFor(nameof(IsWebSocketRequest))]
+    [NotifyPropertyChangedFor(nameof(IsSseRequest))]
+    [NotifyPropertyChangedFor(nameof(IsGrpcRequest))]
+    [NotifyPropertyChangedFor(nameof(IsStreamingRequest))]
+    [NotifyPropertyChangedFor(nameof(SendButtonLabel))]
+    private RequestType _selectedRequestType = RequestType.Http;
+
     // ── Derived bool properties ───────────────────────────────────────────────
+
+    public bool IsHttpRequest => SelectedRequestType == RequestType.Http;
+    public bool IsGraphQlRequest => SelectedRequestType == RequestType.GraphQL;
+    public bool IsWebSocketRequest => SelectedRequestType == RequestType.WebSocket;
+    public bool IsSseRequest => SelectedRequestType == RequestType.Sse;
+    public bool IsGrpcRequest => SelectedRequestType == RequestType.GrpcUnary;
+    public bool IsStreamingRequest => SelectedRequestType is RequestType.WebSocket or RequestType.Sse;
+
+    /// <summary>Label shown on the primary action button; changes based on request type.</summary>
+    public string SendButtonLabel => SelectedRequestType switch
+    {
+        RequestType.WebSocket or RequestType.Sse => "Connect",
+        _ => "Send"
+    };
 
     public bool IsBearerAuthMode => SelectedAuthModeOption == AuthBearerOption;
     public bool IsBasicAuthMode => SelectedAuthModeOption == AuthBasicOption;
@@ -125,6 +149,15 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     public string DefaultContentType { get; set; } = "application/json";
 
     // ── Static option lists ───────────────────────────────────────────────────
+
+    public IReadOnlyList<RequestType> RequestTypeOptions { get; } =
+    [
+        RequestType.Http,
+        RequestType.GraphQL,
+        RequestType.WebSocket,
+        RequestType.Sse,
+        RequestType.GrpcUnary
+    ];
 
     public IReadOnlyList<string> Methods { get; } = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
@@ -355,6 +388,26 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             headers,
             ParseHttpVersion(SelectedHttpVersionOption),
             FollowRedirectsForRequest);
+    }
+
+    /// <summary>
+    /// Returns the URL with <c>{{variable}}</c> tokens resolved against the active environment.
+    /// Used by non-HTTP protocols (GraphQL, WebSocket, SSE, gRPC) that need only the URL.
+    /// </summary>
+    public string GetResolvedUrl()
+    {
+        var variables = GetResolvedVariables();
+        return _variableResolver.Resolve(RequestUrl, variables);
+    }
+
+    /// <summary>
+    /// Returns the request headers with <c>{{variable}}</c> tokens resolved, ready to send
+    /// with any protocol that supports custom HTTP headers.
+    /// </summary>
+    public IReadOnlyList<RequestHeader> GetResolvedHeaders()
+    {
+        var variables = GetResolvedVariables();
+        return BuildResolvedHeaders(variables, string.Empty);
     }
 
     /// <summary>
