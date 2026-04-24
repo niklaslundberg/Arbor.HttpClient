@@ -389,6 +389,7 @@ At the end of every PR session, re-read all markdown files listed in section 0 a
 
 *Behavioral guidelines adapted from [vlad-ko/claude-wizard](https://github.com/vlad-ko/claude-wizard), used under the [MIT License](https://github.com/vlad-ko/claude-wizard/blob/main/LICENSE) (Copyright 2026 Vlad Ko).*
 
+<a id="license-compatibility"></a>
 ## 16. License Compatibility
 
 This project is licensed under the **MIT License**. When adding new NuGet packages or any other third-party dependencies, you **must** verify that their licenses are compatible with MIT before including them.
