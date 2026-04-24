@@ -84,6 +84,7 @@ Before merging any PR that touches UI code or theme resources:
 - [ ] No unrelated files modified.
 - [ ] PR description explains *what* changed and *why*.
 - [ ] Code coverage maintained or improved (check CI job summary for coverage report).
+- [ ] `release.yml` changes mirrored in the `release-verification` job in `ci.yml` (excluding `Attest build provenance` and `Create GitHub Release`).
 
 ## UX Ideas Maintenance
 

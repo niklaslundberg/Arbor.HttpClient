@@ -66,90 +66,14 @@ jobs:
           --self-contained true
           -o publish/win-x64
 
-      - name: Create MSIX package layout
+      - name: Build release artifacts
         shell: pwsh
-        run: |
-          $publishDir = "publish/win-x64"
-          $assetsDir  = "$publishDir/Assets"
-          New-Item -ItemType Directory -Force -Path $assetsDir | Out-Null
-
-          # Inject version into AppxManifest and write it to the publish directory
-          $manifest = Get-Content "src/Arbor.HttpClient.Desktop/packaging/AppxManifest.xml" -Raw
-          $manifest  = $manifest -replace 'VERSION_PLACEHOLDER', '${{ steps.version.outputs.VERSION }}'
-          $manifest | Set-Content "$publishDir/AppxManifest.xml" -Encoding UTF8
-
-          # Generate the required MSIX logo images using ImageMagick (pre-installed on windows-latest)
-          $color = "#0078D4"
-          magick -size  44x44  xc:"$color" "$assetsDir/Square44x44Logo.png"
-          magick -size 150x150 xc:"$color" "$assetsDir/Square150x150Logo.png"
-          magick -size 310x150 xc:"$color" "$assetsDir/Wide310x150Logo.png"
-          magick -size  50x50  xc:"$color" "$assetsDir/StoreLogo.png"
-          magick -size 620x300 xc:"$color" "$assetsDir/SplashScreen.png"
-
-      - name: Create MSIX package
-        shell: pwsh
-        run: |
-          $makeappx = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "makeappx.exe" |
-            Where-Object { $_.FullName -like "*x64*" } |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1 -ExpandProperty FullName
-          Write-Host "makeappx: $makeappx"
-          & $makeappx pack /d publish/win-x64 /p Arbor.HttpClient.Desktop.msix
-
-      - name: Generate SBOM (build artifacts)
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path publish/win-x64/_manifest | Out-Null
-          sbom-tool Generate `
-            -b publish/win-x64 `
-            -bc . `
-            -pn "Arbor.HttpClient.Desktop" `
-            -pv "${{ steps.version.outputs.VERSION }}" `
-            -ps "Niklas Lundberg" `
-            -m publish/win-x64/_manifest `
-            -V Information
+        run: scripts/Build-Release.ps1 -Version "${{ steps.version.outputs.VERSION }}"
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018
         with:
           subject-path: Arbor.HttpClient.Desktop.msix
-
-      - name: Create self-signed signing certificate
-        shell: pwsh
-        run: |
-          $cert = New-SelfSignedCertificate `
-            -Type Custom `
-            -Subject "CN=Arbor.HttpClient" `
-            -KeyUsage DigitalSignature `
-            -FriendlyName "Arbor.HttpClient" `
-            -CertStoreLocation "Cert:\CurrentUser\My" `
-            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
-
-          $pwd = ConvertTo-SecureString -String "CI_SIGN_CERT" -Force -AsPlainText
-          Export-PfxCertificate -Cert $cert -FilePath packaging.pfx -Password $pwd | Out-Null
-          Export-Certificate    -Cert $cert -FilePath Arbor.HttpClient.Desktop.cer  | Out-Null
-          Write-Host "Certificate thumbprint: $($cert.Thumbprint)"
-
-      - name: Sign MSIX
-        shell: pwsh
-        run: |
-          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" |
-            Where-Object { $_.FullName -like "*x64*" } |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1 -ExpandProperty FullName
-          Write-Host "signtool: $signtool"
-          & $signtool sign /fd SHA256 /a /f packaging.pfx /p "CI_SIGN_CERT" Arbor.HttpClient.Desktop.msix
-
-      - name: Generate artifact checksums
-        shell: pwsh
-        run: |
-          Get-FileHash Arbor.HttpClient.Desktop.msix -Algorithm SHA256 | ForEach-Object {
-            "$($_.Hash.ToLowerInvariant()) *Arbor.HttpClient.Desktop.msix"
-          } | Set-Content Arbor.HttpClient.Desktop.msix.sha256 -Encoding UTF8
-
-          Get-FileHash Arbor.HttpClient.Desktop.cer -Algorithm SHA256 | ForEach-Object {
-            "$($_.Hash.ToLowerInvariant()) *Arbor.HttpClient.Desktop.cer"
-          } | Set-Content Arbor.HttpClient.Desktop.cer.sha256 -Encoding UTF8
 
       - name: Create GitHub Release
         env:
