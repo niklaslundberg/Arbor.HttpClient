@@ -40,23 +40,33 @@ public class SqliteScheduledJobRepositoryTests
         var repository = new SqliteScheduledJobRepository(connectionString);
         await repository.InitializeAsync();
 
-        var id = await repository.SaveAsync(new ScheduledJobConfig(
-            0,
-            "web-view-job",
-            "GET",
-            "https://example.com",
-            null,
-            null,
-            60,
-            AutoStart: false,
-            FollowRedirects: true,
-            UseWebView: true));
+        try
+        {
+            var id = await repository.SaveAsync(new ScheduledJobConfig(
+                0,
+                "web-view-job",
+                "GET",
+                "https://example.com",
+                null,
+                null,
+                60,
+                AutoStart: false,
+                FollowRedirects: true,
+                UseWebView: true));
 
-        var items = await repository.GetAllAsync();
+            var items = await repository.GetAllAsync();
 
-        items.Should().ContainSingle();
-        items[0].Id.Should().Be(id);
-        items[0].UseWebView.Should().BeTrue();
+            items.Should().ContainSingle();
+            items[0].Id.Should().Be(id);
+            items[0].UseWebView.Should().BeTrue();
+        }
+        finally
+        {
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
     }
 
     [Fact]
@@ -67,21 +77,31 @@ public class SqliteScheduledJobRepositoryTests
         var repository = new SqliteScheduledJobRepository(connectionString);
         await repository.InitializeAsync();
 
-        var id = await repository.SaveAsync(new ScheduledJobConfig(
-            0,
-            "plain-job",
-            "POST",
-            "https://example.com/api",
-            null,
-            null,
-            120,
-            AutoStart: false));
+        try
+        {
+            var id = await repository.SaveAsync(new ScheduledJobConfig(
+                0,
+                "plain-job",
+                "POST",
+                "https://example.com/api",
+                null,
+                null,
+                120,
+                AutoStart: false));
 
-        var items = await repository.GetAllAsync();
+            var items = await repository.GetAllAsync();
 
-        items.Should().ContainSingle();
-        items[0].Id.Should().Be(id);
-        items[0].UseWebView.Should().BeFalse();
+            items.Should().ContainSingle();
+            items[0].Id.Should().Be(id);
+            items[0].UseWebView.Should().BeFalse();
+        }
+        finally
+        {
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
     }
 
     [Fact]
@@ -92,31 +112,41 @@ public class SqliteScheduledJobRepositoryTests
         var repository = new SqliteScheduledJobRepository(connectionString);
         await repository.InitializeAsync();
 
-        var id = await repository.SaveAsync(new ScheduledJobConfig(
-            0,
-            "update-job",
-            "GET",
-            "https://example.com",
-            null,
-            null,
-            30,
-            AutoStart: false,
-            UseWebView: false));
+        try
+        {
+            var id = await repository.SaveAsync(new ScheduledJobConfig(
+                0,
+                "update-job",
+                "GET",
+                "https://example.com",
+                null,
+                null,
+                30,
+                AutoStart: false,
+                UseWebView: false));
 
-        await repository.UpdateAsync(new ScheduledJobConfig(
-            id,
-            "update-job",
-            "GET",
-            "https://example.com",
-            null,
-            null,
-            30,
-            AutoStart: false,
-            UseWebView: true));
+            await repository.UpdateAsync(new ScheduledJobConfig(
+                id,
+                "update-job",
+                "GET",
+                "https://example.com",
+                null,
+                null,
+                30,
+                AutoStart: false,
+                UseWebView: true));
 
-        var items = await repository.GetAllAsync();
+            var items = await repository.GetAllAsync();
 
-        items.Should().ContainSingle();
-        items[0].UseWebView.Should().BeTrue();
+            items.Should().ContainSingle();
+            items[0].UseWebView.Should().BeTrue();
+        }
+        finally
+        {
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
     }
 }

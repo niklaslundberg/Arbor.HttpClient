@@ -190,10 +190,17 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     {
         _ = Dispatcher.UIThread.InvokeAsync(() =>
         {
-            LastResponseBody = response.Body;
-            LastResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}".Trim();
-            LastResponseAtDisplay = DateTimeOffset.Now.ToString("HH:mm:ss");
-            OnPropertyChanged(nameof(HasLastResponse));
+            try
+            {
+                LastResponseBody = response.Body;
+                LastResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}".Trim();
+                LastResponseAtDisplay = DateTimeOffset.Now.ToString("HH:mm:ss");
+                OnPropertyChanged(nameof(HasLastResponse));
+            }
+            catch (Exception)
+            {
+                // UI update failed — response data is transient, so this is not fatal.
+            }
         });
     }
 
