@@ -20,15 +20,20 @@ using Serilog;
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
 [Collection("HeadlessAvalonia")]
+[Trait("Category", "Screenshots")]
 public class ScreenshotCaptureTests
 {
     /// <summary>
     /// Saves a screenshot of the Options view (Scheduled Jobs page) showing the
-    /// auto-start toggle and default interval option to docs/screenshots/.
+    /// auto-start toggle and default interval option.
+    /// Output directory is controlled by the SCREENSHOT_OUTPUT_DIR environment variable
+    /// (defaults to the system temp folder).
     /// </summary>
     [Fact]
     public async Task Capture_OptionsView_ScheduledJobsPage()
     {
+        var outputDir = ResolveOutputDir();
+
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
         await session.Dispatch(async () =>
@@ -61,8 +66,7 @@ public class ScreenshotCaptureTests
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
 
             var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            var dest = Path.Combine(FindRepoRoot(), "docs", "screenshots", "options-view-scheduled-jobs.png");
-            screenshot?.Save(dest);
+            screenshot?.Save(Path.Join(outputDir, "options-view-scheduled-jobs.png"));
 
             window.Close();
             return true;
@@ -71,11 +75,15 @@ public class ScreenshotCaptureTests
 
     /// <summary>
     /// Saves a screenshot of the Scheduled Jobs tab showing the per-job
-    /// "Auto-start" checkbox on a populated job entry to docs/screenshots/.
+    /// "Auto-start" checkbox on a populated job entry.
+    /// Output directory is controlled by the SCREENSHOT_OUTPUT_DIR environment variable
+    /// (defaults to the system temp folder).
     /// </summary>
     [Fact]
     public async Task Capture_ScheduledJobsPanel_AutostartCheckbox()
     {
+        var outputDir = ResolveOutputDir();
+
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
         await session.Dispatch(async () =>
@@ -110,8 +118,7 @@ public class ScreenshotCaptureTests
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(5);
 
             var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            var dest = Path.Combine(FindRepoRoot(), "docs", "screenshots", "scheduled-jobs-autostart.png");
-            screenshot?.Save(dest);
+            screenshot?.Save(Path.Join(outputDir, "scheduled-jobs-autostart.png"));
 
             window.Close();
             viewModel.Dispose();
@@ -119,20 +126,12 @@ public class ScreenshotCaptureTests
         }, CancellationToken.None);
     }
 
-    private static string FindRepoRoot()
+    private static string ResolveOutputDir()
     {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is { })
-        {
-            if (dir.GetFiles("Arbor.HttpClient.slnx").Length > 0)
-            {
-                return dir.FullName;
-            }
-
-            dir = dir.Parent;
-        }
-
-        throw new InvalidOperationException("Could not locate repository root (Arbor.HttpClient.slnx not found).");
+        var dir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(dir);
+        return dir;
     }
 
     private sealed class TestEntryPoint
