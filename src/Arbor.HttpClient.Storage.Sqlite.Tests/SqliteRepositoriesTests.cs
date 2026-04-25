@@ -3,7 +3,7 @@ using Arbor.HttpClient.Storage.Sqlite;
 using AwesomeAssertions;
 using Microsoft.Data.Sqlite;
 
-namespace Arbor.HttpClient.Core.Tests;
+namespace Arbor.HttpClient.Storage.Sqlite.Tests;
 
 public class SqliteRepositoriesTests
 {

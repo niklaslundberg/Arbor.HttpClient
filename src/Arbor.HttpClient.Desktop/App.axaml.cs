@@ -64,8 +64,9 @@ public partial class App : Application
             {
                 currentOptions = optionsStore.Load();
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Logger.Warning(ex, "Failed to load application options; using defaults");
                 currentOptions = new ApplicationOptions();
             }
 
@@ -175,11 +176,6 @@ public partial class App : Application
 
     private static global::System.Net.Http.HttpClient CreateHttpClient(HttpOptions options, bool? followRedirectsOverride = null, System.Net.CookieContainer? cookieContainer = null)
     {
-        // SslProtocols.Tls/Tls11 are obsolete symbols, so their numeric values are used explicitly
-        // to support import/export compatibility for legacy protocol selections.
-        const SslProtocols tls10 = (SslProtocols)192; // SslProtocols.Tls
-        const SslProtocols tls11 = (SslProtocols)768; // SslProtocols.Tls11
-
         var handler = new SocketsHttpHandler
         {
             AllowAutoRedirect = followRedirectsOverride ?? options.FollowRedirects,
@@ -187,8 +183,6 @@ public partial class App : Application
             {
                 EnabledSslProtocols = options.TlsVersion switch
                 {
-                    "Tls10" => tls10,
-                    "Tls11" => tls11,
                     "Tls12" => SslProtocols.Tls12,
                     "Tls13" => SslProtocols.Tls13,
                     _ => SslProtocols.None

@@ -39,6 +39,7 @@ Cross-platform desktop HTTP client built with **.NET 10**, **Avalonia 12**, and 
 - `src/Arbor.HttpClient.Storage.Sqlite` - SQLite implementation of request history storage
 - `src/Arbor.HttpClient.Desktop` - Avalonia desktop UI app (Windows/Linux/macOS)
 - `src/Arbor.HttpClient.Core.Tests` - xUnit + AwesomeAssertions unit tests
+- `src/Arbor.HttpClient.Storage.Sqlite.Tests` - xUnit unit tests for the SQLite storage layer
 - `src/Arbor.HttpClient.Desktop.E2E.Tests` - headless UI automation tests
 - `src/Arbor.HttpClient.Testing` - shared in-memory test doubles and fakes for use across test projects
 
@@ -112,7 +113,7 @@ Use `{{variableName}}` in the **URL**, **request body**, **header key/value**, a
 Authorization: Bearer {{token}}
 ```
 
-If a variable name has no match in the active environment it is left unchanged in the outgoing request.
+If a variable name has no match in the active environment, the `{{token}}` placeholder is replaced with an empty string.
 
 ## Scheduled Jobs
 

@@ -160,8 +160,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public IReadOnlyList<string> TlsVersionOptions { get; } =
     [
         "SystemDefault",
-        "Tls10",
-        "Tls11",
         "Tls12",
         "Tls13"
     ];
@@ -655,7 +653,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             formatted = JsonSerializer.Serialize(jsonDocument, new JsonSerializerOptions { WriteIndented = true });
             return true;
         }
-        catch
+        catch (JsonException)
         {
             formatted = string.Empty;
             return false;
@@ -679,7 +677,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             formatted = writer.ToString();
             return true;
         }
-        catch
+        catch (XmlException)
         {
             formatted = string.Empty;
             return false;
@@ -1057,12 +1055,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private void OpenRequestBodyInExternalEditor()
+    private async Task OpenRequestBodyInExternalEditorAsync()
     {
         _requestBodyWatcher?.Dispose();
         _requestBodyWatcher = null;
 
-        var path = WriteTempFile("arbor-request", _requestEditor.RequestBody);
+        var path = await WriteTempFileAsync("arbor-request", _requestEditor.RequestBody);
 
         var watcher = new FileSystemWatcher(Path.GetDirectoryName(path)!, Path.GetFileName(path))
         {
@@ -1076,9 +1074,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private void OpenResponseBodyInExternalEditor()
+    private async Task OpenResponseBodyInExternalEditorAsync()
     {
-        var path = WriteTempFile("arbor-response", ResponseBody);
+        var path = await WriteTempFileAsync("arbor-response", ResponseBody);
         OpenWithShell(path);
     }
 
@@ -1314,13 +1312,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private string WriteTempFile(string prefix, string content)
+    private async Task<string> WriteTempFileAsync(string prefix, string content)
     {
         var ext = !string.IsNullOrEmpty(_requestEditor.ContentType)
             ? ExtensionFromContentType(_requestEditor.ContentType)
             : DetectExtensionFromContent(content);
         var path = Path.Combine(Path.GetTempPath(), $"{prefix}-{Guid.NewGuid():N}{ext}");
-        File.WriteAllText(path, content);
+        await File.WriteAllTextAsync(path, content).ConfigureAwait(false);
         _tempFiles.Add(path);
         return path;
     }
@@ -1409,9 +1407,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _applicationOptionsStore.Save(updatedOptions);
             _applicationOptions = updatedOptions;
         }
-        catch
+        catch (Exception ex)
         {
-            // best-effort persistence for implicit layout save
+            _debugLogger.Warning(ex, "Failed to persist layout options");
         }
     }
 

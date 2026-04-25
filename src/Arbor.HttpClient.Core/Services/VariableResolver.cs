@@ -14,18 +14,11 @@ public sealed class VariableResolver
             return input;
         }
 
+        var lookup = variables.ToDictionary(v => v.Name, v => v.Value, StringComparer.OrdinalIgnoreCase);
         return TokenPattern.Replace(input, match =>
         {
             var key = match.Groups[1].Value.Trim();
-            foreach (var variable in variables)
-            {
-                if (string.Equals(variable.Name, key, StringComparison.OrdinalIgnoreCase))
-                {
-                    return variable.Value;
-                }
-            }
-
-            return string.Empty;
+            return lookup.TryGetValue(key, out var value) ? value : string.Empty;
         });
     }
 }
