@@ -9,7 +9,7 @@ public class SqliteScheduledJobRepositoryTests
     [Fact]
     public async Task SaveAndLoad_ShouldPersistFollowRedirectOverride()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
+        var dbPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
         var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
         var repository = new SqliteScheduledJobRepository(connectionString);
         await repository.InitializeAsync();
@@ -35,7 +35,7 @@ public class SqliteScheduledJobRepositoryTests
     [Fact]
     public async Task SaveAndLoad_ShouldPersistUseWebViewEnabled()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
+        var dbPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
         var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
         var repository = new SqliteScheduledJobRepository(connectionString);
         await repository.InitializeAsync();
@@ -72,7 +72,7 @@ public class SqliteScheduledJobRepositoryTests
     [Fact]
     public async Task SaveAndLoad_ShouldDefaultUseWebViewToFalse()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
+        var dbPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
         var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
         var repository = new SqliteScheduledJobRepository(connectionString);
         await repository.InitializeAsync();
@@ -107,7 +107,7 @@ public class SqliteScheduledJobRepositoryTests
     [Fact]
     public async Task UpdateAndLoad_ShouldPersistUseWebViewChange()
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
+        var dbPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
         var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
         var repository = new SqliteScheduledJobRepository(connectionString);
         await repository.InitializeAsync();

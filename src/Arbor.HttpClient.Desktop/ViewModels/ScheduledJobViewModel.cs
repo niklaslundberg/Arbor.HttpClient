@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
@@ -175,7 +176,7 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
         {
             Process.Start(new ProcessStartInfo(Url) { UseShellExecute = true });
         }
-        catch
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or FileNotFoundException or PlatformNotSupportedException)
         {
             // No default browser or invalid URL — silently ignore.
         }
@@ -190,17 +191,10 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     {
         _ = Dispatcher.UIThread.InvokeAsync(() =>
         {
-            try
-            {
-                LastResponseBody = response.Body;
-                LastResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}".Trim();
-                LastResponseAtDisplay = DateTimeOffset.Now.ToString("HH:mm:ss");
-                OnPropertyChanged(nameof(HasLastResponse));
-            }
-            catch (Exception)
-            {
-                // UI update failed — response data is transient, so this is not fatal.
-            }
+            LastResponseBody = response.Body;
+            LastResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}".Trim();
+            LastResponseAtDisplay = DateTimeOffset.Now.ToString("HH:mm:ss");
+            OnPropertyChanged(nameof(HasLastResponse));
         });
     }
 
