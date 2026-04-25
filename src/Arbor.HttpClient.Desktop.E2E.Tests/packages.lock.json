@@ -413,6 +413,7 @@
           "Arbor.HttpClient.Storage.Sqlite": "[1.0.0, )",
           "Avalonia": "[12.0.1, )",
           "Avalonia.AvaloniaEdit": "[12.0.0, )",
+          "Avalonia.Controls.WebView": "[12.0.0, )",
           "Avalonia.Desktop": "[12.0.1, )",
           "Avalonia.Fonts.Inter": "[12.0.1, )",
           "Avalonia.Themes.Fluent": "[12.0.1, )",
@@ -455,6 +456,15 @@
         "requested": "[12.0.0, )",
         "resolved": "12.0.0",
         "contentHash": "VNfaYdTbiQ2DlSkSMoLg4DhTbQmQR0cFT6nqEqLkaYGLjBWmUdv5BNIuoObK4c9cgzFqnEJXBaOp4R/bxgFKfQ==",
+        "dependencies": {
+          "Avalonia": "12.0.0"
+        }
+      },
+      "Avalonia.Controls.WebView": {
+        "type": "CentralTransitive",
+        "requested": "[12.0.0, )",
+        "resolved": "12.0.0",
+        "contentHash": "8GHNanQyuhwZhab5qKdQHYBcNKAVYRlkD47jNsswL7E3WpgTmLo9LolYyt5e4GdKkKZ2B5qIAXGs8GUJlmsuoA==",
         "dependencies": {
           "Avalonia": "12.0.0"
         }

@@ -137,7 +137,7 @@
                             <DataTemplate x:DataType="vm:ScheduledJobViewModel">
                                 <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4"
                                         Padding="8,6" Margin="0,4,0,0">
-                                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
+                                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
                                         <TextBox PlaceholderText="Job name"
                                                  Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                         <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="6">
@@ -156,15 +156,42 @@
                                             <CheckBox Grid.Column="2" Content="Auto-start"
                                                       IsChecked="{Binding AutoStart, Mode=TwoWay}" />
                                         </Grid>
-                                        <CheckBox Grid.Row="4" Content="Follow redirects"
-                                                  IsChecked="{Binding FollowRedirects, Mode=TwoWay}" />
-                                        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="6">
+                                        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="16">
+                                            <CheckBox Content="Follow redirects"
+                                                      IsChecked="{Binding FollowRedirects, Mode=TwoWay}" />
+                                            <!-- "Show in web view" is only meaningful for GET requests that return renderable content -->
+                                            <CheckBox Content="Show in web view"
+                                                      IsChecked="{Binding UseWebView, Mode=TwoWay}"
+                                                      IsVisible="{Binding IsWebViewApplicable}"
+                                                      ToolTip.Tip="After each scheduled tick, open the response URL in the in-app browser window" />
+                                        </StackPanel>
+                                        <!-- Last response summary — shown only when UseWebView captured at least one response -->
+                                        <Border Grid.Row="5"
+                                                IsVisible="{Binding HasLastResponse}"
+                                                Background="{DynamicResource PreviewPanelBackgroundBrush}"
+                                                BorderBrush="{DynamicResource PanelBorderBrush}"
+                                                BorderThickness="1" CornerRadius="3"
+                                                Padding="6,4">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="Last:" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding LastResponseStatus}"
+                                                           FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding LastResponseAtDisplay}"
+                                                           Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Border>
+                                        <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="6">
                                             <Button Content="▶ Start"
                                                     Command="{Binding StartCommand}"
                                                     IsEnabled="{Binding !IsRunning}" />
                                             <Button Content="■ Stop"
                                                     Command="{Binding StopCommand}"
                                                     IsEnabled="{Binding IsRunning}" />
+                                            <Button Content="🌐 Web view"
+                                                    AutomationProperties.Name="Open URL in in-app web browser"
+                                                    ToolTip.Tip="Open the URL in the in-app web browser"
+                                                    IsVisible="{Binding IsWebViewEnabled}"
+                                                    Click="OnViewInAppClicked" />
                                             <Button Content="🗑 Delete"
                                                     Command="{Binding $parent[UserControl].DataContext.RemoveScheduledJobCommand}"
                                                     CommandParameter="{Binding}" />

@@ -241,8 +241,33 @@ If any step fails locally, fix it before pushing — this avoids triggering a CI
 - Prefer domain-specific exception types (or result/discriminated-union types) at subsystem boundaries instead of leaking generic `Exception`.
 - When rethrowing, use bare `throw;` to preserve the original stack trace — never `throw ex;`.
 - Catch only exceptions you can handle meaningfully; let the rest propagate to a top-level handler.
+- **[REQUIRED][QUALITY]** Never use a bare `catch {}` clause (catches unmanaged/SEH exceptions) or `catch (Exception) {}` without a `when` filter. Always specify the concrete exception type(s) you expect, using a `when` predicate when multiple unrelated types must be caught in one clause:
+  ```csharp
+  // ✅ specific types via when predicate
+  catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or FileNotFoundException)
+  {
+      // silently ignore: no default browser or invalid URL
+  }
 
-## 12. Structured Instruction Format
+  // ❌ too broad — triggers CodeQL cs/catch-of-all-exceptions
+  catch { }
+  catch (Exception) { }
+  ```
+- **[REQUIRED][QUALITY]** Remove `try/catch` wrappers entirely when the enclosed code cannot realistically throw (e.g. generated `ObservableProperty` setters, trivial property reads). Defensive catches that swallow real bugs are worse than no catch at all.
+
+## 12. Path-Handling Conventions
+
+- **[REQUIRED][QUALITY]** Use `Path.Join` instead of `Path.Combine` whenever any argument is not a compile-time string literal. `Path.Combine` silently discards its earlier arguments when a later argument is rooted (starts with `/` or a drive letter), which is a CodeQL-flagged footgun (`cs/path-combine-user-controlled`). `Path.Join` never silently drops arguments.
+  ```csharp
+  // ✅ safe — Join never drops earlier segments
+  var dbPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
+
+  // ❌ may silently discard Path.GetTempPath() if the GUID somehow starts with /
+  var dbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
+  ```
+  The only acceptable use of `Path.Combine` is when **all** arguments are compile-time string literals (e.g. `Path.Combine("docs", "screenshots", "main.png")`), where the silent-drop behaviour is impossible.
+
+## 13. Structured Instruction Format
 
 **Instructions benefit from machine-readable attributes, not just prose.**
 
@@ -286,9 +311,9 @@ Existing prose sections do not need to be retroactively reformatted all at once;
 
 ### Attribute-based enforcement loop
 
-At the end of every PR, scan the instructions for `[BLOCKING]` items and verify each one explicitly in the compliance checklist (see section 15). For `[REQUIRED]` items, either confirm compliance or record a justification. `[RECOMMENDED]` and `[OPTIONAL]` items can be marked as skipped without further explanation.
+At the end of every PR, scan the instructions for `[BLOCKING]` items and verify each one explicitly in the compliance checklist (see section 16). For `[REQUIRED]` items, either confirm compliance or record a justification. `[RECOMMENDED]` and `[OPTIONAL]` items can be marked as skipped without further explanation.
 
-## 13. PR Task: UX Ideas Maintenance `[REQUIRED][PROCESS]`
+## 14. PR Task: UX Ideas Maintenance `[REQUIRED][PROCESS]`
 
 **Every PR must keep `docs/ux-ideas.md` current.**
 
@@ -318,7 +343,7 @@ At the end of every PR, scan the instructions for `[BLOCKING]` items and verify 
 
 An idea is considered implemented when its primary UX behaviour is usable in the application, even if polish items remain. Record those polish gaps as sub-items in the implemented entry rather than keeping the whole idea in "Not Yet Implemented".
 
-## 14. PR Task: Instruction Improvement Loop `[RECOMMENDED][PROCESS]`
+## 15. PR Task: Instruction Improvement Loop `[RECOMMENDED][PROCESS]`
 
 **After every PR, propose at least one instruction improvement.**
 
@@ -368,7 +393,7 @@ Each PR is a learning event. When a task is complete, reflect on what was done, 
 - User requests that were ambiguous — and what additional context upfront would have resolved the ambiguity immediately.
 - Patterns in user-agent back-and-forth that could be eliminated with a clearer prompt template or a pre-flight question.
 
-## 15. End-of-PR Compliance Checklist `[BLOCKING][PROCESS]`
+## 16. End-of-PR Compliance Checklist `[BLOCKING][PROCESS]`
 
 **Before marking any PR ready for review, verify every blocking principle.**
 
@@ -403,15 +428,15 @@ At the end of every PR session, re-read all markdown files listed in section 0 a
 - [ ] **[RECOMMENDED]** New features have at least one focused unit test not requiring the full UI runtime
 - [ ] **[REQUIRED]** Test project boundaries respected: tests for a library reference only that library (plus Arbor.HttpClient.Testing); no cross-layer project references added to existing test projects
 
-### From section 16 (License Compatibility)
+### From section 17 (License Compatibility)
 - [ ] **[REQUIRED]** New NuGet packages have a license in the compatible list (MIT, Apache-2.0, BSD, ISC, OFL-1.1) *(skip if no new packages)*
 - [ ] **[REQUIRED]** New packages declared in Directory.Packages.props, not inline in .csproj *(skip if no new packages)*
 
-### From section 17 (MSIX Packaging and Releases)
+### From section 18 (MSIX Packaging and Releases)
 - [ ] **[REQUIRED]** release.yml changes mirrored in the release-verification job in ci.yml *(skip if no workflow changes)*
 - [ ] **[REQUIRED]** Shared workflow logic extracted to scripts/ — not duplicated inline *(skip if no workflow changes)*
 
-### From section 18 (Accessibility)
+### From section 19 (Accessibility)
 - [ ] **[REQUIRED]** New color pairs in App.axaml covered by AccessibilityContrastTests.cs *(skip if no theme color changes)*
 - [ ] **[REQUIRED]** Interactive controls keyboard-accessible *(skip if no UI changes)*
 
@@ -429,7 +454,7 @@ At the end of every PR session, re-read all markdown files listed in section 0 a
 *Behavioral guidelines adapted from [vlad-ko/claude-wizard](https://github.com/vlad-ko/claude-wizard), used under the [MIT License](https://github.com/vlad-ko/claude-wizard/blob/main/LICENSE) (Copyright 2026 Vlad Ko).*
 
 <a id="license-compatibility"></a>
-## 16. License Compatibility
+## 17. License Compatibility
 
 This project is licensed under the **MIT License**. When adding new NuGet packages or any other third-party dependencies, you **must** verify that their licenses are compatible with MIT before including them.
 
@@ -487,7 +512,7 @@ Do **not** add packages under these licenses without explicit approval:
 **License:** MIT
 ```
 
-## 17. MSIX Packaging and Releases
+## 18. MSIX Packaging and Releases
 
 The desktop application (`Arbor.HttpClient.Desktop`) is distributed as a signed MSIX package.
 
@@ -514,7 +539,7 @@ The desktop application (`Arbor.HttpClient.Desktop`) is distributed as a signed 
 - **`[REQUIRED][PROCESS]`** Build and packaging logic must never be duplicated across workflows or scripts. Extract any shell or PowerShell steps that are shared between `release.yml` and `ci.yml` into a reusable script under `scripts/` (e.g. `scripts/Build-Release.ps1`) and invoke that script from both workflows. The general rule is: a "thing" should exist in exactly one place. The only permitted exception is test code, where isolation and decoupling are more important than deduplication.
 - **`[RECOMMENDED][PROCESS]`** The `sbom-tool` always appends `_manifest` to the directory passed via `-m`. Pass `-m <build-drop-path>` (e.g. `-m publish/win-x64`) so the manifest is written to `<build-drop-path>/_manifest/spdx_2.2/manifest.spdx.json`. Never pass `-m <build-drop-path>/_manifest` or the tool will double-nest the directory.
 
-## 18. Accessibility
+## 19. Accessibility
 
 All UI changes involving human interaction must consider accessibility from the start — not as an afterthought.
 
@@ -537,7 +562,7 @@ Before merging any PR that touches UI code or theme resources:
 - [ ] No purely visual text label has been replaced by an icon without an accessible name.
 - [ ] New interactive controls have been manually verified with keyboard-only navigation.
 
-## 19. UI Consistency
+## 20. UI Consistency
 
 All text-input controls must have a consistent look and feel that matches the Avalonia Fluent theme.
 

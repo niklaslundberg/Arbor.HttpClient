@@ -19,7 +19,37 @@ Exception: fire-and-forget cleanup paths may omit the token, but must document w
 
 **[REQUIRED]** Catch only exceptions you can handle meaningfully. Let the rest propagate to a top-level handler.
 
+**[REQUIRED]** Never use a bare `catch {}` clause or `catch (Exception) {}` without a `when` filter — these are CodeQL `cs/catch-of-all-exceptions` violations. Always specify the concrete exception type(s) you expect. When multiple unrelated types must share one catch block, use a `when` predicate:
+
+```csharp
+// ✅ specific types via when predicate
+catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or FileNotFoundException)
+{
+    // silently ignore: no default browser
+}
+
+// ❌ too broad — triggers CodeQL cs/catch-of-all-exceptions
+catch { }
+catch (Exception) { }
+```
+
+**[REQUIRED]** Remove `try/catch` wrappers entirely when the enclosed code cannot realistically throw (e.g. generated `ObservableProperty` setters, string interpolation, trivial property reads). Defensive catches that swallow real bugs are worse than no catch at all.
+
 **[RECOMMENDED]** Prefer domain-specific exception types (or result/discriminated-union types) at subsystem boundaries instead of leaking `System.Exception`.
+
+## Path Handling
+
+**[REQUIRED]** Use `Path.Join` instead of `Path.Combine` whenever any argument is not a compile-time string literal. `Path.Combine` silently discards its earlier arguments when a later argument is rooted (starts with `/` or a drive letter) — this is CodeQL `cs/path-combine-user-controlled`. `Path.Join` never silently drops arguments.
+
+```csharp
+// ✅ safe
+var dbPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
+
+// ❌ may silently discard the temp path — CodeQL flags this
+var dbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
+```
+
+`Path.Combine` is only acceptable when **all** arguments are compile-time string literals (e.g. `Path.Combine("docs", "screenshots", "main.png")`).
 
 ## Null Checks
 
