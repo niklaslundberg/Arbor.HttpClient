@@ -6,6 +6,13 @@ description: 'Avalonia XAML rules for Arbor.HttpClient — Fluent theme metrics,
 # Avalonia XAML Rules
 
 > These rules apply to all `.axaml` files. They are a targeted subset of the full guidelines in `.github/copilot-instructions.md`. When in doubt, defer to the canonical source.
+>
+> **Official Avalonia documentation:** https://docs.avaloniaui.net/  
+> Always refer to the official docs for control APIs, styling, theming, and Fluent theme specifics. Key references:
+> - Controls reference: https://docs.avaloniaui.net/docs/reference/controls/
+> - Styles and resources: https://docs.avaloniaui.net/docs/guides/styles-and-resources/
+> - Fluent theme: https://docs.avaloniaui.net/docs/guides/styles-and-resources/themes/fluent
+> - Data binding: https://docs.avaloniaui.net/docs/guides/data-binding/
 
 ## Fluent Theme Metrics
 

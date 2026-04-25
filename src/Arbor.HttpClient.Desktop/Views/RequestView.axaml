@@ -21,7 +21,7 @@
 
         <!-- Row 0: Request type selector -->
         <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="8">
-            <TextBlock Text="Type" VerticalAlignment="Center" Opacity="0.8" />
+            <TextBlock Text="Type" VerticalAlignment="Center" Opacity="0.7" />
             <ComboBox Grid.Column="1" MinWidth="160"
                       ItemsSource="{Binding App.RequestEditor.RequestTypeOptions}"
                       SelectedItem="{Binding App.RequestEditor.SelectedRequestType, Mode=TwoWay}" />
@@ -192,7 +192,7 @@
 
                     <!-- Operation name + introspection -->
                     <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                        <TextBlock Text="Operation name" VerticalAlignment="Center" Opacity="0.8" />
+                        <TextBlock Text="Operation name" VerticalAlignment="Center" Opacity="0.7" />
                         <TextBox Grid.Column="1" PlaceholderText="(optional)"
                                  Text="{Binding App.GraphQlEditor.OperationName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                         <Button Grid.Column="2"
@@ -373,7 +373,7 @@
 
                     <Grid Grid.Row="1" ColumnDefinitions="110,*,*" ColumnSpacing="6"
                           IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
-                        <TextBlock Text="Content-Type" VerticalAlignment="Center" Opacity="0.8" />
+                        <TextBlock Text="Content-Type" VerticalAlignment="Center" Opacity="0.7" />
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding App.RequestEditor.ContentTypeOptions}"
                                   SelectedItem="{Binding App.RequestEditor.SelectedContentTypeOption, Mode=TwoWay}"

@@ -160,6 +160,7 @@ The following local commands mirror the CI jobs in `.github/workflows/ci.yml`. R
 | **Build** | `dotnet build Arbor.HttpClient.slnx --no-restore --configuration Release` |
 | **Unit tests** | `dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj --no-restore --configuration Release` |
 | **E2E tests** | `dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj --no-restore --configuration Release` |
+| **UX screenshots** | `./scripts/take-screenshots.sh` *(UI changes only — commits to `docs/screenshots/`)* |
 | **Agent instructions sync** | Bash: `diff <(tail -n +2 CLAUDE.md) <(tail -n +2 AGENTS.md)` · PowerShell: `Compare-Object (Get-Content CLAUDE.md \| Select-Object -Skip 1) (Get-Content AGENTS.md \| Select-Object -Skip 1)` |
 
 If any step fails locally, fix it before pushing — this avoids triggering a CI run only to discover a preventable failure.
@@ -201,10 +202,15 @@ If any step fails locally, fix it before pushing — this avoids triggering a CI
 - Use JetBrains dotMemory Unit or equivalent tools (for example `dotnet-counters` or BenchmarkDotNet) to catch memory leaks, performance bottlenecks, or resource leaks. Attach profiling evidence in the PR when this requirement applies.
 - For UI-related changes, **screenshots must appear inline in the PR description** so reviewers can see them without downloading anything. Screenshots saved only to `/tmp/` or other ephemeral paths are inaccessible to reviewers and do not satisfy this requirement.
   - **Correct workflow for every UI change:**
-    1. Run the E2E screenshot tests, directing output to the committed `docs/screenshots/` folder:
+    1. Run the screenshot script (which builds and runs the `Category=Screenshots` E2E tests):
+       ```bash
+       ./scripts/take-screenshots.sh
        ```
+       Or invoke the tests directly to target a specific output directory:
+       ```bash
        SCREENSHOT_OUTPUT_DIR=docs/screenshots dotnet test \
          src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
+         --configuration Release \
          --filter "Category=Screenshots"
        ```
     2. Commit the generated `docs/screenshots/*.png` files via `report_progress`.

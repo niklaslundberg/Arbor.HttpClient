@@ -24,19 +24,19 @@
                             <DataTemplate x:DataType="logging:LogEntry">
                                 <Grid ColumnDefinitions="160,80,*" ColumnSpacing="8">
                                     <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss.fff}'}"
-                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               FontFamily="{DynamicResource AppFontFamily}"
                                                FontSize="11"
                                                Opacity="0.7"
                                                VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding Level}"
-                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               FontFamily="{DynamicResource AppFontFamily}"
                                                FontSize="11"
                                                FontWeight="SemiBold"
                                                VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="2"
                                                Text="{Binding Message}"
-                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               FontFamily="{DynamicResource AppFontFamily}"
                                                FontSize="11"
                                                TextWrapping="Wrap"
                                                VerticalAlignment="Center" />
@@ -57,19 +57,19 @@
                             <DataTemplate x:DataType="logging:LogEntry">
                                 <Grid ColumnDefinitions="160,80,*" ColumnSpacing="8">
                                     <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss.fff}'}"
-                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               FontFamily="{DynamicResource AppFontFamily}"
                                                FontSize="11"
                                                Opacity="0.7"
                                                VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding Level}"
-                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               FontFamily="{DynamicResource AppFontFamily}"
                                                FontSize="11"
                                                FontWeight="SemiBold"
                                                VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="2"
                                                Text="{Binding Message}"
-                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               FontFamily="{DynamicResource AppFontFamily}"
                                                FontSize="11"
                                                TextWrapping="Wrap"
                                                VerticalAlignment="Center" />
@@ -90,19 +90,19 @@
                             <DataTemplate x:DataType="logging:LogEntry">
                                 <Grid ColumnDefinitions="160,80,*" ColumnSpacing="8">
                                     <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss.fff}'}"
-                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               FontFamily="{DynamicResource AppFontFamily}"
                                                FontSize="11"
                                                Opacity="0.7"
                                                VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding Level}"
-                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               FontFamily="{DynamicResource AppFontFamily}"
                                                FontSize="11"
                                                FontWeight="SemiBold"
                                                VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="2"
                                                Text="{Binding Message}"
-                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               FontFamily="{DynamicResource AppFontFamily}"
                                                FontSize="11"
                                                TextWrapping="Wrap"
                                                VerticalAlignment="Center" />
@@ -123,19 +123,19 @@
                             <DataTemplate x:DataType="logging:LogEntry">
                                 <Grid ColumnDefinitions="160,80,*" ColumnSpacing="8">
                                     <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss.fff}'}"
-                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               FontFamily="{DynamicResource AppFontFamily}"
                                                FontSize="11"
                                                Opacity="0.7"
                                                VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding Level}"
-                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               FontFamily="{DynamicResource AppFontFamily}"
                                                FontSize="11"
                                                FontWeight="SemiBold"
                                                VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="2"
                                                Text="{Binding Message}"
-                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               FontFamily="{DynamicResource AppFontFamily}"
                                                FontSize="11"
                                                TextWrapping="Wrap"
                                                VerticalAlignment="Center" />

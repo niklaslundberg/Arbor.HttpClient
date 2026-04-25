@@ -33,6 +33,6 @@ At the beginning of every session, read these files before making any decision o
 - New NuGet packages: verify MIT-compatible license, declare version in `Directory.Packages.props`, document in `THIRD_PARTY_NOTICES.md`.
 - Test naming: `Method_Scenario_ExpectedResult` (e.g. `Parse_EmptyInput_ThrowsArgumentException`).
 - New or changed production code must include test coverage; new code must not lower overall coverage below the baseline in `docs/coverage.md`.
-- UI changes: run E2E screenshot tests, commit output to `docs/screenshots/`, embed screenshots in PR description.
+- UI changes: run `./scripts/take-screenshots.sh`, commit output to `docs/screenshots/`, embed screenshots in PR description.
 
 For the full set of rules, always defer to `.github/copilot-instructions.md`.
