@@ -23,6 +23,15 @@ _ReSharper*/
 _NCrunch_*
 *.ncrunch*
 
+# Generated probe artefacts from experimental-vm-probe CI job (or local test runs)
+probe-env.txt
+probe-summary.md
+desktop-before.png
+desktop-after.png
+app-recording.mp4
+validation-frame.png
+rec-log.txt
+
 # Visual Studio Code
 **/.vscode/*
 # Allow shared Copilot Chat settings so all contributors and agents get the same instructions
