@@ -305,51 +305,7 @@ jobs:
         id: probe-env
         continue-on-error: true
         shell: pwsh
-        run: |
-          $report = [System.Collections.Generic.List[string]]::new()
-          $report.Add("## Environment Probe")
-          $report.Add("")
-
-          # OS information
-          $os = Get-WmiObject Win32_OperatingSystem
-          $report.Add("**OS:** $($os.Caption) build $($os.BuildNumber)")
-
-          # CPU virtualisation flags
-          $cpu = Get-WmiObject Win32_Processor | Select-Object -First 1
-          $vmxFlag = ($cpu.VirtualizationFirmwareEnabled -eq $true)
-          $report.Add("**CPU:** $($cpu.Name)")
-          $report.Add("**VirtualizationFirmwareEnabled:** $vmxFlag")
-
-          # Check if we are ourselves running inside a VM
-          $model = (Get-WmiObject Win32_ComputerSystem).Model
-          $report.Add("**ComputerSystem.Model:** $model")
-          $isVm = ($model -match 'Virtual|HyperV|VMware|Xen|KVM')
-          $report.Add("**Running inside a VM:** $isVm")
-
-          # Hyper-V Windows feature state
-          $hyperVFeature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -ErrorAction SilentlyContinue
-          $hvState = if ($hyperVFeature) { $hyperVFeature.State } else { "NotAvailable" }
-          $report.Add("**Hyper-V feature state:** $hvState")
-
-          # Hyper-V PowerShell module availability
-          $hvModule = Get-Module -ListAvailable -Name Hyper-V -ErrorAction SilentlyContinue
-          $report.Add("**Hyper-V PS module available:** $($null -ne $hvModule)")
-
-          # SLAT / Second Level Address Translation (required for Hyper-V)
-          # Reported via systeminfo
-          $sysinfo = systeminfo 2>&1
-          $slatLine = $sysinfo | Where-Object { $_ -match 'SLAT|Hyper-V' }
-          $report.Add("")
-          $report.Add("**systeminfo Hyper-V / SLAT lines:**")
-          $slatLine | ForEach-Object { $report.Add("``$_``") }
-
-          $report | Out-File -FilePath probe-env.txt -Encoding UTF8
-          Write-Host ($report -join "`n")
-
-          # Expose for later steps
-          "HV_STATE=$hvState"          | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "CPU_VIRT=$vmxFlag"          | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "HV_MODULE=$($null -ne $hvModule)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        run: scripts/Probe-Environment.ps1
 
       # -----------------------------------------------------------------------
       # Step 2: Try to enable Hyper-V (may require a reboot — expected to fail)
@@ -358,19 +314,7 @@ jobs:
         id: enable-hv
         continue-on-error: true
         shell: pwsh
-        run: |
-          try {
-              $result = Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All `
-                  -All -NoRestart -ErrorAction Stop
-              $state = if ($result) { "RestartNeeded=$($result.RestartNeeded)" } else { "Enabled" }
-          }
-          catch {
-              # Common on Windows Server runners: feature name is different or nested virt
-              # feature is already active via the hypervisor. This is expected.
-              $state = "Unavailable: $($_.Exception.Message)"
-          }
-          Write-Host "Enable-WindowsOptionalFeature result: $state"
-          "RESTART_NEEDED=$state" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        run: scripts/Enable-HyperV.ps1
 
       # -----------------------------------------------------------------------
       # Step 3: Build and publish the desktop app
@@ -403,69 +347,7 @@ jobs:
         id: vm-create
         continue-on-error: true
         shell: pwsh
-        run: |
-          Set-StrictMode -Version Latest
-
-          $vmName = "Arbor-CI-Probe"
-          $vhdPath = Join-Path $env:TEMP "arbor-ci-probe.vhdx"
-
-          try {
-              Import-Module Hyper-V -ErrorAction Stop
-              Write-Host "Hyper-V module imported OK"
-          }
-          catch {
-              Write-Host "Cannot import Hyper-V module: $_"
-              "VM_RESULT=HyperV-module-unavailable" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-              exit 0
-          }
-
-          # Remove any leftover from a previous run
-          Remove-VM -Name $vmName -Force -ErrorAction SilentlyContinue
-          Remove-Item $vhdPath -Force -ErrorAction SilentlyContinue
-
-          # Create a tiny (1 GB) blank VHDX — no OS installed, just tests the storage API
-          try {
-              New-VHD -Path $vhdPath -SizeBytes 1GB -Dynamic | Out-Null
-              Write-Host "New-VHD succeeded: $vhdPath"
-          }
-          catch {
-              Write-Host "New-VHD failed: $_"
-              "VM_RESULT=New-VHD-failed: $_" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-              exit 0
-          }
-
-          # Create a Generation-2 VM (no switch — isolated, no network needed for probe)
-          try {
-              $vm = New-VM -Name $vmName -Generation 2 -MemoryStartupBytes 512MB `
-                           -VHDPath $vhdPath -ErrorAction Stop
-              Write-Host "New-VM succeeded: $($vm.Name)  State=$($vm.State)"
-              "VM_RESULT=VM-created-OK" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          }
-          catch {
-              Write-Host "New-VM failed: $_"
-              "VM_RESULT=New-VM-failed: $_" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-              exit 0
-          }
-
-          # Try starting it (expected to fail — no bootable OS — but proves scheduling works)
-          try {
-              Start-VM -Name $vmName -ErrorAction Stop
-              Start-Sleep -Seconds 3
-              $state = (Get-VM -Name $vmName).State
-              Write-Host "Start-VM succeeded, state: $state"
-              "VM_START=started-state-$state" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          }
-          catch {
-              Write-Host "Start-VM failed (expected without an OS): $_"
-              "VM_START=failed-expected: $_" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          }
-          finally {
-              # Clean up regardless
-              Stop-VM  -Name $vmName -TurnOff -Force -ErrorAction SilentlyContinue
-              Remove-VM -Name $vmName -Force -ErrorAction SilentlyContinue
-              Remove-Item $vhdPath -Force -ErrorAction SilentlyContinue
-              Write-Host "Cleanup complete."
-          }
+        run: scripts/New-ProbeVM.ps1
 
       # -----------------------------------------------------------------------
       # Step 5: Launch the app, record a 5s screen capture with ffmpeg gdigrab,
@@ -475,165 +357,7 @@ jobs:
         id: launch-app
         continue-on-error: true
         shell: pwsh
-        run: |
-          $exe = "publish/win-x64/Arbor.HttpClient.Desktop.exe"
-          if (-not (Test-Path $exe)) {
-              Write-Host "Exe not found at $exe — skipping."
-              "APP_RUNNING=False" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-              exit 0
-          }
-
-          Add-Type -AssemblyName System.Windows.Forms
-          Add-Type -AssemblyName System.Drawing
-          $csharp = @(
-              'using System;'
-              'using System.Runtime.InteropServices;'
-              'public class Win32Ui {'
-              '    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);'
-              '    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);'
-              '}'
-          ) -join "`n"
-          Add-Type -TypeDefinition $csharp -ErrorAction SilentlyContinue
-
-          function Take-Screenshot([string]$path) {
-              try {
-                  $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-                  $bmp = [System.Drawing.Bitmap]::new($bounds.Width, $bounds.Height)
-                  $g   = [System.Drawing.Graphics]::FromImage($bmp)
-                  $g.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
-                  $bmp.Save($path)
-                  $g.Dispose(); $bmp.Dispose()
-                  Write-Host "Screenshot saved: $path ($($bounds.Width)x$($bounds.Height))"
-                  return $true
-              }
-              catch { Write-Host "Screenshot failed: $_"; return $false }
-          }
-
-          Write-Host "Launching: $exe"
-          $proc = Start-Process -FilePath $exe -PassThru -WindowStyle Normal
-          if (-not $proc) {
-              "APP_RUNNING=False" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-              exit 0
-          }
-          Write-Host "Started PID: $($proc.Id)"
-          $proc.WaitForInputIdle(10000) | Out-Null
-          Start-Sleep -Seconds 2
-
-          $proc.Refresh()
-          $running = -not $proc.HasExited
-          Write-Host "Running: $running"
-          "APP_RUNNING=$running" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
-          if ($running) {
-              $hwnd = $proc.MainWindowHandle
-              Write-Host "Main window handle: $hwnd  Title: '$($proc.MainWindowTitle)'"
-              "WINDOW_FOUND=$($hwnd -ne [IntPtr]::Zero)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
-              if ($hwnd -ne [IntPtr]::Zero) {
-                  [Win32Ui]::ShowWindow($hwnd, 9)
-                  [Win32Ui]::SetForegroundWindow($hwnd)
-                  Start-Sleep -Milliseconds 500
-              }
-
-              # Start ffmpeg screen recording: 5s, gdigrab, 10fps, H.264
-              $ff = Get-Command ffmpeg -ErrorAction SilentlyContinue
-              $recProc = $null
-              if ($ff) {
-                  Write-Host "Starting 5s screen recording (gdigrab 10fps H.264)..."
-                  $recArgs = '-f gdigrab -framerate 10 -i desktop -t 5 -c:v libx264 -pix_fmt yuv420p -y app-recording.mp4'
-                  $recProc = Start-Process -FilePath $ff.Source `
-                      -ArgumentList $recArgs `
-                      -PassThru -WindowStyle Hidden `
-                      -RedirectStandardError rec-log.txt
-                  "RECORDING_STARTED=True" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-              } else {
-                  Write-Host "ffmpeg not found in PATH — recording skipped"
-                  "RECORDING_STARTED=False" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-              }
-
-              # Before-interaction screenshot (captured at recording start)
-              $s1 = Take-Screenshot 'desktop-before.png'
-              "SCREENSHOT_BEFORE=$s1" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
-              # Send keyboard input while recording is in progress
-              if ($hwnd -ne [IntPtr]::Zero) {
-                  Start-Sleep -Seconds 1
-                  [System.Windows.Forms.SendKeys]::SendWait("{TAB}")
-                  Start-Sleep -Milliseconds 300
-                  [System.Windows.Forms.SendKeys]::SendWait("{TAB}")
-                  Start-Sleep -Milliseconds 300
-                  [System.Windows.Forms.SendKeys]::SendWait("https://example.com{ENTER}")
-                  Start-Sleep -Milliseconds 500
-                  Write-Host "Sent keyboard input OK"
-                  "UI_INTERACTION=ok" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-              } else {
-                  Write-Host "No window handle — skipping keyboard input"
-                  "UI_INTERACTION=no-window" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-              }
-
-              # Wait for ffmpeg to finish (it exits after -t 5s)
-              if ($recProc) {
-                  if (-not $recProc.WaitForExit(12000)) {
-                      Write-Host "Recording timed out — killing ffmpeg"
-                      $recProc | Stop-Process -Force -ErrorAction SilentlyContinue
-                      "RECORDING_EXIT=timeout" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-                  } else {
-                      Write-Host "Recording exit code: $($recProc.ExitCode)"
-                      "RECORDING_EXIT=$($recProc.ExitCode)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-                  }
-                  if (Test-Path 'rec-log.txt') { Get-Content 'rec-log.txt' -Tail 10 | Write-Host }
-              }
-
-              # After-interaction screenshot (after recording has finished)
-              $s2 = Take-Screenshot 'desktop-after.png'
-              "SCREENSHOT_AFTER=$s2" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
-              $proc | Stop-Process -Force -ErrorAction SilentlyContinue
-              Write-Host "App stopped."
-
-              # --- Validate the recording ---
-              if (Test-Path 'app-recording.mp4') {
-                  $sizeMB = [math]::Round((Get-Item 'app-recording.mp4').Length / 1MB, 2)
-                  Write-Host "Recording file size: $sizeMB MB"
-                  "RECORDING_SIZE_MB=$sizeMB" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
-                  # Use ffprobe to read duration and frame count
-                  $fp = Get-Command ffprobe -ErrorAction SilentlyContinue
-                  if ($fp) {
-                      $probeOut = & $fp.Source -v quiet -print_format json -show_streams app-recording.mp4 2>&1
-                      try {
-                          $pj   = $probeOut | ConvertFrom-Json
-                          $dur  = [math]::Round([double]$pj.streams[0].duration, 2)
-                          $frms = $pj.streams[0].nb_frames
-                          Write-Host "Duration: ${dur}s  Frames: $frms"
-                          "VIDEO_DURATION=$dur" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-                          "VIDEO_FRAMES=$frms"  | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-                      } catch { Write-Host "ffprobe JSON parse failed: $_" }
-                  }
-
-                  # Extract frame at t=2s then count unique mid-row pixel colors as content check
-                  if ($ff) {
-                      & $ff.Source -i app-recording.mp4 -ss 2 -vframes 1 -y validation-frame.png 2>$null
-                      if (Test-Path 'validation-frame.png') {
-                          $vbmp = [System.Drawing.Bitmap]::new((Resolve-Path 'validation-frame.png').Path)
-                          $step = [math]::Max(1, [int]($vbmp.Width / 20))
-                          $argbList = @()
-                          for ($xi = 0; $xi -lt $vbmp.Width; $xi += $step) {
-                              $argbList += $vbmp.GetPixel($xi, [int]($vbmp.Height / 2)).ToArgb()
-                          }
-                          $vbmp.Dispose()
-                          $unique = ($argbList | Sort-Object -Unique).Count
-                          $hasContent = $unique -gt 2
-                          Write-Host "Unique pixel colors in mid-row sample: $unique  Has content: $hasContent"
-                          "VIDEO_HAS_CONTENT=$hasContent"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-                          "VIDEO_UNIQUE_COLORS=$unique"     | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-                      }
-                  }
-              } else {
-                  Write-Host "No recording file produced"
-                  "RECORDING_SIZE_MB=0" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-              }
-          }
+        run: scripts/Invoke-UIAutomationProbe.ps1
 
       - name: Upload screenshots and screen recording
         if: always()
@@ -656,59 +380,14 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          $lines = @(
-            "## Experimental VM / Hyper-V Probe Results"
-            ""
-            "This job is non-blocking (continue-on-error: true). Results are for diagnostic"
-            "purposes only and do not affect the CI outcome."
-            ""
-            "### Environment"
-            "| Check | Result |"
-            "|---|---|"
-            "| CPU virtualisation firmware enabled | ${{ steps.probe-env.outputs.CPU_VIRT }} |"
-            "| Hyper-V Windows feature state | ${{ steps.probe-env.outputs.HV_STATE }} |"
-            "| Hyper-V PS module available | ${{ steps.probe-env.outputs.HV_MODULE }} |"
-            "| Enable-WindowsOptionalFeature | ${{ steps.enable-hv.outputs.RESTART_NEEDED }} |"
-            ""
-            "### App Build"
-            "| Step | Outcome |"
-            "|---|---|"
-            "| dotnet restore | ${{ steps.restore.outcome }} |"
-            "| dotnet publish (win-x64 self-contained) | ${{ steps.publish.outcome }} (${{ steps.publish.outputs.PUBLISH_OK }}) |"
-            ""
-            "### VM Creation (Hyper-V nested virtualisation)"
-            "| Step | Outcome |"
-            "|---|---|"
-            "| New-VHD + New-VM (no OS) | ${{ steps.vm-create.outputs.VM_RESULT }} |"
-            "| Start-VM | ${{ steps.vm-create.outputs.VM_START }} |"
-            ""
-            "### App launch and UI automation (direct on runner)"
-            "| Step | Outcome |"
-            "|---|---|"
-            "| App running after init | ${{ steps.launch-app.outputs.APP_RUNNING }} |"
-            "| Window handle found | ${{ steps.launch-app.outputs.WINDOW_FOUND }} |"
-            "| UI keyboard interaction | ${{ steps.launch-app.outputs.UI_INTERACTION }} |"
-            "| Before-interaction screenshot | ${{ steps.launch-app.outputs.SCREENSHOT_BEFORE }} |"
-            "| After-interaction screenshot | ${{ steps.launch-app.outputs.SCREENSHOT_AFTER }} |"
-            ""
-            "### Screen recording (ffmpeg gdigrab)"
-            "| Check | Result |"
-            "|---|---|"
-            "| Recording started | ${{ steps.launch-app.outputs.RECORDING_STARTED }} |"
-            "| ffmpeg exit code | ${{ steps.launch-app.outputs.RECORDING_EXIT }} |"
-            "| File size (MB) | ${{ steps.launch-app.outputs.RECORDING_SIZE_MB }} |"
-            "| Duration (s) | ${{ steps.launch-app.outputs.VIDEO_DURATION }} |"
-            "| Frame count | ${{ steps.launch-app.outputs.VIDEO_FRAMES }} |"
-            "| Frame has content | ${{ steps.launch-app.outputs.VIDEO_HAS_CONTENT }} |"
-            "| Unique pixel colors in sample | ${{ steps.launch-app.outputs.VIDEO_UNIQUE_COLORS }} |"
-            ""
-            "### Next steps"
-            '- Screen recording confirmed working. Next: verify VIDEO_HAS_CONTENT=True'
-            '  in the PR comment, and check validation-frame.png in the ui-automation-artifacts artifact.'
-          )
-          $md = $lines -join "`n"
-          $md | Out-File -FilePath probe-summary.md -Encoding UTF8
-          $md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding UTF8 -Append
+          scripts/Write-ProbeSummary.ps1 `
+            -ProbeEnvOutputs @{ CPU_VIRT='${{ steps.probe-env.outputs.CPU_VIRT }}'; HV_STATE='${{ steps.probe-env.outputs.HV_STATE }}'; HV_MODULE='${{ steps.probe-env.outputs.HV_MODULE }}' } `
+            -EnableHvOutputs @{ RESTART_NEEDED='${{ steps.enable-hv.outputs.RESTART_NEEDED }}' } `
+            -RestoreOutcome  '${{ steps.restore.outcome }}' `
+            -PublishOutcome  '${{ steps.publish.outcome }}' `
+            -PublishOk       '${{ steps.publish.outputs.PUBLISH_OK }}' `
+            -VmOutputs       @{ VM_RESULT='${{ steps.vm-create.outputs.VM_RESULT }}'; VM_START='${{ steps.vm-create.outputs.VM_START }}' } `
+            -LaunchOutputs   @{ APP_RUNNING='${{ steps.launch-app.outputs.APP_RUNNING }}'; WINDOW_FOUND='${{ steps.launch-app.outputs.WINDOW_FOUND }}'; UI_INTERACTION='${{ steps.launch-app.outputs.UI_INTERACTION }}'; SCREENSHOT_BEFORE='${{ steps.launch-app.outputs.SCREENSHOT_BEFORE }}'; SCREENSHOT_AFTER='${{ steps.launch-app.outputs.SCREENSHOT_AFTER }}'; RECORDING_STARTED='${{ steps.launch-app.outputs.RECORDING_STARTED }}'; RECORDING_EXIT='${{ steps.launch-app.outputs.RECORDING_EXIT }}'; RECORDING_SIZE_MB='${{ steps.launch-app.outputs.RECORDING_SIZE_MB }}'; VIDEO_DURATION='${{ steps.launch-app.outputs.VIDEO_DURATION }}'; VIDEO_FRAMES='${{ steps.launch-app.outputs.VIDEO_FRAMES }}'; VIDEO_HAS_CONTENT='${{ steps.launch-app.outputs.VIDEO_HAS_CONTENT }}'; VIDEO_UNIQUE_COLORS='${{ steps.launch-app.outputs.VIDEO_UNIQUE_COLORS }}' }
 
       - name: Upload probe report
         if: always()
@@ -731,63 +410,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $runUrl = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          $artifactNote = "Screenshots, recording, and validation frame uploaded as the **ui-automation-artifacts** artifact in the [run]($runUrl)."
-
-          $body = @"
-          ## Experimental VM / Hyper-V Probe - Run ${{ github.run_number }}
-
-          > **This job is non-blocking** (continue-on-error: true). Results below are for
-          > iterative development of the VM-based UI automation pipeline.
-
-          ### Environment
-          | Check | Result |
-          |---|---|
-          | CPU virtualisation firmware enabled | ${{ steps.probe-env.outputs.CPU_VIRT }} |
-          | Hyper-V PS module available | ${{ steps.probe-env.outputs.HV_MODULE }} |
-          | Enable-WindowsOptionalFeature | ${{ steps.enable-hv.outputs.RESTART_NEEDED }} |
-
-          ### App Build
-          | Step | Outcome |
-          |---|---|
-          | dotnet restore | ${{ steps.restore.outcome }} |
-          | dotnet publish win-x64 self-contained | ${{ steps.publish.outcome }} (exe found: ${{ steps.publish.outputs.PUBLISH_OK }}) |
-
-          ### Hyper-V Nested VM
-          | Step | Outcome |
-          |---|---|
-          | New-VHD + New-VM (no OS) | ${{ steps.vm-create.outputs.VM_RESULT }} |
-          | Start-VM | ${{ steps.vm-create.outputs.VM_START }} |
-
-          ### App Launch and UI Automation
-          | Check | Result |
-          |---|---|
-          | App running after init | ${{ steps.launch-app.outputs.APP_RUNNING }} |
-          | Window handle found | ${{ steps.launch-app.outputs.WINDOW_FOUND }} |
-          | UI keyboard interaction | ${{ steps.launch-app.outputs.UI_INTERACTION }} |
-          | Before-interaction screenshot | ${{ steps.launch-app.outputs.SCREENSHOT_BEFORE }} |
-          | After-interaction screenshot | ${{ steps.launch-app.outputs.SCREENSHOT_AFTER }} |
-
-          ### Screen Recording (ffmpeg gdigrab, 5s, 10fps H.264)
-          | Check | Result |
-          |---|---|
-          | Recording started | ${{ steps.launch-app.outputs.RECORDING_STARTED }} |
-          | ffmpeg exit code | ${{ steps.launch-app.outputs.RECORDING_EXIT }} |
-          | File size (MB) | ${{ steps.launch-app.outputs.RECORDING_SIZE_MB }} |
-          | Duration (s) | ${{ steps.launch-app.outputs.VIDEO_DURATION }} |
-          | Frame count | ${{ steps.launch-app.outputs.VIDEO_FRAMES }} |
-          | Frame has content (not blank) | ${{ steps.launch-app.outputs.VIDEO_HAS_CONTENT }} |
-          | Unique pixel colors in sample | ${{ steps.launch-app.outputs.VIDEO_UNIQUE_COLORS }} |
-
-          $artifactNote
-
-          ---
-          [Full run logs]($runUrl)
-          "@
-
-          gh pr comment "${{ github.event.pull_request.number }}" `
-            --body $body `
-            --repo "${{ github.repository }}"
+          scripts/Post-ProbeComment.ps1 `
+            -RunUrl            '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}' `
+            -RunNumber         '${{ github.run_number }}' `
+            -PullRequestNumber '${{ github.event.pull_request.number }}' `
+            -Repository        '${{ github.repository }}' `
+            -ProbeEnvOutputs   @{ CPU_VIRT='${{ steps.probe-env.outputs.CPU_VIRT }}'; HV_MODULE='${{ steps.probe-env.outputs.HV_MODULE }}' } `
+            -EnableHvOutputs   @{ RESTART_NEEDED='${{ steps.enable-hv.outputs.RESTART_NEEDED }}' } `
+            -RestoreOutcome    '${{ steps.restore.outcome }}' `
+            -PublishOutcome    '${{ steps.publish.outcome }}' `
+            -PublishOk         '${{ steps.publish.outputs.PUBLISH_OK }}' `
+            -VmOutputs         @{ VM_RESULT='${{ steps.vm-create.outputs.VM_RESULT }}'; VM_START='${{ steps.vm-create.outputs.VM_START }}' } `
+            -LaunchOutputs     @{ APP_RUNNING='${{ steps.launch-app.outputs.APP_RUNNING }}'; WINDOW_FOUND='${{ steps.launch-app.outputs.WINDOW_FOUND }}'; UI_INTERACTION='${{ steps.launch-app.outputs.UI_INTERACTION }}'; SCREENSHOT_BEFORE='${{ steps.launch-app.outputs.SCREENSHOT_BEFORE }}'; SCREENSHOT_AFTER='${{ steps.launch-app.outputs.SCREENSHOT_AFTER }}'; RECORDING_STARTED='${{ steps.launch-app.outputs.RECORDING_STARTED }}'; RECORDING_EXIT='${{ steps.launch-app.outputs.RECORDING_EXIT }}'; RECORDING_SIZE_MB='${{ steps.launch-app.outputs.RECORDING_SIZE_MB }}'; VIDEO_DURATION='${{ steps.launch-app.outputs.VIDEO_DURATION }}'; VIDEO_FRAMES='${{ steps.launch-app.outputs.VIDEO_FRAMES }}'; VIDEO_HAS_CONTENT='${{ steps.launch-app.outputs.VIDEO_HAS_CONTENT }}'; VIDEO_UNIQUE_COLORS='${{ steps.launch-app.outputs.VIDEO_UNIQUE_COLORS }}' }
 
   e2e-tests:
     name: E2E Tests
