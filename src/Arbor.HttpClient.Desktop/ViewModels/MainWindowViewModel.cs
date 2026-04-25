@@ -137,6 +137,30 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private Collection? _selectedCollection;
 
     [ObservableProperty]
+    private string _collectionSearchQuery = string.Empty;
+
+    /// <summary>Sort order for collection requests: "Default" | "Name" | "Method" | "Path".</summary>
+    [ObservableProperty]
+    private string _collectionSortBy = "Default";
+
+    /// <summary>
+    /// Display mode for collection request entries:
+    /// "NameAndPath" | "NameOnly" | "PathOnly" | "FullUrl".
+    /// </summary>
+    [ObservableProperty]
+    private string _collectionDisplayMode = "NameAndPath";
+
+    /// <summary>When true, requests are shown grouped by their top-level path segment.</summary>
+    [ObservableProperty]
+    private bool _isCollectionTreeView;
+
+    [ObservableProperty]
+    private string _newCollectionName = string.Empty;
+
+    [ObservableProperty]
+    private bool _isNewCollectionFormVisible;
+
+    [ObservableProperty]
     private bool _isLayoutPanelVisible;
 
     [ObservableProperty]
@@ -258,10 +282,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             foreach (var r in collection.Requests)
             {
-                CollectionItems.Add(new CollectionItemViewModel(r));
+                CollectionItems.Add(new CollectionItemViewModel(r, collection.BaseUrl));
             }
         }
+
+        ApplyCollectionFilter();
     }
+
+    partial void OnCollectionSearchQueryChanged(string value) => ApplyCollectionFilter();
+
+    partial void OnCollectionSortByChanged(string value) => ApplyCollectionFilter();
+
+    partial void OnIsCollectionTreeViewChanged(bool value) => ApplyCollectionFilter();
 
     partial void OnSelectedThemeOptionChanged(string value)
     {
@@ -356,6 +388,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         History = [];
         Collections = [];
         CollectionItems = [];
+        FilteredCollectionItems = [];
+        CollectionGroups = [];
         ScheduledJobs = [];
         SavedLayoutNames = [];
 
@@ -378,6 +412,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public ObservableCollection<SavedRequest> History { get; }
     public ObservableCollection<Collection> Collections { get; }
     public ObservableCollection<CollectionItemViewModel> CollectionItems { get; }
+
+    /// <summary>Filtered and sorted flat list of collection requests, bound in the Collections panel.</summary>
+    public ObservableCollection<CollectionItemViewModel> FilteredCollectionItems { get; }
+
+    /// <summary>
+    /// Requests grouped by top-level path segment, used in the tree view.
+    /// Each <see cref="CollectionGroupViewModel"/> holds an expandable set of items.
+    /// </summary>
+    public ObservableCollection<CollectionGroupViewModel> CollectionGroups { get; }
     public ObservableCollection<RequestEnvironment> Environments => _environmentsViewModel.Environments;
     public ObservableCollection<EnvironmentVariableViewModel> ActiveEnvironmentVariables => _environmentsViewModel.ActiveEnvironmentVariables;
     public ObservableCollection<ScheduledJobViewModel> ScheduledJobs { get; }
@@ -887,6 +930,129 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         else
         {
             _requestEditor.RequestBody = string.Empty;
+        }
+    }
+
+    [RelayCommand]
+    private void ShowNewCollectionForm()
+    {
+        NewCollectionName = string.Empty;
+        IsNewCollectionFormVisible = true;
+    }
+
+    [RelayCommand]
+    private void CancelNewCollection()
+    {
+        NewCollectionName = string.Empty;
+        IsNewCollectionFormVisible = false;
+    }
+
+    [RelayCommand]
+    private async Task CreateCollectionAsync()
+    {
+        var name = NewCollectionName.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        var id = await _collectionRepository.SaveAsync(name, null, null, []);
+        IsNewCollectionFormVisible = false;
+        NewCollectionName = string.Empty;
+
+        await LoadCollectionsAsync();
+        SelectedCollection = Collections.FirstOrDefault(c => c.Id == id);
+        LeftPanelTab = "Collections";
+        _debugLogger.Information("Created new collection {CollectionName}", name);
+    }
+
+    [RelayCommand]
+    private async Task AddRequestToCollectionAsync()
+    {
+        if (SelectedCollection is not { } collection)
+        {
+            return;
+        }
+
+        var draft = _requestEditor.BuildDraft();
+
+        // Derive the path: strip the base URL prefix if it matches, otherwise use the full URL as path.
+        var path = string.IsNullOrWhiteSpace(collection.BaseUrl)
+            ? draft.Url
+            : (draft.Url.StartsWith(collection.BaseUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase)
+                ? draft.Url[collection.BaseUrl.TrimEnd('/').Length..]
+                : draft.Url);
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            path = "/";
+        }
+
+        var newRequest = new CollectionRequest(
+            string.IsNullOrWhiteSpace(draft.Name) ? draft.Method + " " + path : draft.Name,
+            draft.Method,
+            path,
+            null);
+
+        var updatedRequests = collection.Requests.Append(newRequest).ToList();
+        await _collectionRepository.UpdateAsync(
+            collection.Id,
+            collection.Name,
+            collection.SourcePath,
+            collection.BaseUrl,
+            updatedRequests);
+
+        await LoadCollectionsAsync();
+        SelectedCollection = Collections.FirstOrDefault(c => c.Id == collection.Id);
+        _debugLogger.Information("Added request {RequestName} to collection {CollectionName}", newRequest.Name, collection.Name);
+    }
+
+    [RelayCommand]
+    private void SetCollectionSortBy(string? sortBy) =>
+        CollectionSortBy = sortBy ?? "Default";
+
+    [RelayCommand]
+    private void SetCollectionDisplayMode(string? mode) =>
+        CollectionDisplayMode = mode ?? "NameAndPath";
+
+    [RelayCommand]
+    private void ToggleCollectionTreeView() =>
+        IsCollectionTreeView = !IsCollectionTreeView;
+
+    private void ApplyCollectionFilter()
+    {
+        var items = CollectionItems.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(CollectionSearchQuery))
+        {
+            items = items.Where(item =>
+                item.Name.Contains(CollectionSearchQuery, StringComparison.OrdinalIgnoreCase)
+                || item.Path.Contains(CollectionSearchQuery, StringComparison.OrdinalIgnoreCase)
+                || item.Method.Contains(CollectionSearchQuery, StringComparison.OrdinalIgnoreCase));
+        }
+
+        items = CollectionSortBy switch
+        {
+            "Name" => items.OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase),
+            "Method" => items.OrderBy(i => i.Method, StringComparer.OrdinalIgnoreCase),
+            "Path" => items.OrderBy(i => i.Path, StringComparer.OrdinalIgnoreCase),
+            _ => items
+        };
+
+        var filteredList = items.ToList();
+
+        FilteredCollectionItems.Clear();
+        foreach (var item in filteredList)
+        {
+            FilteredCollectionItems.Add(item);
+        }
+
+        CollectionGroups.Clear();
+        foreach (var group in filteredList
+            .GroupBy(i => i.GroupKey, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            CollectionGroups.Add(new CollectionGroupViewModel(group.Key, group.ToList()));
         }
     }
 

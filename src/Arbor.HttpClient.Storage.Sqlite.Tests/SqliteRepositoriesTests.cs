@@ -255,4 +255,77 @@ public class SqliteRepositoriesTests
             }
         }
     }
+
+    [Fact]
+    public async Task SqliteCollectionRepository_UpdateAsync_ShouldReplaceNameAndRequests()
+    {
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_collection_update_{Guid.NewGuid()}.db");
+        try
+        {
+            var connectionString = $"Data Source={dbPath}";
+            var repository = new SqliteCollectionRepository(connectionString);
+            await repository.InitializeAsync();
+
+            var id = await repository.SaveAsync("Original Name", null, "https://api.example.com",
+            [
+                new CollectionRequest("Old Request", "GET", "/old", null)
+            ]);
+
+            var updatedRequests = new List<CollectionRequest>
+            {
+                new("New Request A", "POST", "/new-a", "First new request"),
+                new("New Request B", "DELETE", "/new-b", "Second new request")
+            };
+
+            await repository.UpdateAsync(id, "Updated Name", "/path/to/spec", "https://updated.example.com", updatedRequests);
+
+            var collections = await repository.GetAllAsync();
+            collections.Should().HaveCount(1);
+            collections[0].Name.Should().Be("Updated Name");
+            collections[0].SourcePath.Should().Be("/path/to/spec");
+            collections[0].BaseUrl.Should().Be("https://updated.example.com");
+            collections[0].Requests.Should().HaveCount(2);
+            collections[0].Requests[0].Name.Should().Be("New Request A");
+            collections[0].Requests[1].Name.Should().Be("New Request B");
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteCollectionRepository_UpdateAsync_ShouldClearRequestsWhenListIsEmpty()
+    {
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_collection_update_empty_{Guid.NewGuid()}.db");
+        try
+        {
+            var connectionString = $"Data Source={dbPath}";
+            var repository = new SqliteCollectionRepository(connectionString);
+            await repository.InitializeAsync();
+
+            var id = await repository.SaveAsync("My Collection", null, null,
+            [
+                new CollectionRequest("Request", "GET", "/test", null)
+            ]);
+
+            await repository.UpdateAsync(id, "My Collection", null, null, []);
+
+            var collections = await repository.GetAllAsync();
+            collections.Should().HaveCount(1);
+            collections[0].Requests.Should().BeEmpty();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+    }
 }

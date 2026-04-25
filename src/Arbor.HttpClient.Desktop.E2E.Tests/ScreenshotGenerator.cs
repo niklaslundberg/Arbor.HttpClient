@@ -577,6 +577,49 @@ public class ScreenshotGenerator
         }, CancellationToken.None);
     }
 
+    [Fact]
+    public async Task GenerateCollectionsPanelScreenshot()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
+
+        await session.Dispatch(() =>
+        {
+            IReadOnlyList<Collection> collections =
+            [
+                new Collection(1, "Petstore API", "/specs/petstore.yaml", "https://api.example.com",
+                [
+                    new CollectionRequest("List all pets", "GET", "/pets", "Returns all pets"),
+                    new CollectionRequest("Create pet", "POST", "/pets", "Create a new pet"),
+                    new CollectionRequest("Get pet by ID", "GET", "/pets/{id}", "Returns a single pet"),
+                    new CollectionRequest("Update pet", "PUT", "/pets/{id}", "Update an existing pet"),
+                    new CollectionRequest("Delete pet", "DELETE", "/pets/{id}", "Delete a pet"),
+                    new CollectionRequest("List owners", "GET", "/owners", "Returns all owners"),
+                    new CollectionRequest("Get owner", "GET", "/owners/{id}", "Get owner by ID"),
+                ])
+            ];
+
+            var (viewModel, window) = CreateWindowWithCollections(BuildHandler("{}"), collections);
+
+            window.Show();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            frame?.Save(Path.Join(outputDir, "collections-panel.png"));
+
+            // Also take tree-view screenshot
+            viewModel.IsCollectionTreeView = true;
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            var treeFrame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            treeFrame?.Save(Path.Join(outputDir, "collections-panel-tree.png"));
+
+            window.Close();
+            return Task.FromResult(true);
+        }, CancellationToken.None);
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
@@ -617,6 +660,47 @@ public class ScreenshotGenerator
         return (viewModel, new MainWindow { DataContext = viewModel });
     }
 
+    private static (MainWindowViewModel ViewModel, MainWindow Window) CreateWindowWithCollections(
+        HttpMessageHandler handler,
+        IReadOnlyList<Collection> collections)
+    {
+        var historyRepo = new InMemoryHistoryRepo();
+        var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), historyRepo);
+        var sink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(sink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowVm = new LogWindowViewModel(sink);
+
+        var collectionRepo = new InMemoryCollectionRepo(collections);
+
+        var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            historyRepo,
+            collectionRepo,
+            new InMemoryEnvironmentRepo(),
+            new InMemoryScheduledJobRepo(),
+            scheduledJobService,
+            logWindowVm);
+
+        viewModel.RequestEditor.RequestName = "GET /users";
+        viewModel.RequestEditor.SelectedMethod = "GET";
+        viewModel.RequestEditor.RequestUrl = "https://api.example.com/users";
+
+        // Pre-populate collections from the repo data (mirrors InitializeAsync but synchronous)
+        foreach (var c in collections)
+        {
+            viewModel.Collections.Add(c);
+        }
+
+        if (collections.Count > 0)
+        {
+            viewModel.SelectedCollection = collections[0];
+            viewModel.LeftPanelTab = "Collections";
+        }
+
+        return (viewModel, new MainWindow { DataContext = viewModel });
+    }
+
     // -------------------------------------------------------------------------
     // Stubs
     // -------------------------------------------------------------------------
@@ -639,9 +723,15 @@ public class ScreenshotGenerator
 
     private sealed class InMemoryCollectionRepo : ICollectionRepository
     {
+        private readonly IReadOnlyList<Collection> _initial;
+
+        public InMemoryCollectionRepo(IReadOnlyList<Collection>? initial = null) =>
+            _initial = initial ?? [];
+
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<int> SaveAsync(string name, string? sourcePath, string? baseUrl, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken = default) => Task.FromResult(1);
-        public Task<IReadOnlyList<Collection>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Collection>>([]);
+        public Task UpdateAsync(int collectionId, string name, string? sourcePath, string? baseUrl, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<Collection>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult(_initial);
         public Task DeleteAsync(int collectionId, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 

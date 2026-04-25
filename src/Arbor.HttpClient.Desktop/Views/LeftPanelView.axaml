@@ -28,6 +28,11 @@
             <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorBrush}" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
+        <!-- Small compact action buttons used within the collection toolbar -->
+        <Style Selector="Button.compact">
+            <Setter Property="Padding" Value="6,3" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
     </UserControl.Styles>
 
     <Grid RowDefinitions="Auto,*" Margin="8" Background="{DynamicResource PanelBackgroundBrush}">
@@ -84,26 +89,109 @@
         <!-- Collections tab -->
         <Border Grid.Row="1" Background="{DynamicResource PanelBackgroundBrush}" Padding="12" CornerRadius="8"
                 IsVisible="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=Collections}">
-            <Grid RowDefinitions="Auto,Auto,*">
-                <ComboBox ItemsSource="{Binding App.Collections}"
-                          SelectedItem="{Binding App.SelectedCollection, Mode=TwoWay}"
-                          HorizontalAlignment="Stretch">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="models:Collection">
-                            <TextBlock Text="{Binding Name}" />
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*">
 
-                <Button Grid.Row="1" Content="Delete Collection" Margin="0,4,0,0"
-                        IsVisible="{Binding App.SelectedCollection, Converter={x:Static conv:NotNullConverter.Instance}}"
-                        Command="{Binding App.DeleteCollectionCommand}"
-                        CommandParameter="{Binding App.SelectedCollection}" />
+                <!-- Row 0: Collection selector + New button -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                    <ComboBox ItemsSource="{Binding App.Collections}"
+                              SelectedItem="{Binding App.SelectedCollection, Mode=TwoWay}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:Collection">
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button Grid.Column="1" Classes="compact"
+                            Content="+ New"
+                            AutomationProperties.Name="Create new collection"
+                            ToolTip.Tip="Create a new empty collection"
+                            Command="{Binding App.ShowNewCollectionFormCommand}" />
+                </Grid>
 
-                <ListBox Grid.Row="2" Margin="0,6,0,0"
-                         ItemsSource="{Binding App.CollectionItems}"
+                <!-- Row 1: Inline new-collection form -->
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4" Margin="0,4,0,0"
+                      IsVisible="{Binding App.IsNewCollectionFormVisible}">
+                    <TextBox PlaceholderText="Collection name"
+                             Text="{Binding App.NewCollectionName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Grid.Column="1" Classes="compact" Content="✓"
+                            AutomationProperties.Name="Confirm new collection"
+                            Command="{Binding App.CreateCollectionCommand}" />
+                    <Button Grid.Column="2" Classes="compact" Content="✗"
+                            AutomationProperties.Name="Cancel new collection"
+                            Command="{Binding App.CancelNewCollectionCommand}" />
+                </Grid>
+
+                <!-- Row 2: Per-collection action buttons (visible when a collection is selected) -->
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4" Margin="0,4,0,0"
+                            IsVisible="{Binding App.SelectedCollection, Converter={x:Static conv:NotNullConverter.Instance}}">
+                    <Button Classes="compact"
+                            Content="+ Add request"
+                            AutomationProperties.Name="Add current request to collection"
+                            ToolTip.Tip="Add the current request to this collection"
+                            Command="{Binding App.AddRequestToCollectionCommand}" />
+                    <Button Classes="compact"
+                            Content="Import OpenAPI"
+                            AutomationProperties.Name="Import OpenAPI specification"
+                            Command="{Binding App.ImportCollectionCommand}" />
+                    <Button Classes="compact"
+                            Content="🗑 Delete"
+                            AutomationProperties.Name="Delete collection"
+                            Command="{Binding App.DeleteCollectionCommand}"
+                            CommandParameter="{Binding App.SelectedCollection}" />
+                </StackPanel>
+
+                <!-- Row 3: Search box -->
+                <TextBox Grid.Row="3" Margin="0,6,0,0"
+                         PlaceholderText="Search requests…"
+                         Text="{Binding App.CollectionSearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                <!-- Row 4: Sort + view-mode toolbar -->
+                <Grid Grid.Row="4" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
+                    <!-- Sort row -->
+                    <StackPanel Orientation="Horizontal" Spacing="0">
+                        <TextBlock Text="Sort:" VerticalAlignment="Center" Opacity="0.7" Margin="0,0,4,0" FontSize="11" />
+                        <Button Classes="tab" Content="Default" FontSize="11" Padding="6,4"
+                                Command="{Binding App.SetCollectionSortByCommand}" CommandParameter="Default"
+                                Classes.active="{Binding App.CollectionSortBy, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=Default}" />
+                        <Button Classes="tab" Content="Name" FontSize="11" Padding="6,4"
+                                Command="{Binding App.SetCollectionSortByCommand}" CommandParameter="Name"
+                                Classes.active="{Binding App.CollectionSortBy, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=Name}" />
+                        <Button Classes="tab" Content="Method" FontSize="11" Padding="6,4"
+                                Command="{Binding App.SetCollectionSortByCommand}" CommandParameter="Method"
+                                Classes.active="{Binding App.CollectionSortBy, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=Method}" />
+                        <Button Classes="tab" Content="Path" FontSize="11" Padding="6,4"
+                                Command="{Binding App.SetCollectionSortByCommand}" CommandParameter="Path"
+                                Classes.active="{Binding App.CollectionSortBy, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=Path}" />
+                    </StackPanel>
+                    <!-- Display mode row -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="0" Margin="0,2,0,0">
+                        <TextBlock Text="Show:" VerticalAlignment="Center" Opacity="0.7" Margin="0,0,4,0" FontSize="11" />
+                        <Button Classes="tab" Content="Name+Path" FontSize="11" Padding="6,4"
+                                Command="{Binding App.SetCollectionDisplayModeCommand}" CommandParameter="NameAndPath"
+                                Classes.active="{Binding App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameAndPath}" />
+                        <Button Classes="tab" Content="Name" FontSize="11" Padding="6,4"
+                                Command="{Binding App.SetCollectionDisplayModeCommand}" CommandParameter="NameOnly"
+                                Classes.active="{Binding App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameOnly}" />
+                        <Button Classes="tab" Content="Path" FontSize="11" Padding="6,4"
+                                Command="{Binding App.SetCollectionDisplayModeCommand}" CommandParameter="PathOnly"
+                                Classes.active="{Binding App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=PathOnly}" />
+                        <Button Classes="tab" Content="URL" FontSize="11" Padding="6,4"
+                                Command="{Binding App.SetCollectionDisplayModeCommand}" CommandParameter="FullUrl"
+                                Classes.active="{Binding App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=FullUrl}" />
+                        <Button Classes="tab" Content="🌿 Tree" FontSize="11" Padding="6,4"
+                                AutomationProperties.Name="Toggle tree view"
+                                Command="{Binding App.ToggleCollectionTreeViewCommand}"
+                                Classes.active="{Binding App.IsCollectionTreeView}" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- Row 5: Flat list view (default) -->
+                <ListBox Grid.Row="5" Margin="0,6,0,0"
+                         ItemsSource="{Binding App.FilteredCollectionItems}"
                          SelectionMode="Single"
-                         Background="{DynamicResource PanelBackgroundBrush}">
+                         Background="{DynamicResource PanelBackgroundBrush}"
+                         IsVisible="{Binding !App.IsCollectionTreeView}">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:CollectionItemViewModel">
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0,3">
@@ -111,8 +199,21 @@
                                            Foreground="{Binding Method, Converter={StaticResource MethodToColorConverter}}"
                                            FontWeight="SemiBold" MinWidth="50" />
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding Path}" FontSize="11" Opacity="0.7" TextWrapping="Wrap" />
+                                    <!-- Name — shown in NameAndPath and NameOnly -->
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                               IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameAndPath}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                               IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameOnly}"
+                                               TextWrapping="Wrap" />
+                                    <!-- Path — shown in NameAndPath and PathOnly -->
+                                    <TextBlock Text="{Binding Path}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"
+                                               IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameAndPath}" />
+                                    <TextBlock Text="{Binding Path}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"
+                                               IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=PathOnly}" />
+                                    <!-- Full URL — shown in FullUrl mode -->
+                                    <TextBlock Text="{Binding FullUrl}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"
+                                               IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=FullUrl}" />
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>
@@ -123,6 +224,73 @@
                         </Style>
                     </ListBox.Styles>
                 </ListBox>
+
+                <!-- Row 5: Tree view (grouped by path segment) -->
+                <ScrollViewer Grid.Row="5" Margin="0,6,0,0"
+                              IsVisible="{Binding App.IsCollectionTreeView}">
+                    <ItemsControl ItemsSource="{Binding App.CollectionGroups}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CollectionGroupViewModel">
+                                <Border Margin="0,2,0,0">
+                                    <StackPanel>
+                                        <!-- Group header button -->
+                                        <Button Command="{Binding ToggleExpandedCommand}"
+                                                Background="Transparent"
+                                                BorderBrush="Transparent"
+                                                Padding="4,4"
+                                                HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Left">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding IsExpanded, Converter={x:Static conv:BoolToExpandIconConverter.Instance}}"
+                                                           Opacity="0.6" FontSize="10" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding GroupKey}" FontWeight="SemiBold"
+                                                           Opacity="0.85" />
+                                                <TextBlock Text="{Binding Items.Count, StringFormat='({0})'}"
+                                                           Opacity="0.5" FontSize="11" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Button>
+                                        <!-- Group items (collapsible) -->
+                                        <ItemsControl ItemsSource="{Binding Items}"
+                                                      IsVisible="{Binding IsExpanded}"
+                                                      Margin="12,0,0,0">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:CollectionItemViewModel">
+                                                    <Button Background="Transparent"
+                                                            BorderBrush="Transparent"
+                                                            Padding="4,3"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left"
+                                                            Command="{Binding $parent[UserControl].DataContext.App.LoadCollectionRequestCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                                                            <TextBlock Text="{Binding Method}"
+                                                                       Foreground="{Binding Method, Converter={StaticResource MethodToColorConverter}}"
+                                                                       FontWeight="SemiBold" MinWidth="50" />
+                                                            <StackPanel Grid.Column="1">
+                                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                                           IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameAndPath}"
+                                                                           TextWrapping="Wrap" />
+                                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                                           IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameOnly}"
+                                                                           TextWrapping="Wrap" />
+                                                                <TextBlock Text="{Binding Path}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"
+                                                                           IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameAndPath}" />
+                                                                <TextBlock Text="{Binding Path}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"
+                                                                           IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=PathOnly}" />
+                                                                <TextBlock Text="{Binding FullUrl}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"
+                                                                           IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=FullUrl}" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
             </Grid>
         </Border>
 
