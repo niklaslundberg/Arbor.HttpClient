@@ -381,13 +381,27 @@ jobs:
         shell: pwsh
         run: |
           scripts/Write-ProbeSummary.ps1 `
-            -ProbeEnvOutputs @{ CPU_VIRT='${{ steps.probe-env.outputs.CPU_VIRT }}'; HV_STATE='${{ steps.probe-env.outputs.HV_STATE }}'; HV_MODULE='${{ steps.probe-env.outputs.HV_MODULE }}' } `
-            -EnableHvOutputs @{ RESTART_NEEDED='${{ steps.enable-hv.outputs.RESTART_NEEDED }}' } `
-            -RestoreOutcome  '${{ steps.restore.outcome }}' `
-            -PublishOutcome  '${{ steps.publish.outcome }}' `
-            -PublishOk       '${{ steps.publish.outputs.PUBLISH_OK }}' `
-            -VmOutputs       @{ VM_RESULT='${{ steps.vm-create.outputs.VM_RESULT }}'; VM_START='${{ steps.vm-create.outputs.VM_START }}' } `
-            -LaunchOutputs   @{ APP_RUNNING='${{ steps.launch-app.outputs.APP_RUNNING }}'; WINDOW_FOUND='${{ steps.launch-app.outputs.WINDOW_FOUND }}'; UI_INTERACTION='${{ steps.launch-app.outputs.UI_INTERACTION }}'; SCREENSHOT_BEFORE='${{ steps.launch-app.outputs.SCREENSHOT_BEFORE }}'; SCREENSHOT_AFTER='${{ steps.launch-app.outputs.SCREENSHOT_AFTER }}'; RECORDING_STARTED='${{ steps.launch-app.outputs.RECORDING_STARTED }}'; RECORDING_EXIT='${{ steps.launch-app.outputs.RECORDING_EXIT }}'; RECORDING_SIZE_MB='${{ steps.launch-app.outputs.RECORDING_SIZE_MB }}'; VIDEO_DURATION='${{ steps.launch-app.outputs.VIDEO_DURATION }}'; VIDEO_FRAMES='${{ steps.launch-app.outputs.VIDEO_FRAMES }}'; VIDEO_HAS_CONTENT='${{ steps.launch-app.outputs.VIDEO_HAS_CONTENT }}'; VIDEO_UNIQUE_COLORS='${{ steps.launch-app.outputs.VIDEO_UNIQUE_COLORS }}' }
+            -CpuVirt           '${{ steps.probe-env.outputs.CPU_VIRT }}' `
+            -HvState           '${{ steps.probe-env.outputs.HV_STATE }}' `
+            -HvModule          '${{ steps.probe-env.outputs.HV_MODULE }}' `
+            -HvEnable          '${{ steps.enable-hv.outputs.RESTART_NEEDED }}' `
+            -RestoreOutcome    '${{ steps.restore.outcome }}' `
+            -PublishOutcome    '${{ steps.publish.outcome }}' `
+            -PublishOk         '${{ steps.publish.outputs.PUBLISH_OK }}' `
+            -VmResult          '${{ steps.vm-create.outputs.VM_RESULT }}' `
+            -VmStart           '${{ steps.vm-create.outputs.VM_START }}' `
+            -AppRunning        '${{ steps.launch-app.outputs.APP_RUNNING }}' `
+            -WindowFound       '${{ steps.launch-app.outputs.WINDOW_FOUND }}' `
+            -UiInteraction     '${{ steps.launch-app.outputs.UI_INTERACTION }}' `
+            -ScreenshotBefore  '${{ steps.launch-app.outputs.SCREENSHOT_BEFORE }}' `
+            -ScreenshotAfter   '${{ steps.launch-app.outputs.SCREENSHOT_AFTER }}' `
+            -RecordingStarted  '${{ steps.launch-app.outputs.RECORDING_STARTED }}' `
+            -RecordingExit     '${{ steps.launch-app.outputs.RECORDING_EXIT }}' `
+            -RecordingSizeMb   '${{ steps.launch-app.outputs.RECORDING_SIZE_MB }}' `
+            -VideoDuration     '${{ steps.launch-app.outputs.VIDEO_DURATION }}' `
+            -VideoFrames       '${{ steps.launch-app.outputs.VIDEO_FRAMES }}' `
+            -VideoHasContent   '${{ steps.launch-app.outputs.VIDEO_HAS_CONTENT }}' `
+            -VideoUniqueColors '${{ steps.launch-app.outputs.VIDEO_UNIQUE_COLORS }}'
 
       - name: Upload probe report
         if: always()
@@ -415,13 +429,26 @@ jobs:
             -RunNumber         '${{ github.run_number }}' `
             -PullRequestNumber '${{ github.event.pull_request.number }}' `
             -Repository        '${{ github.repository }}' `
-            -ProbeEnvOutputs   @{ CPU_VIRT='${{ steps.probe-env.outputs.CPU_VIRT }}'; HV_MODULE='${{ steps.probe-env.outputs.HV_MODULE }}' } `
-            -EnableHvOutputs   @{ RESTART_NEEDED='${{ steps.enable-hv.outputs.RESTART_NEEDED }}' } `
+            -CpuVirt           '${{ steps.probe-env.outputs.CPU_VIRT }}' `
+            -HvModule          '${{ steps.probe-env.outputs.HV_MODULE }}' `
+            -HvEnable          '${{ steps.enable-hv.outputs.RESTART_NEEDED }}' `
             -RestoreOutcome    '${{ steps.restore.outcome }}' `
             -PublishOutcome    '${{ steps.publish.outcome }}' `
             -PublishOk         '${{ steps.publish.outputs.PUBLISH_OK }}' `
-            -VmOutputs         @{ VM_RESULT='${{ steps.vm-create.outputs.VM_RESULT }}'; VM_START='${{ steps.vm-create.outputs.VM_START }}' } `
-            -LaunchOutputs     @{ APP_RUNNING='${{ steps.launch-app.outputs.APP_RUNNING }}'; WINDOW_FOUND='${{ steps.launch-app.outputs.WINDOW_FOUND }}'; UI_INTERACTION='${{ steps.launch-app.outputs.UI_INTERACTION }}'; SCREENSHOT_BEFORE='${{ steps.launch-app.outputs.SCREENSHOT_BEFORE }}'; SCREENSHOT_AFTER='${{ steps.launch-app.outputs.SCREENSHOT_AFTER }}'; RECORDING_STARTED='${{ steps.launch-app.outputs.RECORDING_STARTED }}'; RECORDING_EXIT='${{ steps.launch-app.outputs.RECORDING_EXIT }}'; RECORDING_SIZE_MB='${{ steps.launch-app.outputs.RECORDING_SIZE_MB }}'; VIDEO_DURATION='${{ steps.launch-app.outputs.VIDEO_DURATION }}'; VIDEO_FRAMES='${{ steps.launch-app.outputs.VIDEO_FRAMES }}'; VIDEO_HAS_CONTENT='${{ steps.launch-app.outputs.VIDEO_HAS_CONTENT }}'; VIDEO_UNIQUE_COLORS='${{ steps.launch-app.outputs.VIDEO_UNIQUE_COLORS }}' }
+            -VmResult          '${{ steps.vm-create.outputs.VM_RESULT }}' `
+            -VmStart           '${{ steps.vm-create.outputs.VM_START }}' `
+            -AppRunning        '${{ steps.launch-app.outputs.APP_RUNNING }}' `
+            -WindowFound       '${{ steps.launch-app.outputs.WINDOW_FOUND }}' `
+            -UiInteraction     '${{ steps.launch-app.outputs.UI_INTERACTION }}' `
+            -ScreenshotBefore  '${{ steps.launch-app.outputs.SCREENSHOT_BEFORE }}' `
+            -ScreenshotAfter   '${{ steps.launch-app.outputs.SCREENSHOT_AFTER }}' `
+            -RecordingStarted  '${{ steps.launch-app.outputs.RECORDING_STARTED }}' `
+            -RecordingExit     '${{ steps.launch-app.outputs.RECORDING_EXIT }}' `
+            -RecordingSizeMb   '${{ steps.launch-app.outputs.RECORDING_SIZE_MB }}' `
+            -VideoDuration     '${{ steps.launch-app.outputs.VIDEO_DURATION }}' `
+            -VideoFrames       '${{ steps.launch-app.outputs.VIDEO_FRAMES }}' `
+            -VideoHasContent   '${{ steps.launch-app.outputs.VIDEO_HAS_CONTENT }}' `
+            -VideoUniqueColors '${{ steps.launch-app.outputs.VIDEO_UNIQUE_COLORS }}'
 
   e2e-tests:
     name: E2E Tests
