@@ -261,16 +261,73 @@ var result = exec.Execute(userScriptCode, globals);
 
 ---
 
+### 2.7 Avalonia.Controls.WebView (`NativeWebView`) — JavaScript via the embedded browser engine
+
+**What it is:** Arbor.HttpClient already ships `Avalonia.Controls.WebView` (v12.0.0, MIT) — used to display HTTP response pages in a floating browser window. `NativeWebView` wraps **WebView2** (Chromium/V8 on Windows), **WebKit** (macOS), and **WebKitGTK** (Linux). All three backends include a full, production-grade JavaScript engine. The scripting idea is to reuse this already-present browser runtime as a script host: inject the request/response context into the page, execute user-supplied JavaScript via `ExecuteScriptAsync`, and read back the result.
+
+| Property | Detail |
+|----------|--------|
+| Language | JavaScript (ES2023+ — V8 on Windows; WebKit JS on macOS/Linux) |
+| License | MIT (Avalonia.Controls.WebView is part of AvaloniaUI, © AvaloniaUI OÜ) |
+| Extra NuGet deps | None — already a project dependency |
+| JS engine | V8 (Windows), WebKit (macOS), WebKitGTK (Linux) — native, JIT-compiled |
+| Maturity | `Avalonia.Controls.WebView` 12.0.0 is newly added to the project; WebView2/WebKit are extremely mature |
+
+**How it would work:**
+
+The host loads a minimal HTML page as a data-URI into a hidden (or reused) `NativeWebView` instance:
+
+```csharp
+// Host side — inject context and run user script
+string json = JsonSerializer.Serialize(scriptContext);
+string bootstrap = $$"""
+    window.__ctx = {{json}};
+    (async function() {
+        {{userScript}}
+    })();
+""";
+await _webView.ExecuteScriptAsync(bootstrap);
+```
+
+The script can mutate `window.__ctx.env` and signal completion via `window.chrome.webview.postMessage(JSON.stringify(window.__ctx))` (WebView2) or an equivalent `window.postMessage` bridge. The host receives the mutated context back in a `WebMessageReceived` event handler.
+
+**Pros:**
+- **Zero extra dependencies** — `Avalonia.Controls.WebView` is already in the project; no additional NuGet package required
+- **Production-grade JS engine** — V8 (Chrome/Edge-level) on Windows gives the same ES2023+ features as Postman or Bruno, with JIT performance far exceeding any pure-.NET interpreter (Jint)
+- **Instant familiarity for JS users** — the scripting model is identical to Postman/Bruno (`pm.*`-style object is easy to replicate as `window.__ctx.*`)
+- **Async/await and modern JavaScript** fully supported out of the box
+- **Sandboxed by default** — the script runs inside the browser's renderer process, not the host .NET process; it cannot directly call .NET methods unless you explicitly bridge them
+- **Cross-platform** — works on Windows, macOS, and Linux with no extra effort beyond what the existing `WebViewWindow` already does
+
+**Cons:**
+- **Communication overhead** — the host and script cannot share memory; data must be serialized to JSON and passed through `ExecuteScriptAsync` and `postMessage`. This is an unavoidable cost of using the browser's out-of-process model.
+- **`postMessage` / `WebMessageReceived` API availability** — `WebMessageReceived` is exposed by WebView2; it is less straightforward on WebKit/WebKitGTK via Avalonia's abstraction, requiring careful platform testing.
+- **Hidden NativeWebView lifecycle** — keeping a headless `NativeWebView` alive for scripting (without showing a window) requires careful lifecycle management; `NativeWebView` is designed for visible UI use and its behaviour when hidden is not guaranteed across platforms.
+- **JavaScript is a different language** from C# — introduces the same context-switch burden as Jint; C# developers must write JS for their hooks.
+- **Error messages are JS stack traces** — not C# diagnostics; the dev experience is inferior to Roslyn's structured compile-time errors.
+- **Platform runtime prerequisites** — WebView2 requires the WebView2 Runtime to be installed on Windows (it ships pre-installed on Windows 10/11 from 2023 onwards); WebKitGTK must be available on Linux.
+- **More complex implementation** than Jint — the messaging bridge (serialize → inject → postMessage → deserialize) is non-trivial to make reliable and testable.
+
+**Tradeoffs:**
+- This is the only option in this list that requires zero new NuGet dependencies, since the web component is already in the project. The trade is that using a browser's renderer process as a scripting host is unconventional and introduces serialization round-trips.
+- It is a compelling fit if the desired scripting experience is JavaScript (matching Postman/Bruno familiarity) and if the full V8 engine's performance and standard library richness is desirable over Jint's interpreted approach.
+- The approach does not fit if C# is the desired scripting language.
+
+**Established?** Using an embedded browser's JS engine as a scripting host is established in Electron-based apps and certain plugin systems. Doing so via Avalonia's `NativeWebView` is novel — there are no known production examples in the Avalonia ecosystem as of 2025. The underlying platform APIs (WebView2 `ExecuteScriptAsync`, `postMessage`) are well-documented and stable.
+
+---
+
 ## 3. Summary Comparison Table
 
-| Option | Language | Deployment Size | Sandboxing | C# Dev Familiarity | Maturity | In-Process? |
-|--------|----------|-----------------|------------|-------------------|----------|-------------|
+| Option | Language | Extra Deployment Size | Sandboxing | C# Dev Familiarity | Maturity | In-Process? |
+|--------|----------|-----------------------|------------|-------------------|----------|-------------|
 | Roslyn CSharpScript | C# | +15–30 MB | None built-in | ★★★★★ | ★★★★★ | Yes |
 | Westwind.Scripting | C# | +15–30 MB (Roslyn) | None built-in | ★★★★☆ | ★★★☆☆ | Yes |
 | CS-Script | C# | +5–10 MB | None built-in | ★★★★☆ | ★★★☆☆ | Yes |
 | .NET 10 file scripts | C# | None extra | OS process boundary | ★★★★★ | ★★☆☆☆ (new) | No (out-of-process) |
 | Jint (JavaScript) | JavaScript | +3–5 MB | Configurable | ★★☆☆☆ | ★★★★☆ | Yes |
 | Lua (MoonSharp) | Lua | +1–2 MB | Very good | ★☆☆☆☆ | ★★★☆☆ | Yes |
+| NativeWebView (V8/WebKit) | JavaScript | None extra ✅ | Browser sandbox | ★★☆☆☆ | ★★★★★ (engine) / ★★☆☆☆ (Avalonia WV scripting) | No (browser process) |
 
 ---
 
@@ -396,7 +453,23 @@ public class ScriptContext
 
 ---
 
-## 6. Preferred Solution and Rationale
+### Option E — NativeWebView (JavaScript via embedded browser engine)
+
+**Pros:**
+- No new NuGet dependency — `Avalonia.Controls.WebView` is already in the project
+- True production-grade JS engine (V8 on Windows) — significantly faster than Jint for complex scripts
+- Modern JavaScript (ES2023+, async/await, Promises) without any shims
+- Browser-process sandbox — scripts cannot directly access host .NET memory or the file system
+- Same scripting model and syntax as Postman/Bruno — minimal learning curve for API-testing users
+
+**Cons:**
+- Communication via JSON serialization round-trips (ExecuteScriptAsync + postMessage) is more complex to implement and test than a simple in-process globals object
+- The `WebMessageReceived` event that receives `postMessage` calls from scripts is fully exposed in WebView2 (Windows) but needs verification for WebKit/WebKitGTK via Avalonia's abstraction layer
+- Keeping a hidden `NativeWebView` alive for scripting is an unusual lifecycle pattern; how it behaves without being attached to a visible window is platform-specific and may produce surprises
+- JavaScript scripting language — same user friction for C#-only developers as Jint
+- No compile-time error feedback; runtime-only errors reported as JS stack traces
+
+**Tradeoff:** The best JavaScript option if zero extra dependencies and full V8/WebKit performance are priorities. More complex to implement reliably than Jint; appropriate only if the web component's scripting capabilities prove robust across all three platform backends.
 
 **Recommended: Roslyn `CSharpScript` (Option A) — in-process, with a well-defined `ScriptContext` globals object.**
 
@@ -423,6 +496,15 @@ Westwind.Scripting is a good library, but for Arbor.HttpClient the primary need 
 ### Why not Jint?
 
 Arbor.HttpClient's audience is .NET developers, not JavaScript developers. Switching scripting languages at the tool boundary introduces unnecessary friction. Jint would be the right choice only if the primary user story were "migrate my Postman collections to Arbor.HttpClient."
+
+### Why not NativeWebView?
+
+`NativeWebView` is already in the project and offers a real V8 engine with zero extra NuGet cost. However, reusing a visible-UI browser control as a hidden scripting host is architecturally unconventional and introduces:
+- A mandatory JSON serialization boundary between the script and the host application
+- Platform-specific uncertainty around hidden `NativeWebView` lifecycle on macOS/Linux
+- The same language friction (JavaScript) as Jint, without Jint's simpler in-process integration
+
+**If** JavaScript scripting is preferred over C# in the future, `NativeWebView` is the more capable runtime — but the integration complexity is higher than Jint's. The recommendation may be revisited as the Avalonia WebView scripting story matures.
 
 ### Why not .NET 10 out-of-process scripts?
 
@@ -460,4 +542,7 @@ Idea [1.5 Pre/post scripting](ux-ideas.md#15-prepost-scripting) in `docs/ux-idea
 - [Bruno Scripting Docs](https://docs.usebruno.com/scripting)
 - [Postman — Writing Pre-request Scripts](https://learning.postman.com/docs/writing-scripts/pre-request-scripts/)
 - [.NET 10 Single File C# Scripting — GitHub Proposal](https://github.com/dotnet/runtime/issues/91728)
+- [Avalonia.Controls.WebView Docs](https://docs.avaloniaui.net/docs/app-development/embedding-web-content)
+- [WebView2 ExecuteScriptAsync API](https://learn.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.executescriptasync)
+- [WebView2 AddHostObjectToScript](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2#addhostobjecttoscript)
 - [UX ideas — idea 1.5](ux-ideas.md#15-prepost-scripting)
