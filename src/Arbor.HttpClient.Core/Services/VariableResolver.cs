@@ -14,7 +14,9 @@ public sealed class VariableResolver
             return input;
         }
 
-        var lookup = variables.ToDictionary(v => v.Name, v => v.Value, StringComparer.OrdinalIgnoreCase);
+        var lookup = variables
+            .GroupBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Last().Value, StringComparer.OrdinalIgnoreCase);
         return TokenPattern.Replace(input, match =>
         {
             var key = match.Groups[1].Value.Trim();

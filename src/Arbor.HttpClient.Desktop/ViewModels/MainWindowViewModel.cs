@@ -1054,6 +1054,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // CommunityToolkit.Mvvm strips the "Async" suffix when generating command properties,
+    // so the XAML binding target is OpenRequestBodyInExternalEditorCommand (not OpenRequestBodyInExternalEditorAsyncCommand).
     [RelayCommand]
     private async Task OpenRequestBodyInExternalEditorAsync()
     {
@@ -1073,6 +1075,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         OpenWithShell(path);
     }
 
+    // CommunityToolkit.Mvvm strips the "Async" suffix when generating command properties,
+    // so the XAML binding target is OpenResponseBodyInExternalEditorCommand (not OpenResponseBodyInExternalEditorAsyncCommand).
     [RelayCommand]
     private async Task OpenResponseBodyInExternalEditorAsync()
     {
@@ -1312,13 +1316,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private async Task<string> WriteTempFileAsync(string prefix, string content)
+    private async Task<string> WriteTempFileAsync(string prefix, string content, CancellationToken cancellationToken = default)
     {
         var ext = !string.IsNullOrEmpty(_requestEditor.ContentType)
             ? ExtensionFromContentType(_requestEditor.ContentType)
             : DetectExtensionFromContent(content);
         var path = Path.Combine(Path.GetTempPath(), $"{prefix}-{Guid.NewGuid():N}{ext}");
-        await File.WriteAllTextAsync(path, content).ConfigureAwait(false);
+        await File.WriteAllTextAsync(path, content, cancellationToken).ConfigureAwait(false);
         _tempFiles.Add(path);
         return path;
     }
