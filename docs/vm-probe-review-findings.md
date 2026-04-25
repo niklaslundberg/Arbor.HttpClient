@@ -226,4 +226,64 @@ with the PR number and commit SHA that fixed it.
 
 ## Resolved Findings
 
-*(none yet)*
+### §1.1 ffmpeg screen recording not starting ✅ Resolved
+
+**Fixed in this PR** — `scripts/Invoke-UIAutomationProbe.ps1`
+
+- Added fallback PATH search for ffmpeg at well-known runner locations
+  (`C:\ProgramData\Chocolatey\bin\ffmpeg.exe`, etc.) in case `Get-Command ffmpeg` returns null.
+- Switched primary recording method from `gdigrab` to `ddagrab` (Desktop Duplication API):
+  the script now queries `ffmpeg -filters` to detect ddagrab support, uses ddagrab if available,
+  and falls back to gdigrab only if ddagrab is absent. `ddagrab` works in non-interactive Windows
+  sessions; `gdigrab` requires a GDI desktop window station.
+
+---
+
+### §1.2 Stale "Next steps" comment in `Write-ProbeSummary.ps1` ✅ Resolved
+
+**Fixed in this PR** — `scripts/Write-ProbeSummary.ps1`
+
+Replaced the hardcoded "Screen recording confirmed working…" line with a conditional message
+that reflects the actual `$RecordingStarted` / `$VideoHasContent` outcome:
+- ✅ if recording started and content confirmed
+- ⚠️ if recording started but frame is blank
+- ❌ if recording did not start
+
+---
+
+### §2.1 `Take-Screenshot` non-approved verb ✅ Resolved
+
+**Fixed in this PR** — `scripts/Invoke-UIAutomationProbe.ps1`
+
+Renamed `Take-Screenshot` to `Save-Screenshot` (all three sites: definition + 2 call sites).
+
+---
+
+### §2.2 `IDisposable` leak in `Save-Screenshot` ✅ Resolved
+
+**Fixed in this PR** — `scripts/Invoke-UIAutomationProbe.ps1`
+
+Replaced the inline `$g.Dispose(); $bmp.Dispose()` calls with a `try/finally` block.
+Both `$bmp` and `$g` are now initialised to `$null` before the `try` block and disposed
+in the `finally` regardless of whether an exception occurs.
+
+---
+
+### §2.3 `IDisposable` leak for validation bitmap ✅ Resolved
+
+**Fixed in this PR** — `scripts/Invoke-UIAutomationProbe.ps1`
+
+Wrapped the validation bitmap block in `try/finally { if ($vbmp) { $vbmp.Dispose() } }`.
+
+---
+
+### §2.4 Complex inline hashtable expansion in `ci.yml` ✅ Resolved
+
+**Fixed in this PR** — `scripts/Write-ProbeSummary.ps1`, `scripts/Post-ProbeComment.ps1`,
+`.github/workflows/ci.yml`
+
+Replaced the two hashtable-literal invocations with flat individual string parameters.
+Both scripts now accept one `[string]` parameter per value instead of `[hashtable]` groupings.
+The YAML call sites pass each step output as a named string argument on its own line —
+readable, maintainable, and free from the single-quote injection hazard.
+

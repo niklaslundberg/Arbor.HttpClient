@@ -15,11 +15,14 @@
 .PARAMETER Repository
     GitHub repository in "owner/name" format (${{ github.repository }}).
 
-.PARAMETER ProbeEnvOutputs
-    Hashtable of outputs from the probe-env step.
+.PARAMETER CpuVirt
+    CPU virtualisation firmware enabled (from probe-env step output CPU_VIRT).
 
-.PARAMETER EnableHvOutputs
-    Hashtable of outputs from the enable-hv step.
+.PARAMETER HvModule
+    Hyper-V PS module available (from probe-env step output HV_MODULE).
+
+.PARAMETER HvEnable
+    Result of Enable-WindowsOptionalFeature (from enable-hv step output RESTART_NEEDED).
 
 .PARAMETER RestoreOutcome
     Outcome string from the restore step.
@@ -30,30 +33,75 @@
 .PARAMETER PublishOk
     Whether the exe was found after publish.
 
-.PARAMETER VmOutputs
-    Hashtable of outputs from the vm-create step.
+.PARAMETER VmResult
+    Result of New-VHD + New-VM (from vm-create step output VM_RESULT).
 
-.PARAMETER LaunchOutputs
-    Hashtable of outputs from the launch-app step.
+.PARAMETER VmStart
+    Result of Start-VM (from vm-create step output VM_START).
+
+.PARAMETER AppRunning
+    Whether the app was still running after init (APP_RUNNING).
+
+.PARAMETER WindowFound
+    Whether the main window handle was found (WINDOW_FOUND).
+
+.PARAMETER UiInteraction
+    Result of keyboard interaction (UI_INTERACTION).
+
+.PARAMETER ScreenshotBefore
+    Whether the before-interaction screenshot was saved (SCREENSHOT_BEFORE).
+
+.PARAMETER ScreenshotAfter
+    Whether the after-interaction screenshot was saved (SCREENSHOT_AFTER).
+
+.PARAMETER RecordingStarted
+    Whether ffmpeg recording was started (RECORDING_STARTED).
+
+.PARAMETER RecordingExit
+    ffmpeg exit code or "timeout" (RECORDING_EXIT).
+
+.PARAMETER RecordingSizeMb
+    Recording file size in MB (RECORDING_SIZE_MB).
+
+.PARAMETER VideoDuration
+    Video duration in seconds (VIDEO_DURATION).
+
+.PARAMETER VideoFrames
+    Video frame count (VIDEO_FRAMES).
+
+.PARAMETER VideoHasContent
+    Whether the validation frame contained non-blank content (VIDEO_HAS_CONTENT).
+
+.PARAMETER VideoUniqueColors
+    Number of unique pixel colors in the validation frame sample (VIDEO_UNIQUE_COLORS).
 #>
 [CmdletBinding()]
 param(
-    [string]   $RunUrl            = '',
-    [string]   $RunNumber         = '',
-    [string]   $PullRequestNumber = '',
-    [string]   $Repository        = '',
-    [hashtable]$ProbeEnvOutputs   = @{},
-    [hashtable]$EnableHvOutputs   = @{},
-    [string]   $RestoreOutcome    = '',
-    [string]   $PublishOutcome    = '',
-    [string]   $PublishOk         = '',
-    [hashtable]$VmOutputs         = @{},
-    [hashtable]$LaunchOutputs     = @{}
+    [string]$RunUrl            = '',
+    [string]$RunNumber         = '',
+    [string]$PullRequestNumber = '',
+    [string]$Repository        = '',
+    [string]$CpuVirt           = '',
+    [string]$HvModule          = '',
+    [string]$HvEnable          = '',
+    [string]$RestoreOutcome    = '',
+    [string]$PublishOutcome    = '',
+    [string]$PublishOk         = '',
+    [string]$VmResult          = '',
+    [string]$VmStart           = '',
+    [string]$AppRunning        = '',
+    [string]$WindowFound       = '',
+    [string]$UiInteraction     = '',
+    [string]$ScreenshotBefore  = '',
+    [string]$ScreenshotAfter   = '',
+    [string]$RecordingStarted  = '',
+    [string]$RecordingExit     = '',
+    [string]$RecordingSizeMb   = '',
+    [string]$VideoDuration     = '',
+    [string]$VideoFrames       = '',
+    [string]$VideoHasContent   = '',
+    [string]$VideoUniqueColors = ''
 )
-
-function Get-Val([hashtable]$ht, [string]$key) {
-    if ($ht.ContainsKey($key)) { return $ht[$key] } else { return '' }
-}
 
 $artifactNote = "Screenshots, recording, and validation frame uploaded as the **ui-automation-artifacts** artifact in the [run]($RunUrl)."
 
@@ -66,9 +114,9 @@ $body = @"
 ### Environment
 | Check | Result |
 |---|---|
-| CPU virtualisation firmware enabled | $(Get-Val $ProbeEnvOutputs 'CPU_VIRT') |
-| Hyper-V PS module available | $(Get-Val $ProbeEnvOutputs 'HV_MODULE') |
-| Enable-WindowsOptionalFeature | $(Get-Val $EnableHvOutputs 'RESTART_NEEDED') |
+| CPU virtualisation firmware enabled | $CpuVirt |
+| Hyper-V PS module available | $HvModule |
+| Enable-WindowsOptionalFeature | $HvEnable |
 
 ### App Build
 | Step | Outcome |
@@ -79,28 +127,28 @@ $body = @"
 ### Hyper-V Nested VM
 | Step | Outcome |
 |---|---|
-| New-VHD + New-VM (no OS) | $(Get-Val $VmOutputs 'VM_RESULT') |
-| Start-VM | $(Get-Val $VmOutputs 'VM_START') |
+| New-VHD + New-VM (no OS) | $VmResult |
+| Start-VM | $VmStart |
 
 ### App Launch and UI Automation
 | Check | Result |
 |---|---|
-| App running after init | $(Get-Val $LaunchOutputs 'APP_RUNNING') |
-| Window handle found | $(Get-Val $LaunchOutputs 'WINDOW_FOUND') |
-| UI keyboard interaction | $(Get-Val $LaunchOutputs 'UI_INTERACTION') |
-| Before-interaction screenshot | $(Get-Val $LaunchOutputs 'SCREENSHOT_BEFORE') |
-| After-interaction screenshot | $(Get-Val $LaunchOutputs 'SCREENSHOT_AFTER') |
+| App running after init | $AppRunning |
+| Window handle found | $WindowFound |
+| UI keyboard interaction | $UiInteraction |
+| Before-interaction screenshot | $ScreenshotBefore |
+| After-interaction screenshot | $ScreenshotAfter |
 
-### Screen Recording (ffmpeg gdigrab, 5s, 10fps H.264)
+### Screen Recording (ffmpeg ddagrab/gdigrab, 5s, 10fps H.264)
 | Check | Result |
 |---|---|
-| Recording started | $(Get-Val $LaunchOutputs 'RECORDING_STARTED') |
-| ffmpeg exit code | $(Get-Val $LaunchOutputs 'RECORDING_EXIT') |
-| File size (MB) | $(Get-Val $LaunchOutputs 'RECORDING_SIZE_MB') |
-| Duration (s) | $(Get-Val $LaunchOutputs 'VIDEO_DURATION') |
-| Frame count | $(Get-Val $LaunchOutputs 'VIDEO_FRAMES') |
-| Frame has content (not blank) | $(Get-Val $LaunchOutputs 'VIDEO_HAS_CONTENT') |
-| Unique pixel colors in sample | $(Get-Val $LaunchOutputs 'VIDEO_UNIQUE_COLORS') |
+| Recording started | $RecordingStarted |
+| ffmpeg exit code | $RecordingExit |
+| File size (MB) | $RecordingSizeMb |
+| Duration (s) | $VideoDuration |
+| Frame count | $VideoFrames |
+| Frame has content (not blank) | $VideoHasContent |
+| Unique pixel colors in sample | $VideoUniqueColors |
 
 $artifactNote
 
