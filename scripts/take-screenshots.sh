@@ -19,11 +19,12 @@ mkdir -p "$OUTPUT_DIR"
 export SCREENSHOT_OUTPUT_DIR="$OUTPUT_DIR"
 
 echo "Building solution..."
-dotnet build "$REPO_ROOT/Arbor.HttpClient.slnx" -c Debug -v quiet
+dotnet build "$REPO_ROOT/Arbor.HttpClient.slnx" -c Release -v quiet
 
 echo "Generating screenshots -> $OUTPUT_DIR"
 dotnet test "$REPO_ROOT/src/Arbor.HttpClient.Desktop.E2E.Tests" \
     --no-build \
+    --configuration Release \
     --filter "Category=Screenshots" \
     -v minimal
 
