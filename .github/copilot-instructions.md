@@ -55,7 +55,7 @@ The `.github/instructions/` directory contains per-file-type instruction files t
 
 | Instruction file | Applies to | Key rules |
 |---|---|---|
-| `csharp.instructions.md` | `**/*.cs` | Async/CancellationToken, exception handling, test naming, `is null`, `nameof`, `readonly`, no AAA comments, DateTimeOffset |
+| `csharp.instructions.md` | `**/*.cs` | Async/CancellationToken, exception handling, test naming, `is null`/`is { }`, `nameof`, `readonly`, no AAA comments, DateTimeOffset, file-scoped namespaces, nullable global-only |
 | `avalonia.instructions.md` | `**/*.axaml` | Fluent theme metrics, TextEditor styling, WCAG contrast, accessibility |
 | `github-actions.instructions.md` | `.github/workflows/*.yml` | DRY principle (ci.yml ↔ release.yml), persist-credentials, vulnerability audit command, sbom-tool convention |
 
