@@ -22,9 +22,9 @@ public class RequestEditorViewModelTests
             new VariableResolver(),
             () => variableList);
 
-        if (defaultContentType is not null)
+        if (defaultContentType is { } contentType)
         {
-            editor.DefaultContentType = defaultContentType;
+            editor.DefaultContentType = contentType;
         }
 
         return editor;

@@ -1,12 +1,13 @@
-using Arbor.HttpClient.Core.Abstractions;
-using Arbor.HttpClient.Core.Models;
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Arbor.HttpClient.Core.Abstractions;
+using Arbor.HttpClient.Core.Models;
 
 namespace Arbor.HttpClient.Core.Services;
 
@@ -49,11 +50,11 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
             throw new ArgumentException("URL must be an absolute HTTP or HTTPS URL", nameof(requestDraft));
         }
 
-        using var requestMessage = new global::System.Net.Http.HttpRequestMessage(new global::System.Net.Http.HttpMethod(requestDraft.Method), uri);
-        if (requestDraft.HttpVersion is not null)
+        using var requestMessage = new HttpRequestMessage(new HttpMethod(requestDraft.Method), uri);
+        if (requestDraft.HttpVersion is { } httpVersion)
         {
-            requestMessage.Version = requestDraft.HttpVersion;
-            requestMessage.VersionPolicy = global::System.Net.Http.HttpVersionPolicy.RequestVersionOrLower;
+            requestMessage.Version = httpVersion;
+            requestMessage.VersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
         }
 
         var contentTypeHeader = requestDraft.Headers?
@@ -61,25 +62,17 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
 
         if (!string.IsNullOrWhiteSpace(requestDraft.Body))
         {
-            requestMessage.Content = contentTypeHeader is not null
-                ? new global::System.Net.Http.StringContent(requestDraft.Body, System.Text.Encoding.UTF8, contentTypeHeader.Value)
-                : new global::System.Net.Http.StringContent(requestDraft.Body);
+            requestMessage.Content = contentTypeHeader is { } ctHeader
+                ? new StringContent(requestDraft.Body, Encoding.UTF8, ctHeader.Value)
+                : new StringContent(requestDraft.Body);
         }
 
-        if (requestDraft.Headers is not null)
+        if (requestDraft.Headers is { } requestHeaders)
         {
-            foreach (var header in requestDraft.Headers)
+            foreach (var header in requestHeaders.Where(h => h.IsEnabled
+                && !string.IsNullOrWhiteSpace(h.Name)
+                && !string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase)))
             {
-                if (!header.IsEnabled || string.IsNullOrWhiteSpace(header.Name))
-                {
-                    continue;
-                }
-
-                if (string.Equals(header.Name, "Content-Type", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
                 requestMessage.Headers.TryAddWithoutValidation(header.Name, header.Value);
             }
         }
@@ -117,7 +110,7 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
         tlsStopwatch.Stop();
 
         var headersStopwatch = Stopwatch.StartNew();
-        using var response = await activeClient.SendAsync(requestMessage, global::System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        using var response = await activeClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         headersStopwatch.Stop();
 
         var bodyStopwatch = Stopwatch.StartNew();
@@ -150,10 +143,10 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
                 _timeProvider.GetUtcNow()),
             cancellationToken).ConfigureAwait(false);
 
-        if (_httpDiagnosticsEnabled && _diagnosticsObserver is not null)
+        if (_httpDiagnosticsEnabled && _diagnosticsObserver is { } observer)
         {
             totalStopwatch.Stop();
-            _diagnosticsObserver.Invoke(new HttpRequestDiagnostics(
+            observer.Invoke(new HttpRequestDiagnostics(
                 requestDraft.Method,
                 requestDraft.Url,
                 requestedHttpVersion,

@@ -59,14 +59,13 @@ public sealed class GraphQlService(global::System.Net.Http.HttpClient httpClient
         using var request = new HttpRequestMessage(HttpMethod.Post, uri);
         request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        if (draft.Headers is not null)
+        if (draft.Headers is { } headers)
         {
-            foreach (var header in draft.Headers.Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name)))
+            foreach (var header in headers.Where(h => h.IsEnabled
+                && !string.IsNullOrWhiteSpace(h.Name)
+                && !string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase)))
             {
-                if (!string.Equals(header.Name, "Content-Type", StringComparison.OrdinalIgnoreCase))
-                {
-                    request.Headers.TryAddWithoutValidation(header.Name, header.Value);
-                }
+                request.Headers.TryAddWithoutValidation(header.Name, header.Value);
             }
         }
 

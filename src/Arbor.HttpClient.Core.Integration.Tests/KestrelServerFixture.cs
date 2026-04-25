@@ -243,10 +243,10 @@ public sealed class KestrelServerFixture : IAsyncLifetime
     /// <inheritdoc />
     public async Task DisposeAsync()
     {
-        if (_app is not null)
+        if (_app is { } app)
         {
-            await _app.StopAsync();
-            await _app.DisposeAsync();
+            await app.StopAsync();
+            await app.DisposeAsync();
         }
     }
 }

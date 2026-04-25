@@ -31,15 +31,10 @@ public static class CurlFormatter
         var builder = new StringBuilder();
         builder.Append("curl -X ").Append(effectiveMethod).Append(' ').Append(ShellEscape(url));
 
-        if (headers is not null)
+        if (headers is { } enabledHeaders)
         {
-            foreach (var header in headers)
+            foreach (var header in enabledHeaders.Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name)))
             {
-                if (!header.IsEnabled || string.IsNullOrWhiteSpace(header.Name))
-                {
-                    continue;
-                }
-
                 builder.Append(" -H ").Append(ShellEscape($"{header.Name}: {header.Value ?? string.Empty}"));
             }
         }

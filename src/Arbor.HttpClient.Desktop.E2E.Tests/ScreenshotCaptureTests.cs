@@ -122,7 +122,7 @@ public class ScreenshotCaptureTests
     private static string FindRepoRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir != null)
+        while (dir is { })
         {
             if (dir.GetFiles("Arbor.HttpClient.slnx").Length > 0)
             {

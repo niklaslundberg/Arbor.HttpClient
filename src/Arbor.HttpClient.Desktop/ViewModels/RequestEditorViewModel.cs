@@ -198,9 +198,9 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     [RelayCommand]
     private void RemoveHeader(RequestHeaderViewModel? header)
     {
-        if (header is not null)
+        if (header is { } h)
         {
-            RequestHeaders.Remove(header);
+            RequestHeaders.Remove(h);
         }
     }
 
@@ -210,9 +210,9 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     [RelayCommand]
     private void RemoveQueryParameter(RequestQueryParameterViewModel? parameter)
     {
-        if (parameter is not null)
+        if (parameter is { } param)
         {
-            RequestQueryParameters.Remove(parameter);
+            RequestQueryParameters.Remove(param);
         }
     }
 
@@ -438,14 +438,14 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         }
 
         var authHeader = BuildAuthHeader(value => value);
-        if (authHeader is not null)
+        if (authHeader is { } previewAuth)
         {
-            RequestHeadersPreview.Add($"{authHeader.Name}: {authHeader.Value}");
+            RequestHeadersPreview.Add($"{previewAuth.Name}: {previewAuth.Value}");
         }
 
         foreach (var h in RequestHeaders.Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name)))
         {
-            if (authHeader is not null && string.Equals(h.Name, authHeader.Name, StringComparison.OrdinalIgnoreCase))
+            if (authHeader is { } && string.Equals(h.Name, authHeader.Name, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -464,10 +464,10 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             .ToList();
 
         var authHeader = BuildAuthHeader(value => _variableResolver.Resolve(value, variables));
-        if (authHeader is not null)
+        if (authHeader is { } resolvedAuth)
         {
-            headers.RemoveAll(header => string.Equals(header.Name, authHeader.Name, StringComparison.OrdinalIgnoreCase));
-            headers.Insert(0, authHeader);
+            headers.RemoveAll(header => string.Equals(header.Name, resolvedAuth.Name, StringComparison.OrdinalIgnoreCase));
+            headers.Insert(0, resolvedAuth);
         }
 
         var effectiveContentType = ResolveContentType(resolvedBody);
@@ -592,17 +592,17 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     private void OnRequestHeadersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.NewItems is not null)
+        if (e.NewItems is { } newHeaders)
         {
-            foreach (RequestHeaderViewModel h in e.NewItems)
+            foreach (RequestHeaderViewModel h in newHeaders)
             {
                 h.PropertyChanged += OnRequestHeaderPropertyChanged;
             }
         }
 
-        if (e.OldItems is not null)
+        if (e.OldItems is { } oldHeaders)
         {
-            foreach (RequestHeaderViewModel h in e.OldItems)
+            foreach (RequestHeaderViewModel h in oldHeaders)
             {
                 h.PropertyChanged -= OnRequestHeaderPropertyChanged;
             }
@@ -616,17 +616,17 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     private void OnRequestQueryParametersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.NewItems is not null)
+        if (e.NewItems is { } newParams)
         {
-            foreach (RequestQueryParameterViewModel parameter in e.NewItems)
+            foreach (RequestQueryParameterViewModel parameter in newParams)
             {
                 parameter.PropertyChanged += OnRequestQueryParameterPropertyChanged;
             }
         }
 
-        if (e.OldItems is not null)
+        if (e.OldItems is { } oldParams)
         {
-            foreach (RequestQueryParameterViewModel parameter in e.OldItems)
+            foreach (RequestQueryParameterViewModel parameter in oldParams)
             {
                 parameter.PropertyChanged -= OnRequestQueryParameterPropertyChanged;
             }

@@ -240,9 +240,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     partial void OnUiFontFamilyChanged(string value)
     {
-        if (Application.Current is not null)
+        if (Application.Current is { } currentApp)
         {
-            Application.Current.Resources["AppFontFamily"] = new FontFamily(value);
+            currentApp.Resources["AppFontFamily"] = new FontFamily(value);
         }
 
         QueueOptionsAutoSave();
@@ -254,9 +254,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     partial void OnSelectedCollectionChanged(Collection? value)
     {
         CollectionItems.Clear();
-        if (value is not null)
+        if (value is { } collection)
         {
-            foreach (var r in value.Requests)
+            foreach (var r in collection.Requests)
             {
                 CollectionItems.Add(new CollectionItemViewModel(r));
             }
@@ -547,13 +547,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _savedLayouts.Clear();
         SavedLayoutNames.Clear();
 
-        if (layouts?.SavedLayouts is not null)
+        if (layouts?.SavedLayouts is { } savedLayouts)
         {
-            foreach (var namedLayout in layouts.SavedLayouts)
+            foreach (var namedLayout in savedLayouts)
             {
-                if (!string.IsNullOrWhiteSpace(namedLayout.Name) && namedLayout.Layout is not null)
+                if (!string.IsNullOrWhiteSpace(namedLayout.Name) && namedLayout.Layout is { } layout)
                 {
-                    _savedLayouts[namedLayout.Name] = namedLayout.Layout;
+                    _savedLayouts[namedLayout.Name] = layout;
                     SavedLayoutNames.Add(namedLayout.Name);
                 }
             }
@@ -831,9 +831,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void RestoreDefaultLayout()
     {
-        if (_defaultLayout is not null)
+        if (_defaultLayout is { } defaultLayout)
         {
-            ApplyLayoutSnapshot(_defaultLayout);
+            ApplyLayoutSnapshot(defaultLayout);
             _suppressLayoutRestore = true;
             SelectedLayoutName = null;
             _suppressLayoutRestore = false;
@@ -872,7 +872,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         _requestEditor.SelectedMethod = item.Method;
 
-        var baseUrl = ActiveEnvironment is not null
+        var baseUrl = ActiveEnvironment is { }
             ? _variableResolver.Resolve(SelectedCollection?.BaseUrl ?? string.Empty, _requestEditor.GetResolvedVariables())
             : (SelectedCollection?.BaseUrl ?? string.Empty);
 
@@ -1272,17 +1272,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _environmentsViewModel.LoadEnvironmentsAsync(cancellationToken),
             LoadScheduledJobsAsync(cancellationToken)).ConfigureAwait(false);
 
-        var savedDraft = _draftPersistenceService is not null
-            ? await _draftPersistenceService.LoadDraftAsync(cancellationToken).ConfigureAwait(false)
+        var savedDraft = _draftPersistenceService is { } draftService
+            ? await draftService.LoadDraftAsync(cancellationToken).ConfigureAwait(false)
             : null;
-        if (savedDraft is not null)
+        if (savedDraft is { } draft)
         {
-            _pendingDraft = savedDraft;
+            _pendingDraft = draft;
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 HasDraftToRestore = true;
                 DraftRestoreMessage =
-                    $"An unsaved draft from {savedDraft.SavedAt.LocalDateTime:g} was found. Restore it?";
+                    $"An unsaved draft from {draft.SavedAt.LocalDateTime:g} was found. Restore it?";
             });
             // Auto-save is deferred until the user dismisses the banner to avoid
             // overwriting the pending draft before they can restore it.
@@ -1433,9 +1433,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         var floatingWindows = new List<FloatingWindowSnapshot>();
-        if (root.Windows is not null)
+        if (root.Windows is { } windows)
         {
-            foreach (var window in root.Windows)
+            foreach (var window in windows)
             {
                 var floatRoot = window.Layout;
                 if (floatRoot is null)
@@ -1477,9 +1477,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ids.Add(dockable.Id);
         }
 
-        if (dockable is IDock dock && dock.VisibleDockables is not null)
+        if (dockable is IDock dock && dock.VisibleDockables is { } dockables)
         {
-            foreach (var child in dock.VisibleDockables)
+            foreach (var child in dockables)
             {
                 CollectDockableIds(child, ids);
             }
@@ -1542,7 +1542,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 primary = FindDockById<IDockable>(leftToolDock, id)
                        ?? FindDockById<IDockable>(documentDock, id);
-                if (primary is not null)
+                if (primary is { })
                 {
                     break;
                 }
@@ -1630,9 +1630,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         var activeDockable = dock.VisibleDockables.FirstOrDefault(item => string.Equals(item.Id, dockableId, StringComparison.OrdinalIgnoreCase));
-        if (activeDockable is not null)
+        if (activeDockable is { } active)
         {
-            dock.ActiveDockable = activeDockable;
+            dock.ActiveDockable = active;
         }
     }
 
@@ -1643,14 +1643,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return foundDockable;
         }
 
-        if (dockable is IDock dock && dock.VisibleDockables is not null)
+        if (dockable is IDock dock && dock.VisibleDockables is { } childDockables)
         {
-            foreach (var child in dock.VisibleDockables)
+            foreach (var child in childDockables)
             {
                 var childDock = FindDockById<T>(child, id);
-                if (childDock is not null)
+                if (childDock is { } found)
                 {
-                    return childDock;
+                    return found;
                 }
             }
         }
@@ -1990,12 +1990,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private async Task RestoreDraftAsync()
     {
         var draft = _pendingDraft
-            ?? (_draftPersistenceService is not null
-                ? await _draftPersistenceService.LoadDraftAsync().ConfigureAwait(false)
+            ?? (_draftPersistenceService is { } ds
+                ? await ds.LoadDraftAsync().ConfigureAwait(false)
                 : null);
-        if (draft is not null)
+        if (draft is { } pendingDraft)
         {
-            await Dispatcher.UIThread.InvokeAsync(() => DraftPersistenceService.RestoreToEditor(draft, _requestEditor));
+            await Dispatcher.UIThread.InvokeAsync(() => DraftPersistenceService.RestoreToEditor(pendingDraft, _requestEditor));
         }
 
         _pendingDraft = null;

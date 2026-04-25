@@ -185,7 +185,7 @@ public class ScreenshotGenerator
 
             window.Show();
             var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
-            if (tabControl is not null)
+            if (tabControl is { })
             {
                 tabControl.SelectedIndex = 1;
             }
@@ -246,7 +246,7 @@ public class ScreenshotGenerator
 
             window.Show();
             var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
-            if (tabControl is not null)
+            if (tabControl is { })
             {
                 tabControl.SelectedIndex = 0; // Query tab
             }
@@ -299,7 +299,7 @@ public class ScreenshotGenerator
 
             window.Show();
             var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
-            if (tabControl is not null)
+            if (tabControl is { })
             {
                 tabControl.SelectedIndex = 2; // Headers tab
             }
@@ -356,7 +356,7 @@ public class ScreenshotGenerator
 
             window.Show();
             var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
-            if (tabControl is not null)
+            if (tabControl is { })
             {
                 tabControl.SelectedIndex = 3;
             }

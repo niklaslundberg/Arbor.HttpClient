@@ -1512,14 +1512,14 @@ public class MainWindowUiTests
             return match;
         }
 
-        if (dockable is IDock dock && dock.VisibleDockables is not null)
+        if (dockable is IDock dock && dock.VisibleDockables is { } visibleDockables)
         {
-            foreach (var child in dock.VisibleDockables)
+            foreach (var child in visibleDockables)
             {
                 var result = FindDockById<T>(child, id);
-                if (result is not null)
+                if (result is { } found)
                 {
-                    return result;
+                    return found;
                 }
             }
         }

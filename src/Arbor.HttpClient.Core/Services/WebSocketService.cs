@@ -48,9 +48,9 @@ public sealed class WebSocketService : IDisposable
         _webSocket?.Dispose();
         _webSocket = new ClientWebSocket();
 
-        if (additionalHeaders is not null)
+        if (additionalHeaders is { } extraHeaders)
         {
-            foreach (var header in additionalHeaders.Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name)))
+            foreach (var header in extraHeaders.Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name)))
             {
                 _webSocket.Options.SetRequestHeader(header.Name, header.Value);
             }
