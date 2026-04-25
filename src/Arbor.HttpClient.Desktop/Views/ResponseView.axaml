@@ -32,7 +32,7 @@
                 Padding="8,6">
             <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
                 <TextBlock Text="Response headers"
-                           FontWeight="SemiBold" FontSize="12" Opacity="0.7" />
+                           FontWeight="SemiBold" Opacity="0.7" />
                 <ScrollViewer Grid.Row="1" MaxHeight="130">
                     <ItemsControl ItemsSource="{Binding App.ResponseHeaders}">
                         <ItemsControl.ItemTemplate>

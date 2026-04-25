@@ -117,7 +117,7 @@
                     <Button Grid.Column="1" Classes="compact" Content="✓"
                             AutomationProperties.Name="Confirm new collection"
                             Command="{Binding App.CreateCollectionCommand}" />
-                    <Button Grid.Column="2" Classes="compact" Content="✗"
+                    <Button Grid.Column="2" Classes="compact" Content="✕"
                             AutomationProperties.Name="Cancel new collection"
                             Command="{Binding App.CancelNewCollectionCommand}" />
                 </Grid>

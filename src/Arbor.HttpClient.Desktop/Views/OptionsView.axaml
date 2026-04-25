@@ -46,7 +46,7 @@
                                    Opacity="0.55"
                                    TextTrimming="CharacterEllipsis" />
                         <TextBlock Text="{Binding SelectedOptionsPageTitle}"
-                                   FontSize="18"
+                                   FontSize="16"
                                    FontWeight="SemiBold" />
                     </StackPanel>
                 </Border>

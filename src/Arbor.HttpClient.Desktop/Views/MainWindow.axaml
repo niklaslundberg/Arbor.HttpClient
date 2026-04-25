@@ -32,11 +32,11 @@
 
         <!-- Top toolbar -->
         <Border DockPanel.Dock="Top" Padding="16,10" BorderBrush="{DynamicResource TopToolbarBorderBrush}" BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto">
+            <Grid ColumnDefinitions="*,Auto,Auto">
                 <TextBlock Text="Arbor Http Client" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" />
 
                 <!-- Environment selector -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,8,0">
                     <TextBlock Text="Env:" VerticalAlignment="Center" Opacity="0.7" />
                     <ComboBox MinWidth="160"
                               ItemsSource="{Binding Environments}"
@@ -49,16 +49,18 @@
                     </ComboBox>
                 </StackPanel>
 
-                <Button Grid.Column="2" Content="Options" Margin="8,0,0,0"
-                        Command="{Binding OpenOptionsCommand}" />
-                <Button Grid.Column="3" Content="Environments" Margin="6,0"
-                        Command="{Binding OpenEnvironmentsCommand}" />
-                <Button Grid.Column="4" Content="Import OpenAPI" Margin="0,0,6,0"
-                        Command="{Binding ImportCollectionCommand}" />
-                <Button Grid.Column="5" Content="🍪 Cookies" Margin="0,0,6,0"
-                        Command="{Binding OpenCookieJarCommand}" />
-                <Button Grid.Column="6" Content="📋 Logs"
-                        Command="{Binding OpenLogWindowCommand}" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Button Content="Options"
+                            Command="{Binding OpenOptionsCommand}" />
+                    <Button Content="Environments"
+                            Command="{Binding OpenEnvironmentsCommand}" />
+                    <Button Content="Import OpenAPI"
+                            Command="{Binding ImportCollectionCommand}" />
+                    <Button Content="🍪 Cookies"
+                            Command="{Binding OpenCookieJarCommand}" />
+                    <Button Content="📋 Logs"
+                            Command="{Binding OpenLogWindowCommand}" />
+                </StackPanel>
             </Grid>
         </Border>
 
