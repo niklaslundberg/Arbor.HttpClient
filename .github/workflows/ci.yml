@@ -280,6 +280,239 @@ jobs:
       # GitHub Release creation is intentionally omitted — this job verifies the packaging
       # pipeline only; the actual release is created by the release workflow on main.
 
+  experimental-vm-probe:
+    name: Experimental — Windows VM / Hyper-V Probe
+    runs-on: windows-latest
+    # This job is intentionally non-blocking. Any failure here is diagnostic only.
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: "10.0.x"
+
+      # -----------------------------------------------------------------------
+      # Step 1: Probe the environment
+      # -----------------------------------------------------------------------
+      - name: Probe environment and virtualisation capabilities
+        id: probe-env
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $report = [System.Collections.Generic.List[string]]::new()
+          $report.Add("## Environment Probe")
+          $report.Add("")
+
+          # OS information
+          $os = Get-WmiObject Win32_OperatingSystem
+          $report.Add("**OS:** $($os.Caption) build $($os.BuildNumber)")
+
+          # CPU virtualisation flags
+          $cpu = Get-WmiObject Win32_Processor | Select-Object -First 1
+          $vmxFlag = ($cpu.VirtualizationFirmwareEnabled -eq $true)
+          $report.Add("**CPU:** $($cpu.Name)")
+          $report.Add("**VirtualizationFirmwareEnabled:** $vmxFlag")
+
+          # Check if we are ourselves running inside a VM
+          $model = (Get-WmiObject Win32_ComputerSystem).Model
+          $report.Add("**ComputerSystem.Model:** $model")
+          $isVm = ($model -match 'Virtual|HyperV|VMware|Xen|KVM')
+          $report.Add("**Running inside a VM:** $isVm")
+
+          # Hyper-V Windows feature state
+          $hyperVFeature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -ErrorAction SilentlyContinue
+          $hvState = if ($hyperVFeature) { $hyperVFeature.State } else { "NotAvailable" }
+          $report.Add("**Hyper-V feature state:** $hvState")
+
+          # Hyper-V PowerShell module availability
+          $hvModule = Get-Module -ListAvailable -Name Hyper-V -ErrorAction SilentlyContinue
+          $report.Add("**Hyper-V PS module available:** $($null -ne $hvModule)")
+
+          # SLAT / Second Level Address Translation (required for Hyper-V)
+          # Reported via systeminfo
+          $sysinfo = systeminfo 2>&1
+          $slatLine = $sysinfo | Where-Object { $_ -match 'SLAT|Hyper-V' }
+          $report.Add("")
+          $report.Add("**systeminfo Hyper-V / SLAT lines:**")
+          $slatLine | ForEach-Object { $report.Add("``$_``") }
+
+          $report | Out-File -FilePath probe-env.txt -Encoding UTF8
+          Write-Host ($report -join "`n")
+
+          # Expose for later steps
+          "HV_STATE=$hvState"          | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "CPU_VIRT=$vmxFlag"          | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "HV_MODULE=$($null -ne $hvModule)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      # -----------------------------------------------------------------------
+      # Step 2: Try to enable Hyper-V (may require a reboot — expected to fail)
+      # -----------------------------------------------------------------------
+      - name: Try enabling Hyper-V Windows feature
+        id: enable-hv
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $result = Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All `
+              -All -NoRestart -ErrorAction SilentlyContinue
+          $state  = if ($result) { $result.RestartNeeded } else { "Failed" }
+          Write-Host "Enable-WindowsOptionalFeature result: RestartNeeded=$state"
+          "RESTART_NEEDED=$state" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      # -----------------------------------------------------------------------
+      # Step 3: Build and publish the desktop app
+      # -----------------------------------------------------------------------
+      - name: Restore NuGet packages
+        id: restore
+        continue-on-error: true
+        run: dotnet restore Arbor.HttpClient.slnx --locked-mode
+
+      - name: Publish win-x64 self-contained
+        id: publish
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          dotnet publish src/Arbor.HttpClient.Desktop/Arbor.HttpClient.Desktop.csproj `
+              --configuration Release `
+              -r win-x64 `
+              --self-contained true `
+              -o publish/win-x64 `
+              -v quiet
+          $exe = "publish/win-x64/Arbor.HttpClient.Desktop.exe"
+          $ok  = Test-Path $exe
+          Write-Host "Publish succeeded: $ok  (exe: $exe)"
+          "PUBLISH_OK=$ok" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      # -----------------------------------------------------------------------
+      # Step 4: Try creating a minimal Hyper-V VM (no OS — proves the API)
+      # -----------------------------------------------------------------------
+      - name: Try creating a minimal Hyper-V VM
+        id: vm-create
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+
+          $vmName = "Arbor-CI-Probe"
+          $vhdPath = Join-Path $env:TEMP "arbor-ci-probe.vhdx"
+
+          try {
+              Import-Module Hyper-V -ErrorAction Stop
+              Write-Host "Hyper-V module imported OK"
+          }
+          catch {
+              Write-Host "Cannot import Hyper-V module: $_"
+              "VM_RESULT=HyperV-module-unavailable" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              exit 0
+          }
+
+          # Remove any leftover from a previous run
+          Remove-VM -Name $vmName -Force -ErrorAction SilentlyContinue
+          Remove-Item $vhdPath -Force -ErrorAction SilentlyContinue
+
+          # Create a tiny (1 GB) blank VHDX — no OS installed, just tests the storage API
+          try {
+              New-VHD -Path $vhdPath -SizeBytes 1GB -Dynamic | Out-Null
+              Write-Host "New-VHD succeeded: $vhdPath"
+          }
+          catch {
+              Write-Host "New-VHD failed: $_"
+              "VM_RESULT=New-VHD-failed: $_" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              exit 0
+          }
+
+          # Create a Generation-2 VM (no switch — isolated, no network needed for probe)
+          try {
+              $vm = New-VM -Name $vmName -Generation 2 -MemoryStartupBytes 512MB `
+                           -VHDPath $vhdPath -ErrorAction Stop
+              Write-Host "New-VM succeeded: $($vm.Name)  State=$($vm.State)"
+              "VM_RESULT=VM-created-OK" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+          catch {
+              Write-Host "New-VM failed: $_"
+              "VM_RESULT=New-VM-failed: $_" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              exit 0
+          }
+
+          # Try starting it (expected to fail — no bootable OS — but proves scheduling works)
+          try {
+              Start-VM -Name $vmName -ErrorAction Stop
+              Start-Sleep -Seconds 3
+              $state = (Get-VM -Name $vmName).State
+              Write-Host "Start-VM succeeded, state: $state"
+              "VM_START=started-state-$state" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+          catch {
+              Write-Host "Start-VM failed (expected without an OS): $_"
+              "VM_START=failed-expected: $_" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+          finally {
+              # Clean up regardless
+              Stop-VM  -Name $vmName -TurnOff -Force -ErrorAction SilentlyContinue
+              Remove-VM -Name $vmName -Force -ErrorAction SilentlyContinue
+              Remove-Item $vhdPath -Force -ErrorAction SilentlyContinue
+              Write-Host "Cleanup complete."
+          }
+
+      # -----------------------------------------------------------------------
+      # Step 5: Summarise all findings
+      # -----------------------------------------------------------------------
+      - name: Write probe summary
+        if: always()
+        shell: pwsh
+        run: |
+          $lines = @(
+            "## Experimental VM / Hyper-V Probe Results"
+            ""
+            "This job is non-blocking (`continue-on-error: true`). Results are for diagnostic"
+            "purposes only and do not affect the CI outcome."
+            ""
+            "### Environment"
+            "| Check | Result |"
+            "|---|---|"
+            "| CPU virtualisation firmware enabled | ${{ steps.probe-env.outputs.CPU_VIRT }} |"
+            "| Hyper-V Windows feature state | ${{ steps.probe-env.outputs.HV_STATE }} |"
+            "| Hyper-V PS module available | ${{ steps.probe-env.outputs.HV_MODULE }} |"
+            "| Enable-WindowsOptionalFeature restart needed | ${{ steps.enable-hv.outputs.RESTART_NEEDED }} |"
+            ""
+            "### App Build"
+            "| Step | Outcome |"
+            "|---|---|"
+            "| dotnet restore | ${{ steps.restore.outcome }} |"
+            "| dotnet publish (win-x64 self-contained) | ${{ steps.publish.outcome }} (${{ steps.publish.outputs.PUBLISH_OK }}) |"
+            ""
+            "### VM Creation"
+            "| Step | Outcome |"
+            "|---|---|"
+            "| New-VHD + New-VM (no OS) | ${{ steps.vm-create.outputs.VM_RESULT }} |"
+            "| Start-VM | ${{ steps.vm-create.outputs.VM_START }} |"
+            ""
+            "### Next steps"
+            "- If Hyper-V is available and VM creation succeeds, the next iteration is to"
+            "  download or provide a sysprepped Windows VHDX as a base image and run"
+            "  \`Start-UIAutomation.ps1\` end-to-end."
+            "- See \`docs/vm-ui-automation.md\` sub-task 7 for the full CI integration plan."
+          )
+          $md = $lines -join "`n"
+          $md | Out-File -FilePath probe-summary.md -Encoding UTF8
+          $md >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload probe report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: vm-probe-report
+          path: |
+            probe-env.txt
+            probe-summary.md
+          retention-days: 14
+          if-no-files-found: ignore
+
   e2e-tests:
     name: E2E Tests
     needs: build
