@@ -149,6 +149,16 @@ jobs:
           --results-directory TestResults/unit
           --collect:"XPlat Code Coverage"
 
+      - name: Run SQLite storage tests
+        run: >
+          dotnet test src/Arbor.HttpClient.Storage.Sqlite.Tests/Arbor.HttpClient.Storage.Sqlite.Tests.csproj
+          --no-restore
+          --configuration Release
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=sqlite-tests.trx"
+          --results-directory TestResults/unit
+          --collect:"XPlat Code Coverage"
+
       - name: Report unit test results
         if: always()
         run: trx --path TestResults/unit --verbosity normal
@@ -218,6 +228,32 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+  integration-tests:
+    name: Integration Tests
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore Arbor.HttpClient.slnx --locked-mode
+
+      - name: Run integration tests
+        run: >
+          dotnet test src/Arbor.HttpClient.Core.Integration.Tests/Arbor.HttpClient.Core.Integration.Tests.csproj
+          --no-restore
+          --configuration Release
+          --logger "console;verbosity=normal"
+
   release-verification:
     name: Release Build Verification
     runs-on: windows-latest
@@ -258,6 +294,13 @@ jobs:
       - name: Run unit tests
         run: >
           dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj
+          --no-restore
+          --configuration Release
+          --logger "console;verbosity=normal"
+
+      - name: Run SQLite storage tests
+        run: >
+          dotnet test src/Arbor.HttpClient.Storage.Sqlite.Tests/Arbor.HttpClient.Storage.Sqlite.Tests.csproj
           --no-restore
           --configuration Release
           --logger "console;verbosity=normal"
