@@ -287,6 +287,7 @@ jobs:
     continue-on-error: true
     permissions:
       contents: read
+      pull-requests: write  # needed to post PR comment with probe results
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
@@ -358,10 +359,17 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          $result = Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All `
-              -All -NoRestart -ErrorAction SilentlyContinue
-          $state  = if ($result) { $result.RestartNeeded } else { "Failed" }
-          Write-Host "Enable-WindowsOptionalFeature result: RestartNeeded=$state"
+          try {
+              $result = Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All `
+                  -All -NoRestart -ErrorAction Stop
+              $state = if ($result) { "RestartNeeded=$($result.RestartNeeded)" } else { "Enabled" }
+          }
+          catch {
+              # Common on Windows Server runners: feature name is different or nested virt
+              # feature is already active via the hypervisor. This is expected.
+              $state = "Unavailable: $($_.Exception.Message)"
+          }
+          Write-Host "Enable-WindowsOptionalFeature result: $state"
           "RESTART_NEEDED=$state" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       # -----------------------------------------------------------------------
@@ -460,7 +468,73 @@ jobs:
           }
 
       # -----------------------------------------------------------------------
-      # Step 5: Summarise all findings
+      # Step 5: Launch the app directly on the Windows runner
+      # The runner IS a Windows machine; we already published the exe.
+      # This validates the actual app can start on a real Windows host.
+      # -----------------------------------------------------------------------
+      - name: Launch app on Windows runner and capture screenshot
+        id: launch-app
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $exe = "publish/win-x64/Arbor.HttpClient.Desktop.exe"
+          if (-not (Test-Path $exe)) {
+              Write-Host "Exe not found at $exe — skipping launch."
+              "APP_RUNNING=False" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              exit 0
+          }
+
+          Write-Host "Launching: $exe"
+          $proc = Start-Process -FilePath $exe -PassThru -WindowStyle Normal -ErrorAction SilentlyContinue
+          if (-not $proc) {
+              Write-Host "Start-Process returned null."
+              "APP_RUNNING=False" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              exit 0
+          }
+          Write-Host "Started PID: $($proc.Id)"
+
+          # Wait for the UI to initialise
+          Start-Sleep -Seconds 10
+
+          $running = -not $proc.HasExited
+          Write-Host "Running after 10s: $running"
+          "APP_RUNNING=$running" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+          if ($running) {
+              # Capture the desktop
+              try {
+                  Add-Type -AssemblyName System.Windows.Forms
+                  Add-Type -AssemblyName System.Drawing
+                  $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+                  $bmp = [System.Drawing.Bitmap]::new($bounds.Width, $bounds.Height)
+                  $g = [System.Drawing.Graphics]::FromImage($bmp)
+                  $g.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+                  $bmp.Save('desktop-screenshot.png')
+                  $g.Dispose(); $bmp.Dispose()
+                  Write-Host "Screenshot saved: $($bounds.Width)x$($bounds.Height)"
+                  "SCREENSHOT=ok" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              }
+              catch {
+                  Write-Host "Screenshot failed: $_"
+                  "SCREENSHOT=failed: $_" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              }
+
+              # Graceful shutdown
+              $proc | Stop-Process -Force -ErrorAction SilentlyContinue
+              Write-Host "App stopped."
+          }
+
+      - name: Upload desktop screenshot
+        if: always() && hashFiles('desktop-screenshot.png') != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: desktop-screenshot
+          path: desktop-screenshot.png
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # -----------------------------------------------------------------------
+      # Step 6: Summarise all findings
       # -----------------------------------------------------------------------
       - name: Write probe summary
         if: always()
@@ -478,7 +552,7 @@ jobs:
             "| CPU virtualisation firmware enabled | ${{ steps.probe-env.outputs.CPU_VIRT }} |"
             "| Hyper-V Windows feature state | ${{ steps.probe-env.outputs.HV_STATE }} |"
             "| Hyper-V PS module available | ${{ steps.probe-env.outputs.HV_MODULE }} |"
-            "| Enable-WindowsOptionalFeature restart needed | ${{ steps.enable-hv.outputs.RESTART_NEEDED }} |"
+            "| Enable-WindowsOptionalFeature | ${{ steps.enable-hv.outputs.RESTART_NEEDED }} |"
             ""
             "### App Build"
             "| Step | Outcome |"
@@ -486,17 +560,23 @@ jobs:
             "| dotnet restore | ${{ steps.restore.outcome }} |"
             "| dotnet publish (win-x64 self-contained) | ${{ steps.publish.outcome }} (${{ steps.publish.outputs.PUBLISH_OK }}) |"
             ""
-            "### VM Creation"
+            "### VM Creation (Hyper-V nested virtualisation)"
             "| Step | Outcome |"
             "|---|---|"
             "| New-VHD + New-VM (no OS) | ${{ steps.vm-create.outputs.VM_RESULT }} |"
             "| Start-VM | ${{ steps.vm-create.outputs.VM_START }} |"
             ""
+            "### App launch on runner (direct, no VM)"
+            "| Step | Outcome |"
+            "|---|---|"
+            "| App running after 10s | ${{ steps.launch-app.outputs.APP_RUNNING }} |"
+            "| Desktop screenshot | ${{ steps.launch-app.outputs.SCREENSHOT }} |"
+            ""
             "### Next steps"
-            "- If Hyper-V is available and VM creation succeeds, the next iteration is to"
-            "  download or provide a sysprepped Windows VHDX as a base image and run"
-            "  \`Start-UIAutomation.ps1\` end-to-end."
-            "- See \`docs/vm-ui-automation.md\` sub-task 7 for the full CI integration plan."
+            "- VM creation works — next iteration: download a sysprepped Windows VHDX and"
+            "  run \`Start-UIAutomation.ps1\` end-to-end (see \`docs/vm-ui-automation.md\` sub-task 7)."
+            "- If the app launches directly on the runner, use \`Invoke-InVMAutomation.ps1\`"
+            "  concepts to drive it with SendKeys / mouse_event without a nested VM."
           )
           $md = $lines -join "`n"
           $md | Out-File -FilePath probe-summary.md -Encoding UTF8
@@ -512,6 +592,64 @@ jobs:
             probe-summary.md
           retention-days: 14
           if-no-files-found: ignore
+
+      # -----------------------------------------------------------------------
+      # Step 7: Post a PR comment summarising the probe results
+      # -----------------------------------------------------------------------
+      - name: Post probe results as PR comment
+        if: always() && github.event_name == 'pull_request'
+        continue-on-error: true
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $screenshot = "${{ steps.launch-app.outputs.SCREENSHOT }}"
+          $screenshotNote = if ($screenshot -eq 'ok') {
+            "📸 Desktop screenshot captured and uploaded as the **desktop-screenshot** artifact."
+          } else {
+            "📸 Desktop screenshot: ``$screenshot``"
+          }
+
+          $body = @"
+          ## 🔬 Experimental VM / Hyper-V Probe — Run ${{ github.run_number }}
+
+          > **This job is non-blocking** (``continue-on-error: true``). Results below are for
+          > iterative development of the VM-based UI automation pipeline.
+
+          ### Environment
+          | Check | Result |
+          |---|---|
+          | CPU virtualisation firmware enabled | ``${{ steps.probe-env.outputs.CPU_VIRT }}`` |
+          | Hyper-V PS module available | ``${{ steps.probe-env.outputs.HV_MODULE }}`` |
+          | Enable-WindowsOptionalFeature | ``${{ steps.enable-hv.outputs.RESTART_NEEDED }}`` |
+
+          ### App Build
+          | Step | Outcome |
+          |---|---|
+          | dotnet restore | ${{ steps.restore.outcome }} |
+          | dotnet publish win-x64 self-contained | ${{ steps.publish.outcome }} (exe found: ``${{ steps.publish.outputs.PUBLISH_OK }}``) |
+
+          ### Hyper-V Nested VM
+          | Step | Outcome |
+          |---|---|
+          | New-VHD + New-VM (no OS) | ``${{ steps.vm-create.outputs.VM_RESULT }}`` |
+          | Start-VM | ``${{ steps.vm-create.outputs.VM_START }}`` |
+
+          ### App Launch Directly on Runner
+          | Check | Result |
+          |---|---|
+          | App running after 10s | ``${{ steps.launch-app.outputs.APP_RUNNING }}`` |
+          | Desktop screenshot | ``${{ steps.launch-app.outputs.SCREENSHOT }}`` |
+
+          $screenshotNote
+
+          ---
+          _[Full run logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})_
+          "@
+
+          gh pr comment "${{ github.event.pull_request.number }}" `
+            --body $body `
+            --repo "${{ github.repository }}"
 
   e2e-tests:
     name: E2E Tests
