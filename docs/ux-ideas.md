@@ -57,13 +57,16 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### 1.5 Pre/post scripting
-**What it means:** JavaScript or C# script snippets that run before a request is sent (to set variables, compute signatures) and after a response is received (to extract tokens, assert conditions). Postman uses JavaScript; Bruno uses JavaScript; some tools support Tengo or Lua.
+**What it means:** C# script snippets that run before a request is sent (to set variables, compute signatures) and after a response is received (to extract tokens, assert conditions). Postman uses JavaScript; Bruno uses JavaScript; some tools support Tengo or Lua.
+
+> **See also:** [`docs/scripting-ideas.md`](scripting-ideas.md) for a full evaluation of scripting approaches — comparing Roslyn `CSharpScript`, Westwind.Scripting, .NET 10 file scripts, Jint (JavaScript), and Lua — including pros/cons, tradeoffs, and a recommended approach. The preferred solution is **Roslyn `CSharpScript` (in-process)** rather than Jint, because the target audience is C# developers and C# scripting avoids a language context-switch.
 
 **How to implement:**
-- Embed [Jint](https://github.com/sebastienros/jint) (MIT, JavaScript interpreter) for a scripting sandbox with no native-code dependencies.
-- Expose a `pm`-like API object: `pm.environment.set(key, value)`, `pm.response.json()`, etc.
-- UI: a `ScriptEditor` tab using `AvaloniaEdit` with syntax highlighting.
-- Sandboxing: run scripts in a separate `AppDomain` or with a `CancellationToken` timeout.
+- Define `IScriptContext` / `ScriptContext` in `Arbor.HttpClient.Core` as the globals object scripts receive.
+- Add `IScriptRunner` with `RunPreRequestAsync` / `RunPostResponseAsync` in `Arbor.HttpClient.Core`.
+- Implement `RoslynScriptRunner` using `Microsoft.CodeAnalysis.CSharp.Scripting`; cache compiled scripts by content hash to avoid per-invocation compilation overhead.
+- UI: a `ScriptEditor` tab using `AvaloniaEdit` with C# syntax highlighting and inline error display.
+- Timeout: wrap execution in a `CancellationToken`-bounded `Task` to prevent runaway scripts.
 
 **Scope:** XL
 
