@@ -78,6 +78,8 @@ Severity guidance:
 
 **[RECOMMENDED]** Use `IEnumerable<T>` for method parameters when only enumeration is needed. Expose immutable data via `IReadOnlyList<T>` or `IReadOnlyCollection<T>`. Initialize collections with a known capacity when the size is predictable.
 
+**[RECOMMENDED]** Prefer collection expressions (`[item1, item2]`, `[..existingCollection, newItem]`) over explicit constructor calls or `new List<T> { }` initializers where the target type can be inferred. Collection expressions are more concise and work uniformly with arrays, lists, spans, and immutable collections.
+
 ## LINQ
 
 **[RECOMMENDED]** Prefer method syntax over query syntax for simple operations. Be aware of deferred execution — call `ToList()` or `ToArray()` when the sequence will be enumerated multiple times.
