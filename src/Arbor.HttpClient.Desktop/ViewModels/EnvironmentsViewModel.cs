@@ -106,9 +106,9 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         try
         {
             ActiveEnvironmentVariables.Clear();
-            if (value is not null)
+            if (value is { } env)
             {
-                foreach (var variable in value.Variables)
+                foreach (var variable in env.Variables)
                 {
                     ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(variable.Name, variable.Value, variable.IsEnabled));
                 }
@@ -273,9 +273,9 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
                 .ToList();
 
             int? newEnvironmentId = null;
-            if (ActiveEnvironment is not null)
+            if (ActiveEnvironment is { } activeEnv)
             {
-                await _environmentRepository.UpdateAsync(ActiveEnvironment.Id, NewEnvironmentName, variables);
+                await _environmentRepository.UpdateAsync(activeEnv.Id, NewEnvironmentName, variables);
                 _logger.Information("Updated environment {EnvironmentName}", NewEnvironmentName);
             }
             else
@@ -335,17 +335,17 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
 
     private void OnActiveEnvironmentVariablesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.NewItems is not null)
+        if (e.NewItems is { } newItems)
         {
-            foreach (EnvironmentVariableViewModel variable in e.NewItems)
+            foreach (EnvironmentVariableViewModel variable in newItems)
             {
                 variable.PropertyChanged += OnActiveEnvironmentVariablePropertyChanged;
             }
         }
 
-        if (e.OldItems is not null)
+        if (e.OldItems is { } oldItems)
         {
-            foreach (EnvironmentVariableViewModel variable in e.OldItems)
+            foreach (EnvironmentVariableViewModel variable in oldItems)
             {
                 variable.PropertyChanged -= OnActiveEnvironmentVariablePropertyChanged;
             }

@@ -190,10 +190,10 @@ public partial class App : Application
             }
         };
 
-        if (cookieContainer is not null)
+        if (cookieContainer is { } cookies)
         {
             handler.UseCookies = true;
-            handler.CookieContainer = cookieContainer;
+            handler.CookieContainer = cookies;
         }
 
         return new global::System.Net.Http.HttpClient(handler, disposeHandler: true);

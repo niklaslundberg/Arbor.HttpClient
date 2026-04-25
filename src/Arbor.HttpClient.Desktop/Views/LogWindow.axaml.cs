@@ -17,9 +17,9 @@ public partial class LogWindow : Window
     {
         _viewModel = DataContext as LogWindowViewModel;
 
-        if (_viewModel is not null)
+        if (_viewModel is { } vm)
         {
-            _viewModel.Entries.CollectionChanged += OnEntriesChanged;
+            vm.Entries.CollectionChanged += OnEntriesChanged;
         }
     }
 
@@ -34,18 +34,18 @@ public partial class LogWindow : Window
         if (list?.ItemsSource is System.Collections.IEnumerable items)
         {
             var last = items.Cast<object>().LastOrDefault();
-            if (last is not null)
+            if (last is { } lastItem)
             {
-                list.ScrollIntoView(last);
+                list.ScrollIntoView(lastItem);
             }
         }
     }
 
     protected override void OnClosed(System.EventArgs e)
     {
-        if (_viewModel is not null)
+        if (_viewModel is { } oldVm)
         {
-            _viewModel.Entries.CollectionChanged -= OnEntriesChanged;
+            oldVm.Entries.CollectionChanged -= OnEntriesChanged;
         }
 
         base.OnClosed(e);

@@ -35,14 +35,13 @@ public sealed class SseService(global::System.Net.Http.HttpClient httpClient)
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
         request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
 
-        if (additionalHeaders is not null)
+        if (additionalHeaders is { } extraHeaders)
         {
-            foreach (var header in additionalHeaders.Where(h => h.IsEnabled && !string.IsNullOrWhiteSpace(h.Name)))
+            foreach (var header in extraHeaders.Where(h => h.IsEnabled
+                && !string.IsNullOrWhiteSpace(h.Name)
+                && !string.Equals(h.Name, "Accept", StringComparison.OrdinalIgnoreCase)))
             {
-                if (!string.Equals(header.Name, "Accept", StringComparison.OrdinalIgnoreCase))
-                {
-                    request.Headers.TryAddWithoutValidation(header.Name, header.Value);
-                }
+                request.Headers.TryAddWithoutValidation(header.Name, header.Value);
             }
         }
 

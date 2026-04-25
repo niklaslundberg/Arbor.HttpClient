@@ -16,22 +16,22 @@ public partial class LogPanelView : UserControl
 
     private void OnDataContextChanged(object? sender, System.EventArgs e)
     {
-        if (_viewModel is not null)
+        if (_viewModel is { } prevVm)
         {
-            _viewModel.Entries.CollectionChanged -= OnScheduledEntriesChanged;
-            _viewModel.HttpDiagnosticsEntries.CollectionChanged -= OnHttpDiagnosticsEntriesChanged;
-            _viewModel.HttpRequestEntries.CollectionChanged -= OnHttpRequestEntriesChanged;
-            _viewModel.DebugEntries.CollectionChanged -= OnDebugEntriesChanged;
+            prevVm.Entries.CollectionChanged -= OnScheduledEntriesChanged;
+            prevVm.HttpDiagnosticsEntries.CollectionChanged -= OnHttpDiagnosticsEntriesChanged;
+            prevVm.HttpRequestEntries.CollectionChanged -= OnHttpRequestEntriesChanged;
+            prevVm.DebugEntries.CollectionChanged -= OnDebugEntriesChanged;
         }
 
         _viewModel = (DataContext as LogPanelViewModel)?.App.LogWindowViewModel;
 
-        if (_viewModel is not null)
+        if (_viewModel is { } newVm)
         {
-            _viewModel.Entries.CollectionChanged += OnScheduledEntriesChanged;
-            _viewModel.HttpDiagnosticsEntries.CollectionChanged += OnHttpDiagnosticsEntriesChanged;
-            _viewModel.HttpRequestEntries.CollectionChanged += OnHttpRequestEntriesChanged;
-            _viewModel.DebugEntries.CollectionChanged += OnDebugEntriesChanged;
+            newVm.Entries.CollectionChanged += OnScheduledEntriesChanged;
+            newVm.HttpDiagnosticsEntries.CollectionChanged += OnHttpDiagnosticsEntriesChanged;
+            newVm.HttpRequestEntries.CollectionChanged += OnHttpRequestEntriesChanged;
+            newVm.DebugEntries.CollectionChanged += OnDebugEntriesChanged;
         }
     }
 
@@ -54,21 +54,21 @@ public partial class LogPanelView : UserControl
         if (list?.ItemsSource is System.Collections.IEnumerable items)
         {
             var last = items.Cast<object>().LastOrDefault();
-            if (last is not null)
+            if (last is { } lastItem)
             {
-                list.ScrollIntoView(last);
+                list.ScrollIntoView(lastItem);
             }
         }
     }
 
     protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
-        if (_viewModel is not null)
+        if (_viewModel is { } detachedVm)
         {
-            _viewModel.Entries.CollectionChanged -= OnScheduledEntriesChanged;
-            _viewModel.HttpDiagnosticsEntries.CollectionChanged -= OnHttpDiagnosticsEntriesChanged;
-            _viewModel.HttpRequestEntries.CollectionChanged -= OnHttpRequestEntriesChanged;
-            _viewModel.DebugEntries.CollectionChanged -= OnDebugEntriesChanged;
+            detachedVm.Entries.CollectionChanged -= OnScheduledEntriesChanged;
+            detachedVm.HttpDiagnosticsEntries.CollectionChanged -= OnHttpDiagnosticsEntriesChanged;
+            detachedVm.HttpRequestEntries.CollectionChanged -= OnHttpRequestEntriesChanged;
+            detachedVm.DebugEntries.CollectionChanged -= OnDebugEntriesChanged;
         }
 
         base.OnDetachedFromVisualTree(e);
