@@ -45,8 +45,8 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
 
     /// <summary>
     /// When <c>true</c> and <see cref="IsWebViewApplicable"/> is also <c>true</c>,
-    /// each scheduled tick stores the response body and enables the
-    /// <see cref="OpenInBrowserCommand"/> to view the URL in the system browser.
+    /// each scheduled tick stores the response body and a <see cref="WebViewWindow"/>
+    /// can be opened to view the rendered URL in the platform-native browser engine.
     /// </summary>
     [ObservableProperty]
     private bool _useWebView;
@@ -160,8 +160,8 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Opens the configured URL in the system's default browser so the user can
-    /// view the rendered response outside the app.
+    /// Opens the configured URL in the system's default browser as a fallback
+    /// when the in-app web view cannot be used.
     /// </summary>
     [RelayCommand]
     private void OpenInBrowser()

@@ -132,8 +132,6 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 **Scope:** M (image S, HTML M, PDF L)
 
-**Partial implementation (scheduled jobs web view):** The scheduled-job panel now has a per-job "Open in browser" option (visible for GET requests only) that stores the last response and opens the URL in the system browser. An in-app embedded HTML preview can be wired up once an `Avalonia.WebView` package compatible with Avalonia 12.x is available; the callback infrastructure (`ScheduledJobViewModel.HandleResponse`, `ScheduledJobService.Start(config, onResponse)`) is already in place.
-
 ---
 
 ### 2.5 Cookie jar editor
@@ -399,6 +397,23 @@ Each idea includes a description of what it means in practice, notes on how it c
 **What shipped:** `DraftPersistenceService` serialises `RequestEditorViewModel` state to `drafts/draft.json` in the app data directory on a 30-second `PeriodicTimer`. On startup, if a draft file exists, a banner is shown offering to restore or discard it. The draft file is cleared on clean application exit. 10 unit tests added.
 
 **Polish items remaining:** Per-tab drafts once tabbed request UI (3.1) is implemented; offer to restore environment selection alongside the request state.
+
+---
+
+### 2.4 Scheduled jobs web view ✅ Implemented
+> Implemented in PR (see copilot/send-scheduled-request-web-view) — `src/Arbor.HttpClient.Desktop/Views/WebViewWindow.axaml`, `src/Arbor.HttpClient.Desktop/Views/WebViewWindow.axaml.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/ScheduledJobViewModel.cs`, `src/Arbor.HttpClient.Desktop/Services/ScheduledJobService.cs`, `src/Arbor.HttpClient.Storage.Sqlite/SqliteScheduledJobRepository.cs`
+
+**What it means:** Scheduled GET jobs can optionally open a `WebViewWindow` that embeds the platform-native browser engine (WebView2 on Windows, WebKit on macOS, WebKitGTK on Linux) and navigates to the job's URL. The window auto-refreshes on each completed tick.
+
+**What shipped:**
+- `Avalonia.Controls.WebView` 12.0.0 (MIT, official Avalonia package) added
+- `WebViewWindow` — floating window with `NativeWebView`, navigation bar (Back / Forward / Refresh / URL / Go), auto-refresh on each scheduled tick, subscribes to `ScheduledJobViewModel.LastResponseStatus` changes
+- "Show in web view" checkbox on each scheduled job card (GET-only)
+- "🌐 Web view" button opens the window on demand; hidden when not applicable
+- `UseWebView` flag persisted in SQLite, `ScheduledJobService` passes `HandleResponse` callback when enabled
+- Last-response status badge (status code + local timestamp) shown inline after first tick
+
+**Polish items remaining:** Image response preview (`image/*`), PDF viewer, HTML preview in the main request/response panel (not just scheduled jobs).
 
 ---
 

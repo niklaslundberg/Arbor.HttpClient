@@ -159,11 +159,11 @@
                                         <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="16">
                                             <CheckBox Content="Follow redirects"
                                                       IsChecked="{Binding FollowRedirects, Mode=TwoWay}" />
-                                            <!-- "Open in browser" is only meaningful for GET requests that return renderable content -->
-                                            <CheckBox Content="Open in browser"
+                                            <!-- "Show in web view" is only meaningful for GET requests that return renderable content -->
+                                            <CheckBox Content="Show in web view"
                                                       IsChecked="{Binding UseWebView, Mode=TwoWay}"
                                                       IsVisible="{Binding IsWebViewApplicable}"
-                                                      ToolTip.Tip="After each scheduled tick, open the URL in your default browser so you can view the rendered response" />
+                                                      ToolTip.Tip="After each scheduled tick, open the response URL in the in-app browser window" />
                                         </StackPanel>
                                         <!-- Last response summary — shown only when UseWebView captured at least one response -->
                                         <Border Grid.Row="5"
@@ -187,11 +187,11 @@
                                             <Button Content="■ Stop"
                                                     Command="{Binding StopCommand}"
                                                     IsEnabled="{Binding IsRunning}" />
-                                            <Button Content="🌐 Browser"
-                                                    AutomationProperties.Name="Open URL in default browser"
-                                                    ToolTip.Tip="Open the URL in your default browser"
-                                                    Command="{Binding OpenInBrowserCommand}"
-                                                    IsVisible="{Binding IsWebViewEnabled}" />
+                                            <Button Content="🌐 Web view"
+                                                    AutomationProperties.Name="Open URL in in-app web browser"
+                                                    ToolTip.Tip="Open the URL in the in-app web browser"
+                                                    IsVisible="{Binding IsWebViewEnabled}"
+                                                    Click="OnViewInAppClicked" />
                                             <Button Content="🗑 Delete"
                                                     Command="{Binding $parent[UserControl].DataContext.RemoveScheduledJobCommand}"
                                                     CommandParameter="{Binding}" />

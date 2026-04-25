@@ -16,6 +16,18 @@ This project makes use of third-party packages. Their licenses and attribution d
 
 ---
 
+## Avalonia.Controls.WebView
+
+**Package:** Avalonia.Controls.WebView  
+**Version:** 12.0.0  
+**Authors:** AvaloniaUI OÜ  
+**Copyright:** Copyright 2019-2026 © AvaloniaUI OÜ  
+**Project URL:** https://docs.avaloniaui.net/docs/app-development/embedding-web-content  
+**Source:** https://github.com/AvaloniaUI/Avalonia  
+**License:** MIT  
+
+---
+
 ## Avalonia.AvaloniaEdit
 
 **Package:** Avalonia.AvaloniaEdit  

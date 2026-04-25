@@ -22,6 +22,15 @@
           "Avalonia": "12.0.0"
         }
       },
+      "Avalonia.Controls.WebView": {
+        "type": "Direct",
+        "requested": "[12.0.0, )",
+        "resolved": "12.0.0",
+        "contentHash": "8GHNanQyuhwZhab5qKdQHYBcNKAVYRlkD47jNsswL7E3WpgTmLo9LolYyt5e4GdKkKZ2B5qIAXGs8GUJlmsuoA==",
+        "dependencies": {
+          "Avalonia": "12.0.0"
+        }
+      },
       "Avalonia.Desktop": {
         "type": "Direct",
         "requested": "[12.0.1, )",
