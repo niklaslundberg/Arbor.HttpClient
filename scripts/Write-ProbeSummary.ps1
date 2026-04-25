@@ -91,10 +91,10 @@ param(
     [string]$VideoUniqueColors = ''
 )
 
-$nextStep = if ($RecordingStarted -eq 'True') {
-    if ($VideoHasContent -eq 'True') {
+$nextStep = if ($RecordingStarted.Trim() -ieq 'True') {
+    if ($VideoHasContent.Trim() -ieq 'True') {
         '- ✅ Recording confirmed has content. Check validation-frame.png in ui-automation-artifacts.'
-    } elseif ($VideoHasContent -eq 'False') {
+    } elseif ($VideoHasContent.Trim() -ieq 'False') {
         '- ⚠️ Recording exists but appears blank. Check desktop-before.png and rec-log.txt for clues.'
     } else {
         '- Recording started. Check ui-automation-artifacts for app-recording.mp4 and validation-frame.png.'

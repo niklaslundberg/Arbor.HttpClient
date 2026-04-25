@@ -96,8 +96,8 @@ if ($hwnd -ne [IntPtr]::Zero) {
 
 # Start ffmpeg screen recording: 5s, 10fps, H.264
 # Try to locate ffmpeg — check PATH first, then well-known runner locations.
-$ff = Get-Command ffmpeg -ErrorAction SilentlyContinue
-if (-not $ff) {
+$ffmpegCmd = Get-Command ffmpeg -ErrorAction SilentlyContinue
+if (-not $ffmpegCmd) {
     $knownPaths = @(
         'C:\ProgramData\Chocolatey\bin\ffmpeg.exe',
         'C:\ffmpeg\bin\ffmpeg.exe',
@@ -106,7 +106,7 @@ if (-not $ff) {
     )
     foreach ($p in $knownPaths) {
         if (Test-Path $p) {
-            $ff = [pscustomobject]@{ Source = $p }
+            $ffmpegCmd = [pscustomobject]@{ Source = $p }
             Write-Host "Found ffmpeg at known path: $p"
             break
         }
@@ -114,10 +114,10 @@ if (-not $ff) {
 }
 
 $recProc = $null
-if ($ff) {
+if ($ffmpegCmd) {
     # Prefer ddagrab (Desktop Duplication API) — works in non-interactive sessions.
     # Fall back to gdigrab if ddagrab is not available in this ffmpeg build.
-    $filterList = & $ff.Source -hide_banner -filters 2>&1 | Out-String
+    $filterList = & $ffmpegCmd.Source -hide_banner -filters 2>&1 | Out-String
     if ($filterList -match '\bddagrab\b') {
         Write-Host "Starting 5s screen recording (ddagrab 10fps H.264)..."
         $recArgs = '-f lavfi -i ddagrab=framerate=10 -t 5 -c:v libx264 -pix_fmt yuv420p -y app-recording.mp4'
@@ -126,7 +126,7 @@ if ($ff) {
         Write-Host "Starting 5s screen recording (gdigrab 10fps H.264)..."
         $recArgs = '-f gdigrab -framerate 10 -i desktop -t 5 -c:v libx264 -pix_fmt yuv420p -y app-recording.mp4'
     }
-    $recProc = Start-Process -FilePath $ff.Source `
+    $recProc = Start-Process -FilePath $ffmpegCmd.Source `
         -ArgumentList $recArgs `
         -PassThru -WindowStyle Hidden `
         -RedirectStandardError rec-log.txt
@@ -224,8 +224,8 @@ if ($fp) {
 }
 
 # Extract frame at t=2s then count unique mid-row pixel colors as content check
-if ($ff) {
-    & $ff.Source -i app-recording.mp4 -ss 2 -vframes 1 -y validation-frame.png 2>$null
+if ($ffmpegCmd) {
+    & $ffmpegCmd.Source -i app-recording.mp4 -ss 2 -vframes 1 -y validation-frame.png 2>$null
     if (Test-Path 'validation-frame.png') {
         $vbmp = $null
         try {
