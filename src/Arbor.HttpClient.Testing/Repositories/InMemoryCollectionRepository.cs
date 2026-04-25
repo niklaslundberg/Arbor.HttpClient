@@ -29,6 +29,26 @@ public sealed class InMemoryCollectionRepository : ICollectionRepository
         }
     }
 
+    public Task UpdateAsync(
+        int collectionId,
+        string name,
+        string? sourcePath,
+        string? baseUrl,
+        IReadOnlyList<CollectionRequest> requests,
+        CancellationToken cancellationToken = default)
+    {
+        lock (_lock)
+        {
+            var index = _items.FindIndex(c => c.Id == collectionId);
+            if (index >= 0)
+            {
+                _items[index] = new Collection(collectionId, name, sourcePath, baseUrl, requests.ToList());
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
     public Task<IReadOnlyList<Collection>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         lock (_lock)

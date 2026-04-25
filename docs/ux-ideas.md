@@ -419,4 +419,26 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ---
 
+### Collections Management ✅ Implemented
+> Implemented in PR #77 (commit `237d9de`) — `src/Arbor.HttpClient.Core/Abstractions/ICollectionRepository.cs`, `src/Arbor.HttpClient.Storage.Sqlite/SqliteCollectionRepository.cs`, `src/Arbor.HttpClient.Testing/Repositories/InMemoryCollectionRepository.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/CollectionItemViewModel.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/CollectionGroupViewModel.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Views/LeftPanelView.axaml`
+
+**What it means:** Users can create and manage named collections of HTTP requests directly inside the app, search/filter them, sort by different fields, choose which parts of the request URL to display, and switch to a tree view that groups requests by top-level path segment.
+
+**What shipped:**
+- **Create collections**: inline "+ New" form in the Collections tab creates an empty collection
+- **Add current request**: "+ Add request" button appends the current URL/method as a new collection entry
+- **Search**: live filter box narrows the visible requests by name, path, or method
+- **Sort**: toolbar switches between Default, Name, Method, Path ordering
+- **Display modes**: toolbar cycles between Name+Path, Name only, Path only, Full URL
+- **Tree view**: "🌿 Tree" toggle groups requests by their first path segment (e.g. `/pets/…` → "pets"), each group is individually collapsible
+- **Import OpenAPI**: existing OpenAPI import button moved into the per-collection toolbar
+- `ICollectionRepository.UpdateAsync` added; SQLite and in-memory implementations updated
+- `CollectionItemViewModel`: `FullUrl` and `GroupKey` computed properties
+- `CollectionGroupViewModel`: collapsible group VM with `ToggleExpandedCommand`
+- `BoolToExpandIconConverter`: `▼`/`▶` expand/collapse icons
+
+**Polish items remaining:** rename a collection inline; reorder requests via drag-and-drop; export a collection as JSON/OpenAPI; per-request notes editor in the collection entry.
+
+---
+
 *Last updated: April 2026. Suggestions sourced from comparative review of Hoppscotch, Insomnia, Postman, Bruno, and browser DevTools.*

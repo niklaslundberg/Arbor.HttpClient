@@ -124,6 +124,39 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
             .ToList();
     }
 
+    public async Task UpdateAsync(int collectionId, string name, string? sourcePath, string? baseUrl, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await EnableForeignKeysAsync(connection, cancellationToken).ConfigureAwait(false);
+
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+        await using var updateCollection = connection.CreateCommand();
+        updateCollection.Transaction = (SqliteTransaction)transaction;
+        updateCollection.CommandText =
+            """
+            UPDATE collections
+            SET name = $name, source_path = $sourcePath, base_url = $baseUrl
+            WHERE id = $id;
+            """;
+        updateCollection.Parameters.AddWithValue("$id", collectionId);
+        updateCollection.Parameters.AddWithValue("$name", name);
+        updateCollection.Parameters.AddWithValue("$sourcePath", sourcePath ?? (object)DBNull.Value);
+        updateCollection.Parameters.AddWithValue("$baseUrl", baseUrl ?? (object)DBNull.Value);
+        await updateCollection.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+        await using var deleteRequests = connection.CreateCommand();
+        deleteRequests.Transaction = (SqliteTransaction)transaction;
+        deleteRequests.CommandText = "DELETE FROM collection_requests WHERE collection_id = $id;";
+        deleteRequests.Parameters.AddWithValue("$id", collectionId);
+        await deleteRequests.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+        await InsertRequestsAsync(connection, (SqliteTransaction)transaction, collectionId, requests, cancellationToken).ConfigureAwait(false);
+
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task DeleteAsync(int collectionId, CancellationToken cancellationToken = default)
     {
         await using var connection = new SqliteConnection(connectionString);
