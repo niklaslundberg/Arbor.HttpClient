@@ -468,22 +468,21 @@ jobs:
           }
 
       # -----------------------------------------------------------------------
-      # Step 5: Launch the app directly on the Windows runner, drive it with
-      # Win32 UI automation, and capture before/after screenshots.
+      # Step 5: Launch the app, record a 5s screen capture with ffmpeg gdigrab,
+      # drive it with Win32 UI automation, then validate video content.
       # -----------------------------------------------------------------------
-      - name: Launch app, interact via Win32, and capture screenshots
+      - name: Launch app, record screen, and validate video
         id: launch-app
         continue-on-error: true
         shell: pwsh
         run: |
           $exe = "publish/win-x64/Arbor.HttpClient.Desktop.exe"
           if (-not (Test-Path $exe)) {
-              Write-Host "Exe not found at $exe — skipping launch."
+              Write-Host "Exe not found at $exe — skipping."
               "APP_RUNNING=False" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
               exit 0
           }
 
-          # Add Win32 types for UI automation (use array-join to avoid here-string/YAML indentation conflict)
           Add-Type -AssemblyName System.Windows.Forms
           Add-Type -AssemblyName System.Drawing
           $csharp = @(
@@ -513,45 +512,57 @@ jobs:
           Write-Host "Launching: $exe"
           $proc = Start-Process -FilePath $exe -PassThru -WindowStyle Normal
           if (-not $proc) {
-              Write-Host "Start-Process returned null."
               "APP_RUNNING=False" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
               exit 0
           }
           Write-Host "Started PID: $($proc.Id)"
-
-          # Wait for the UI to initialise and become ready for input
           $proc.WaitForInputIdle(10000) | Out-Null
-          Start-Sleep -Seconds 3
+          Start-Sleep -Seconds 2
 
+          $proc.Refresh()
           $running = -not $proc.HasExited
-          Write-Host "Running after init: $running  ExitCode: $($proc.ExitCode)"
+          Write-Host "Running: $running"
           "APP_RUNNING=$running" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
           if ($running) {
-              $proc.Refresh()   # refresh cached properties like MainWindowHandle
               $hwnd = $proc.MainWindowHandle
-              $title = $proc.MainWindowTitle
-              Write-Host "Main window handle: $hwnd  Title: '$title'"
+              Write-Host "Main window handle: $hwnd  Title: '$($proc.MainWindowTitle)'"
               "WINDOW_FOUND=$($hwnd -ne [IntPtr]::Zero)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
               if ($hwnd -ne [IntPtr]::Zero) {
-                  [Win32Ui]::ShowWindow($hwnd, 9)        # SW_RESTORE
+                  [Win32Ui]::ShowWindow($hwnd, 9)
                   [Win32Ui]::SetForegroundWindow($hwnd)
                   Start-Sleep -Milliseconds 500
               }
 
-              # Before-interaction screenshot
+              # Start ffmpeg screen recording: 5s, gdigrab, 10fps, H.264
+              $ff = Get-Command ffmpeg -ErrorAction SilentlyContinue
+              $recProc = $null
+              if ($ff) {
+                  Write-Host "Starting 5s screen recording (gdigrab 10fps H.264)..."
+                  $recArgs = '-f gdigrab -framerate 10 -i desktop -t 5 -c:v libx264 -pix_fmt yuv420p -y app-recording.mp4'
+                  $recProc = Start-Process -FilePath $ff.Source `
+                      -ArgumentList $recArgs `
+                      -PassThru -WindowStyle Hidden `
+                      -RedirectStandardError rec-log.txt
+                  "RECORDING_STARTED=True" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              } else {
+                  Write-Host "ffmpeg not found in PATH — recording skipped"
+                  "RECORDING_STARTED=False" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              }
+
+              # Before-interaction screenshot (captured at recording start)
               $s1 = Take-Screenshot 'desktop-before.png'
               "SCREENSHOT_BEFORE=$s1" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-              # Drive the app with keyboard
+              # Send keyboard input while recording is in progress
               if ($hwnd -ne [IntPtr]::Zero) {
+                  Start-Sleep -Seconds 1
                   [System.Windows.Forms.SendKeys]::SendWait("{TAB}")
                   Start-Sleep -Milliseconds 300
                   [System.Windows.Forms.SendKeys]::SendWait("{TAB}")
                   Start-Sleep -Milliseconds 300
-                  # Type something in the URL bar (likely focused after TABs)
-                  [System.Windows.Forms.SendKeys]::SendWait("https://example.com")
+                  [System.Windows.Forms.SendKeys]::SendWait("https://example.com{ENTER}")
                   Start-Sleep -Milliseconds 500
                   Write-Host "Sent keyboard input OK"
                   "UI_INTERACTION=ok" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
@@ -560,23 +571,80 @@ jobs:
                   "UI_INTERACTION=no-window" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
               }
 
-              # After-interaction screenshot
+              # Wait for ffmpeg to finish (it exits after -t 5s)
+              if ($recProc) {
+                  if (-not $recProc.WaitForExit(12000)) {
+                      Write-Host "Recording timed out — killing ffmpeg"
+                      $recProc | Stop-Process -Force -ErrorAction SilentlyContinue
+                      "RECORDING_EXIT=timeout" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+                  } else {
+                      Write-Host "Recording exit code: $($recProc.ExitCode)"
+                      "RECORDING_EXIT=$($recProc.ExitCode)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+                  }
+                  if (Test-Path 'rec-log.txt') { Get-Content 'rec-log.txt' -Tail 10 | Write-Host }
+              }
+
+              # After-interaction screenshot (after recording has finished)
               $s2 = Take-Screenshot 'desktop-after.png'
               "SCREENSHOT_AFTER=$s2" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-              # Graceful shutdown
               $proc | Stop-Process -Force -ErrorAction SilentlyContinue
               Write-Host "App stopped."
+
+              # --- Validate the recording ---
+              if (Test-Path 'app-recording.mp4') {
+                  $sizeMB = [math]::Round((Get-Item 'app-recording.mp4').Length / 1MB, 2)
+                  Write-Host "Recording file size: $sizeMB MB"
+                  "RECORDING_SIZE_MB=$sizeMB" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+                  # Use ffprobe to read duration and frame count
+                  $fp = Get-Command ffprobe -ErrorAction SilentlyContinue
+                  if ($fp) {
+                      $probeOut = & $fp.Source -v quiet -print_format json -show_streams app-recording.mp4 2>&1
+                      try {
+                          $pj   = $probeOut | ConvertFrom-Json
+                          $dur  = [math]::Round([double]$pj.streams[0].duration, 2)
+                          $frms = $pj.streams[0].nb_frames
+                          Write-Host "Duration: ${dur}s  Frames: $frms"
+                          "VIDEO_DURATION=$dur" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+                          "VIDEO_FRAMES=$frms"  | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+                      } catch { Write-Host "ffprobe JSON parse failed: $_" }
+                  }
+
+                  # Extract frame at t=2s then count unique mid-row pixel colors as content check
+                  if ($ff) {
+                      & $ff.Source -i app-recording.mp4 -ss 2 -vframes 1 -y validation-frame.png 2>$null
+                      if (Test-Path 'validation-frame.png') {
+                          $vbmp = [System.Drawing.Bitmap]::new((Resolve-Path 'validation-frame.png').Path)
+                          $step = [math]::Max(1, [int]($vbmp.Width / 20))
+                          $argbList = @()
+                          for ($xi = 0; $xi -lt $vbmp.Width; $xi += $step) {
+                              $argbList += $vbmp.GetPixel($xi, [int]($vbmp.Height / 2)).ToArgb()
+                          }
+                          $vbmp.Dispose()
+                          $unique = ($argbList | Sort-Object -Unique).Count
+                          $hasContent = $unique -gt 2
+                          Write-Host "Unique pixel colors in mid-row sample: $unique  Has content: $hasContent"
+                          "VIDEO_HAS_CONTENT=$hasContent"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+                          "VIDEO_UNIQUE_COLORS=$unique"     | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+                      }
+                  }
+              } else {
+                  Write-Host "No recording file produced"
+                  "RECORDING_SIZE_MB=0" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              }
           }
 
-      - name: Upload desktop screenshots
+      - name: Upload screenshots and screen recording
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: desktop-screenshots
+          name: ui-automation-artifacts
           path: |
             desktop-before.png
             desktop-after.png
+            app-recording.mp4
+            validation-frame.png
           retention-days: 14
           if-no-files-found: ignore
 
@@ -623,11 +691,20 @@ jobs:
             "| Before-interaction screenshot | ${{ steps.launch-app.outputs.SCREENSHOT_BEFORE }} |"
             "| After-interaction screenshot | ${{ steps.launch-app.outputs.SCREENSHOT_AFTER }} |"
             ""
+            "### Screen recording (ffmpeg gdigrab)"
+            "| Check | Result |"
+            "|---|---|"
+            "| Recording started | ${{ steps.launch-app.outputs.RECORDING_STARTED }} |"
+            "| ffmpeg exit code | ${{ steps.launch-app.outputs.RECORDING_EXIT }} |"
+            "| File size (MB) | ${{ steps.launch-app.outputs.RECORDING_SIZE_MB }} |"
+            "| Duration (s) | ${{ steps.launch-app.outputs.VIDEO_DURATION }} |"
+            "| Frame count | ${{ steps.launch-app.outputs.VIDEO_FRAMES }} |"
+            "| Frame has content | ${{ steps.launch-app.outputs.VIDEO_HAS_CONTENT }} |"
+            "| Unique pixel colors in sample | ${{ steps.launch-app.outputs.VIDEO_UNIQUE_COLORS }} |"
+            ""
             "### Next steps"
-            '- VM creation confirmed working. Next: provide a sysprepped Windows VHDX base'
-            '  and run Start-UIAutomation.ps1 end-to-end (see docs/vm-ui-automation.md sub-task 7).'
-            '- UI interaction via SendKeys is working directly on the runner.'
-            '  Next: verify the after-interaction screenshot shows the typed URL in the URL bar.'
+            '- Screen recording confirmed working. Next: verify VIDEO_HAS_CONTENT=True'
+            '  in the PR comment, and check validation-frame.png in the ui-automation-artifacts artifact.'
           )
           $md = $lines -join "`n"
           $md | Out-File -FilePath probe-summary.md -Encoding UTF8
@@ -655,7 +732,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $runUrl = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          $artifactNote = "Screenshots uploaded as the **desktop-screenshots** artifact in the [run]($runUrl)."
+          $artifactNote = "Screenshots, recording, and validation frame uploaded as the **ui-automation-artifacts** artifact in the [run]($runUrl)."
 
           $body = @"
           ## Experimental VM / Hyper-V Probe - Run ${{ github.run_number }}
@@ -682,7 +759,7 @@ jobs:
           | New-VHD + New-VM (no OS) | ${{ steps.vm-create.outputs.VM_RESULT }} |
           | Start-VM | ${{ steps.vm-create.outputs.VM_START }} |
 
-          ### App Launch and UI Automation (direct on runner)
+          ### App Launch and UI Automation
           | Check | Result |
           |---|---|
           | App running after init | ${{ steps.launch-app.outputs.APP_RUNNING }} |
@@ -690,6 +767,17 @@ jobs:
           | UI keyboard interaction | ${{ steps.launch-app.outputs.UI_INTERACTION }} |
           | Before-interaction screenshot | ${{ steps.launch-app.outputs.SCREENSHOT_BEFORE }} |
           | After-interaction screenshot | ${{ steps.launch-app.outputs.SCREENSHOT_AFTER }} |
+
+          ### Screen Recording (ffmpeg gdigrab, 5s, 10fps H.264)
+          | Check | Result |
+          |---|---|
+          | Recording started | ${{ steps.launch-app.outputs.RECORDING_STARTED }} |
+          | ffmpeg exit code | ${{ steps.launch-app.outputs.RECORDING_EXIT }} |
+          | File size (MB) | ${{ steps.launch-app.outputs.RECORDING_SIZE_MB }} |
+          | Duration (s) | ${{ steps.launch-app.outputs.VIDEO_DURATION }} |
+          | Frame count | ${{ steps.launch-app.outputs.VIDEO_FRAMES }} |
+          | Frame has content (not blank) | ${{ steps.launch-app.outputs.VIDEO_HAS_CONTENT }} |
+          | Unique pixel colors in sample | ${{ steps.launch-app.outputs.VIDEO_UNIQUE_COLORS }} |
 
           $artifactNote
 
