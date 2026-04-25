@@ -46,7 +46,7 @@ the failure but does not block the build.
 
 **Symptom:** The summary always prints:
 ```
-Screen recording confirmed working. Next: verify VIDEO_HAS_CONTENT=True…
+Screen recording confirmed working. Next: verify VIDEO_HAS_CONTENT=True...
 ```
 …even when `RECORDING_STARTED=False` (as in run 366).
 
