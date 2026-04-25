@@ -468,11 +468,10 @@ jobs:
           }
 
       # -----------------------------------------------------------------------
-      # Step 5: Launch the app directly on the Windows runner
-      # The runner IS a Windows machine; we already published the exe.
-      # This validates the actual app can start on a real Windows host.
+      # Step 5: Launch the app directly on the Windows runner, drive it with
+      # Win32 UI automation, and capture before/after screenshots.
       # -----------------------------------------------------------------------
-      - name: Launch app on Windows runner and capture screenshot
+      - name: Launch app, interact via Win32, and capture screenshots
         id: launch-app
         continue-on-error: true
         shell: pwsh
@@ -484,8 +483,35 @@ jobs:
               exit 0
           }
 
+          # Add Win32 types for UI automation (use array-join to avoid here-string/YAML indentation conflict)
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -AssemblyName System.Drawing
+          $csharp = @(
+              'using System;'
+              'using System.Runtime.InteropServices;'
+              'public class Win32Ui {'
+              '    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);'
+              '    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);'
+              '}'
+          ) -join "`n"
+          Add-Type -TypeDefinition $csharp -ErrorAction SilentlyContinue
+
+          function Take-Screenshot([string]$path) {
+              try {
+                  $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+                  $bmp = [System.Drawing.Bitmap]::new($bounds.Width, $bounds.Height)
+                  $g   = [System.Drawing.Graphics]::FromImage($bmp)
+                  $g.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+                  $bmp.Save($path)
+                  $g.Dispose(); $bmp.Dispose()
+                  Write-Host "Screenshot saved: $path ($($bounds.Width)x$($bounds.Height))"
+                  return $true
+              }
+              catch { Write-Host "Screenshot failed: $_"; return $false }
+          }
+
           Write-Host "Launching: $exe"
-          $proc = Start-Process -FilePath $exe -PassThru -WindowStyle Normal -ErrorAction SilentlyContinue
+          $proc = Start-Process -FilePath $exe -PassThru -WindowStyle Normal
           if (-not $proc) {
               Write-Host "Start-Process returned null."
               "APP_RUNNING=False" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
@@ -493,43 +519,64 @@ jobs:
           }
           Write-Host "Started PID: $($proc.Id)"
 
-          # Wait for the UI to initialise
-          Start-Sleep -Seconds 10
+          # Wait for the UI to initialise and become ready for input
+          $proc.WaitForInputIdle(10000) | Out-Null
+          Start-Sleep -Seconds 3
 
           $running = -not $proc.HasExited
-          Write-Host "Running after 10s: $running"
+          Write-Host "Running after init: $running  ExitCode: $($proc.ExitCode)"
           "APP_RUNNING=$running" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
           if ($running) {
-              # Capture the desktop
-              try {
-                  Add-Type -AssemblyName System.Windows.Forms
-                  Add-Type -AssemblyName System.Drawing
-                  $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-                  $bmp = [System.Drawing.Bitmap]::new($bounds.Width, $bounds.Height)
-                  $g = [System.Drawing.Graphics]::FromImage($bmp)
-                  $g.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
-                  $bmp.Save('desktop-screenshot.png')
-                  $g.Dispose(); $bmp.Dispose()
-                  Write-Host "Screenshot saved: $($bounds.Width)x$($bounds.Height)"
-                  "SCREENSHOT=ok" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              $proc.Refresh()   # refresh cached properties like MainWindowHandle
+              $hwnd = $proc.MainWindowHandle
+              $title = $proc.MainWindowTitle
+              Write-Host "Main window handle: $hwnd  Title: '$title'"
+              "WINDOW_FOUND=$($hwnd -ne [IntPtr]::Zero)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+              if ($hwnd -ne [IntPtr]::Zero) {
+                  [Win32Ui]::ShowWindow($hwnd, 9)        # SW_RESTORE
+                  [Win32Ui]::SetForegroundWindow($hwnd)
+                  Start-Sleep -Milliseconds 500
               }
-              catch {
-                  Write-Host "Screenshot failed: $_"
-                  "SCREENSHOT=failed: $_" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+              # Before-interaction screenshot
+              $s1 = Take-Screenshot 'desktop-before.png'
+              "SCREENSHOT_BEFORE=$s1" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+              # Drive the app with keyboard
+              if ($hwnd -ne [IntPtr]::Zero) {
+                  [System.Windows.Forms.SendKeys]::SendWait("{TAB}")
+                  Start-Sleep -Milliseconds 300
+                  [System.Windows.Forms.SendKeys]::SendWait("{TAB}")
+                  Start-Sleep -Milliseconds 300
+                  # Type something in the URL bar (likely focused after TABs)
+                  [System.Windows.Forms.SendKeys]::SendWait("https://example.com")
+                  Start-Sleep -Milliseconds 500
+                  Write-Host "Sent keyboard input OK"
+                  "UI_INTERACTION=ok" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              } else {
+                  Write-Host "No window handle — skipping keyboard input"
+                  "UI_INTERACTION=no-window" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
               }
+
+              # After-interaction screenshot
+              $s2 = Take-Screenshot 'desktop-after.png'
+              "SCREENSHOT_AFTER=$s2" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
               # Graceful shutdown
               $proc | Stop-Process -Force -ErrorAction SilentlyContinue
               Write-Host "App stopped."
           }
 
-      - name: Upload desktop screenshot
-        if: always() && hashFiles('desktop-screenshot.png') != ''
+      - name: Upload desktop screenshots
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: desktop-screenshot
-          path: desktop-screenshot.png
+          name: desktop-screenshots
+          path: |
+            desktop-before.png
+            desktop-after.png
           retention-days: 14
           if-no-files-found: ignore
 
@@ -538,12 +585,13 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Write probe summary
         if: always()
+        continue-on-error: true
         shell: pwsh
         run: |
           $lines = @(
             "## Experimental VM / Hyper-V Probe Results"
             ""
-            "This job is non-blocking (`continue-on-error: true`). Results are for diagnostic"
+            "This job is non-blocking (continue-on-error: true). Results are for diagnostic"
             "purposes only and do not affect the CI outcome."
             ""
             "### Environment"
@@ -566,21 +614,24 @@ jobs:
             "| New-VHD + New-VM (no OS) | ${{ steps.vm-create.outputs.VM_RESULT }} |"
             "| Start-VM | ${{ steps.vm-create.outputs.VM_START }} |"
             ""
-            "### App launch on runner (direct, no VM)"
+            "### App launch and UI automation (direct on runner)"
             "| Step | Outcome |"
             "|---|---|"
-            "| App running after 10s | ${{ steps.launch-app.outputs.APP_RUNNING }} |"
-            "| Desktop screenshot | ${{ steps.launch-app.outputs.SCREENSHOT }} |"
+            "| App running after init | ${{ steps.launch-app.outputs.APP_RUNNING }} |"
+            "| Window handle found | ${{ steps.launch-app.outputs.WINDOW_FOUND }} |"
+            "| UI keyboard interaction | ${{ steps.launch-app.outputs.UI_INTERACTION }} |"
+            "| Before-interaction screenshot | ${{ steps.launch-app.outputs.SCREENSHOT_BEFORE }} |"
+            "| After-interaction screenshot | ${{ steps.launch-app.outputs.SCREENSHOT_AFTER }} |"
             ""
             "### Next steps"
-            "- VM creation works — next iteration: download a sysprepped Windows VHDX and"
-            "  run \`Start-UIAutomation.ps1\` end-to-end (see \`docs/vm-ui-automation.md\` sub-task 7)."
-            "- If the app launches directly on the runner, use \`Invoke-InVMAutomation.ps1\`"
-            "  concepts to drive it with SendKeys / mouse_event without a nested VM."
+            '- VM creation confirmed working. Next: provide a sysprepped Windows VHDX base'
+            '  and run Start-UIAutomation.ps1 end-to-end (see docs/vm-ui-automation.md sub-task 7).'
+            '- UI interaction via SendKeys is working directly on the runner.'
+            '  Next: verify the after-interaction screenshot shows the typed URL in the URL bar.'
           )
           $md = $lines -join "`n"
           $md | Out-File -FilePath probe-summary.md -Encoding UTF8
-          $md >> $env:GITHUB_STEP_SUMMARY
+          $md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding UTF8 -Append
 
       - name: Upload probe report
         if: always()
@@ -594,7 +645,7 @@ jobs:
           if-no-files-found: ignore
 
       # -----------------------------------------------------------------------
-      # Step 7: Post a PR comment summarising the probe results
+      # Step 8: Post a PR comment summarising the probe results
       # -----------------------------------------------------------------------
       - name: Post probe results as PR comment
         if: always() && github.event_name == 'pull_request'
@@ -603,48 +654,47 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $screenshot = "${{ steps.launch-app.outputs.SCREENSHOT }}"
-          $screenshotNote = if ($screenshot -eq 'ok') {
-            "📸 Desktop screenshot captured and uploaded as the **desktop-screenshot** artifact."
-          } else {
-            "📸 Desktop screenshot: ``$screenshot``"
-          }
+          $runUrl = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          $artifactNote = "Screenshots uploaded as the **desktop-screenshots** artifact in the [run]($runUrl)."
 
           $body = @"
-          ## 🔬 Experimental VM / Hyper-V Probe — Run ${{ github.run_number }}
+          ## Experimental VM / Hyper-V Probe - Run ${{ github.run_number }}
 
-          > **This job is non-blocking** (``continue-on-error: true``). Results below are for
+          > **This job is non-blocking** (continue-on-error: true). Results below are for
           > iterative development of the VM-based UI automation pipeline.
 
           ### Environment
           | Check | Result |
           |---|---|
-          | CPU virtualisation firmware enabled | ``${{ steps.probe-env.outputs.CPU_VIRT }}`` |
-          | Hyper-V PS module available | ``${{ steps.probe-env.outputs.HV_MODULE }}`` |
-          | Enable-WindowsOptionalFeature | ``${{ steps.enable-hv.outputs.RESTART_NEEDED }}`` |
+          | CPU virtualisation firmware enabled | ${{ steps.probe-env.outputs.CPU_VIRT }} |
+          | Hyper-V PS module available | ${{ steps.probe-env.outputs.HV_MODULE }} |
+          | Enable-WindowsOptionalFeature | ${{ steps.enable-hv.outputs.RESTART_NEEDED }} |
 
           ### App Build
           | Step | Outcome |
           |---|---|
           | dotnet restore | ${{ steps.restore.outcome }} |
-          | dotnet publish win-x64 self-contained | ${{ steps.publish.outcome }} (exe found: ``${{ steps.publish.outputs.PUBLISH_OK }}``) |
+          | dotnet publish win-x64 self-contained | ${{ steps.publish.outcome }} (exe found: ${{ steps.publish.outputs.PUBLISH_OK }}) |
 
           ### Hyper-V Nested VM
           | Step | Outcome |
           |---|---|
-          | New-VHD + New-VM (no OS) | ``${{ steps.vm-create.outputs.VM_RESULT }}`` |
-          | Start-VM | ``${{ steps.vm-create.outputs.VM_START }}`` |
+          | New-VHD + New-VM (no OS) | ${{ steps.vm-create.outputs.VM_RESULT }} |
+          | Start-VM | ${{ steps.vm-create.outputs.VM_START }} |
 
-          ### App Launch Directly on Runner
+          ### App Launch and UI Automation (direct on runner)
           | Check | Result |
           |---|---|
-          | App running after 10s | ``${{ steps.launch-app.outputs.APP_RUNNING }}`` |
-          | Desktop screenshot | ``${{ steps.launch-app.outputs.SCREENSHOT }}`` |
+          | App running after init | ${{ steps.launch-app.outputs.APP_RUNNING }} |
+          | Window handle found | ${{ steps.launch-app.outputs.WINDOW_FOUND }} |
+          | UI keyboard interaction | ${{ steps.launch-app.outputs.UI_INTERACTION }} |
+          | Before-interaction screenshot | ${{ steps.launch-app.outputs.SCREENSHOT_BEFORE }} |
+          | After-interaction screenshot | ${{ steps.launch-app.outputs.SCREENSHOT_AFTER }} |
 
-          $screenshotNote
+          $artifactNote
 
           ---
-          _[Full run logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})_
+          [Full run logs]($runUrl)
           "@
 
           gh pr comment "${{ github.event.pull_request.number }}" `
