@@ -23,7 +23,7 @@ Exception: fire-and-forget cleanup paths may omit the token, but must document w
 
 ## Null Checks
 
-**[REQUIRED]** Use `is null` and `is not null` instead of `== null` and `!= null`. The pattern-based forms work correctly with overloaded equality operators and are consistent with the C# nullable reference type system.
+**[REQUIRED]** Use `is null` for null checks and `is { }` for non-null checks instead of `== null` / `!= null` / `is not null`. The pattern-based forms work correctly with overloaded equality operators, are consistent with the C# nullable reference type system, and `is { }` is preferred over `is not null` in this codebase.
 
 ## Member Names in Code
 
@@ -57,3 +57,49 @@ Severity guidance:
 - `Information` — routine, expected events (job invoked, request sent).
 - `Warning` — unexpected but recoverable situations (retry attempt, fallback used).
 - `Error` — failures that require attention (connection refused, unhandled exception).
+
+## Namespaces
+
+**[REQUIRED]** Use file-scoped namespace declarations (`namespace MyNamespace;`) for all new `.cs` files. Keep namespace style consistent within a file.
+
+## Nullable Reference Types
+
+**[REQUIRED]** Enable nullable reference types globally via `<Nullable>enable</Nullable>` in `Directory.Build.props`. Do **not** use per-file `#nullable enable` directives — the global setting applies uniformly across the solution.
+
+## Type Declarations
+
+**[RECOMMENDED]** Use `var` for local variables when the type is unambiguously clear from the right-hand side (e.g. `var list = new List<string>()`). Use explicit types for method parameters, return types, and field declarations.
+
+## String Handling
+
+**[RECOMMENDED]** Prefer string interpolation (`$""`) over `string.Format()` or concatenation. Use `StringBuilder` for heavy or repeated string construction. Use `string.Equals(a, b, StringComparison)` for culture-aware comparisons.
+
+## Collections
+
+**[RECOMMENDED]** Use `IEnumerable<T>` for method parameters when only enumeration is needed. Expose immutable data via `IReadOnlyList<T>` or `IReadOnlyCollection<T>`. Initialize collections with a known capacity when the size is predictable.
+
+## LINQ
+
+**[RECOMMENDED]** Prefer method syntax over query syntax for simple operations. Be aware of deferred execution — call `ToList()` or `ToArray()` when the sequence will be enumerated multiple times.
+
+## Object-Oriented Design
+
+**[RECOMMENDED]** Prefer composition over inheritance. Follow SOLID principles: single responsibility, open/closed, Liskov substitution, interface segregation, dependency inversion.
+
+## XML Documentation
+
+**[REQUIRED]** Provide XML documentation comments for all public APIs in `Arbor.HttpClient.Core` (`<summary>`, `<param>`, `<returns>`, `<exception>`).
+
+**[RECOMMENDED]** Document public APIs in other projects. Include `<example>` sections for non-obvious methods and note thread-safety assumptions.
+
+## File Organisation
+
+**[RECOMMENDED]** One public type per file; file name matches the primary type name. Order `using` directives: System namespaces first, then third-party, then project namespaces. Remove unused `using` statements.
+
+## Post-Edit Hygiene
+
+**[RECOMMENDED]** After any code change: trim trailing whitespace from all modified lines, ensure no extra blank lines at the end of the file, and verify indentation uses 4 spaces (no tabs).
+
+## Resource Management
+
+**[RECOMMENDED]** Implement `IDisposable` for types that own unmanaged resources. Follow the standard Dispose pattern. Add finalizers only when the type directly owns a native handle with no safe-handle wrapper.

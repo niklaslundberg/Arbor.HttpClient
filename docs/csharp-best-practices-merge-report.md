@@ -66,8 +66,8 @@ Not mentioned explicitly, though EditorConfig likely enforces brace style. These
 - `string.IsNullOrEmpty()` / `string.IsNullOrWhiteSpace()`
 - Consider nullable reference types (C# 8+)
 
-**Status: ✅ Already covered (partially) + ➕ Gap (nullable reference types)**  
-Repo already mandates `is null` / `is not null` for null checks (`csharp.instructions.md`). Null-conditional operators are complementary (for chaining/coalescing, not for guard checks) — no conflict. Nullable reference types (`#nullable enable`) are not mentioned in the repo instructions; worth adding as `[RECOMMENDED]`.
+**Status: ✅ Already covered (partially) + ➕ Gap (nullable reference types, is { })**  
+Repo already mandates `is null` / `is not null` for null checks (`csharp.instructions.md`). Per owner feedback, the preferred non-null check pattern is `is { }` instead of `is not null` — this is stricter and more idiomatic in modern C#. Null-conditional operators are complementary (for chaining/coalescing, not for guard checks) — no conflict. Nullable reference types should be enabled globally (e.g., via `<Nullable>enable</Nullable>` in `Directory.Build.props`), not via per-file `#nullable enable` directives. **Merged:** `is { }` preference added to `csharp.instructions.md`; global nullable guidance added.
 
 #### String Handling
 - Prefer string interpolation `$""`
@@ -125,8 +125,8 @@ Not mentioned in repo instructions. Good general guidance; all four points are s
 - Avoid `async void` except for event handlers
 - **`ConfigureAwait(false)` in library code**
 
-**Status: ✅ Already covered (async Task) + ➕ Gap (ConfigureAwait)**  
-The repo mandates `CancellationToken` passing but does not mention `ConfigureAwait(false)`. For library code this is important to avoid deadlocks in UI/ASP.NET contexts. Recommended merge: `[REQUIRED]` note in `csharp.instructions.md` for library projects (`Arbor.HttpClient.Core`).
+**Status: ✅ Already covered (async Task) + ⏩ Skip (ConfigureAwait)**  
+The repo mandates `CancellationToken` passing but does not mention `ConfigureAwait(false)`. Per owner decision, this item is **skipped** — the codebase includes Avalonia Desktop (UI context) where `ConfigureAwait(false)` can cause issues, so blanket adoption is not appropriate here.
 
 #### Cancellation
 - Accept `CancellationToken` in long-running async methods
@@ -264,8 +264,9 @@ Repo instructions do not mention trailing whitespace, line endings, or indentati
 | External rule | Repo rule | Resolution |
 |---------------|-----------|------------|
 | Follow AAA pattern (implies `// Arrange`, `// Act`, `// Assert` labels) | `[REQUIRED]` No AAA comments — use blank lines and named variables instead | **Repo rule wins.** Do not adopt the comment-label convention from the external file. The structural AAA _approach_ (arrange inputs, perform action, assert result) is still encouraged; only the comment labels are banned. |
+| Null-conditional operators (`?.`, `??`) for null checks | `[REQUIRED]` `is null` / `is not null` | **Repo rule extended.** Non-null checks updated to prefer `is { }` over `is not null`. |
 
-No other direct contradictions were found. Several external rules are silent where the repo has stricter requirements (e.g. `cancellationToken` full-name mandate, `is null` over `== null`).
+No other direct contradictions were found. Several external rules are silent where the repo has stricter requirements (e.g. `cancellationToken` full-name mandate).
 
 ---
 
@@ -275,25 +276,30 @@ The following changes to `.github/instructions/csharp.instructions.md` (and opti
 
 ### High-value additions (recommend adopting)
 
-1. **`ConfigureAwait(false)` in library code** — `[REQUIRED]` for `Arbor.HttpClient.Core` and `Arbor.HttpClient.Testing`.
-2. **File-scoped namespaces** — `[REQUIRED]` for new files using C# 10+ features.
-3. **Nullable reference types (`#nullable enable`)** — `[RECOMMENDED]` for all projects.
-4. **XML documentation for public APIs** — `[REQUIRED]` in `Arbor.HttpClient.Core`, `[RECOMMENDED]` elsewhere.
-5. **`var` for obvious local variables** — `[RECOMMENDED]`.
+1. ~~**`ConfigureAwait(false)` in library code**~~ — **SKIPPED** (not appropriate given Avalonia UI context in the same solution).
+2. **File-scoped namespaces** — `[REQUIRED]` for new files using C# 10+ features. ✅ Merged.
+3. **Nullable reference types** — must be enabled **globally** via `Directory.Build.props` (`<Nullable>enable</Nullable>`), not via per-file `#nullable enable` directives. ✅ Merged (global-only note added).
+4. **XML documentation for public APIs** — `[REQUIRED]` in `Arbor.HttpClient.Core`, `[RECOMMENDED]` elsewhere. ✅ Merged.
+5. **`var` for obvious local variables** — `[RECOMMENDED]`. ✅ Merged.
+
+**Additional rule adopted from owner feedback:**
+- Prefer `is { }` over `is not null` for non-null checks. ✅ Merged into `csharp.instructions.md`.
 
 ### Lower-value additions (consider adopting)
 
-6. String handling: interpolation, `StringBuilder`, `string.Equals` with `StringComparison` — `[RECOMMENDED]`.
-7. Collection guidelines: `IEnumerable<T>` for parameters, `IReadOnlyList<T>` for immutable exposure — `[RECOMMENDED]`.
-8. LINQ: deferred execution awareness, materialise with `ToList()` when needed — `[RECOMMENDED]`.
-9. SOLID principles summary — `[RECOMMENDED]`.
-10. File organisation: one public type per file, `using` order, no unused `using` — `[RECOMMENDED]`.
-11. Post-edit hygiene: trailing whitespace, blank lines at EOF — `[RECOMMENDED]`.
-12. Full Dispose pattern guidance — `[RECOMMENDED]`.
+6. String handling: interpolation, `StringBuilder`, `string.Equals` with `StringComparison` — `[RECOMMENDED]`. ✅ Merged.
+7. Collection guidelines: `IEnumerable<T>` for parameters, `IReadOnlyList<T>` for immutable exposure — `[RECOMMENDED]`. ✅ Merged.
+8. LINQ: deferred execution awareness, materialise with `ToList()` when needed — `[RECOMMENDED]`. ✅ Merged.
+9. SOLID principles summary — `[RECOMMENDED]`. ✅ Merged.
+10. File organisation: one public type per file, `using` order, no unused `using` — `[RECOMMENDED]`. ✅ Merged.
+11. Post-edit hygiene: trailing whitespace, blank lines at EOF — `[RECOMMENDED]`. ✅ Merged.
+12. Full Dispose pattern guidance — `[RECOMMENDED]`. ✅ Merged.
 
 ### Do NOT adopt
 
 - AAA comment labels (`// Arrange`, `// Act`, `// Assert`) — **directly contradicts** the `[REQUIRED]` repo rule.
+- `ConfigureAwait(false)` blanket guidance — **skipped** by owner decision; not appropriate for a solution that mixes library and Avalonia Desktop projects.
+- Per-file `#nullable enable` directives — **skipped**; nullable reference types must be enabled globally via `Directory.Build.props`.
 
 ---
 
