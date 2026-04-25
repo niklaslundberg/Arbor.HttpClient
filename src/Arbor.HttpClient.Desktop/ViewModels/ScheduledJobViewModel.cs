@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Desktop.Services;
@@ -42,6 +43,42 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isRunning;
 
+    /// <summary>
+    /// When <c>true</c> and <see cref="IsWebViewApplicable"/> is also <c>true</c>,
+    /// each scheduled tick stores the response body and enables the
+    /// <see cref="OpenInBrowserCommand"/> to view the URL in the system browser.
+    /// </summary>
+    [ObservableProperty]
+    private bool _useWebView;
+
+    /// <summary>Body text of the most recent successful response, or an empty string.</summary>
+    [ObservableProperty]
+    private string _lastResponseBody = string.Empty;
+
+    /// <summary>Status code + reason phrase from the most recent successful response (e.g. "200 OK").</summary>
+    [ObservableProperty]
+    private string _lastResponseStatus = string.Empty;
+
+    /// <summary>Local-time display string for when the most recent response was received (e.g. "14:32:07").</summary>
+    [ObservableProperty]
+    private string _lastResponseAtDisplay = string.Empty;
+
+    /// <summary>
+    /// <c>true</c> when the web view feature is applicable for this job's HTTP method.
+    /// Currently limited to <c>GET</c> requests because only those reliably return
+    /// renderable content (HTML, JSON) rather than side-effecting mutations.
+    /// </summary>
+    public bool IsWebViewApplicable => string.Equals(Method, "GET", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// <c>true</c> when web view is both applicable (GET method) and enabled by the user.
+    /// Used to gate the "Open in browser" button and response callback registration.
+    /// </summary>
+    public bool IsWebViewEnabled => UseWebView && IsWebViewApplicable;
+
+    /// <summary><c>true</c> when at least one response has been captured by <see cref="HandleResponse"/>.</summary>
+    public bool HasLastResponse => !string.IsNullOrEmpty(LastResponseStatus);
+
     public IReadOnlyList<string> Methods { get; } = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
     public ScheduledJobViewModel(IScheduledJobRepository repository, ScheduledJobService jobService)
@@ -66,6 +103,7 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
         vm.IntervalSeconds = config.IntervalSeconds;
         vm.AutoStart = config.AutoStart;
         vm.FollowRedirects = config.FollowRedirects ?? defaultFollowRedirects;
+        vm.UseWebView = config.UseWebView;
         vm._suppressAutoSave = false;
         vm.IsRunning = jobService.IsRunning(config.Id);
         return vm;
@@ -77,12 +115,13 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
             null, // headers not yet supported in the scheduled-job editor
             Math.Max(MainWindowViewModel.MinScheduledJobIntervalSeconds, IntervalSeconds),
             AutoStart,
-            FollowRedirects);
+            FollowRedirects,
+            UseWebView: UseWebView);
 
     [RelayCommand]
     private void Start()
     {
-        _jobService.Start(ToConfig());
+        _jobService.Start(ToConfig(), IsWebViewEnabled ? HandleResponse : null);
         IsRunning = true;
     }
 
@@ -120,9 +159,52 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Opens the configured URL in the system's default browser so the user can
+    /// view the rendered response outside the app.
+    /// </summary>
+    [RelayCommand]
+    private void OpenInBrowser()
+    {
+        if (string.IsNullOrWhiteSpace(Url))
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(Url) { UseShellExecute = true });
+        }
+        catch
+        {
+            // No default browser or invalid URL — silently ignore.
+        }
+    }
+
+    /// <summary>
+    /// Called by <see cref="Services.ScheduledJobService"/> on the background timer thread
+    /// after each successful HTTP response when <see cref="UseWebView"/> is enabled.
+    /// Marshals the update to the UI thread via <see cref="Dispatcher.UIThread"/>.
+    /// </summary>
+    internal void HandleResponse(HttpResponseDetails response)
+    {
+        _ = Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            LastResponseBody = response.Body;
+            LastResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}".Trim();
+            LastResponseAtDisplay = DateTimeOffset.Now.ToString("HH:mm:ss");
+            OnPropertyChanged(nameof(HasLastResponse));
+        });
+    }
+
     partial void OnNameChanged(string value) => QueueAutoSave();
 
-    partial void OnMethodChanged(string value) => QueueAutoSave();
+    partial void OnMethodChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsWebViewApplicable));
+        OnPropertyChanged(nameof(IsWebViewEnabled));
+        QueueAutoSave();
+    }
 
     partial void OnUrlChanged(string value) => QueueAutoSave();
 
@@ -133,6 +215,12 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     partial void OnAutoStartChanged(bool value) => QueueAutoSave();
 
     partial void OnFollowRedirectsChanged(bool value) => QueueAutoSave();
+
+    partial void OnUseWebViewChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsWebViewEnabled));
+        QueueAutoSave();
+    }
 
     private void QueueAutoSave()
     {

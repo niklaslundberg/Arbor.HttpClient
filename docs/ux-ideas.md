@@ -132,6 +132,8 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 **Scope:** M (image S, HTML M, PDF L)
 
+**Partial implementation (scheduled jobs web view):** The scheduled-job panel now has a per-job "Open in browser" option (visible for GET requests only) that stores the last response and opens the URL in the system browser. An in-app embedded HTML preview can be wired up once an `Avalonia.WebView` package compatible with Avalonia 12.x is available; the callback infrastructure (`ScheduledJobViewModel.HandleResponse`, `ScheduledJobService.Start(config, onResponse)`) is already in place.
+
 ---
 
 ### 2.5 Cookie jar editor

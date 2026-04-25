@@ -1977,7 +1977,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             if (AutoStartScheduledJobsOnLaunch && config.AutoStart && !_scheduledJobService.IsRunning(config.Id))
             {
-                _scheduledJobService.Start(config);
+                _scheduledJobService.Start(config, vm.IsWebViewEnabled ? vm.HandleResponse : null);
                 vm.IsRunning = true;
             }
         }

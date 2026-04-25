@@ -9,4 +9,5 @@ public sealed record ScheduledJobConfig(
     string? HeadersJson,
     int IntervalSeconds,
     bool AutoStart,
-    bool? FollowRedirects = null);
+    bool? FollowRedirects = null,
+    bool UseWebView = false);
