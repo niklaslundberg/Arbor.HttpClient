@@ -919,7 +919,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ? _variableResolver.Resolve(SelectedCollection?.BaseUrl ?? string.Empty, _requestEditor.GetResolvedVariables())
             : (SelectedCollection?.BaseUrl ?? string.Empty);
 
-        _requestEditor.RequestUrl = baseUrl.TrimEnd('/') + item.Path;
+        // If item.Path is already an absolute URL, use it directly; otherwise prefix with the collection base URL.
+        _requestEditor.RequestUrl = Uri.TryCreate(item.Path, UriKind.Absolute, out _)
+            ? item.Path
+            : baseUrl.TrimEnd('/') + item.Path;
         _requestEditor.RequestName = item.Name;
         _requestEditor.RequestNotes = item.Notes ?? string.Empty;
 
@@ -976,12 +979,25 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         var draft = _requestEditor.BuildDraft();
 
-        // Derive the path: strip the base URL prefix if it matches, otherwise use the full URL as path.
-        var path = string.IsNullOrWhiteSpace(collection.BaseUrl)
-            ? draft.Url
-            : (draft.Url.StartsWith(collection.BaseUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase)
-                ? draft.Url[collection.BaseUrl.TrimEnd('/').Length..]
-                : draft.Url);
+        var baseUrl = collection.BaseUrl?.TrimEnd('/');
+        string path;
+
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            path = draft.Url;
+        }
+        else if (draft.Url.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            path = draft.Url[baseUrl.Length..];
+        }
+        else if (Uri.TryCreate(draft.Url, UriKind.Absolute, out var absoluteUri))
+        {
+            path = absoluteUri.PathAndQuery + absoluteUri.Fragment;
+        }
+        else
+        {
+            path = draft.Url;
+        }
 
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -1047,12 +1063,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             FilteredCollectionItems.Add(item);
         }
 
+        // Preserve expansion state keyed by GroupKey so user-collapsed groups survive filter/sort changes.
+        var previousExpanded = CollectionGroups.ToDictionary(
+            g => g.GroupKey,
+            g => g.IsExpanded,
+            StringComparer.OrdinalIgnoreCase);
+
         CollectionGroups.Clear();
         foreach (var group in filteredList
             .GroupBy(i => i.GroupKey, StringComparer.OrdinalIgnoreCase)
             .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
         {
-            CollectionGroups.Add(new CollectionGroupViewModel(group.Key, group.ToList()));
+            var groupVm = new CollectionGroupViewModel(group.Key, group.ToList());
+            if (previousExpanded.TryGetValue(group.Key, out var wasExpanded))
+            {
+                groupVm.IsExpanded = wasExpanded;
+            }
+
+            CollectionGroups.Add(groupVm);
         }
     }
 

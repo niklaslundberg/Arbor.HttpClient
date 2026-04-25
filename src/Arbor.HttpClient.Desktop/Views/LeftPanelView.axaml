@@ -187,43 +187,45 @@
                 </Grid>
 
                 <!-- Row 5: Flat list view (default) -->
-                <ListBox Grid.Row="5" Margin="0,6,0,0"
-                         ItemsSource="{Binding App.FilteredCollectionItems}"
-                         SelectionMode="Single"
-                         Background="{DynamicResource PanelBackgroundBrush}"
-                         IsVisible="{Binding !App.IsCollectionTreeView}">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="vm:CollectionItemViewModel">
-                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0,3">
-                                <TextBlock Text="{Binding Method}"
-                                           Foreground="{Binding Method, Converter={StaticResource MethodToColorConverter}}"
-                                           FontWeight="SemiBold" MinWidth="50" />
-                                <StackPanel Grid.Column="1">
-                                    <!-- Name — shown in NameAndPath and NameOnly -->
-                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
-                                               IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameAndPath}"
-                                               TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
-                                               IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameOnly}"
-                                               TextWrapping="Wrap" />
-                                    <!-- Path — shown in NameAndPath and PathOnly -->
-                                    <TextBlock Text="{Binding Path}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"
-                                               IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameAndPath}" />
-                                    <TextBlock Text="{Binding Path}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"
-                                               IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=PathOnly}" />
-                                    <!-- Full URL — shown in FullUrl mode -->
-                                    <TextBlock Text="{Binding FullUrl}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"
-                                               IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=FullUrl}" />
-                                </StackPanel>
-                            </Grid>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                    <ListBox.Styles>
-                        <Style Selector="ListBoxItem:selected">
-                            <Setter Property="Background" Value="{DynamicResource CollectionSelectionBrush}" />
-                        </Style>
-                    </ListBox.Styles>
-                </ListBox>
+                <ScrollViewer Grid.Row="5" Margin="0,6,0,0"
+                              IsVisible="{Binding !App.IsCollectionTreeView}">
+                    <ItemsControl ItemsSource="{Binding App.FilteredCollectionItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CollectionItemViewModel">
+                                <Button Background="Transparent"
+                                        BorderBrush="Transparent"
+                                        Padding="4,3"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Left"
+                                        Command="{Binding $parent[UserControl].DataContext.App.LoadCollectionRequestCommand}"
+                                        CommandParameter="{Binding}">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0,3">
+                                        <TextBlock Text="{Binding Method}"
+                                                   Foreground="{Binding Method, Converter={StaticResource MethodToColorConverter}}"
+                                                   FontWeight="SemiBold" MinWidth="50" />
+                                        <StackPanel Grid.Column="1">
+                                            <!-- Name — shown in NameAndPath and NameOnly -->
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                       IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameAndPath}"
+                                                       TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                       IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameOnly}"
+                                                       TextWrapping="Wrap" />
+                                            <!-- Path — shown in NameAndPath and PathOnly -->
+                                            <TextBlock Text="{Binding Path}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"
+                                                       IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameAndPath}" />
+                                            <TextBlock Text="{Binding Path}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"
+                                                       IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=PathOnly}" />
+                                            <!-- Full URL — shown in FullUrl mode -->
+                                            <TextBlock Text="{Binding FullUrl}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"
+                                                       IsVisible="{Binding $parent[UserControl].DataContext.App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=FullUrl}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
 
                 <!-- Row 5: Tree view (grouped by path segment) -->
                 <ScrollViewer Grid.Row="5" Margin="0,6,0,0"

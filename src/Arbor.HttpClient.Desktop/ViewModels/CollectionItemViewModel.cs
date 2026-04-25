@@ -13,11 +13,14 @@ public sealed class CollectionItemViewModel(CollectionRequest request, string? b
 
     /// <summary>
     /// Full URL: base URL (if any) joined with the path.
+    /// Absolute paths are returned as-is.
     /// Falls back to <see cref="Path"/> when no base URL is provided.
     /// </summary>
-    public string FullUrl { get; } = !string.IsNullOrWhiteSpace(baseUrl)
-        ? baseUrl.TrimEnd('/') + request.Path
-        : request.Path;
+    public string FullUrl { get; } = System.Uri.TryCreate(request.Path, System.UriKind.Absolute, out _)
+        ? request.Path
+        : !string.IsNullOrWhiteSpace(baseUrl)
+            ? baseUrl.TrimEnd('/') + request.Path
+            : request.Path;
 
     /// <summary>
     /// Top-level path segment used to group requests in the tree view.
