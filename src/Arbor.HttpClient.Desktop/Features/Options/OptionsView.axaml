@@ -119,11 +119,11 @@
                                                  MaxWidth="120" HorizontalAlignment="Left" />
                                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                                             <Button Content="{x:Static loc:Strings.OptionsDemoServerStart}"
-                                                    AutomationProperties.Name="Start demo server"
+                                                    AutomationProperties.Name="{x:Static loc:Strings.OptionsDemoServerStartLabel}"
                                                     IsEnabled="{Binding !App.IsDemoServerRunning}"
                                                     Command="{Binding App.StartDemoServerCommand}" />
                                             <Button Content="{x:Static loc:Strings.OptionsDemoServerStop}"
-                                                    AutomationProperties.Name="Stop demo server"
+                                                    AutomationProperties.Name="{x:Static loc:Strings.OptionsDemoServerStopLabel}"
                                                     IsEnabled="{Binding App.IsDemoServerRunning}"
                                                     Command="{Binding App.StopDemoServerCommand}" />
                                         </StackPanel>
@@ -204,7 +204,7 @@
                                        FontSize="11" />
 
                             <Button Content="{x:Static loc:Strings.OptionsViewCollectedExceptions}"
-                                    AutomationProperties.Name="Open diagnostics window to review collected exceptions"
+                                    AutomationProperties.Name="{x:Static loc:Strings.OptionsViewCollectedExceptions}"
                                     Command="{Binding App.OpenDiagnosticsCommand}" />
 
                         </StackPanel>

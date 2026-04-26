@@ -37,7 +37,7 @@
                 <TextBox x:Name="UrlBox"
                          MinWidth="360"
                          HorizontalAlignment="Stretch"
-                         AutomationProperties.Name="URL"
+                         AutomationProperties.Name="{x:Static loc:Strings.WebViewUrlLabel}"
                          ToolTip.Tip="{x:Static loc:Strings.WebViewUrlTooltip}" />
                 <Button x:Name="GoButton"
                         Content="{x:Static loc:Strings.WebViewGo}"

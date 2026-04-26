@@ -412,8 +412,14 @@
   <data name="OptionsDemoServerStart" xml:space="preserve">
     <value>Start</value>
   </data>
+  <data name="OptionsDemoServerStartLabel" xml:space="preserve">
+    <value>Start demo server</value>
+  </data>
   <data name="OptionsDemoServerStop" xml:space="preserve">
     <value>Stop</value>
+  </data>
+  <data name="OptionsDemoServerStopLabel" xml:space="preserve">
+    <value>Stop demo server</value>
   </data>
   <data name="OptionsDemoServerRunning" xml:space="preserve">
     <value>● Running</value>
@@ -729,6 +735,9 @@
   </data>
   <data name="WebViewUrlTooltip" xml:space="preserve">
     <value>Enter a URL and press Enter or click Go</value>
+  </data>
+  <data name="WebViewUrlLabel" xml:space="preserve">
+    <value>URL</value>
   </data>
   <data name="WebViewNavigate" xml:space="preserve">
     <value>Navigate to URL</value>

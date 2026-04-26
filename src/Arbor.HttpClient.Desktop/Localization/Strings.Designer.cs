@@ -396,8 +396,14 @@ public static class Strings
     /// <summary>Start</summary>
     public static string OptionsDemoServerStart => Get(nameof(OptionsDemoServerStart));
 
+    /// <summary>Start demo server</summary>
+    public static string OptionsDemoServerStartLabel => Get(nameof(OptionsDemoServerStartLabel));
+
     /// <summary>Stop</summary>
     public static string OptionsDemoServerStop => Get(nameof(OptionsDemoServerStop));
+
+    /// <summary>Stop demo server</summary>
+    public static string OptionsDemoServerStopLabel => Get(nameof(OptionsDemoServerStopLabel));
 
     /// <summary>● Running</summary>
     public static string OptionsDemoServerRunning => Get(nameof(OptionsDemoServerRunning));
@@ -714,6 +720,9 @@ public static class Strings
 
     /// <summary>Enter a URL and press Enter or click Go</summary>
     public static string WebViewUrlTooltip => Get(nameof(WebViewUrlTooltip));
+
+    /// <summary>URL</summary>
+    public static string WebViewUrlLabel => Get(nameof(WebViewUrlLabel));
 
     /// <summary>Navigate to URL</summary>
     public static string WebViewNavigate => Get(nameof(WebViewNavigate));
