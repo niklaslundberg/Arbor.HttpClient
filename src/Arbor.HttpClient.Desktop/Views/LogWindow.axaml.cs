@@ -1,5 +1,5 @@
-using Avalonia.Controls;
 using Arbor.HttpClient.Desktop.ViewModels;
+using Avalonia.Controls;
 
 namespace Arbor.HttpClient.Desktop.Views;
 

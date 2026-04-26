@@ -1,4 +1,3 @@
-using Xunit;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 

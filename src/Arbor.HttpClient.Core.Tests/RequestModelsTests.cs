@@ -1,5 +1,4 @@
 using Arbor.HttpClient.Core.Models;
-using AwesomeAssertions;
 
 namespace Arbor.HttpClient.Core.Tests;
 
@@ -118,7 +117,7 @@ public class RequestModelsTests
     [Fact]
     public void Collection_ShouldAllowNullSourcePath()
     {
-        var collection = new Collection(1, "Test", null, "http://localhost:5000", new List<CollectionRequest>());
+        var collection = new Collection(1, "Test", null, "http://localhost:5000", []);
 
         collection.SourcePath.Should().BeNull();
     }
@@ -126,7 +125,7 @@ public class RequestModelsTests
     [Fact]
     public void Collection_ShouldAllowNullBaseUrl()
     {
-        var collection = new Collection(1, "Test", "/path", null, new List<CollectionRequest>());
+        var collection = new Collection(1, "Test", "/path", null, []);
 
         collection.BaseUrl.Should().BeNull();
     }

@@ -1,6 +1,8 @@
-using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Markup.Xaml;
+using System;
+using System.IO;
+using System.Net.Security;
+using System.Security.Authentication;
+using System.Threading.Tasks;
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Desktop.Logging;
@@ -9,12 +11,10 @@ using Arbor.HttpClient.Desktop.Services;
 using Arbor.HttpClient.Desktop.ViewModels;
 using Arbor.HttpClient.Desktop.Views;
 using Arbor.HttpClient.Storage.Sqlite;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Markup.Xaml;
 using Serilog;
-using System;
-using System.IO;
-using System.Net.Security;
-using System.Security.Authentication;
-using System.Threading.Tasks;
 
 namespace Arbor.HttpClient.Desktop;
 

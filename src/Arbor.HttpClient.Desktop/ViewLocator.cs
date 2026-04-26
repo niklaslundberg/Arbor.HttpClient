@@ -1,8 +1,8 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using Arbor.HttpClient.Desktop.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using Arbor.HttpClient.Desktop.ViewModels;
 
 namespace Arbor.HttpClient.Desktop;
 

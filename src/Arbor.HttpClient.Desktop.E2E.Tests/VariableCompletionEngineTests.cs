@@ -1,5 +1,4 @@
 using Arbor.HttpClient.Desktop.Views;
-using AwesomeAssertions;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 

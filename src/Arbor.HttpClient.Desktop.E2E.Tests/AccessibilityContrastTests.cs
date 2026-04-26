@@ -1,4 +1,3 @@
-using AwesomeAssertions;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 

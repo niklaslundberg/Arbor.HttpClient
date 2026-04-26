@@ -1,9 +1,9 @@
 using System.Collections.Generic;
+using Arbor.HttpClient.Desktop.ViewModels;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
-using Arbor.HttpClient.Desktop.ViewModels;
 
 namespace Arbor.HttpClient.Desktop.Views;
 

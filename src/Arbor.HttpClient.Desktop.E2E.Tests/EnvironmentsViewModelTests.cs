@@ -2,7 +2,6 @@ using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Desktop.ViewModels;
 using Arbor.HttpClient.Testing.Repositories;
-using AwesomeAssertions;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 

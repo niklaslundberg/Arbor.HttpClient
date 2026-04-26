@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http;
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
@@ -11,7 +10,6 @@ using Arbor.HttpClient.Testing.Repositories;
 using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Skia;
-using AwesomeAssertions;
 using Serilog;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;

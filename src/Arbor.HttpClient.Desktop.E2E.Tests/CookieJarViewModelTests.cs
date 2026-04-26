@@ -1,6 +1,5 @@
 using System.Net;
 using Arbor.HttpClient.Desktop.ViewModels;
-using AwesomeAssertions;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 

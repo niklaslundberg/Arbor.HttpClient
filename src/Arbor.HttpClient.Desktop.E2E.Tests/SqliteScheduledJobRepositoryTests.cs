@@ -1,6 +1,5 @@
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Storage.Sqlite;
-using AwesomeAssertions;
 using Microsoft.Data.Sqlite;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
