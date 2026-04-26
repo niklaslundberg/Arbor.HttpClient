@@ -122,6 +122,29 @@ public static class Strings
     /// <summary>Discard</summary>
     public static string DraftDiscard => Get(nameof(DraftDiscard));
 
+    // ═══════════════════════════════ Activity Bar ═══════════════════════════════
+
+    /// <summary>Collections</summary>
+    public static string ActivityBarCollections => Get(nameof(ActivityBarCollections));
+
+    /// <summary>Environments</summary>
+    public static string ActivityBarEnvironments => Get(nameof(ActivityBarEnvironments));
+
+    /// <summary>Options</summary>
+    public static string ActivityBarOptions => Get(nameof(ActivityBarOptions));
+
+    /// <summary>Cookies</summary>
+    public static string ActivityBarCookies => Get(nameof(ActivityBarCookies));
+
+    /// <summary>Logs</summary>
+    public static string ActivityBarLogs => Get(nameof(ActivityBarLogs));
+
+    /// <summary>Import OpenAPI</summary>
+    public static string ActivityBarImportOpenApi => Get(nameof(ActivityBarImportOpenApi));
+
+    /// <summary>About</summary>
+    public static string ActivityBarAbout => Get(nameof(ActivityBarAbout));
+
     // ═══════════════════════════════ Request View ═══════════════════════════════
 
     /// <summary>Type</summary>

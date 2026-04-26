@@ -138,6 +138,36 @@
     <value>Discard</value>
   </data>
 
+  <!-- ═══════════════════════════════ Activity Bar ═══════════════════════════════ -->
+  <data name="ActivityBarCollections" xml:space="preserve">
+    <value>Collections</value>
+    <comment>Tooltip and accessible name for the Collections icon button in the left activity bar.</comment>
+  </data>
+  <data name="ActivityBarEnvironments" xml:space="preserve">
+    <value>Environments</value>
+    <comment>Tooltip and accessible name for the Environments icon button in the left activity bar.</comment>
+  </data>
+  <data name="ActivityBarOptions" xml:space="preserve">
+    <value>Options</value>
+    <comment>Tooltip and accessible name for the Options icon button in the left activity bar.</comment>
+  </data>
+  <data name="ActivityBarCookies" xml:space="preserve">
+    <value>Cookies</value>
+    <comment>Tooltip and accessible name for the Cookie Jar icon button in the left activity bar.</comment>
+  </data>
+  <data name="ActivityBarLogs" xml:space="preserve">
+    <value>Logs</value>
+    <comment>Tooltip and accessible name for the Logs icon button in the left activity bar.</comment>
+  </data>
+  <data name="ActivityBarImportOpenApi" xml:space="preserve">
+    <value>Import OpenAPI</value>
+    <comment>Tooltip and accessible name for the Import OpenAPI icon button in the left activity bar. 'OpenAPI' is a standard name and should not be translated.</comment>
+  </data>
+  <data name="ActivityBarAbout" xml:space="preserve">
+    <value>About</value>
+    <comment>Tooltip and accessible name for the About icon button in the left activity bar.</comment>
+  </data>
+
   <!-- ═══════════════════════════════ Request View ═══════════════════════════════ -->
   <data name="RequestTypeLabel" xml:space="preserve">
     <value>Type</value>
