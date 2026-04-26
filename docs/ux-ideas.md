@@ -488,3 +488,21 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 *Last updated: April 2026. Suggestions sourced from comparative review of Hoppscotch, Insomnia, Postman, Bruno, and browser DevTools.*
+
+---
+
+### Unhandled Exception Reporting ✅ Implemented
+> Implemented in PR (this PR) — `src/Arbor.HttpClient.Desktop/Features/Diagnostics/`, `src/Arbor.HttpClient.Desktop/Features/Options/ApplicationOptions.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/App.axaml.cs`
+
+**What it means:** A global option (disabled by default) that collects unhandled exceptions locally. The user can review them in a dedicated Diagnostics window and optionally report each one as a pre-filled GitHub issue (opened in the browser; nothing is sent automatically).
+
+**What shipped:**
+- `DiagnosticsOptions` — new options class with `CollectUnhandledExceptions: bool = false`
+- `ApplicationOptions.Diagnostics` — new field; validated and persisted alongside other options
+- `UnhandledExceptionCollector` — thread-safe service that captures and persists exceptions to `exceptions.json` in the app data directory (capped at 50 entries)
+- Global exception handlers registered in `App.axaml.cs`: `AppDomain.CurrentDomain.UnhandledException` and `TaskScheduler.UnobservedTaskException`
+- `DiagnosticsWindow` — modal window listing collected exceptions with timestamp, type, message, and expandable stack trace; per-entry "Report on GitHub" (opens pre-filled browser issue) and "Dismiss" buttons; "Clear All" footer action
+- `DiagnosticsViewModel` / `UnhandledExceptionEntryViewModel` — VM pair driving the diagnostics UI
+- Options › Diagnostics page — checkbox to enable collection, explanatory note, and "View Collected Exceptions…" button
+- Help › Diagnostics menu item in `MainWindow.axaml`
+- 8 unit tests added to `UnhandledExceptionCollectorTests.cs`

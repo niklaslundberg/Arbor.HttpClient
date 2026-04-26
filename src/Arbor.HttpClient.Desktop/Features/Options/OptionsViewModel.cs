@@ -31,6 +31,7 @@ public sealed partial class OptionsViewModel : Tool
         "HTTP" => "HTTP",
         "ScheduledJobs" => "Scheduled Jobs",
         "LookAndFeel" => "Look & Feel",
+        "Diagnostics" => "Diagnostics",
         _ => SelectedOptionsPage
     };
 
