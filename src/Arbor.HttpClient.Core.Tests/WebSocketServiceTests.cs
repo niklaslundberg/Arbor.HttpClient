@@ -1,5 +1,4 @@
-using Arbor.HttpClient.Core.Models;
-using Arbor.HttpClient.Core.Services;
+using Arbor.HttpClient.Core.WebSocket;
 
 namespace Arbor.HttpClient.Core.Tests;
 

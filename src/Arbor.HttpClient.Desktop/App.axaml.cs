@@ -3,18 +3,21 @@ using System.IO;
 using System.Net.Security;
 using System.Security.Authentication;
 using System.Threading.Tasks;
-using Arbor.HttpClient.Core.Abstractions;
-using Arbor.HttpClient.Core.Services;
-using Arbor.HttpClient.Desktop.Logging;
-using Arbor.HttpClient.Desktop.Models;
-using Arbor.HttpClient.Desktop.Services;
-using Arbor.HttpClient.Desktop.ViewModels;
-using Arbor.HttpClient.Desktop.Views;
+using Arbor.HttpClient.Desktop.Demo;
+using Arbor.HttpClient.Desktop.Features.Layout;
+using Arbor.HttpClient.Desktop.Features.Logging;
+using Arbor.HttpClient.Desktop.Features.Main;
+using Arbor.HttpClient.Desktop.Features.Options;
+using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Storage.Sqlite;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Serilog;
+using Arbor.HttpClient.Core.Collections;
+using Arbor.HttpClient.Core.Environments;
+using Arbor.HttpClient.Core.HttpRequest;
+using Arbor.HttpClient.Core.ScheduledJobs;
 
 namespace Arbor.HttpClient.Desktop;
 

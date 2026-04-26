@@ -1,4 +1,7 @@
-using Arbor.HttpClient.Core.Models;
+using Arbor.HttpClient.Core.GraphQl;
+using Arbor.HttpClient.Core.HttpRequest;
+using Arbor.HttpClient.Core.Sse;
+using Arbor.HttpClient.Core.WebSocket;
 
 namespace Arbor.HttpClient.Core.Tests;
 

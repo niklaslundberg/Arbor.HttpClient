@@ -1,6 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using Arbor.HttpClient.Desktop.ViewModels;
+using Arbor.HttpClient.Desktop.Shared;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 

@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using Arbor.HttpClient.Core.Models;
-using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Testing.Fakes;
+using Arbor.HttpClient.Core.GraphQl;
+using Arbor.HttpClient.Core.HttpRequest;
 
 namespace Arbor.HttpClient.Core.Tests;
 

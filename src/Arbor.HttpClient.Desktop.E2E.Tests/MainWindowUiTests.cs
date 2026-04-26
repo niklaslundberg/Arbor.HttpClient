@@ -1,14 +1,14 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using Arbor.HttpClient.Core.Models;
-using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Desktop;
-using Arbor.HttpClient.Desktop.Logging;
-using Arbor.HttpClient.Desktop.Models;
-using Arbor.HttpClient.Desktop.Services;
-using Arbor.HttpClient.Desktop.ViewModels;
-using Arbor.HttpClient.Desktop.Views;
+using Arbor.HttpClient.Desktop.Features.Environments;
+using Arbor.HttpClient.Desktop.Features.HttpRequest;
+using Arbor.HttpClient.Desktop.Features.Layout;
+using Arbor.HttpClient.Desktop.Features.Logging;
+using Arbor.HttpClient.Desktop.Features.Main;
+using Arbor.HttpClient.Desktop.Features.Options;
+using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Testing.Fakes;
 using Arbor.HttpClient.Testing.Repositories;
 using Avalonia;
@@ -22,6 +22,10 @@ using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.Mvvm.Controls;
 using Serilog;
+using Arbor.HttpClient.Core.Collections;
+using Arbor.HttpClient.Core.Environments;
+using Arbor.HttpClient.Core.HttpRequest;
+using Arbor.HttpClient.Core.ScheduledJobs;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 

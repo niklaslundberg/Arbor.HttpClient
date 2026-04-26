@@ -1,8 +1,8 @@
 using System.Net;
 using System.Text;
-using Arbor.HttpClient.Core.Models;
-using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Testing.Fakes;
+using Arbor.HttpClient.Core.HttpRequest;
+using Arbor.HttpClient.Core.Sse;
 
 namespace Arbor.HttpClient.Core.Tests;
 

@@ -1,5 +1,4 @@
-using Arbor.HttpClient.Core.Abstractions;
-using Arbor.HttpClient.Core.Models;
+using Arbor.HttpClient.Core.ScheduledJobs;
 
 namespace Arbor.HttpClient.Testing.Repositories;
 

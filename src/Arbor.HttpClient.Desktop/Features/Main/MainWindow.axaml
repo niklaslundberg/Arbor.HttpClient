@@ -1,0 +1,91 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Arbor.HttpClient.Desktop.Features.Main"
+        xmlns:conv="using:Arbor.HttpClient.Desktop.Features.HttpRequest"
+        xmlns:environments="using:Arbor.HttpClient.Core.Environments"
+        xmlns:dock="using:Dock.Avalonia.Controls"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1300" d:DesignHeight="820"
+        x:Class="Arbor.HttpClient.Desktop.Features.Main.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="Arbor.HttpClient"
+        Width="1300"
+        Height="820"
+        FontFamily="{Binding UiFontFamily}"
+        FontSize="{Binding UiFontSize}">
+
+    <Window.Resources>
+        <conv:MethodToColorConverter x:Key="MethodToColorConverter" />
+    </Window.Resources>
+
+    <DockPanel Margin="0">
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Header="E_xit" Command="{Binding ExitApplicationCommand}" />
+            </MenuItem>
+            <MenuItem Header="_Window">
+                <MenuItem Header="_Layout" Command="{Binding OpenLayoutPanelCommand}" />
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="_About" Command="{Binding OpenAboutCommand}" />
+            </MenuItem>
+        </Menu>
+
+        <!-- Top toolbar -->
+        <Border DockPanel.Dock="Top" Padding="16,10" BorderBrush="{DynamicResource TopToolbarBorderBrush}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Text="Arbor Http Client" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" />
+
+                <!-- Environment selector -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,8,0">
+                    <TextBlock Text="Env:" VerticalAlignment="Center" Opacity="0.7" />
+                    <ComboBox MinWidth="160"
+                              ItemsSource="{Binding Environments}"
+                              SelectedItem="{Binding ActiveEnvironment, Mode=TwoWay}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="environments:RequestEnvironment">
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Button Content="Options"
+                            Command="{Binding OpenOptionsCommand}" />
+                    <Button Content="Environments"
+                            Command="{Binding OpenEnvironmentsCommand}" />
+                    <Button Content="Import OpenAPI"
+                            Command="{Binding ImportCollectionCommand}" />
+                    <Button Content="🍪 Cookies"
+                            Command="{Binding OpenCookieJarCommand}" />
+                    <Button Content="📋 Logs"
+                            Command="{Binding OpenLogWindowCommand}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Draft restore banner: shown after a crash or unexpected exit -->
+        <Border DockPanel.Dock="Top"
+                IsVisible="{Binding HasDraftToRestore}"
+                Background="{DynamicResource SecondaryPanelBackgroundBrush}"
+                Padding="16,8"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="{Binding DraftRestoreMessage}"
+                           VerticalAlignment="Center" />
+                <Button Content="Restore"
+                        Command="{Binding RestoreDraftCommand}" />
+                <Button Content="Discard"
+                        Command="{Binding DiscardDraftCommand}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Dockable main content area -->
+        <dock:DockControl Layout="{Binding Layout}"
+                          Factory="{Binding Factory}" />
+    </DockPanel>
+</Window>

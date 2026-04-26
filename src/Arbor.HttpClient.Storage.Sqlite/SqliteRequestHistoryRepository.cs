@@ -1,6 +1,5 @@
-using Arbor.HttpClient.Core.Abstractions;
-using Arbor.HttpClient.Core.Models;
 using Microsoft.Data.Sqlite;
+using Arbor.HttpClient.Core.HttpRequest;
 
 namespace Arbor.HttpClient.Storage.Sqlite;
 

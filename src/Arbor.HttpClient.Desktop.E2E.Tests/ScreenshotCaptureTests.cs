@@ -1,12 +1,10 @@
 using System.Net;
-using Arbor.HttpClient.Core.Models;
-using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Desktop;
-using Arbor.HttpClient.Desktop.Logging;
-using Arbor.HttpClient.Desktop.Models;
-using Arbor.HttpClient.Desktop.Services;
-using Arbor.HttpClient.Desktop.ViewModels;
-using Arbor.HttpClient.Desktop.Views;
+using Arbor.HttpClient.Desktop.Features.About;
+using Arbor.HttpClient.Desktop.Features.Logging;
+using Arbor.HttpClient.Desktop.Features.Main;
+using Arbor.HttpClient.Desktop.Features.Options;
+using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Testing.Fakes;
 using Arbor.HttpClient.Testing.Repositories;
 using Avalonia;
@@ -15,6 +13,9 @@ using Avalonia.Headless;
 using Avalonia.Skia;
 using Avalonia.VisualTree;
 using Serilog;
+using Arbor.HttpClient.Core.Collections;
+using Arbor.HttpClient.Core.HttpRequest;
+using Arbor.HttpClient.Core.ScheduledJobs;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 

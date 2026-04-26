@@ -1,0 +1,101 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:aedit="using:AvaloniaEdit"
+             xmlns:conv="using:Arbor.HttpClient.Desktop.Features.HttpRequest"
+             x:Class="Arbor.HttpClient.Desktop.Features.HttpRequest.ResponseView"
+             x:CompileBindings="False">
+
+    <UserControl.Resources>
+        <conv:StatusCodeToColorConverter x:Key="StatusCodeToColorConverter" />
+    </UserControl.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="10" Margin="8">
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+            <TextBlock Text="{Binding App.ResponseStatus}"
+                       Foreground="{Binding App.ResponseStatusCode, Converter={StaticResource StatusCodeToColorConverter}}"
+                       FontWeight="SemiBold"
+                       AutomationProperties.Name="Response status" />
+            <TextBlock Text="{Binding App.ResponseTimeDisplay}"
+                       IsVisible="{Binding App.HasResponseHeaders}"
+                       Opacity="0.75"
+                       AutomationProperties.Name="Response time" />
+            <TextBlock Text="{Binding App.ResponseSizeDisplay}"
+                       IsVisible="{Binding App.HasResponseHeaders}"
+                       Opacity="0.75"
+                       AutomationProperties.Name="Response size" />
+        </StackPanel>
+
+        <Border Grid.Row="1"
+                IsVisible="{Binding App.HasResponseHeaders}"
+                Background="{DynamicResource PreviewPanelBackgroundBrush}" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4"
+                Padding="8,6">
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
+                <TextBlock Text="Response headers"
+                           FontWeight="SemiBold" Opacity="0.7" />
+                <ScrollViewer Grid.Row="1" MaxHeight="130">
+                    <ItemsControl ItemsSource="{Binding App.ResponseHeaders}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}"
+                                           FontFamily="{Binding App.UiFontFamily}"
+                                           FontSize="{Binding App.UiFontSize}" Opacity="0.9"
+                                           TextWrapping="Wrap" Margin="0,1,0,0" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" RowDefinitions="Auto,Auto,*">
+            <StackPanel Grid.Row="0"
+                        Orientation="Horizontal" Spacing="4"
+                        HorizontalAlignment="Right"
+                        IsVisible="{Binding App.HasTextResponse}"
+                        Margin="0,0,0,4">
+                <Button Content="📋 Copy body"
+                        AutomationProperties.Name="Copy response body to clipboard"
+                        ToolTip.Tip="Copy response body to clipboard"
+                        Command="{Binding App.CopyResponseBodyCommand}" />
+                <Button Content="💾 Save as file"
+                        AutomationProperties.Name="Save response body as file"
+                        ToolTip.Tip="Save response body as file"
+                        Command="{Binding App.SaveResponseBodyAsFileCommand}" />
+                <Button Content="⌨ Copy as cURL"
+                        AutomationProperties.Name="Copy current request as cURL"
+                        ToolTip.Tip="Copy current request as cURL command"
+                        Command="{Binding App.CopyCurrentRequestAsCurlCommand}" />
+            </StackPanel>
+
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" IsVisible="{Binding App.IsBinaryResponse}">
+                <TextBlock Text="Binary response" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Content="Save and Open"
+                        AutomationProperties.Name="Save binary response and open in external application"
+                        ToolTip.Tip="Save binary response and open in your default application"
+                        Command="{Binding App.SaveBinaryResponseAndOpenCommand}" />
+            </Grid>
+
+            <TabControl Grid.Row="2">
+                <TabItem Header="{Binding App.ResponseBodyTabLabel}">
+                    <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
+                        <aedit:TextEditor x:Name="ResponseBodyEditor"
+                                          ShowLineNumbers="True"
+                                          WordWrap="True"
+                                          IsReadOnly="True"
+                                          MinHeight="200" />
+                    </Border>
+                </TabItem>
+                <TabItem Header="Raw">
+                    <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
+                        <aedit:TextEditor x:Name="RawResponseBodyEditor"
+                                          ShowLineNumbers="True"
+                                          WordWrap="True"
+                                          IsReadOnly="True"
+                                          MinHeight="200" />
+                    </Border>
+                </TabItem>
+            </TabControl>
+        </Grid>
+    </Grid>
+</UserControl>

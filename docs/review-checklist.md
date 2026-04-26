@@ -77,6 +77,14 @@ Before merging any PR that touches UI code or theme resources:
 - [ ] New packages are declared in `Directory.Packages.props` (not inline in `.csproj`).
 - [ ] New packages are documented in `THIRD_PARTY_NOTICES.md`.
 
+## Code Structure Consistency
+
+- [ ] New files are placed in the correct feature folder (vertical slice) rather than a type-based folder.
+  - `Arbor.HttpClient.Core`: feature folders at root (e.g. `HttpRequest/`, `Collections/`, `Environments/`) — no `Models/`, `Services/`, or `Abstractions/` directories.
+  - `Arbor.HttpClient.Desktop`: feature folders under `Features/` (e.g. `Features/HttpRequest/`, `Features/Logging/`) — no top-level `ViewModels/`, `Views/`, `Converters/`, `Models/`, or `Services/` directories.
+- [ ] New feature code lives entirely in its own folder — no edits to existing features required.
+- [ ] No dead code introduced; every new type is reachable from the application entry point or from tests (the compiler alone may not detect reflection-based or XAML-only usage — check manually).
+
 ## General
 
 - [ ] All tests pass (`dotnet test Arbor.HttpClient.slnx`).

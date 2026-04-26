@@ -1,6 +1,6 @@
-using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Storage.Sqlite;
 using Microsoft.Data.Sqlite;
+using Arbor.HttpClient.Core.ScheduledJobs;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
