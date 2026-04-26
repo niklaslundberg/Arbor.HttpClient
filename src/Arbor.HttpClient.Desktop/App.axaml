@@ -19,6 +19,7 @@
                     <SolidColorBrush x:Key="CollectionSelectionBrush" Color="#1E3A5F" />
                     <SolidColorBrush x:Key="MethodFallbackBrush" Color="#F5F5F5" />
                     <SolidColorBrush x:Key="ErrorBrush" Color="#FF6347" />
+                    <SolidColorBrush x:Key="WarningBrush" Color="#FFB74D" />
                     <!-- Method label colors: accessible against dark backgrounds (WCAG AA ≥ 4.5:1 on #1E1E1E) -->
                     <SolidColorBrush x:Key="MethodGetBrush" Color="#4FC3F7" />
                     <SolidColorBrush x:Key="MethodPostBrush" Color="#6FCF97" />
@@ -46,6 +47,7 @@
                     <SolidColorBrush x:Key="CollectionSelectionBrush" Color="#DCEBFF" />
                     <SolidColorBrush x:Key="MethodFallbackBrush" Color="#1F2328" />
                     <SolidColorBrush x:Key="ErrorBrush" Color="#B42318" />
+                    <SolidColorBrush x:Key="WarningBrush" Color="#875F09" />
                     <!-- Method label colors: accessible against light backgrounds (WCAG AA ≥ 4.5:1 on #FFFFFF) -->
                     <SolidColorBrush x:Key="MethodGetBrush" Color="#0065BD" />
                     <SolidColorBrush x:Key="MethodPostBrush" Color="#107C10" />

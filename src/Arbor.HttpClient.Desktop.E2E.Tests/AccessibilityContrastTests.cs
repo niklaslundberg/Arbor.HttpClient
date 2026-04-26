@@ -108,6 +108,8 @@ public class AccessibilityContrastTests
     [InlineData("#4FC3F7", DarkPanel, "StatusRedirectBrush / dark panel")]
     [InlineData("#FFB74D", DarkSurface, "StatusClientErrorBrush / dark surface")]
     [InlineData("#FFB74D", DarkPanel, "StatusClientErrorBrush / dark panel")]
+    [InlineData("#FFB74D", DarkSurface, "WarningBrush / dark surface")]
+    [InlineData("#FFB74D", DarkPanel, "WarningBrush / dark panel")]
     [InlineData("#EF5350", DarkSurface, "StatusServerErrorBrush / dark surface")]
     [InlineData("#EF5350", DarkPanel, "StatusServerErrorBrush / dark panel")]
     public void DarkTheme_ColorPair_MeetsWcagAA(string foreground, string background, string label)
@@ -146,6 +148,8 @@ public class AccessibilityContrastTests
     [InlineData("#0065BD", LightPanel, "StatusRedirectBrush / light panel")]
     [InlineData("#875F09", LightSurface, "StatusClientErrorBrush / light surface")]
     [InlineData("#875F09", LightPanel, "StatusClientErrorBrush / light panel")]
+    [InlineData("#875F09", LightSurface, "WarningBrush / light surface")]
+    [InlineData("#875F09", LightPanel, "WarningBrush / light panel")]
     [InlineData("#C50F1F", LightSurface, "StatusServerErrorBrush / light surface")]
     [InlineData("#C50F1F", LightPanel, "StatusServerErrorBrush / light panel")]
     public void LightTheme_ColorPair_MeetsWcagAA(string foreground, string background, string label)
