@@ -220,15 +220,15 @@ public class RequestEditorViewModelTests
     {
         var variables = new List<EnvironmentVariable>
         {
-            new("host", "localhost", IsEnabled: true),
+            new("host", "localhost:5000", IsEnabled: true),
             new("token", "abc123", IsEnabled: true)
         };
         var editor = CreateEditor(variables);
-        editor.RequestUrl = "https://{{host}}/items";
+        editor.RequestUrl = "http://{{host}}/items";
         editor.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
         editor.AuthBearerToken = "{{token}}";
 
-        editor.RequestPreview.Should().Contain("https://localhost/items");
+        editor.RequestPreview.Should().Contain("http://localhost:5000/items");
         editor.RequestPreview.Should().Contain("Authorization: Bearer abc123");
     }
 

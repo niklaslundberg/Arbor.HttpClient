@@ -463,10 +463,10 @@ public class MainWindowUiTests
 
             viewModel.RequestEditor.RequestName = "variable resolution test";
             viewModel.RequestEditor.SelectedMethod = "POST";
-            viewModel.RequestEditor.RequestUrl = "https://{{host}}/api?{{queryKey}}={{queryValue}}";
+            viewModel.RequestEditor.RequestUrl = "http://{{host}}/api?{{queryKey}}={{queryValue}}";
             viewModel.RequestEditor.RequestBody = "{\"token\":\"{{token}}\",\"env\":\"{{environment}}\"}";
 
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost:5000"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryKey", "search"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryValue", "term"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
@@ -481,7 +481,7 @@ public class MainWindowUiTests
                 IsEnabled = true
             });
 
-            viewModel.RequestEditor.RequestPreview.Should().Contain("POST https://localhost/api?search=term HTTP/");
+            viewModel.RequestEditor.RequestPreview.Should().Contain("POST http://localhost:5000/api?search=term HTTP/");
             viewModel.RequestEditor.RequestPreview.Should().Contain("X-Tenant: blue");
             viewModel.RequestEditor.RequestPreview.Should().Contain("\"token\":\"abc123\"");
             viewModel.RequestEditor.RequestPreview.Should().Contain("\"env\":\"dev\"");
@@ -490,7 +490,7 @@ public class MainWindowUiTests
             await viewModel.SendRequestCommand.ExecutionTask!;
 
             capturedUri.Should().NotBeNull();
-            capturedUri!.AbsoluteUri.Should().Be("https://localhost/api?search=term");
+            capturedUri!.AbsoluteUri.Should().Be("http://localhost:5000/api?search=term");
             capturedHeaderValue.Should().Be("blue");
             capturedBody.Should().Be("{\"token\":\"abc123\",\"env\":\"dev\"}");
 
@@ -980,13 +980,13 @@ public class MainWindowUiTests
                 scheduledJobService,
                 logWindowViewModel);
 
-            viewModel.RequestEditor.RequestUrl = "https://{{host}}/api";
+            viewModel.RequestEditor.RequestUrl = "http://{{host}}/api";
             viewModel.RequestEditor.SelectedMethod = "GET";
 
             // Simulate "+ New Environment" → fills in name and a variable
             viewModel.NewEnvironmentCommand.Execute(null);
             viewModel.NewEnvironmentName = "myenv";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost:5000"));
 
             // Save – this is the path where ActiveEnvironment was previously never restored
             await viewModel.SaveEnvironmentCommand.ExecuteAsync(null);
@@ -996,16 +996,16 @@ public class MainWindowUiTests
             viewModel.ActiveEnvironment!.Name.Should().Be("myenv");
 
             // Variables should now be reflected in the preview
-            viewModel.RequestEditor.RequestPreview.Should().Contain("https://localhost/api",
-                "{{host}} should be resolved to 'localhost' in the preview");
+            viewModel.RequestEditor.RequestPreview.Should().Contain("http://localhost:5000/api",
+                "{{host}} should be resolved to 'localhost:5000' in the preview");
 
             // And the actual request should also resolve variables
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
 
             capturedUri.Should().NotBeNull();
-            capturedUri!.AbsoluteUri.Should().Be("https://localhost/api",
-                "{{host}} must be resolved to 'localhost' when the request is sent");
+            capturedUri!.AbsoluteUri.Should().Be("http://localhost:5000/api",
+                "{{host}} must be resolved to 'localhost:5000' when the request is sent");
 
             return true;
         }, CancellationToken.None);
@@ -1041,16 +1041,16 @@ public class MainWindowUiTests
                 scheduledJobService,
                 logWindowViewModel);
 
-            viewModel.RequestEditor.RequestUrl = "https://{{host}}/api";
+            viewModel.RequestEditor.RequestUrl = "http://{{host}}/api";
             viewModel.RequestEditor.SelectedMethod = "GET";
 
             viewModel.NewEnvironmentCommand.Execute(null);
             viewModel.NewEnvironmentName = "myenv";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost", false));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost:5000", false));
 
             await viewModel.SaveEnvironmentCommand.ExecuteAsync(null);
 
-            viewModel.RequestEditor.RequestPreview.Should().NotContain("localhost");
+            viewModel.RequestEditor.RequestPreview.Should().NotContain("localhost:5000");
 
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
