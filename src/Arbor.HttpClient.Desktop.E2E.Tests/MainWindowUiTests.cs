@@ -225,7 +225,7 @@ public class MainWindowUiTests
                 0,
                 "Job 1",
                 "GET",
-                "https://example.com/job",
+                "http://localhost:5000/job",
                 null,
                 null,
                 60,
@@ -296,7 +296,7 @@ public class MainWindowUiTests
                 logWindowViewModel);
 
             viewModel.RequestEditor.RequestName = "UI Test";
-            viewModel.RequestEditor.RequestUrl = "https://example.com/api";
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
             viewModel.RequestEditor.SelectedMethod = "GET";
 
             var window = new MainWindow { DataContext = viewModel };
@@ -349,7 +349,7 @@ public class MainWindowUiTests
                 scheduledJobService,
                 logWindowViewModel);
 
-            viewModel.RequestEditor.RequestUrl = "https://example.com/items?first=1&second=2#keep";
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/items?first=1&second=2#keep";
             viewModel.RequestEditor.RequestQueryParameters.Should().HaveCount(2);
             viewModel.RequestEditor.RequestQueryParameters[0].Key.Should().Be("first");
             viewModel.RequestEditor.RequestQueryParameters[0].Value.Should().Be("1");
@@ -357,14 +357,14 @@ public class MainWindowUiTests
             viewModel.RequestEditor.RequestQueryParameters[1].Value.Should().Be("2");
 
             viewModel.RequestEditor.RequestQueryParameters[0].IsEnabled = false;
-            viewModel.RequestEditor.RequestUrl.Should().Be("https://example.com/items?second=2#keep");
+            viewModel.RequestEditor.RequestUrl.Should().Be("http://localhost:5000/items?second=2#keep");
 
             viewModel.RequestEditor.AddQueryParameterCommand.Execute(null);
             var added = viewModel.RequestEditor.RequestQueryParameters.Last();
             added.Key = "third";
             added.Value = "3";
 
-            viewModel.RequestEditor.RequestUrl.Should().Be("https://example.com/items?second=2&third=3#keep");
+            viewModel.RequestEditor.RequestUrl.Should().Be("http://localhost:5000/items?second=2&third=3#keep");
 
             return true;
         }, CancellationToken.None);
@@ -401,7 +401,7 @@ public class MainWindowUiTests
                 logWindowViewModel);
 
             viewModel.RequestEditor.RequestName = "response test";
-            viewModel.RequestEditor.RequestUrl = "https://example.com/data";
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/data";
             viewModel.RequestEditor.SelectedMethod = "GET";
 
             viewModel.SendRequestCommand.Execute(null);
@@ -463,10 +463,10 @@ public class MainWindowUiTests
 
             viewModel.RequestEditor.RequestName = "variable resolution test";
             viewModel.RequestEditor.SelectedMethod = "POST";
-            viewModel.RequestEditor.RequestUrl = "https://{{host}}/api?{{queryKey}}={{queryValue}}";
+            viewModel.RequestEditor.RequestUrl = "http://{{host}}/api?{{queryKey}}={{queryValue}}";
             viewModel.RequestEditor.RequestBody = "{\"token\":\"{{token}}\",\"env\":\"{{environment}}\"}";
 
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "example.com"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost:5000"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryKey", "search"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryValue", "term"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
@@ -481,7 +481,7 @@ public class MainWindowUiTests
                 IsEnabled = true
             });
 
-            viewModel.RequestEditor.RequestPreview.Should().Contain("POST https://example.com/api?search=term HTTP/");
+            viewModel.RequestEditor.RequestPreview.Should().Contain("POST http://localhost:5000/api?search=term HTTP/");
             viewModel.RequestEditor.RequestPreview.Should().Contain("X-Tenant: blue");
             viewModel.RequestEditor.RequestPreview.Should().Contain("\"token\":\"abc123\"");
             viewModel.RequestEditor.RequestPreview.Should().Contain("\"env\":\"dev\"");
@@ -490,7 +490,7 @@ public class MainWindowUiTests
             await viewModel.SendRequestCommand.ExecutionTask!;
 
             capturedUri.Should().NotBeNull();
-            capturedUri!.AbsoluteUri.Should().Be("https://example.com/api?search=term");
+            capturedUri!.AbsoluteUri.Should().Be("http://localhost:5000/api?search=term");
             capturedHeaderValue.Should().Be("blue");
             capturedBody.Should().Be("{\"token\":\"abc123\",\"env\":\"dev\"}");
 
@@ -538,7 +538,7 @@ public class MainWindowUiTests
 
             viewModel.RequestEditor.RequestName = "auth helper test";
             viewModel.RequestEditor.SelectedMethod = "GET";
-            viewModel.RequestEditor.RequestUrl = "https://example.com/api";
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
             viewModel.RequestEditor.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
             viewModel.RequestEditor.AuthBearerToken = "{{token}}";
 
@@ -586,7 +586,7 @@ public class MainWindowUiTests
                 logWindowViewModel);
 
             mainViewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "abc"));
-            mainViewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "example.com"));
+            mainViewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
 
             var requestView = new RequestView
             {
@@ -754,7 +754,7 @@ public class MainWindowUiTests
 
             viewModel.NewEnvironmentCommand.Execute(null);
             viewModel.NewEnvironmentName = "myenv";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "example.com"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
 
             await Task.Delay(1200);
 
@@ -796,14 +796,14 @@ public class MainWindowUiTests
             viewModel.AddScheduledJobCommand.Execute(null);
             var job = viewModel.ScheduledJobs.Should().ContainSingle().Subject;
             job.Name = "sync job";
-            job.Url = "https://example.com/sync";
+            job.Url = "http://localhost:5000/sync";
 
             await Task.Delay(1200);
 
             var all = await scheduledJobRepository.GetAllAsync();
             all.Should().ContainSingle(config =>
                 string.Equals(config.Name, "sync job", StringComparison.Ordinal) &&
-                string.Equals(config.Url, "https://example.com/sync", StringComparison.Ordinal));
+                string.Equals(config.Url, "http://localhost:5000/sync", StringComparison.Ordinal));
 
             return true;
         }, CancellationToken.None);
@@ -980,13 +980,13 @@ public class MainWindowUiTests
                 scheduledJobService,
                 logWindowViewModel);
 
-            viewModel.RequestEditor.RequestUrl = "https://{{host}}/api";
+            viewModel.RequestEditor.RequestUrl = "http://{{host}}/api";
             viewModel.RequestEditor.SelectedMethod = "GET";
 
             // Simulate "+ New Environment" → fills in name and a variable
             viewModel.NewEnvironmentCommand.Execute(null);
             viewModel.NewEnvironmentName = "myenv";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "example.com"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost:5000"));
 
             // Save – this is the path where ActiveEnvironment was previously never restored
             await viewModel.SaveEnvironmentCommand.ExecuteAsync(null);
@@ -996,16 +996,16 @@ public class MainWindowUiTests
             viewModel.ActiveEnvironment!.Name.Should().Be("myenv");
 
             // Variables should now be reflected in the preview
-            viewModel.RequestEditor.RequestPreview.Should().Contain("https://example.com/api",
-                "{{host}} should be resolved to 'example.com' in the preview");
+            viewModel.RequestEditor.RequestPreview.Should().Contain("http://localhost:5000/api",
+                "{{host}} should be resolved to 'localhost:5000' in the preview");
 
             // And the actual request should also resolve variables
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
 
             capturedUri.Should().NotBeNull();
-            capturedUri!.AbsoluteUri.Should().Be("https://example.com/api",
-                "{{host}} must be resolved to 'example.com' when the request is sent");
+            capturedUri!.AbsoluteUri.Should().Be("http://localhost:5000/api",
+                "{{host}} must be resolved to 'localhost:5000' when the request is sent");
 
             return true;
         }, CancellationToken.None);
@@ -1041,16 +1041,16 @@ public class MainWindowUiTests
                 scheduledJobService,
                 logWindowViewModel);
 
-            viewModel.RequestEditor.RequestUrl = "https://{{host}}/api";
+            viewModel.RequestEditor.RequestUrl = "http://{{host}}/api";
             viewModel.RequestEditor.SelectedMethod = "GET";
 
             viewModel.NewEnvironmentCommand.Execute(null);
             viewModel.NewEnvironmentName = "myenv";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "example.com", false));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost:5000", false));
 
             await viewModel.SaveEnvironmentCommand.ExecuteAsync(null);
 
-            viewModel.RequestEditor.RequestPreview.Should().NotContain("example.com");
+            viewModel.RequestEditor.RequestPreview.Should().NotContain("localhost:5000");
 
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
@@ -1078,7 +1078,7 @@ public class MainWindowUiTests
             var environmentRepository = new InMemoryEnvironmentRepository();
             var environmentId = await environmentRepository.SaveAsync("dev",
             [
-                new EnvironmentVariable("host", "example.com")
+                new EnvironmentVariable("host", "localhost")
             ]);
 
             using var viewModel = new MainWindowViewModel(

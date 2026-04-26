@@ -92,7 +92,7 @@ public class ScreenshotCaptureTests
             var repository = new InMemoryRequestHistoryRepository();
             var scheduledJobRepository = new InMemoryScheduledJobRepository();
             await scheduledJobRepository.SaveAsync(new ScheduledJobConfig(
-                0, "Daily health-check", "GET", "https://example.com/health",
+                0, "Daily health-check", "GET", "http://localhost:5000/health",
                 null, null, 60, AutoStart: true));
 
             var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);

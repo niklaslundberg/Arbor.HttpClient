@@ -59,7 +59,7 @@ public class DraftPersistenceServiceTests
         {
             RequestName = "My Request",
             Method = "POST",
-            Url = "https://api.example.com/data",
+            Url = "http://localhost:5000/data",
             Body = "{\"key\":\"value\"}",
             FollowRedirects = false,
             HttpVersion = "2.0",
@@ -83,7 +83,7 @@ public class DraftPersistenceServiceTests
         loaded.Should().NotBeNull();
         loaded!.RequestName.Should().Be("My Request");
         loaded.Method.Should().Be("POST");
-        loaded.Url.Should().Be("https://api.example.com/data");
+        loaded.Url.Should().Be("http://localhost:5000/data");
         loaded.Body.Should().Be("{\"key\":\"value\"}");
         loaded.FollowRedirects.Should().BeFalse();
         loaded.HttpVersion.Should().Be("2.0");
@@ -132,7 +132,7 @@ public class DraftPersistenceServiceTests
         var editor = CreateEditor();
         editor.RequestName = "Test";
         editor.SelectedMethod = "DELETE";
-        editor.RequestUrl = "https://example.com/items/1";
+        editor.RequestUrl = "http://localhost:5000/items/1";
         editor.RequestBody = string.Empty;
         editor.SelectedHttpVersionOption = "1.1";
         editor.SelectedContentTypeOption = "(none)";
@@ -144,7 +144,7 @@ public class DraftPersistenceServiceTests
 
         draft.RequestName.Should().Be("Test");
         draft.Method.Should().Be("DELETE");
-        draft.Url.Should().Be("https://example.com/items/1");
+        draft.Url.Should().Be("http://localhost:5000/items/1");
         draft.RequestNotes.Should().Be("my note");
         draft.Headers.Should().ContainSingle(h => h.Name == "Accept" && h.Value == "application/json");
         draft.SavedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
@@ -160,7 +160,7 @@ public class DraftPersistenceServiceTests
         {
             RequestName = "Restored",
             Method = "PATCH",
-            Url = "https://api.example.com/update",
+            Url = "http://localhost:5000/update",
             Body = "body-content",
             FollowRedirects = false,
             HttpVersion = "2.0",
@@ -181,7 +181,7 @@ public class DraftPersistenceServiceTests
 
         editor.RequestName.Should().Be("Restored");
         editor.SelectedMethod.Should().Be("PATCH");
-        editor.RequestUrl.Should().Be("https://api.example.com/update");
+        editor.RequestUrl.Should().Be("http://localhost:5000/update");
         editor.RequestBody.Should().Be("body-content");
         editor.FollowRedirectsForRequest.Should().BeFalse();
         editor.SelectedHttpVersionOption.Should().Be("2.0");
@@ -215,7 +215,7 @@ public class DraftPersistenceServiceTests
         var folder = CreateTempDraftsFolder(); // folder does not exist yet
         var service = new DraftPersistenceService(folder);
 
-        await service.SaveDraftAsync(new DraftState { Url = "https://example.com" });
+        await service.SaveDraftAsync(new DraftState { Url = "http://localhost:5000" });
 
         Directory.Exists(folder).Should().BeTrue();
         File.Exists(service.DraftFilePath).Should().BeTrue();
@@ -229,7 +229,7 @@ public class DraftPersistenceServiceTests
         var original = CreateEditor();
         original.RequestName = "Round-trip";
         original.SelectedMethod = "PUT";
-        original.RequestUrl = "https://rt.example.com";
+        original.RequestUrl = "http://localhost:5000";
         original.RequestBody = "{}";
         original.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
         original.AuthBearerToken = "tok123";

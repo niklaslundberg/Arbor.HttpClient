@@ -20,14 +20,14 @@ public class CookieJarViewModelTests
     public void Constructor_WithContainerHavingCookies_ShouldLoadCookies()
     {
         var container = new CookieContainer();
-        container.Add(new Cookie("session", "abc123", "/", "example.com"));
+        container.Add(new Cookie("session", "abc123", "/", "localhost"));
 
         var viewModel = new CookieJarViewModel(container);
 
         viewModel.Cookies.Should().ContainSingle();
         viewModel.Cookies[0].Name.Should().Be("session");
         viewModel.Cookies[0].Value.Should().Be("abc123");
-        viewModel.Cookies[0].Domain.Should().Be("example.com");
+        viewModel.Cookies[0].Domain.Should().Be("localhost");
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class CookieJarViewModelTests
 
         viewModel.NewCookieName = "token";
         viewModel.NewCookieValue = "xyz";
-        viewModel.NewCookieDomain = "api.example.com";
+        viewModel.NewCookieDomain = "localhost";
         viewModel.AddCookieCommand.Execute(null);
 
         viewModel.Cookies.Should().ContainSingle();
@@ -60,7 +60,7 @@ public class CookieJarViewModelTests
 
         viewModel.NewCookieName = string.Empty;
         viewModel.NewCookieValue = "xyz";
-        viewModel.NewCookieDomain = "example.com";
+        viewModel.NewCookieDomain = "localhost";
         viewModel.AddCookieCommand.Execute(null);
 
         viewModel.Cookies.Should().BeEmpty();
@@ -84,7 +84,7 @@ public class CookieJarViewModelTests
     public void RemoveCommand_ShouldExpireCookieAndRemoveFromList()
     {
         var container = new CookieContainer();
-        container.Add(new Cookie("session", "abc123", "/", "example.com"));
+        container.Add(new Cookie("session", "abc123", "/", "localhost"));
         var viewModel = new CookieJarViewModel(container);
 
         var entry = viewModel.Cookies.Single();
@@ -97,7 +97,7 @@ public class CookieJarViewModelTests
     [Fact]
     public void CookieEntryViewModel_ValueChange_ShouldSyncToUnderlyingCookie()
     {
-        var cookie = new Cookie("key", "original", "/", "example.com");
+        var cookie = new Cookie("key", "original", "/", "localhost");
         var entry = new CookieEntryViewModel(cookie);
 
         entry.Value = "updated";
@@ -109,8 +109,8 @@ public class CookieJarViewModelTests
     public void ClearAllCommand_ShouldExpireAllCookiesAndEmptyList()
     {
         var container = new CookieContainer();
-        container.Add(new Cookie("a", "1", "/", "example.com"));
-        container.Add(new Cookie("b", "2", "/", "example.com"));
+        container.Add(new Cookie("a", "1", "/", "localhost"));
+        container.Add(new Cookie("b", "2", "/", "localhost"));
         var viewModel = new CookieJarViewModel(container);
 
         viewModel.ClearAllCommand.Execute(null);
@@ -126,7 +126,7 @@ public class CookieJarViewModelTests
         var viewModel = new CookieJarViewModel(container);
         viewModel.Cookies.Should().BeEmpty();
 
-        container.Add(new Cookie("new-cookie", "value", "/", "example.com"));
+        container.Add(new Cookie("new-cookie", "value", "/", "localhost"));
         viewModel.RefreshCommand.Execute(null);
 
         viewModel.Cookies.Should().ContainSingle(c => c.Name == "new-cookie");

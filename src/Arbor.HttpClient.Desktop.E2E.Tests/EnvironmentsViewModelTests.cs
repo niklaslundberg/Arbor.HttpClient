@@ -21,7 +21,7 @@ public class EnvironmentsViewModelTests
         var viewModel = CreateViewModel(repository);
 
         viewModel.NewEnvironmentName = "old";
-        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "example.com"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
 
         viewModel.NewEnvironmentCommand.Execute(null);
 
@@ -38,7 +38,7 @@ public class EnvironmentsViewModelTests
         var viewModel = CreateViewModel(repository);
         viewModel.NewEnvironmentCommand.Execute(null);
         viewModel.NewEnvironmentName = "dev";
-        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "example.com"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
 
         await viewModel.SaveEnvironmentCommand.ExecuteAsync(null);
 
@@ -53,7 +53,7 @@ public class EnvironmentsViewModelTests
         var repository = new InMemoryEnvironmentRepository();
         var environmentId = await repository.SaveAsync("prod",
         [
-            new EnvironmentVariable("baseUrl", "https://api.example.com", true),
+            new EnvironmentVariable("baseUrl", "http://localhost:5000", true),
             new EnvironmentVariable("token", "secret", false)
         ]);
 
@@ -73,7 +73,7 @@ public class EnvironmentsViewModelTests
     public async Task DeleteEnvironmentCommand_ShouldRemoveEnvironmentAndClearSelection()
     {
         var repository = new InMemoryEnvironmentRepository();
-        var environmentId = await repository.SaveAsync("qa", [new EnvironmentVariable("host", "qa.example.com", true)]);
+        var environmentId = await repository.SaveAsync("qa", [new EnvironmentVariable("host", "localhost", true)]);
         var viewModel = CreateViewModel(repository);
         await viewModel.LoadEnvironmentsAsync();
         viewModel.ActiveEnvironment = viewModel.Environments.Single(environment => environment.Id == environmentId);
@@ -89,7 +89,7 @@ public class EnvironmentsViewModelTests
     {
         var repository = new InMemoryEnvironmentRepository();
         var viewModel = CreateViewModel(repository);
-        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "example.com", true));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost", true));
         viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "abc", false));
 
         var variables = viewModel.GetActiveVariablesForEditor();

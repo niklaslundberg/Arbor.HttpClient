@@ -12,7 +12,7 @@ public class OpenApiImportServiceTests
         {
           "openapi": "3.0.3",
           "info": { "title": "Pet Store", "version": "1.0.0" },
-          "servers": [{ "url": "https://petstore.example.com/v1" }],
+          "servers": [{ "url": "http://localhost:5000/v1" }],
           "paths": {
             "/pets": {
               "get": { "operationId": "listPets", "summary": "List all pets" },
@@ -38,7 +38,7 @@ public class OpenApiImportServiceTests
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(PetstoreV3));
         var collection = _service.Import(stream);
-        collection.BaseUrl.Should().Be("https://petstore.example.com/v1");
+        collection.BaseUrl.Should().Be("http://localhost:5000/v1");
     }
 
     [Fact]

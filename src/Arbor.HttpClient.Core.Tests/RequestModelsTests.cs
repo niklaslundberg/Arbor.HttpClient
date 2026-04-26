@@ -8,7 +8,7 @@ public class RequestModelsTests
     [Fact]
     public void HttpRequestDraft_ShouldDefaultFollowRedirectsToNull()
     {
-        var draft = new HttpRequestDraft("name", "GET", "https://example.com", null);
+        var draft = new HttpRequestDraft("name", "GET", "http://localhost:5000", null);
 
         draft.FollowRedirects.Should().BeNull();
     }
@@ -16,7 +16,7 @@ public class RequestModelsTests
     [Fact]
     public void HttpRequestDraft_ShouldStoreFollowRedirectOverride()
     {
-        var draft = new HttpRequestDraft("name", "GET", "https://example.com", null, FollowRedirects: false);
+        var draft = new HttpRequestDraft("name", "GET", "http://localhost:5000", null, FollowRedirects: false);
 
         draft.FollowRedirects.Should().BeFalse();
     }
@@ -24,7 +24,7 @@ public class RequestModelsTests
     [Fact]
     public void ScheduledJobConfig_ShouldStoreFollowRedirectOverride()
     {
-        var config = new ScheduledJobConfig(1, "job", "GET", "https://example.com", null, null, 30, AutoStart: true, FollowRedirects: true);
+        var config = new ScheduledJobConfig(1, "job", "GET", "http://localhost:5000", null, null, 30, AutoStart: true, FollowRedirects: true);
 
         config.FollowRedirects.Should().BeTrue();
     }
@@ -36,7 +36,7 @@ public class RequestModelsTests
             Id: 42,
             Name: "Test Job",
             Method: "POST",
-            Url: "https://api.example.com/endpoint",
+            Url: "http://localhost:5000/endpoint",
             Body: "{\"key\":\"value\"}",
             HeadersJson: "[{\"Key\":\"Authorization\",\"Value\":\"Bearer token\"}]",
             IntervalSeconds: 60,
@@ -46,7 +46,7 @@ public class RequestModelsTests
         config.Id.Should().Be(42);
         config.Name.Should().Be("Test Job");
         config.Method.Should().Be("POST");
-        config.Url.Should().Be("https://api.example.com/endpoint");
+        config.Url.Should().Be("http://localhost:5000/endpoint");
         config.Body.Should().Be("{\"key\":\"value\"}");
         config.HeadersJson.Should().Be("[{\"Key\":\"Authorization\",\"Value\":\"Bearer token\"}]");
         config.IntervalSeconds.Should().Be(60);
@@ -58,11 +58,11 @@ public class RequestModelsTests
     public void SavedRequest_ShouldStoreAllProperties()
     {
         var createdAt = new DateTimeOffset(2026, 4, 23, 14, 30, 0, TimeSpan.Zero);
-        var request = new SavedRequest("My Request", "DELETE", "https://example.com/resource/1", "{\"confirm\":true}", createdAt);
+        var request = new SavedRequest("My Request", "DELETE", "http://localhost:5000/resource/1", "{\"confirm\":true}", createdAt);
 
         request.Name.Should().Be("My Request");
         request.Method.Should().Be("DELETE");
-        request.Url.Should().Be("https://example.com/resource/1");
+        request.Url.Should().Be("http://localhost:5000/resource/1");
         request.Body.Should().Be("{\"confirm\":true}");
         request.CreatedAtUtc.Should().Be(createdAt);
     }
@@ -71,7 +71,7 @@ public class RequestModelsTests
     public void SavedRequest_CreatedAtLocalDisplay_ShouldFormatCorrectly()
     {
         var createdAt = new DateTimeOffset(2026, 4, 23, 14, 30, 45, TimeSpan.Zero);
-        var request = new SavedRequest("Test", "GET", "https://example.com", null, createdAt);
+        var request = new SavedRequest("Test", "GET", "http://localhost:5000", null, createdAt);
 
         // The display should be in local time with format "yyyy-MM-dd HH:mm:ss"
         request.CreatedAtLocalDisplay.Should().MatchRegex(@"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$");
@@ -82,7 +82,7 @@ public class RequestModelsTests
     {
         var variables = new List<EnvironmentVariable>
         {
-            new("baseUrl", "https://api.example.com", IsEnabled: true),
+            new("baseUrl", "http://localhost:5000", IsEnabled: true),
             new("apiKey", "secret-key-123", IsEnabled: false)
         };
 
@@ -104,12 +104,12 @@ public class RequestModelsTests
             new("Create User", "POST", "/users", "Creates a new user", "Requires admin role")
         };
 
-        var collection = new Collection(42, "My Collection", "/path/to/source", "https://api.example.com", requests);
+        var collection = new Collection(42, "My Collection", "/path/to/source", "http://localhost:5000", requests);
 
         collection.Id.Should().Be(42);
         collection.Name.Should().Be("My Collection");
         collection.SourcePath.Should().Be("/path/to/source");
-        collection.BaseUrl.Should().Be("https://api.example.com");
+        collection.BaseUrl.Should().Be("http://localhost:5000");
         collection.Requests.Should().HaveCount(2);
         collection.Requests[0].Name.Should().Be("Get Users");
         collection.Requests[1].Name.Should().Be("Create User");
@@ -118,7 +118,7 @@ public class RequestModelsTests
     [Fact]
     public void Collection_ShouldAllowNullSourcePath()
     {
-        var collection = new Collection(1, "Test", null, "https://example.com", new List<CollectionRequest>());
+        var collection = new Collection(1, "Test", null, "http://localhost:5000", new List<CollectionRequest>());
 
         collection.SourcePath.Should().BeNull();
     }
@@ -136,7 +136,7 @@ public class RequestModelsTests
     {
         var diagnostics = new HttpRequestDiagnostics(
             "POST",
-            "https://api.example.com/endpoint",
+            "http://localhost:5000/endpoint",
             "1.1",
             "2.0",
             "127.0.0.1",
@@ -148,7 +148,7 @@ public class RequestModelsTests
             165.9);
 
         diagnostics.Method.Should().Be("POST");
-        diagnostics.Url.Should().Be("https://api.example.com/endpoint");
+        diagnostics.Url.Should().Be("http://localhost:5000/endpoint");
         diagnostics.RequestedHttpVersion.Should().Be("1.1");
         diagnostics.ResponseHttpVersion.Should().Be("2.0");
         diagnostics.DnsLookup.Should().Be("127.0.0.1");
@@ -163,7 +163,7 @@ public class RequestModelsTests
     [Fact]
     public void HttpRequestDiagnostics_ShouldHandleZeroTimings()
     {
-        var diagnostics = new HttpRequestDiagnostics("GET", "https://example.com", "1.1", "1.1", "Skipped", "Not applicable", 0, 0, 0, 0, 0);
+        var diagnostics = new HttpRequestDiagnostics("GET", "http://localhost:5000", "1.1", "1.1", "Skipped", "Not applicable", 0, 0, 0, 0, 0);
 
         diagnostics.DnsLookupMilliseconds.Should().Be(0);
         diagnostics.TlsNegotiationMilliseconds.Should().Be(0);

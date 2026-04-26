@@ -79,7 +79,7 @@ They are referenced with double curly braces: **`{{variableName}}`**.
 
    | Name          | Example value                   |
    |---------------|---------------------------------|
-   | `baseUrl`     | `https://postman-echo.com`      |
+   | `baseUrl`     | `http://localhost:5000`         |
    | `token`       | `my-secret-api-token`           |
    | `apiVersion`  | `v2`                            |
 

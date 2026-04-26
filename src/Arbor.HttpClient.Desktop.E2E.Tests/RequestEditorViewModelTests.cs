@@ -36,7 +36,7 @@ public class RequestEditorViewModelTests
     public void QueryParameters_ArePopulated_WhenUrlContainsQueryString()
     {
         var editor = CreateEditor();
-        editor.RequestUrl = "https://api.example.com/search?q=hello&page=2";
+        editor.RequestUrl = "http://localhost:5000/search?q=hello&page=2";
 
         editor.RequestQueryParameters.Should().HaveCount(2);
         editor.RequestQueryParameters[0].Key.Should().Be("q");
@@ -49,8 +49,8 @@ public class RequestEditorViewModelTests
     public void QueryParameters_AreCleared_WhenUrlHasNoQuery()
     {
         var editor = CreateEditor();
-        editor.RequestUrl = "https://api.example.com/search?q=hello";
-        editor.RequestUrl = "https://api.example.com/search";
+        editor.RequestUrl = "http://localhost:5000/search?q=hello";
+        editor.RequestUrl = "http://localhost:5000/search";
 
         editor.RequestQueryParameters.Should().BeEmpty();
     }
@@ -59,7 +59,7 @@ public class RequestEditorViewModelTests
     public void Url_IsUpdated_WhenQueryParameterValueChanges()
     {
         var editor = CreateEditor();
-        editor.RequestUrl = "https://api.example.com/items?foo=bar";
+        editor.RequestUrl = "http://localhost:5000/items?foo=bar";
 
         editor.RequestQueryParameters[0].Value = "baz";
 
@@ -71,7 +71,7 @@ public class RequestEditorViewModelTests
     public void Url_IsUpdated_WhenDisabledQueryParameterIsExcluded()
     {
         var editor = CreateEditor();
-        editor.RequestUrl = "https://api.example.com/items?a=1&b=2";
+        editor.RequestUrl = "http://localhost:5000/items?a=1&b=2";
 
         editor.RequestQueryParameters[0].IsEnabled = false;
 
@@ -83,7 +83,7 @@ public class RequestEditorViewModelTests
     public void AddQueryParameter_AddsEmptyEntryToCollection()
     {
         var editor = CreateEditor();
-        editor.RequestUrl = "https://api.example.com/items";
+        editor.RequestUrl = "http://localhost:5000/items";
         editor.AddQueryParameterCommand.Execute(null);
 
         editor.RequestQueryParameters.Should().HaveCount(1);
@@ -93,7 +93,7 @@ public class RequestEditorViewModelTests
     public void RemoveQueryParameter_RemovesEntry()
     {
         var editor = CreateEditor();
-        editor.RequestUrl = "https://api.example.com/items?x=1";
+        editor.RequestUrl = "http://localhost:5000/items?x=1";
         var param = editor.RequestQueryParameters[0];
         editor.RemoveQueryParameterCommand.Execute(param);
 
@@ -220,15 +220,15 @@ public class RequestEditorViewModelTests
     {
         var variables = new List<EnvironmentVariable>
         {
-            new("host", "api.example.com", IsEnabled: true),
+            new("host", "localhost:5000", IsEnabled: true),
             new("token", "abc123", IsEnabled: true)
         };
         var editor = CreateEditor(variables);
-        editor.RequestUrl = "https://{{host}}/items";
+        editor.RequestUrl = "http://{{host}}/items";
         editor.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
         editor.AuthBearerToken = "{{token}}";
 
-        editor.RequestPreview.Should().Contain("https://api.example.com/items");
+        editor.RequestPreview.Should().Contain("http://localhost:5000/items");
         editor.RequestPreview.Should().Contain("Authorization: Bearer abc123");
     }
 
@@ -249,13 +249,13 @@ public class RequestEditorViewModelTests
     {
         var editor = CreateEditor();
         editor.SelectedMethod = "POST";
-        editor.RequestUrl = "https://api.example.com/users";
+        editor.RequestUrl = "http://localhost:5000/users";
         editor.RequestName = "Create user";
 
         var draft = editor.BuildDraft();
 
         draft.Method.Should().Be("POST");
-        draft.Url.Should().Be("https://api.example.com/users");
+        draft.Url.Should().Be("http://localhost:5000/users");
         draft.Name.Should().Be("Create user");
     }
 
@@ -264,7 +264,7 @@ public class RequestEditorViewModelTests
     {
         var variables = new List<EnvironmentVariable>
         {
-            new("base", "https://api.example.com", IsEnabled: true)
+            new("base", "http://localhost:5000", IsEnabled: true)
         };
         var editor = CreateEditor(variables);
         editor.RequestUrl = "{{base}}/items";
@@ -272,8 +272,8 @@ public class RequestEditorViewModelTests
 
         var draft = editor.BuildDraft();
 
-        draft.Url.Should().Be("https://api.example.com/items");
-        draft.Body.Should().Be("{\"url\":\"https://api.example.com\"}");
+        draft.Url.Should().Be("http://localhost:5000/items");
+        draft.Body.Should().Be("{\"url\":\"http://localhost:5000\"}");
     }
 
     [Fact]

@@ -23,7 +23,7 @@ public sealed class HttpOptions
 
     public bool FollowRedirects { get; init; } = true;
 
-    public string DefaultRequestUrl { get; init; } = "https://postman-echo.com/get?hello=world";
+    public string DefaultRequestUrl { get; init; } = "http://localhost:5000/echo";
 }
 
 public sealed class AppearanceOptions

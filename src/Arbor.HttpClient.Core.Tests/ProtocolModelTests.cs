@@ -68,9 +68,9 @@ public class ProtocolModelTests
     public void GraphQlDraft_ShouldExposeProperties()
     {
         var headers = new[] { new RequestHeader("X-Key", "val") };
-        var draft = new GraphQlDraft("https://api.example.com", "{ __typename }", """{"id":"1"}""", "MyOp", headers);
+        var draft = new GraphQlDraft("http://localhost:5000", "{ __typename }", """{"id":"1"}""", "MyOp", headers);
 
-        draft.Url.Should().Be("https://api.example.com");
+        draft.Url.Should().Be("http://localhost:5000");
         draft.Query.Should().Be("{ __typename }");
         draft.VariablesJson.Should().Be("""{"id":"1"}""");
         draft.OperationName.Should().Be("MyOp");
@@ -80,7 +80,7 @@ public class ProtocolModelTests
     [Fact]
     public void GraphQlDraft_DefaultHeaders_ShouldBeNull()
     {
-        var draft = new GraphQlDraft("https://api.example.com", "{ __typename }", null, null);
+        var draft = new GraphQlDraft("http://localhost:5000", "{ __typename }", null, null);
         draft.Headers.Should().BeNull();
     }
 }
