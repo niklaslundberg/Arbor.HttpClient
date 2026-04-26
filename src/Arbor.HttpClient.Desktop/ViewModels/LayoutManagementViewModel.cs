@@ -3,7 +3,7 @@ using Dock.Model.Mvvm.Controls;
 
 namespace Arbor.HttpClient.Desktop.ViewModels;
 
-public sealed partial class LayoutManagementViewModel : Tool
+public sealed class LayoutManagementViewModel : Tool
 {
     public LayoutManagementViewModel(MainWindowViewModel app)
     {
@@ -14,15 +14,11 @@ public sealed partial class LayoutManagementViewModel : Tool
 
     public MainWindowViewModel App { get; }
 
-    [RelayCommand]
-    private void SaveLayoutAsNew() => App.SaveLayoutAsNewCommand.Execute(null);
+    public IRelayCommand SaveLayoutAsNewCommand => App.SaveLayoutAsNewCommand;
 
-    [RelayCommand]
-    private void SaveLayoutToExisting() => App.SaveLayoutToExistingCommand.Execute(App.SelectedLayoutName);
+    public IRelayCommand<string?> SaveLayoutToExistingCommand => App.SaveLayoutToExistingCommand;
 
-    [RelayCommand]
-    private void RemoveLayout() => App.RemoveLayoutCommand.Execute(App.SelectedLayoutName);
+    public IRelayCommand<string?> RemoveLayoutCommand => App.RemoveLayoutCommand;
 
-    [RelayCommand]
-    private void RestoreDefaultLayout() => App.RestoreDefaultLayoutCommand.Execute(null);
+    public IRelayCommand RestoreDefaultLayoutCommand => App.RestoreDefaultLayoutCommand;
 }

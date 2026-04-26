@@ -26,7 +26,7 @@
                 <MenuItem Header="E_xit" Command="{Binding ExitApplicationCommand}" />
             </MenuItem>
             <MenuItem Header="_Window">
-                <MenuItem Header="_Layout" Command="{Binding ToggleLayoutPanelCommand}" />
+                <MenuItem Header="_Layout" Command="{Binding OpenLayoutPanelCommand}" />
             </MenuItem>
             <MenuItem Header="_Help">
                 <MenuItem Header="_About" Command="{Binding OpenAboutCommand}" />

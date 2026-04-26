@@ -29,10 +29,12 @@
                         Command="{Binding SaveLayoutAsNewCommand}" />
                 <Button Content="Save to Selected"
                         HorizontalAlignment="Stretch"
-                        Command="{Binding SaveLayoutToExistingCommand}" />
+                        Command="{Binding SaveLayoutToExistingCommand}"
+                        CommandParameter="{Binding App.SelectedLayoutName}" />
                 <Button Content="Remove Selected"
                         HorizontalAlignment="Stretch"
-                        Command="{Binding RemoveLayoutCommand}" />
+                        Command="{Binding RemoveLayoutCommand}"
+                        CommandParameter="{Binding App.SelectedLayoutName}" />
                 <Button Content="Restore Default"
                         HorizontalAlignment="Stretch"
                         Command="{Binding RestoreDefaultLayoutCommand}" />

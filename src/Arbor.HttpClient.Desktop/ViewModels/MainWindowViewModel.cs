@@ -831,7 +831,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private void ToggleLayoutPanel()
+    private void OpenLayoutPanel()
     {
         if (_dockFactory?.LeftToolDock is { } dock &&
             _dockFactory.LayoutManagementViewModel is { } layoutVm)

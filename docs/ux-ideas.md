@@ -459,7 +459,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### Layout Management Dockable Panel ✅ Implemented
-> Implemented in PR #86 — `src/Arbor.HttpClient.Desktop/ViewModels/LayoutManagementViewModel.cs`, `src/Arbor.HttpClient.Desktop/Views/LayoutManagementView.axaml`, `src/Arbor.HttpClient.Desktop/ViewModels/DockFactory.cs`, `src/Arbor.HttpClient.Desktop/Views/MainWindow.axaml`
+> Implemented in PR #86 (commit `e412b95`) — `src/Arbor.HttpClient.Desktop/ViewModels/LayoutManagementViewModel.cs`, `src/Arbor.HttpClient.Desktop/Views/LayoutManagementView.axaml`, `src/Arbor.HttpClient.Desktop/ViewModels/DockFactory.cs`, `src/Arbor.HttpClient.Desktop/Views/MainWindow.axaml`
 
 **What it means:** The window layout management controls (save/restore/remove named layouts) are now a proper dockable tool panel in the left dock, instead of a fixed horizontal bar toggled at the top of the window. The panel can be moved, floated, and repositioned like all other tool panels.
 

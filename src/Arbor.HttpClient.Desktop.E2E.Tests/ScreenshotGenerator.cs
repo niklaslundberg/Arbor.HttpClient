@@ -501,7 +501,7 @@ public class ScreenshotGenerator
                 url: "http://localhost:5000/echo");
 
             // Open the layout management dockable so it appears in the screenshot
-            viewModel.ToggleLayoutPanelCommand.Execute(null);
+            viewModel.OpenLayoutPanelCommand.Execute(null);
 
             window.Show();
 
