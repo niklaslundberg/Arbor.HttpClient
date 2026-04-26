@@ -76,6 +76,11 @@
                                 <ComboBox ItemsSource="{Binding App.TlsVersionOptions}"
                                           SelectedItem="{Binding App.SelectedTlsVersionOption, Mode=TwoWay}"
                                           MinWidth="200" HorizontalAlignment="Left" />
+                                <TextBlock Text="⚠ TLS 1.0 and 1.1 are cryptographically broken. Use only for testing against legacy servers."
+                                           IsVisible="{Binding App.IsInsecureTlsVersionSelected}"
+                                           Foreground="{DynamicResource WarningBrush}"
+                                           TextWrapping="Wrap"
+                                           FontSize="11" />
                             </StackPanel>
 
                             <CheckBox IsChecked="{Binding App.FollowHttpRedirects, Mode=TwoWay}"

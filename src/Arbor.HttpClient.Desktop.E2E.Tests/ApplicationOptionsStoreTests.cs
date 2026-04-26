@@ -128,6 +128,60 @@ public class ApplicationOptionsStoreTests
         imported.Layouts.SavedLayouts[0].Name.Should().Be("Layout 1");
     }
 
+    [Theory]
+    [InlineData("Tls10")]
+    [InlineData("Tls11")]
+    public void Validate_ShouldAcceptInsecureTlsVersions(string tlsVersion)
+    {
+        var options = new ApplicationOptions
+        {
+            Http = new HttpOptions
+            {
+                HttpVersion = "1.1",
+                TlsVersion = tlsVersion,
+                DefaultContentType = "application/json",
+                FollowRedirects = true,
+                DefaultRequestUrl = "https://example.com"
+            },
+            Appearance = new AppearanceOptions
+            {
+                Theme = "System",
+                FontFamily = "Consolas",
+                FontSize = 13
+            }
+        };
+
+        var action = () => ApplicationOptionsStore.Validate(options);
+
+        action.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Validate_ShouldRejectUnknownTlsVersion()
+    {
+        var options = new ApplicationOptions
+        {
+            Http = new HttpOptions
+            {
+                HttpVersion = "1.1",
+                TlsVersion = "Tls99",
+                DefaultContentType = "application/json",
+                FollowRedirects = true,
+                DefaultRequestUrl = "https://example.com"
+            },
+            Appearance = new AppearanceOptions
+            {
+                Theme = "System",
+                FontFamily = "Consolas",
+                FontSize = 13
+            }
+        };
+
+        var action = () => ApplicationOptionsStore.Validate(options);
+
+        action.Should().Throw<InvalidDataException>().WithMessage("*TLS version*");
+    }
+
     [Fact]
     public void Validate_ShouldRejectZeroDefaultInterval()
     {

@@ -184,11 +184,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public IReadOnlyList<string> TlsVersionOptions { get; } =
     [
         "SystemDefault",
+        "Tls10",
+        "Tls11",
         "Tls12",
         "Tls13"
     ];
 
+    private static readonly HashSet<string> InsecureTlsVersions = ["Tls10", "Tls11"];
+
+    public bool IsInsecureTlsVersionSelected => InsecureTlsVersions.Contains(SelectedTlsVersionOption);
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsInsecureTlsVersionSelected))]
     private string _selectedTlsVersionOption = "SystemDefault";
 
     [ObservableProperty]
@@ -246,8 +253,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _draftRestoreMessage = string.Empty;
 
-    partial void OnSelectedTlsVersionOptionChanged(string value) =>
+    partial void OnSelectedTlsVersionOptionChanged(string value)
+    {
         LogAndQueueOptionsAutoSave("Selected TLS version changed to {TlsVersion}", value);
+        if (InsecureTlsVersions.Contains(value))
+        {
+            _debugLogger.Warning("TLS version {TlsVersion} is cryptographically broken and should only be used for testing against legacy servers", value);
+        }
+    }
 
     partial void OnFollowHttpRedirectsChanged(bool value) =>
         LogAndQueueOptionsAutoSave("Follow redirects changed to {FollowRedirects}", value);
