@@ -67,29 +67,6 @@
             </Grid>
         </Border>
 
-        <Border DockPanel.Dock="Top"
-                IsVisible="{Binding IsLayoutPanelVisible}"
-                Background="{DynamicResource SecondaryPanelBackgroundBrush}"
-                Padding="16,10"
-                BorderBrush="{DynamicResource PanelBorderBrush}"
-                BorderThickness="0,0,0,1">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-                <TextBlock Text="Window layout:" VerticalAlignment="Center" />
-                <ComboBox MinWidth="180"
-                          ItemsSource="{Binding SavedLayoutNames}"
-                          SelectedItem="{Binding SelectedLayoutName, Mode=TwoWay}" />
-                <Button Content="Save As New" Command="{Binding SaveLayoutAsNewCommand}" />
-                <Button Content="Save Selected"
-                        Command="{Binding SaveLayoutToExistingCommand}"
-                        CommandParameter="{Binding SelectedLayoutName}" />
-                <Button Content="Remove Selected"
-                        Command="{Binding RemoveLayoutCommand}"
-                        CommandParameter="{Binding SelectedLayoutName}" />
-                <Button Content="Restore Default"
-                        Command="{Binding RestoreDefaultLayoutCommand}" />
-            </StackPanel>
-        </Border>
-
         <!-- Draft restore banner: shown after a crash or unexpected exit -->
         <Border DockPanel.Dock="Top"
                 IsVisible="{Binding HasDraftToRestore}"

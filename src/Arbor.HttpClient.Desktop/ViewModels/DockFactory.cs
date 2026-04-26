@@ -33,6 +33,7 @@ public sealed class DockFactory : Factory
     public EnvironmentsViewModel? EnvironmentsViewModel { get; private set; }
     public LogPanelViewModel? LogPanelViewModel { get; private set; }
     public CookieJarViewModel? CookieJarViewModel { get; private set; }
+    public LayoutManagementViewModel? LayoutManagementViewModel { get; private set; }
 
     public override IRootDock CreateLayout()
     {
@@ -41,17 +42,19 @@ public sealed class DockFactory : Factory
         var environments = _environmentsViewModel;
         var logs = new LogPanelViewModel(_mainVm);
         var cookieJar = _cookieJarViewModel;
+        var layoutManagement = new LayoutManagementViewModel(_mainVm);
         OptionsViewModel = options;
         EnvironmentsViewModel = environments;
         LogPanelViewModel = logs;
         CookieJarViewModel = cookieJar;
+        LayoutManagementViewModel = layoutManagement;
 
         var leftToolDock = new ToolDock
         {
             Id = "left-tool-dock",
             Proportion = 0.25,
             ActiveDockable = leftPanel,
-            VisibleDockables = CreateList<IDockable>(leftPanel, options, environments, logs, cookieJar),
+            VisibleDockables = CreateList<IDockable>(leftPanel, options, environments, logs, cookieJar, layoutManagement),
             Alignment = Alignment.Left,
             GripMode = GripMode.Visible
         };

@@ -161,9 +161,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _isNewCollectionFormVisible;
 
     [ObservableProperty]
-    private bool _isLayoutPanelVisible;
-
-    [ObservableProperty]
     private string? _selectedLayoutName;
 
     public const string SystemThemeOption = "System";
@@ -834,7 +831,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private void ToggleLayoutPanel() => IsLayoutPanelVisible = !IsLayoutPanelVisible;
+    private void ToggleLayoutPanel()
+    {
+        if (_dockFactory?.LeftToolDock is { } dock &&
+            _dockFactory.LayoutManagementViewModel is { } layoutVm)
+        {
+            dock.ActiveDockable = layoutVm;
+        }
+    }
 
     partial void OnSelectedLayoutNameChanged(string? value)
     {
