@@ -71,6 +71,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly DraftPersistenceService? _draftPersistenceService;
     private CancellationTokenSource? _draftAutoSaveCts;
     private DraftState? _pendingDraft;
+    private readonly DemoServer? _demoServer;
 
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
@@ -253,6 +254,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _draftRestoreMessage = string.Empty;
 
+    /// <summary>Gets or sets the port the demo server listens on.</summary>
+    [ObservableProperty]
+    private int _demoServerPort = DemoServer.DefaultPort;
+
+    /// <summary>True while the embedded demo server is running.</summary>
+    [ObservableProperty]
+    private bool _isDemoServerRunning;
+
+    /// <summary>
+    /// True when a collection request targeting the demo server was loaded but the
+    /// server is not yet running.  Shows an inline banner offering to start it.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isDemoServerBannerVisible;
+
     partial void OnSelectedTlsVersionOptionChanged(string value)
     {
         LogAndQueueOptionsAutoSave("Selected TLS version changed to {TlsVersion}", value);
@@ -336,6 +352,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     partial void OnDefaultScheduledJobIntervalSecondsChanged(int value) =>
         QueueOptionsAutoSave();
 
+    partial void OnDemoServerPortChanged(int value) =>
+        QueueOptionsAutoSave();
+
     private void OnUiFontSizeTextChangedCore()
     {
         OnPropertyChanged(nameof(UiFontSize));
@@ -361,7 +380,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ApplicationOptions? initialOptions = null,
         Action<ApplicationOptions>? onApplicationOptionsChanged = null,
         CookieContainer? cookieContainer = null,
-        DraftPersistenceService? draftPersistenceService = null)
+        DraftPersistenceService? draftPersistenceService = null,
+        DemoServer? demoServer = null)
     {
         _httpRequestService = httpRequestService;
         _requestHistoryRepository = requestHistoryRepository;
@@ -374,6 +394,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _applicationOptionsStore = applicationOptionsStore;
         _onApplicationOptionsChanged = onApplicationOptionsChanged;
         _draftPersistenceService = draftPersistenceService;
+        _demoServer = demoServer;
         var appLogger = (logger ?? Log.Logger).ForContext<MainWindowViewModel>();
         _debugLogger = appLogger.ForContext("LogTab", Logging.LogTab.Debug);
         _httpRequestsLogger = appLogger.ForContext("LogTab", Logging.LogTab.HttpRequests);
@@ -538,7 +559,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 EnableHttpDiagnostics = EnableHttpDiagnostics,
                 DefaultContentType = DefaultContentType,
                 FollowRedirects = FollowHttpRedirects,
-                DefaultRequestUrl = DefaultRequestUrl
+                DefaultRequestUrl = DefaultRequestUrl,
+                DemoServerPort = DemoServerPort
             },
             Appearance = new AppearanceOptions
             {
@@ -581,6 +603,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             UiFontSizeText = options.Appearance.FontSize.ToString("0.##", CultureInfo.InvariantCulture);
             AutoStartScheduledJobsOnLaunch = options.ScheduledJobs.AutoStartOnLaunch;
             DefaultScheduledJobIntervalSeconds = options.ScheduledJobs.DefaultIntervalSeconds;
+            DemoServerPort = options.Http.DemoServerPort;
 
             if (_requestEditor.FollowRedirectsForRequest == previousDefaultFollowRedirects)
             {
@@ -925,23 +948,53 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private void LoadCollectionRequest(CollectionItemViewModel? item)
+    private void LoadCollectionRequest(CollectionItemViewModel? item) => LoadCollectionRequestCore(item);
+
+    internal void LoadCollectionRequestCore(CollectionItemViewModel? item)
     {
         if (item is null)
         {
             return;
         }
 
-        _requestEditor.SelectedMethod = item.Method;
+        // Detect special protocol methods used in demo collections.
+        _requestEditor.SelectedRequestType = item.Method switch
+        {
+            "WS" or "WSS" => RequestType.WebSocket,
+            "SSE" => RequestType.Sse,
+            _ => RequestType.Http
+        };
 
-        var baseUrl = ActiveEnvironment is { }
-            ? _variableResolver.Resolve(SelectedCollection?.BaseUrl ?? string.Empty, _requestEditor.GetResolvedVariables())
-            : (SelectedCollection?.BaseUrl ?? string.Empty);
+        if (_requestEditor.SelectedRequestType == RequestType.Http)
+        {
+            _requestEditor.SelectedMethod = item.Method;
+        }
 
-        // If item.Path is already an absolute URL, use it directly; otherwise prefix with the collection base URL.
-        _requestEditor.RequestUrl = Uri.TryCreate(item.Path, UriKind.Absolute, out _)
+        var collectionBaseUrl = SelectedCollection?.BaseUrl;
+        var activeEnv = ActiveEnvironment;
+
+        var baseUrl = activeEnv is { }
+            ? _variableResolver.Resolve(collectionBaseUrl ?? string.Empty, _requestEditor.GetResolvedVariables())
+            : (collectionBaseUrl ?? string.Empty);
+
+        // If item.Path is already an absolute web URL (http/https/ws/wss), use it directly; otherwise prefix
+        // with the collection base URL.  We check the scheme explicitly rather than relying on UriKind.Absolute
+        // because Uri.TryCreate("/ws", UriKind.Absolute, …) returns true on Linux (the path is resolved as a
+        // file:// URI), which would silently strip the base URL.
+        var resolvedUrl = Uri.TryCreate(item.Path, UriKind.Absolute, out var parsedUri) && parsedUri is { }
+                          && parsedUri.Scheme is "http" or "https" or "ws" or "wss"
             ? item.Path
             : baseUrl.TrimEnd('/') + item.Path;
+
+        // For WebSocket requests, rewrite http:// → ws:// and https:// → wss://.
+        if (_requestEditor.SelectedRequestType == RequestType.WebSocket)
+        {
+            resolvedUrl = resolvedUrl
+                .Replace("https://", "wss://", StringComparison.OrdinalIgnoreCase)
+                .Replace("http://", "ws://", StringComparison.OrdinalIgnoreCase);
+        }
+
+        _requestEditor.RequestUrl = resolvedUrl;
         _requestEditor.RequestName = item.Name;
         _requestEditor.RequestNotes = item.Notes ?? string.Empty;
 
@@ -953,7 +1006,53 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             _requestEditor.RequestBody = string.Empty;
         }
+
+        // Show a banner if this request targets the local demo server and it is not running.
+        IsDemoServerBannerVisible = _demoServer is { } server
+            && !server.IsRunning
+            && IsDemoServerUrl(resolvedUrl, server.Port);
     }
+
+    /// <summary>Starts the embedded demo server on <see cref="DemoServerPort"/>.</summary>
+    [RelayCommand]
+    private async Task StartDemoServerAsync()
+    {
+        if (_demoServer is null || _demoServer.IsRunning)
+        {
+            return;
+        }
+
+        try
+        {
+            await _demoServer.StartAsync(DemoServerPort);
+            IsDemoServerRunning = true;
+            IsDemoServerBannerVisible = false;
+            _debugLogger.Information("Demo server started on port {Port}", DemoServerPort);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Failed to start demo server: {ex.Message}";
+            _debugLogger.Error(ex, "Failed to start demo server on port {Port}", DemoServerPort);
+        }
+    }
+
+    /// <summary>Stops the embedded demo server.</summary>
+    [RelayCommand]
+    private async Task StopDemoServerAsync()
+    {
+        if (_demoServer is null || !_demoServer.IsRunning)
+        {
+            return;
+        }
+
+        await _demoServer.StopAsync();
+        IsDemoServerRunning = false;
+        _debugLogger.Information("Demo server stopped");
+    }
+
+    /// <summary>Dismisses the "demo server not running" banner without starting the server.</summary>
+    [RelayCommand]
+    private void DismissDemoServerBanner() => IsDemoServerBannerVisible = false;
 
     [RelayCommand]
     private void ShowNewCollectionForm()
@@ -1485,6 +1584,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _environmentsViewModel.LoadEnvironmentsAsync(cancellationToken),
             LoadScheduledJobsAsync(cancellationToken)).ConfigureAwait(false);
 
+        await SeedDemoDataAsync(cancellationToken).ConfigureAwait(false);
+
         var savedDraft = _draftPersistenceService is { } draftService
             ? await draftService.LoadDraftAsync(cancellationToken).ConfigureAwait(false)
             : null;
@@ -1505,6 +1606,73 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             StartDraftAutoSave();
         }
     }
+
+    /// <summary>
+    /// Seeds the "Localhost Demo" collection and "Demo (localhost)" environment the first
+    /// time the application starts.  Subsequent starts are no-ops (the data already exists).
+    /// </summary>
+    private async Task SeedDemoDataAsync(CancellationToken cancellationToken = default)
+    {
+        const string demoCollectionName = "Localhost Demo";
+        const string demoEnvironmentName = "Demo (localhost)";
+
+        var existingCollections = await _collectionRepository.GetAllAsync(cancellationToken).ConfigureAwait(false);
+        if (!existingCollections.Any(c => string.Equals(c.Name, demoCollectionName, StringComparison.Ordinal)))
+        {
+            var demoRequests = new List<CollectionRequest>
+            {
+                new("Echo GET", "GET", "/echo",
+                    "Simple HTTP GET — returns request info as JSON when no body is present."),
+                new("Echo POST", "POST", "/echo",
+                    "HTTP POST — your JSON body is echoed back in the response."),
+                new("Echo PUT", "PUT", "/echo",
+                    "HTTP PUT — your JSON body is echoed back in the response."),
+                new("Echo DELETE", "DELETE", "/echo",
+                    "HTTP DELETE — returns request info as JSON."),
+                new("Server status", "GET", "/status",
+                    "Returns a JSON summary of the demo server (version, port, endpoints)."),
+                new("Server-Sent Events", "SSE", "/sse",
+                    "Streams five numbered SSE events, one every 500 ms. Request type is set to SSE automatically."),
+                new("WebSocket echo", "WS", "/ws",
+                    "WebSocket echo server — every message you send is reflected back. Request type is set to WebSocket automatically.")
+            };
+
+            var newId = await _collectionRepository.SaveAsync(
+                demoCollectionName,
+                null,
+                "{{baseUrl}}",
+                demoRequests,
+                cancellationToken).ConfigureAwait(false);
+
+            // Reload collections and select the newly seeded demo collection.
+            await LoadCollectionsAsync(cancellationToken).ConfigureAwait(false);
+            SelectedCollection = Collections.FirstOrDefault(c => c.Id == newId);
+            LeftPanelTab = "Collections";
+
+            _debugLogger.Information("Seeded demo collection '{Name}'", demoCollectionName);
+        }
+
+        var existingEnvironments = await _environmentsViewModel.GetAllEnvironmentsAsync(cancellationToken).ConfigureAwait(false);
+        if (!existingEnvironments.Any(e => string.Equals(e.Name, demoEnvironmentName, StringComparison.Ordinal)))
+        {
+            await _environmentsViewModel.SeedEnvironmentAsync(
+                demoEnvironmentName,
+                [new EnvironmentVariable("baseUrl", $"http://localhost:{DemoServerPort}", true)],
+                cancellationToken).ConfigureAwait(false);
+
+            _debugLogger.Information("Seeded demo environment '{Name}'", demoEnvironmentName);
+        }
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="url"/> targets the local demo
+    /// server at the given <paramref name="port"/>.
+    /// </summary>
+    private static bool IsDemoServerUrl(string url, int port) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(uri.Host, "127.0.0.1", StringComparison.Ordinal))
+        && uri.Port == port;
 
     private void OnRequestBodyFileChanged(object sender, FileSystemEventArgs e)
     {

@@ -92,6 +92,23 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         }
     }
 
+    /// <summary>Returns all persisted environments without modifying observable state.</summary>
+    public Task<IReadOnlyList<RequestEnvironment>> GetAllEnvironmentsAsync(CancellationToken cancellationToken = default) =>
+        _environmentRepository.GetAllAsync(cancellationToken);
+
+    /// <summary>
+    /// Creates a new environment with the supplied <paramref name="variables"/> and reloads
+    /// the environment list.  Intended for first-run seeding only.
+    /// </summary>
+    public async Task SeedEnvironmentAsync(
+        string name,
+        IReadOnlyList<EnvironmentVariable> variables,
+        CancellationToken cancellationToken = default)
+    {
+        await _environmentRepository.SaveAsync(name, variables, cancellationToken);
+        await LoadEnvironmentsAsync(cancellationToken);
+    }
+
     public IReadOnlyList<EnvironmentVariable> GetActiveVariablesForEditor() =>
         ActiveEnvironmentVariables
             .Select(variable => new EnvironmentVariable(variable.Name, variable.Value, variable.IsEnabled))

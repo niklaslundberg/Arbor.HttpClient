@@ -102,6 +102,7 @@ public partial class App : Application
                 return inverseRedirectHttpClient;
             });
             var scheduledJobService = new ScheduledJobService(httpRequestService, Log.Logger);
+            var demoServer = new DemoServer();
 
             // ViewModels
             var logWindowViewModel = new LogWindowViewModel(inMemorySink);
@@ -126,7 +127,8 @@ public partial class App : Application
                     httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
                 },
                 cookieContainer: sharedCookieContainer,
-                draftPersistenceService: draftPersistenceService);
+                draftPersistenceService: draftPersistenceService,
+                demoServer: demoServer);
 
             var window = new MainWindow
             {
@@ -134,7 +136,9 @@ public partial class App : Application
             };
 
             window.Opened += async (_, _) => await InitializeAsync(historyRepository, collectionRepository, environmentRepository, scheduledJobRepository, viewModel);
-            window.Closed += (_, _) =>
+            window.Closed += (_, _) => DisposeResources();
+
+            async void DisposeResources()
             {
                 // Layout was already persisted and floating windows closed in MainWindow.OnClosing.
                 viewModel.Dispose();
@@ -145,8 +149,9 @@ public partial class App : Application
                     retiredHttpClient.Dispose();
                 }
                 httpClient.Dispose();
+                await demoServer.DisposeAsync();
                 Log.CloseAndFlush();
-            };
+            }
             desktop.MainWindow = window;
         }
 
