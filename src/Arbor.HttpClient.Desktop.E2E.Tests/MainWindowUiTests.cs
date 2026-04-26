@@ -215,6 +215,126 @@ public class MainWindowUiTests
     }
 
     [Fact]
+    public async Task ShowCollectionsTabCommand_ShouldActivateDockableLeftPanel()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+            leftToolDock.Should().NotBeNull();
+
+            // Switch to Environments first so the left panel is no longer active
+            viewModel.OpenEnvironmentsCommand.Execute(null);
+            leftToolDock!.ActiveDockable?.Id.Should().Be("environments");
+
+            // Now click Collections — should switch back to the Explorer (left-panel) dock
+            viewModel.ShowCollectionsTabCommand.Execute(null);
+
+            leftToolDock.ActiveDockable?.Id.Should().Be("left-panel");
+            viewModel.LeftPanelTab.Should().Be("Collections");
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShowHistoryTabCommand_ShouldActivateDockableLeftPanel()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+            leftToolDock.Should().NotBeNull();
+
+            // Switch to Environments first so the left panel is no longer active
+            viewModel.OpenEnvironmentsCommand.Execute(null);
+            leftToolDock!.ActiveDockable?.Id.Should().Be("environments");
+
+            // Now click History — should switch back to the Explorer (left-panel) dock
+            viewModel.ShowHistoryTabCommand.Execute(null);
+
+            leftToolDock.ActiveDockable?.Id.Should().Be("left-panel");
+            viewModel.LeftPanelTab.Should().Be("History");
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ShowScheduledJobsTabCommand_ShouldActivateDockableLeftPanel()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+            leftToolDock.Should().NotBeNull();
+
+            // Switch to Environments first so the left panel is no longer active
+            viewModel.OpenEnvironmentsCommand.Execute(null);
+            leftToolDock!.ActiveDockable?.Id.Should().Be("environments");
+
+            // Now click Scheduled Jobs — should switch back to the Explorer (left-panel) dock
+            viewModel.ShowScheduledJobsTabCommand.Execute(null);
+
+            leftToolDock.ActiveDockable?.Id.Should().Be("left-panel");
+            viewModel.LeftPanelTab.Should().Be("ScheduledJobs");
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task OpenLayoutPanelCommand_ShouldActivateDockableLayoutPanel()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));

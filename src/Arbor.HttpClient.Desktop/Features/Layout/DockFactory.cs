@@ -35,6 +35,9 @@ public sealed class DockFactory : Factory
     /// <summary>The left-side ToolDock; used to activate the Options tool programmatically.</summary>
     public ToolDock? LeftToolDock { get; private set; }
 
+    /// <summary>The Explorer (left panel) tool dockable.</summary>
+    public LeftPanelViewModel? LeftPanelViewModel { get; private set; }
+
     /// <summary>The Options tool dockable.</summary>
     public OptionsViewModel? OptionsViewModel { get; private set; }
     public EnvironmentsViewModel? EnvironmentsViewModel { get; private set; }
@@ -50,6 +53,7 @@ public sealed class DockFactory : Factory
         var logs = new LogPanelViewModel(_mainVm);
         var cookieJar = _cookieJarViewModel;
         var layoutManagement = new LayoutManagementViewModel(_mainVm);
+        LeftPanelViewModel = leftPanel;
         OptionsViewModel = options;
         EnvironmentsViewModel = environments;
         LogPanelViewModel = logs;

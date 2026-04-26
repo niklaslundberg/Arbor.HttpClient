@@ -831,13 +831,34 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     partial void OnHistorySearchQueryChanged(string value) => ApplyHistoryFilter(value);
 
     [RelayCommand]
-    private void ShowHistoryTab()=> LeftPanelTab = "History";
+    private void ShowHistoryTab()
+    {
+        LeftPanelTab = "History";
+        ActivateLeftPanel();
+    }
 
     [RelayCommand]
-    private void ShowCollectionsTab() => LeftPanelTab = "Collections";
+    private void ShowCollectionsTab()
+    {
+        LeftPanelTab = "Collections";
+        ActivateLeftPanel();
+    }
 
     [RelayCommand]
-    private void ShowScheduledJobsTab() => LeftPanelTab = "ScheduledJobs";
+    private void ShowScheduledJobsTab()
+    {
+        LeftPanelTab = "ScheduledJobs";
+        ActivateLeftPanel();
+    }
+
+    private void ActivateLeftPanel()
+    {
+        if (_dockFactory?.LeftToolDock is { } dock &&
+            _dockFactory.LeftPanelViewModel is { } leftPanelVm)
+        {
+            dock.ActiveDockable = leftPanelVm;
+        }
+    }
 
     /// <summary>Set by the view layer to close the main window.</summary>
     public Action? ExitApplicationAction { get; set; }
