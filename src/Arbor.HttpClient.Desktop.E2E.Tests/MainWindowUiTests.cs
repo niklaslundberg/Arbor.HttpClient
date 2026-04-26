@@ -215,7 +215,7 @@ public class MainWindowUiTests
     }
 
     [Fact]
-    public async Task ShowCollectionsTabCommand_ShouldActivateDockableLeftPanel()
+    public async Task ShowCollectionsTabCommand_SwitchesToExplorerPanel_WhenAnotherPanelIsActive()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
@@ -255,7 +255,7 @@ public class MainWindowUiTests
     }
 
     [Fact]
-    public async Task ShowHistoryTabCommand_ShouldActivateDockableLeftPanel()
+    public async Task ShowHistoryTabCommand_SwitchesToExplorerPanel_WhenAnotherPanelIsActive()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
@@ -295,7 +295,7 @@ public class MainWindowUiTests
     }
 
     [Fact]
-    public async Task ShowScheduledJobsTabCommand_ShouldActivateDockableLeftPanel()
+    public async Task ShowScheduledJobsTabCommand_SwitchesToExplorerPanel_WhenAnotherPanelIsActive()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
