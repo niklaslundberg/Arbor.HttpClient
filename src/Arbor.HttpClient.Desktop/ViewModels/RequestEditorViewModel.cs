@@ -52,7 +52,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     private string _selectedMethod = "GET";
 
     [ObservableProperty]
-    private string _requestUrl = "https://postman-echo.com/get?hello=world";
+    private string _requestUrl = "http://localhost:5000/echo";
 
     [ObservableProperty]
     private string _requestPreview = string.Empty;

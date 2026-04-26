@@ -9,15 +9,15 @@ public class CurlFormatterTests
     [Fact]
     public void Format_ShouldEmitSimpleGetCurl()
     {
-        var command = CurlFormatter.Format("GET", "https://example.com/api");
+        var command = CurlFormatter.Format("GET", "http://localhost:5000/api");
 
-        command.Should().Be("curl -X GET 'https://example.com/api'");
+        command.Should().Be("curl -X GET 'http://localhost:5000/api'");
     }
 
     [Fact]
     public void Format_ShouldUppercaseMethod()
     {
-        var command = CurlFormatter.Format("post", "https://example.com/");
+        var command = CurlFormatter.Format("post", "http://localhost:5000/");
 
         command.Should().StartWith("curl -X POST ");
     }
@@ -25,7 +25,7 @@ public class CurlFormatterTests
     [Fact]
     public void Format_ShouldDefaultToGetWhenMethodMissing()
     {
-        var command = CurlFormatter.Format(" ", "https://example.com/");
+        var command = CurlFormatter.Format(" ", "http://localhost:5000/");
 
         command.Should().StartWith("curl -X GET ");
     }
@@ -40,7 +40,7 @@ public class CurlFormatterTests
             new RequestHeader("Authorization", "Bearer abc")
         };
 
-        var command = CurlFormatter.Format("GET", "https://example.com/", null, headers);
+        var command = CurlFormatter.Format("GET", "http://localhost:5000/", null, headers);
 
         command.Should().Contain("-H 'Accept: application/json'");
         command.Should().Contain("-H 'Authorization: Bearer abc'");
@@ -52,10 +52,10 @@ public class CurlFormatterTests
     {
         var command = CurlFormatter.Format(
             "POST",
-            "https://example.com/search?q=o'brien",
+            "http://localhost:5000/search?q=o'brien",
             "{\"name\":\"O'Brien\"}");
 
-        command.Should().Contain("'https://example.com/search?q=o'\\''brien'");
+        command.Should().Contain("'http://localhost:5000/search?q=o'\\''brien'");
         command.Should().Contain("--data-raw '{\"name\":\"O'\\''Brien\"}'");
     }
 
@@ -64,7 +64,7 @@ public class CurlFormatterTests
     {
         var command = CurlFormatter.Format(
             "POST",
-            "https://example.com/",
+            "http://localhost:5000/",
             "{\"hello\":\"world\"}");
 
         command.Should().Contain("--data-raw '{\"hello\":\"world\"}'");
@@ -73,7 +73,7 @@ public class CurlFormatterTests
     [Fact]
     public void Format_ShouldOmitBodyWhenNullOrEmpty()
     {
-        var command = CurlFormatter.Format("POST", "https://example.com/", string.Empty);
+        var command = CurlFormatter.Format("POST", "http://localhost:5000/", string.Empty);
 
         command.Should().NotContain("--data-raw");
     }
@@ -92,12 +92,12 @@ public class CurlFormatterTests
         var saved = new SavedRequest(
             Name: "Echo",
             Method: "POST",
-            Url: "https://example.com/echo",
+            Url: "http://localhost:5000/echo",
             Body: "payload",
             CreatedAtUtc: DateTimeOffset.UnixEpoch);
 
         var command = CurlFormatter.Format(saved);
 
-        command.Should().Be("curl -X POST 'https://example.com/echo' --data-raw 'payload'");
+        command.Should().Be("curl -X POST 'http://localhost:5000/echo' --data-raw 'payload'");
     }
 }

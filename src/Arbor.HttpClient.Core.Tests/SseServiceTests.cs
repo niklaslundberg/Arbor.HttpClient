@@ -159,7 +159,7 @@ public class SseServiceTests
         var service = new SseService(new global::System.Net.Http.HttpClient(
             new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))));
 
-        var action = () => service.ConnectAsync("ftp://example.com/stream", _ => { });
+        var action = () => service.ConnectAsync("ftp://localhost:5000/stream", _ => { });
 
         await action.Should().ThrowAsync<ArgumentException>();
     }
@@ -170,7 +170,7 @@ public class SseServiceTests
         var service = new SseService(new global::System.Net.Http.HttpClient(
             new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))));
 
-        var action = () => service.ConnectAsync("https://example.com/stream", null!);
+        var action = () => service.ConnectAsync("http://localhost:5000/stream", null!);
 
         await action.Should().ThrowAsync<ArgumentNullException>();
     }
@@ -194,7 +194,7 @@ public class SseServiceTests
         var service = new SseService(new global::System.Net.Http.HttpClient(handler));
         var events = new List<SseEvent>();
 
-        await service.ConnectAsync("https://example.com/stream", events.Add, cancellationToken: TestContext.Current.CancellationToken);
+        await service.ConnectAsync("http://localhost:5000/stream", events.Add, cancellationToken: TestContext.Current.CancellationToken);
 
         events.Should().ContainSingle();
         events[0].Data.Should().Be("from-http");
@@ -215,7 +215,7 @@ public class SseServiceTests
         });
 
         var service = new SseService(new global::System.Net.Http.HttpClient(handler));
-        await service.ConnectAsync("https://example.com/stream", _ => { }, cancellationToken: TestContext.Current.CancellationToken);
+        await service.ConnectAsync("http://localhost:5000/stream", _ => { }, cancellationToken: TestContext.Current.CancellationToken);
 
         captured.Should().NotBeNull();
         captured!.Headers.Accept.Should().Contain(h => h.MediaType == "text/event-stream");
@@ -238,7 +238,7 @@ public class SseServiceTests
         var service = new SseService(new global::System.Net.Http.HttpClient(handler));
         var headers = new[] { new RequestHeader("X-Api-Key", "secret-token") };
 
-        await service.ConnectAsync("https://example.com/stream", _ => { }, headers, TestContext.Current.CancellationToken);
+        await service.ConnectAsync("http://localhost:5000/stream", _ => { }, headers, TestContext.Current.CancellationToken);
 
         captured!.Headers.Should().Contain(h => h.Key == "X-Api-Key" && h.Value.Contains("secret-token"));
     }
@@ -261,7 +261,7 @@ public class SseServiceTests
         var service = new SseService(new global::System.Net.Http.HttpClient(handler));
         var headers = new[] { new RequestHeader("Accept", "text/html") };
 
-        await service.ConnectAsync("https://example.com/stream", _ => { }, headers, TestContext.Current.CancellationToken);
+        await service.ConnectAsync("http://localhost:5000/stream", _ => { }, headers, TestContext.Current.CancellationToken);
 
         // Should still carry exactly one Accept value: text/event-stream
         captured!.Headers.Accept.Should().ContainSingle(h => h.MediaType == "text/event-stream");
@@ -284,7 +284,7 @@ public class SseServiceTests
         var service = new SseService(new global::System.Net.Http.HttpClient(handler));
         var headers = new[] { new RequestHeader("X-Disabled", "value", IsEnabled: false) };
 
-        await service.ConnectAsync("https://example.com/stream", _ => { }, headers, TestContext.Current.CancellationToken);
+        await service.ConnectAsync("http://localhost:5000/stream", _ => { }, headers, TestContext.Current.CancellationToken);
 
         captured!.Headers.Should().NotContain(h => h.Key == "X-Disabled");
     }
@@ -307,7 +307,7 @@ public class SseServiceTests
         var headers = new[] { new RequestHeader("  ", "value") };
 
         // Blank-name headers must be silently dropped (no exception)
-        var action = () => service.ConnectAsync("https://example.com/stream", _ => { }, headers);
+        var action = () => service.ConnectAsync("http://localhost:5000/stream", _ => { }, headers);
 
         await action.Should().NotThrowAsync();
     }

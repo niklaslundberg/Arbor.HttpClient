@@ -12,9 +12,9 @@ public class VariableResolverTests
     [Fact]
     public void Resolve_ShouldReplaceKnownToken()
     {
-        var variables = new List<EnvironmentVariable> { new("baseUrl", "https://api.example.com") };
+        var variables = new List<EnvironmentVariable> { new("baseUrl", "http://localhost:5000") };
         var result = _resolver.Resolve("{{baseUrl}}/users", variables);
-        result.Should().Be("https://api.example.com/users");
+        result.Should().Be("http://localhost:5000/users");
     }
 
     [Fact]
@@ -30,11 +30,11 @@ public class VariableResolverTests
     {
         var variables = new List<EnvironmentVariable>
         {
-            new("host", "example.com"),
+            new("host", "localhost"),
             new("token", "abc123")
         };
         var result = _resolver.Resolve("https://{{host}}/auth?key={{token}}", variables);
-        result.Should().Be("https://example.com/auth?key=abc123");
+        result.Should().Be("https://localhost/auth?key=abc123");
     }
 
     [Fact]
@@ -177,9 +177,9 @@ public class VariableResolverTests
     [Fact]
     public void Resolve_ShouldReplaceKnownAndCollapseUnknownTokensInSameInput()
     {
-        var variables = new List<EnvironmentVariable> { new("host", "api.example.com") };
+        var variables = new List<EnvironmentVariable> { new("host", "localhost") };
         var result = _resolver.Resolve("https://{{host}}/{{version}}/users", variables);
-        result.Should().Be("https://api.example.com//users");
+        result.Should().Be("https://localhost//users");
     }
 }
 

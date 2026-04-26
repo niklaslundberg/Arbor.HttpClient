@@ -24,7 +24,7 @@ public class HttpRequestServiceTests
 
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository, new FakeTimeProvider(new DateTimeOffset(2026, 4, 16, 0, 0, 0, TimeSpan.Zero)));
 
-        var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null), TestContext.Current.CancellationToken);
+        var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null), TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(200);
         response.Body.Should().Be("hello");
@@ -62,7 +62,7 @@ public class HttpRequestServiceTests
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
         var headers = new[] { new RequestHeader("Content-Type", "application/json") };
-        await service.SendAsync(new HttpRequestDraft("Test", "POST", "https://example.com", "{}", headers), TestContext.Current.CancellationToken);
+        await service.SendAsync(new HttpRequestDraft("Test", "POST", "http://localhost:5000", "{}", headers), TestContext.Current.CancellationToken);
 
         capturedRequest.Should().NotBeNull();
         capturedRequest!.Content.Should().NotBeNull();
@@ -86,7 +86,7 @@ public class HttpRequestServiceTests
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
         var headers = new[] { new RequestHeader("X-Api-Key", "secret") };
-        await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null, headers), TestContext.Current.CancellationToken);
+        await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null, headers), TestContext.Current.CancellationToken);
 
         capturedRequest.Should().NotBeNull();
         capturedRequest!.Headers.Should().Contain(h => h.Key == "X-Api-Key" && h.Value.Contains("secret"));
@@ -109,7 +109,7 @@ public class HttpRequestServiceTests
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
         var headers = new[] { new RequestHeader("X-Disabled", "value", IsEnabled: false) };
-        await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null, headers), TestContext.Current.CancellationToken);
+        await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null, headers), TestContext.Current.CancellationToken);
 
         capturedRequest.Should().NotBeNull();
         capturedRequest!.Headers.Should().NotContain(h => h.Key == "X-Disabled");
@@ -131,7 +131,7 @@ public class HttpRequestServiceTests
 
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
-        await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null, HttpVersion: global::System.Net.HttpVersion.Version20), TestContext.Current.CancellationToken);
+        await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null, HttpVersion: global::System.Net.HttpVersion.Version20), TestContext.Current.CancellationToken);
 
         capturedRequest.Should().NotBeNull();
         capturedRequest!.Version.Should().Be(global::System.Net.HttpVersion.Version20);
@@ -153,7 +153,7 @@ public class HttpRequestServiceTests
 
         service.SetHttpClientFactory(() => new global::System.Net.Http.HttpClient(factoryHandler));
 
-        var response = await service.SendAsync(new HttpRequestDraft("Factory", "GET", "https://example.com", null), TestContext.Current.CancellationToken);
+        var response = await service.SendAsync(new HttpRequestDraft("Factory", "GET", "http://localhost:5000", null), TestContext.Current.CancellationToken);
 
         response.Body.Should().Be("from-factory");
         response.BodyBytes.Should().Equal(Encoding.UTF8.GetBytes("from-factory"));
@@ -183,8 +183,8 @@ public class HttpRequestServiceTests
         service.SetHttpClientFactory(followRedirects =>
             new global::System.Net.Http.HttpClient((followRedirects ?? true) ? followHandler : noFollowHandler));
 
-        var followResponse = await service.SendAsync(new HttpRequestDraft("Factory", "GET", "https://example.com", null, FollowRedirects: true), TestContext.Current.CancellationToken);
-        var noFollowResponse = await service.SendAsync(new HttpRequestDraft("Factory", "GET", "https://example.com", null, FollowRedirects: false), TestContext.Current.CancellationToken);
+        var followResponse = await service.SendAsync(new HttpRequestDraft("Factory", "GET", "http://localhost:5000", null, FollowRedirects: true), TestContext.Current.CancellationToken);
+        var noFollowResponse = await service.SendAsync(new HttpRequestDraft("Factory", "GET", "http://localhost:5000", null, FollowRedirects: false), TestContext.Current.CancellationToken);
 
         followResponse.Body.Should().Be("follow");
         noFollowResponse.Body.Should().Be("no-follow");
@@ -241,7 +241,7 @@ public class HttpRequestServiceTests
     {
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
 
-        var action = () => service.SendAsync(new HttpRequestDraft("Test", "", "https://example.com", null));
+        var action = () => service.SendAsync(new HttpRequestDraft("Test", "", "http://localhost:5000", null));
 
         await action.Should().ThrowAsync<ArgumentException>().WithMessage("*HTTP method is required*");
     }
@@ -251,7 +251,7 @@ public class HttpRequestServiceTests
     {
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
 
-        var action = () => service.SendAsync(new HttpRequestDraft("Test", null!, "https://example.com", null));
+        var action = () => service.SendAsync(new HttpRequestDraft("Test", null!, "http://localhost:5000", null));
 
         await action.Should().ThrowAsync<ArgumentException>().WithMessage("*HTTP method is required*");
     }
@@ -272,7 +272,7 @@ public class HttpRequestServiceTests
 
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
-        var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null), TestContext.Current.CancellationToken);
+        var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null), TestContext.Current.CancellationToken);
 
         response.Body.Should().Be("test");
     }
@@ -293,7 +293,7 @@ public class HttpRequestServiceTests
 
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
-        var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null), TestContext.Current.CancellationToken);
+        var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null), TestContext.Current.CancellationToken);
 
         response.Body.Should().Be("test");
     }
@@ -315,7 +315,7 @@ public class HttpRequestServiceTests
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
         var headers = new[] { new RequestHeader("", "value") };
-        await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null, headers), TestContext.Current.CancellationToken);
+        await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null, headers), TestContext.Current.CancellationToken);
 
         capturedRequest.Should().NotBeNull();
         capturedRequest!.Headers.Count().Should().Be(0);
@@ -337,7 +337,7 @@ public class HttpRequestServiceTests
 
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
-        var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "https://example.com", null), TestContext.Current.CancellationToken);
+        var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null), TestContext.Current.CancellationToken);
 
         response.Headers.Should().Contain(h => h.Name == "X-Custom-Header" && h.Value == "custom-value");
     }
@@ -385,7 +385,7 @@ public class HttpRequestServiceTests
 
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
 
-        await service.SendAsync(new HttpRequestDraft("My Custom Request", "GET", "https://example.com/path", null), TestContext.Current.CancellationToken);
+        await service.SendAsync(new HttpRequestDraft("My Custom Request", "GET", "http://localhost:5000/path", null), TestContext.Current.CancellationToken);
 
         repository.Items.Should().ContainSingle();
         repository.Items[0].Name.Should().Be("My Custom Request");
@@ -404,9 +404,9 @@ public class HttpRequestServiceTests
 
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
 
-        await service.SendAsync(new HttpRequestDraft("", "GET", "https://example.com/path", null), TestContext.Current.CancellationToken);
+        await service.SendAsync(new HttpRequestDraft("", "GET", "http://localhost:5000/path", null), TestContext.Current.CancellationToken);
 
         repository.Items.Should().ContainSingle();
-        repository.Items[0].Name.Should().Be("https://example.com/path");
+        repository.Items[0].Name.Should().Be("http://localhost:5000/path");
     }
 }

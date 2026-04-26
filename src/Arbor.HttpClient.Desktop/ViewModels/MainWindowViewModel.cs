@@ -198,7 +198,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _enableHttpDiagnostics;
 
     [ObservableProperty]
-    private string _defaultRequestUrl = "https://postman-echo.com/get?hello=world";
+    private string _defaultRequestUrl = "http://localhost:5000/echo";
 
     [ObservableProperty]
     private string _defaultContentType = "application/json";

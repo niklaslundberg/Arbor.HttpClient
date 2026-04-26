@@ -44,6 +44,9 @@ public sealed class KestrelServerFixture : IAsyncLifetime
     /// <summary>Base URL for the SSE endpoint (<c>/sse</c>).</summary>
     public string SseUrl { get; private set; } = string.Empty;
 
+    /// <summary>Base URL for the HTTP echo endpoint (<c>/echo</c>).</summary>
+    public string EchoUrl { get; private set; } = string.Empty;
+
     /// <inheritdoc />
     public async Task InitializeAsync()
     {
@@ -221,6 +224,18 @@ public sealed class KestrelServerFixture : IAsyncLifetime
             await context.Response.Body.FlushAsync(context.RequestAborted);
         });
 
+        // /echo — HTTP echo: reflects the request body back as the response body.
+        // Returns 200 OK with the same Content-Type as the request.
+        app.Map("/echo", async context =>
+        {
+            context.Response.StatusCode = 200;
+            context.Response.ContentType = context.Request.ContentType ?? "application/json";
+            if (context.Request.ContentLength > 0)
+            {
+                await context.Request.Body.CopyToAsync(context.Response.Body, context.RequestAborted);
+            }
+        });
+
         _app = app;
         await app.StartAsync();
 
@@ -238,6 +253,7 @@ public sealed class KestrelServerFixture : IAsyncLifetime
         WebSocketHeadersUrl = $"ws://{host}/ws-headers";
         WebSocketFragmentUrl = $"ws://{host}/ws-fragment";
         SseUrl = $"http://{host}/sse";
+        EchoUrl = $"http://{host}/echo";
     }
 
     /// <inheritdoc />

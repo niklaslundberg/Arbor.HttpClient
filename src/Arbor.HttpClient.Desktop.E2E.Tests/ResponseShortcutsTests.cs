@@ -86,7 +86,7 @@ public class ResponseShortcutsTests
             };
             using var viewModel = CreateViewModel(response);
 
-            viewModel.RequestEditor.RequestUrl = "https://example.com/api";
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
 
@@ -111,7 +111,7 @@ public class ResponseShortcutsTests
                 new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
 
             using var viewModel = CreateViewModel(response);
-            viewModel.RequestEditor.RequestUrl = "https://example.com/image.png";
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/image.png";
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
 
@@ -139,7 +139,7 @@ public class ResponseShortcutsTests
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(1);
 
             viewModel.Clipboard = TopLevel.GetTopLevel(window)?.Clipboard;
-            viewModel.RequestEditor.RequestUrl = "https://example.com/api";
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
 
@@ -169,7 +169,7 @@ public class ResponseShortcutsTests
             using var viewModel = CreateViewModel(response);
 
             viewModel.Clipboard = null;
-            viewModel.RequestEditor.RequestUrl = "https://example.com/api";
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
 
@@ -198,7 +198,7 @@ public class ResponseShortcutsTests
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(1);
 
             viewModel.Clipboard = TopLevel.GetTopLevel(window)?.Clipboard;
-            viewModel.RequestEditor.RequestUrl = "https://example.com/api";
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
             viewModel.RequestEditor.SelectedMethod = "POST";
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
@@ -214,7 +214,7 @@ public class ResponseShortcutsTests
         clipboardText.Should().NotBeNullOrEmpty();
         clipboardText.Should().Contain("curl");
         clipboardText.Should().Contain("POST");
-        clipboardText.Should().Contain("example.com");
+        clipboardText.Should().Contain("localhost:5000");
     }
 
     [Fact]
@@ -231,7 +231,7 @@ public class ResponseShortcutsTests
             using var viewModel = CreateViewModel(response);
 
             viewModel.StorageProvider = null;
-            viewModel.RequestEditor.RequestUrl = "https://example.com/api";
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
             viewModel.SendRequestCommand.Execute(null);
             await viewModel.SendRequestCommand.ExecutionTask!;
 

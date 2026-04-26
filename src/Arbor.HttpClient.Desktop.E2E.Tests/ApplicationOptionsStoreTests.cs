@@ -35,7 +35,7 @@ public class ApplicationOptionsStoreTests
             "tlsVersion": "Tls12",
             "defaultContentType": "application/json",
             "followRedirects": true,
-            "defaultRequestUrl": "https://example.com"
+            "defaultRequestUrl": "http://localhost:5000/echo"
           },
           "appearance": {
             "theme": "Dark",
@@ -68,7 +68,7 @@ public class ApplicationOptionsStoreTests
                 EnableHttpDiagnostics = true,
                 DefaultContentType = "application/json",
                 FollowRedirects = false,
-                DefaultRequestUrl = "https://example.com/api"
+                DefaultRequestUrl = "http://localhost:5000/echo"
             },
             Appearance = new AppearanceOptions
             {
@@ -139,7 +139,7 @@ public class ApplicationOptionsStoreTests
                 TlsVersion = "SystemDefault",
                 DefaultContentType = "application/json",
                 FollowRedirects = true,
-                DefaultRequestUrl = "https://example.com"
+                DefaultRequestUrl = "http://localhost:5000/echo"
             },
             Appearance = new AppearanceOptions
             {

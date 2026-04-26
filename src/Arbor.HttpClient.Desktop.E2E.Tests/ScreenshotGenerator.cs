@@ -72,14 +72,14 @@ public class ScreenshotGenerator
                 BuildHandler("""
                     {
                       "status": "ok",
-                      "path": "/get",
+                      "path": "/echo",
                       "params": { "hello": "world" },
                       "message": "Hello from Arbor.HttpClient demo!"
                     }
                     """),
                 requestName: "Demo Request",
                 method: "GET",
-                url: "https://postman-echo.com/get?hello=world");
+                url: "http://localhost:5000/echo?hello=world");
 
             window.Show();
             viewModel.SendRequestCommand.Execute(null);
@@ -110,15 +110,15 @@ public class ScreenshotGenerator
                     {
                       "args": { "hello": "world" },
                       "headers": {
-                        "host": "postman-echo.com",
+                        "host": "localhost:5000",
                         "user-agent": "Arbor.HttpClient/1.0"
                       },
-                      "url": "https://postman-echo.com/get?hello=world"
+                      "url": "http://localhost:5000/echo?hello=world"
                     }
                     """),
                 requestName: "Echo GET",
                 method: "GET",
-                url: "https://postman-echo.com/get?hello=world");
+                url: "http://localhost:5000/echo?hello=world");
 
             window.Show();
             viewModel.SendRequestCommand.Execute(null);
@@ -148,13 +148,13 @@ public class ScreenshotGenerator
                 BuildHandler("""
                     {
                       "args": { "env": "production" },
-                      "headers": { "host": "postman-echo.com" },
-                      "url": "https://postman-echo.com/get?env=production"
+                      "headers": { "host": "localhost:5000" },
+                      "url": "http://localhost:5000/echo?env=production"
                     }
                     """),
                 requestName: "Echo with variable",
                 method: "POST",
-                url: "{{baseUrl}}/get?env={{environment}}&{{queryKey}}={{queryValue}}");
+                url: "{{baseUrl}}/echo?env={{environment}}&{{queryKey}}={{queryValue}}");
 
             viewModel.RequestEditor.RequestBody = """
                 {
@@ -173,7 +173,7 @@ public class ScreenshotGenerator
             viewModel.Environments.Add(new RequestEnvironment(1, "Demo Environment",
             [
                 new EnvironmentVariable("environment", "production"),
-                new EnvironmentVariable("baseUrl", "https://postman-echo.com"),
+                new EnvironmentVariable("baseUrl", "http://localhost:5000"),
                 new EnvironmentVariable("queryKey", "city"),
                 new EnvironmentVariable("queryValue", "stockholm"),
                 new EnvironmentVariable("token", "demo-token"),
@@ -236,7 +236,7 @@ public class ScreenshotGenerator
             });
 
             viewModel.NewEnvironmentName = "Demo Environment";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "https://postman-echo.com"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "http://localhost:5000"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryKey", "city"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryValue", "stockholm"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("environment", "production"));
@@ -291,7 +291,7 @@ public class ScreenshotGenerator
             });
 
             viewModel.NewEnvironmentName = "Demo Environment";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "https://postman-echo.com"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "http://localhost:5000"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerValue", "blue"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "demo-token"));
@@ -347,7 +347,7 @@ public class ScreenshotGenerator
             });
 
             viewModel.NewEnvironmentName = "Demo Environment";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "https://postman-echo.com"));
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "http://localhost:5000"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("environment", "production"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "demo-token"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
@@ -385,7 +385,7 @@ public class ScreenshotGenerator
                 BuildHandler("{}"),
                 requestName: "Health check",
                 method: "GET",
-                url: "https://postman-echo.com/get");
+                url: "http://localhost:5000/echo");
 
             // Add a scheduled job so the tab looks populated
             var jobVm = new ScheduledJobViewModel(new InMemoryScheduledJobRepo(), new ScheduledJobService(
@@ -394,7 +394,7 @@ public class ScreenshotGenerator
             {
                 Name = "Health check every 60 s",
                 Method = "GET",
-                Url = "https://postman-echo.com/get",
+                Url = "http://localhost:5000/echo",
                 IntervalSeconds = 60,
                 AutoStart = true
             };
@@ -427,7 +427,7 @@ public class ScreenshotGenerator
                 BuildHandler("{}"),
                 requestName: "Redirect override demo",
                 method: "GET",
-                url: "https://postman-echo.com/redirect-to?url=https://postman-echo.com/get");
+                url: "http://localhost:5000/redirect?to=http://localhost:5000/echo");
 
             viewModel.RequestEditor.FollowRedirectsForRequest = false;
             viewModel.LeftPanelTab = "ScheduledJobs";
@@ -437,7 +437,7 @@ public class ScreenshotGenerator
             {
                 Name = "Redirect check",
                 Method = "GET",
-                Url = "https://postman-echo.com/redirect-to?url=https://postman-echo.com/get",
+                Url = "http://localhost:5000/redirect?to=http://localhost:5000/echo",
                 IntervalSeconds = 60,
                 AutoStart = false,
                 FollowRedirects = false
@@ -469,7 +469,7 @@ public class ScreenshotGenerator
                 BuildHandler("{}"),
                 requestName: "Options demo",
                 method: "POST",
-                url: "https://postman-echo.com/post");
+                url: "http://localhost:5000/echo");
 
             var optionsWindow = new OptionsWindow { DataContext = viewModel };
             optionsWindow.Show();
@@ -498,7 +498,7 @@ public class ScreenshotGenerator
                 BuildHandler("{}"),
                 requestName: "Layout demo",
                 method: "GET",
-                url: "https://postman-echo.com/get");
+                url: "http://localhost:5000/echo");
 
             // Open the layout panel so it appears in the screenshot
             viewModel.IsLayoutPanelVisible = true;
@@ -529,7 +529,7 @@ public class ScreenshotGenerator
                 BuildHandler("{}"),
                 requestName: "Log panel demo",
                 method: "GET",
-                url: "https://postman-echo.com/get");
+                url: "http://localhost:5000/echo");
 
             // Navigate to the dockable Logs panel
             viewModel.OpenLogWindowCommand.Execute(null);
@@ -560,7 +560,7 @@ public class ScreenshotGenerator
                 BuildHandler("{}"),
                 requestName: "Diagnostics demo",
                 method: "GET",
-                url: "https://postman-echo.com/get");
+                url: "http://localhost:5000/echo");
 
             // Show HTTP options page (includes the new "Enable HTTP diagnostics" checkbox)
             viewModel.OptionsPanel.SelectedOptionsPage = "HTTP";
@@ -590,7 +590,7 @@ public class ScreenshotGenerator
         {
             IReadOnlyList<Collection> collections =
             [
-                new Collection(1, "Petstore API", "/specs/petstore.yaml", "https://api.example.com",
+                new Collection(1, "Petstore API", "/specs/petstore.yaml", "http://localhost:5000",
                 [
                     new CollectionRequest("List all pets", "GET", "/pets", "Returns all pets"),
                     new CollectionRequest("Create pet", "POST", "/pets", "Create a new pet"),
@@ -684,7 +684,7 @@ public class ScreenshotGenerator
 
         viewModel.RequestEditor.RequestName = "GET /users";
         viewModel.RequestEditor.SelectedMethod = "GET";
-        viewModel.RequestEditor.RequestUrl = "https://api.example.com/users";
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/users";
 
         // Pre-populate collections from the repo data (mirrors InitializeAsync but synchronous)
         foreach (var c in collections)

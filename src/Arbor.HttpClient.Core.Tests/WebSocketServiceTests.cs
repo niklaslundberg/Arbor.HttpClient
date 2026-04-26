@@ -25,7 +25,7 @@ public class WebSocketServiceTests
     public async Task ConnectAsync_ShouldThrowArgumentNullException_WhenOnMessageIsNull()
     {
         using var service = new WebSocketService();
-        var action = () => service.ConnectAsync("ws://example.com", onMessage: null!);
+        var action = () => service.ConnectAsync("ws://localhost:5000", onMessage: null!);
         await action.Should().ThrowAsync<ArgumentNullException>();
     }
 
@@ -33,7 +33,7 @@ public class WebSocketServiceTests
     public async Task ConnectAsync_ShouldThrowArgumentException_WhenUrlIsHttp()
     {
         using var service = new WebSocketService();
-        var action = () => service.ConnectAsync("https://example.com", _ => { });
+        var action = () => service.ConnectAsync("https://localhost:5000", _ => { });
         await action.Should().ThrowAsync<ArgumentException>()
             .WithMessage("*ws://*");
     }
@@ -58,7 +58,7 @@ public class WebSocketServiceTests
     public async Task ConnectAsync_ShouldThrowArgumentException_WhenUrlHasFtpScheme()
     {
         using var service = new WebSocketService();
-        var action = () => service.ConnectAsync("ftp://example.com", _ => { });
+        var action = () => service.ConnectAsync("ftp://localhost:5000", _ => { });
         await action.Should().ThrowAsync<ArgumentException>();
     }
 
