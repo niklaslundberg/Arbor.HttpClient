@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Arbor.HttpClient.Desktop.Features.Cookies"
+             xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
              x:Class="Arbor.HttpClient.Desktop.Features.Cookies.CookieJarView"
              x:DataType="vm:CookieJarViewModel">
 
@@ -8,15 +9,15 @@
 
         <!-- Header -->
         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
-            <TextBlock Text="Cookie Jar"
+            <TextBlock Text="{x:Static loc:Strings.CookieJarTitle}"
                        FontSize="16"
                        FontWeight="SemiBold"
                        VerticalAlignment="Center" />
             <Button Grid.Column="1"
-                    Content="Refresh"
+                    Content="{x:Static loc:Strings.CookieJarRefresh}"
                     Command="{Binding RefreshCommand}" />
             <Button Grid.Column="2"
-                    Content="Clear All"
+                    Content="{x:Static loc:Strings.CookieJarClearAll}"
                     Command="{Binding ClearAllCommand}" />
         </Grid>
 
@@ -75,25 +76,25 @@
                 CornerRadius="4"
                 Padding="8">
             <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
-                <TextBlock Text="Add Cookie"
+                <TextBlock Text="{x:Static loc:Strings.CookieJarAddCookieTitle}"
                            FontWeight="SemiBold"
                            FontSize="12" />
                 <Grid Grid.Row="1"
                       ColumnDefinitions="*,*"
                       ColumnSpacing="6">
-                    <TextBox PlaceholderText="Name"
+                    <TextBox PlaceholderText="{x:Static loc:Strings.CookieJarNamePlaceholder}"
                              Text="{Binding NewCookieName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <TextBox Grid.Column="1"
-                             PlaceholderText="Value"
+                             PlaceholderText="{x:Static loc:Strings.CookieJarValuePlaceholder}"
                              Text="{Binding NewCookieValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 </Grid>
                 <Grid Grid.Row="2"
                       ColumnDefinitions="*,Auto"
                       ColumnSpacing="6">
-                    <TextBox PlaceholderText="Domain (e.g. example.com)"
+                    <TextBox PlaceholderText="{x:Static loc:Strings.CookieJarDomainPlaceholder}"
                              Text="{Binding NewCookieDomain, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <Button Grid.Column="1"
-                            Content="Add"
+                            Content="{x:Static loc:Strings.CookieJarAddButton}"
                             Command="{Binding AddCookieCommand}" />
                 </Grid>
             </Grid>

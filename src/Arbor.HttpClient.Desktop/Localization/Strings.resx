@@ -1,0 +1,781 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- ═══════════════════════════════ Main Menu ═══════════════════════════════ -->
+  <data name="MenuFile" xml:space="preserve">
+    <value>_File</value>
+    <comment>Translator note: The underscore marks the keyboard access key (mnemonic). Place it before the letter that should be the shortcut. Do not use the same letter as another top-level menu item.</comment>
+  </data>
+  <data name="MenuImportOpenApi" xml:space="preserve">
+    <value>Import _OpenAPI…</value>
+    <comment>Translator note: 'OpenAPI' is a standard name and should not be translated. The underscore marks the keyboard access key.</comment>
+  </data>
+  <data name="MenuExit" xml:space="preserve">
+    <value>E_xit</value>
+    <comment>Translator note: The underscore marks the keyboard access key.</comment>
+  </data>
+  <data name="MenuView" xml:space="preserve">
+    <value>_View</value>
+  </data>
+  <data name="MenuHistory" xml:space="preserve">
+    <value>_History</value>
+  </data>
+  <data name="MenuCollections" xml:space="preserve">
+    <value>_Collections</value>
+  </data>
+  <data name="MenuScheduledJobs" xml:space="preserve">
+    <value>_Scheduled Jobs</value>
+  </data>
+  <data name="MenuOptions" xml:space="preserve">
+    <value>_Options</value>
+  </data>
+  <data name="MenuEnvironments" xml:space="preserve">
+    <value>_Environments</value>
+  </data>
+  <data name="MenuCookies" xml:space="preserve">
+    <value>Coo_kies</value>
+  </data>
+  <data name="MenuLogs" xml:space="preserve">
+    <value>Lo_gs</value>
+  </data>
+  <data name="MenuLayout" xml:space="preserve">
+    <value>_Layout</value>
+  </data>
+  <data name="MenuHelp" xml:space="preserve">
+    <value>_Help</value>
+  </data>
+  <data name="MenuAbout" xml:space="preserve">
+    <value>_About</value>
+  </data>
+  <data name="MenuDiagnostics" xml:space="preserve">
+    <value>_Diagnostics</value>
+  </data>
+
+  <!-- ═══════════════════════════════ Main Toolbar ═══════════════════════════════ -->
+  <data name="AppTitle" xml:space="preserve">
+    <value>Arbor Http Client</value>
+  </data>
+  <data name="ToolbarEnvLabel" xml:space="preserve">
+    <value>Env:</value>
+  </data>
+  <data name="ToolbarOptions" xml:space="preserve">
+    <value>Options</value>
+  </data>
+  <data name="ToolbarEnvironments" xml:space="preserve">
+    <value>Environments</value>
+  </data>
+  <data name="ToolbarImportOpenApi" xml:space="preserve">
+    <value>Import OpenAPI</value>
+  </data>
+  <data name="ToolbarCookies" xml:space="preserve">
+    <value>🍪 Cookies</value>
+  </data>
+  <data name="ToolbarLogs" xml:space="preserve">
+    <value>📋 Logs</value>
+  </data>
+  <data name="DraftRestore" xml:space="preserve">
+    <value>Restore</value>
+  </data>
+  <data name="DraftDiscard" xml:space="preserve">
+    <value>Discard</value>
+  </data>
+
+  <!-- ═══════════════════════════════ Request View ═══════════════════════════════ -->
+  <data name="RequestTypeLabel" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="RequestNamePlaceholder" xml:space="preserve">
+    <value>Request name</value>
+  </data>
+  <data name="RequestUrlPlaceholder" xml:space="preserve">
+    <value>Enter request URL</value>
+  </data>
+  <data name="RequestDemoBannerText" xml:space="preserve">
+    <value>⚡ This request targets the local demo server which is not running.</value>
+  </data>
+  <data name="RequestDemoBannerStartServer" xml:space="preserve">
+    <value>Start server</value>
+  </data>
+  <data name="RequestFollowRedirects" xml:space="preserve">
+    <value>Follow redirects</value>
+  </data>
+
+  <!-- Request tabs -->
+  <data name="TabQuery" xml:space="preserve">
+    <value>Query</value>
+  </data>
+  <data name="TabBody" xml:space="preserve">
+    <value>Body</value>
+  </data>
+  <data name="TabGraphQL" xml:space="preserve">
+    <value>GraphQL</value>
+  </data>
+  <data name="TabWebSocket" xml:space="preserve">
+    <value>WebSocket</value>
+  </data>
+  <data name="TabSse" xml:space="preserve">
+    <value>SSE</value>
+  </data>
+  <data name="TabGrpc" xml:space="preserve">
+    <value>gRPC</value>
+  </data>
+  <data name="TabHeaders" xml:space="preserve">
+    <value>Headers</value>
+  </data>
+  <data name="TabAuth" xml:space="preserve">
+    <value>Auth</value>
+  </data>
+  <data name="TabPreview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="TabNotes" xml:space="preserve">
+    <value>Notes</value>
+  </data>
+
+  <!-- Query tab -->
+  <data name="QueryParametersLabel" xml:space="preserve">
+    <value>Query parameters</value>
+  </data>
+  <data name="QueryParametersAddButton" xml:space="preserve">
+    <value>+ Add Query</value>
+  </data>
+  <data name="QueryKeyPlaceholder" xml:space="preserve">
+    <value>Key</value>
+  </data>
+  <data name="QueryValuePlaceholder" xml:space="preserve">
+    <value>Value</value>
+  </data>
+  <data name="QueryDescriptionPlaceholder" xml:space="preserve">
+    <value>Description</value>
+  </data>
+
+  <!-- Body tab -->
+  <data name="RequestBodyLabel" xml:space="preserve">
+    <value>Request Body</value>
+  </data>
+  <data name="RequestBodyOpenInEditor" xml:space="preserve">
+    <value>Open in editor</value>
+  </data>
+
+  <!-- GraphQL tab -->
+  <data name="GraphQlQueryLabel" xml:space="preserve">
+    <value>Query / Mutation</value>
+  </data>
+  <data name="GraphQlVariablesLabel" xml:space="preserve">
+    <value>Variables (JSON)</value>
+  </data>
+  <data name="GraphQlOperationNameLabel" xml:space="preserve">
+    <value>Operation name</value>
+  </data>
+  <data name="GraphQlOperationNamePlaceholder" xml:space="preserve">
+    <value>(optional)</value>
+  </data>
+  <data name="GraphQlIntrospect" xml:space="preserve">
+    <value>Introspect Schema</value>
+  </data>
+
+  <!-- WebSocket tab -->
+  <data name="WsConnected" xml:space="preserve">
+    <value>● Connected</value>
+  </data>
+  <data name="WsDisconnected" xml:space="preserve">
+    <value>○ Disconnected</value>
+  </data>
+  <data name="WsMessagePlaceholder" xml:space="preserve">
+    <value>Message to send…</value>
+  </data>
+  <data name="WsSend" xml:space="preserve">
+    <value>Send</value>
+  </data>
+  <data name="WsMessages" xml:space="preserve">
+    <value>Messages</value>
+  </data>
+  <data name="WsClear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+
+  <!-- SSE tab -->
+  <data name="SseEvents" xml:space="preserve">
+    <value>Events</value>
+  </data>
+  <data name="SseClear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+
+  <!-- gRPC tab -->
+  <data name="GrpcTitle" xml:space="preserve">
+    <value>gRPC Unary Request</value>
+  </data>
+  <data name="GrpcWarningTitle" xml:space="preserve">
+    <value>⚠ .proto import required</value>
+  </data>
+  <data name="GrpcDescription" xml:space="preserve">
+    <value>gRPC calls require a compiled Protocol Buffer schema. Full proto file import and runtime compilation is in development. To test gRPC endpoints now, use the HTTP type with gRPC-JSON transcoding (Content-Type: application/grpc-web+json) if your server supports it.</value>
+    <comment>Translator note: 'gRPC', 'Protocol Buffer', 'HTTP', and 'Content-Type: application/grpc-web+json' are technical terms and should not be translated. The phrase 'gRPC-JSON transcoding' should also remain in English.</comment>
+  </data>
+
+  <!-- Headers tab -->
+  <data name="HeadersLabel" xml:space="preserve">
+    <value>Headers</value>
+  </data>
+  <data name="HeadersAddButton" xml:space="preserve">
+    <value>+ Add Header</value>
+  </data>
+  <data name="HeadersContentTypeLabel" xml:space="preserve">
+    <value>Content-Type</value>
+  </data>
+  <data name="HeadersContentTypePlaceholder" xml:space="preserve">
+    <value>e.g. application/vnd.api+json</value>
+  </data>
+  <data name="HeadersKeyPlaceholder" xml:space="preserve">
+    <value>Key</value>
+  </data>
+  <data name="HeadersValuePlaceholder" xml:space="preserve">
+    <value>Value</value>
+  </data>
+  <data name="HeadersDescriptionPlaceholder" xml:space="preserve">
+    <value>Description</value>
+  </data>
+
+  <!-- Auth tab -->
+  <data name="AuthTypeLabel" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="AuthTokenLabel" xml:space="preserve">
+    <value>Token</value>
+  </data>
+  <data name="AuthBearerTokenPlaceholder" xml:space="preserve">
+    <value>Bearer token</value>
+  </data>
+  <data name="AuthUsernameLabel" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="AuthUsernamePlaceholder" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="AuthPasswordLabel" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="AuthPasswordPlaceholder" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="AuthApiKeyLabel" xml:space="preserve">
+    <value>API key</value>
+  </data>
+  <data name="AuthApiKeyPlaceholder" xml:space="preserve">
+    <value>API key</value>
+  </data>
+  <data name="AuthAccessTokenLabel" xml:space="preserve">
+    <value>Access token</value>
+  </data>
+  <data name="AuthOAuth2Placeholder" xml:space="preserve">
+    <value>OAuth 2 access token</value>
+  </data>
+
+  <!-- Preview tab -->
+  <data name="PreviewLabel" xml:space="preserve">
+    <value>Rendered request (as sent)</value>
+  </data>
+
+  <!-- Notes tab -->
+  <data name="NotesLabel" xml:space="preserve">
+    <value>Request notes (Markdown supported)</value>
+  </data>
+  <data name="NotesFreeformPlaceholder" xml:space="preserve">
+    <value>Document the purpose, expected responses, known quirks…</value>
+  </data>
+
+  <!-- ═══════════════════════════════ Response View ═══════════════════════════════ -->
+  <data name="ResponseHeadersLabel" xml:space="preserve">
+    <value>Response headers</value>
+  </data>
+  <data name="ResponseCopyBody" xml:space="preserve">
+    <value>📋 Copy body</value>
+  </data>
+  <data name="ResponseSaveAsFile" xml:space="preserve">
+    <value>💾 Save as file</value>
+  </data>
+  <data name="ResponseCopyAsCurl" xml:space="preserve">
+    <value>⌨ Copy as cURL</value>
+  </data>
+  <data name="ResponseBinaryResponse" xml:space="preserve">
+    <value>Binary response</value>
+  </data>
+  <data name="ResponseSaveAndOpen" xml:space="preserve">
+    <value>Save and Open</value>
+  </data>
+  <data name="ResponseTabRaw" xml:space="preserve">
+    <value>Raw</value>
+  </data>
+
+  <!-- ═══════════════════════════════ Options ═══════════════════════════════ -->
+  <data name="OptionsNavHttp" xml:space="preserve">
+    <value>HTTP</value>
+  </data>
+  <data name="OptionsNavScheduledJobs" xml:space="preserve">
+    <value>Scheduled Jobs</value>
+  </data>
+  <data name="OptionsNavLookAndFeel" xml:space="preserve">
+    <value>Look &amp; Feel</value>
+  </data>
+  <data name="OptionsNavDiagnostics" xml:space="preserve">
+    <value>Diagnostics</value>
+  </data>
+  <data name="OptionsHttpVersionLabel" xml:space="preserve">
+    <value>HTTP version</value>
+  </data>
+  <data name="OptionsTlsVersionLabel" xml:space="preserve">
+    <value>TLS version</value>
+  </data>
+  <data name="OptionsTlsWarning" xml:space="preserve">
+    <value>⚠ TLS 1.0 and 1.1 are cryptographically broken. Use only for testing against legacy servers.</value>
+  </data>
+  <data name="OptionsFollowRedirects" xml:space="preserve">
+    <value>Follow redirects</value>
+  </data>
+  <data name="OptionsEnableHttpDiagnostics" xml:space="preserve">
+    <value>Enable HTTP diagnostics</value>
+  </data>
+  <data name="OptionsDefaultContentType" xml:space="preserve">
+    <value>Default content type (body requests)</value>
+  </data>
+  <data name="OptionsDefaultUrl" xml:space="preserve">
+    <value>Default URL for new requests</value>
+  </data>
+  <data name="OptionsDemoServerTitle" xml:space="preserve">
+    <value>Demo Server</value>
+  </data>
+  <data name="OptionsDemoServerDescription" xml:space="preserve">
+    <value>An embedded Kestrel server that provides /echo, /sse, /ws, and /status endpoints for the 'Localhost Demo' collection.</value>
+  </data>
+  <data name="OptionsDemoServerPort" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="OptionsDemoServerStart" xml:space="preserve">
+    <value>Start</value>
+  </data>
+  <data name="OptionsDemoServerStartLabel" xml:space="preserve">
+    <value>Start demo server</value>
+  </data>
+  <data name="OptionsDemoServerStop" xml:space="preserve">
+    <value>Stop</value>
+  </data>
+  <data name="OptionsDemoServerStopLabel" xml:space="preserve">
+    <value>Stop demo server</value>
+  </data>
+  <data name="OptionsDemoServerRunning" xml:space="preserve">
+    <value>● Running</value>
+  </data>
+  <data name="OptionsDemoServerStopped" xml:space="preserve">
+    <value>○ Stopped</value>
+  </data>
+  <data name="OptionsScheduledJobsAutoStart" xml:space="preserve">
+    <value>Auto-start scheduled jobs on launch</value>
+  </data>
+  <data name="OptionsScheduledJobsDefaultInterval" xml:space="preserve">
+    <value>Default interval for new jobs</value>
+  </data>
+  <data name="OptionsScheduledJobsSeconds" xml:space="preserve">
+    <value>seconds</value>
+  </data>
+  <data name="OptionsTheme" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="OptionsFontFamily" xml:space="preserve">
+    <value>Font family</value>
+  </data>
+  <data name="OptionsFontSize" xml:space="preserve">
+    <value>Font size</value>
+  </data>
+  <data name="OptionsCollectExceptions" xml:space="preserve">
+    <value>Collect unhandled exceptions</value>
+  </data>
+  <data name="OptionsCollectExceptionsDescription" xml:space="preserve">
+    <value>When enabled, unhandled exceptions are stored locally so you can review and optionally report them as GitHub issues. No data is sent automatically.</value>
+  </data>
+  <data name="OptionsViewCollectedExceptions" xml:space="preserve">
+    <value>View Collected Exceptions…</value>
+  </data>
+  <data name="OptionsImportJson" xml:space="preserve">
+    <value>Import JSON</value>
+  </data>
+  <data name="OptionsExportJson" xml:space="preserve">
+    <value>Export JSON</value>
+  </data>
+  <data name="OptionsClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
+
+  <!-- ═══════════════════════════════ Environments ═══════════════════════════════ -->
+  <data name="EnvironmentsTitle" xml:space="preserve">
+    <value>Manage environments</value>
+  </data>
+  <data name="EnvironmentsNewButton" xml:space="preserve">
+    <value>+ New Environment</value>
+  </data>
+  <data name="EnvironmentsNameLabel" xml:space="preserve">
+    <value>Environment name</value>
+  </data>
+  <data name="EnvironmentsNamePlaceholder" xml:space="preserve">
+    <value>Environment name</value>
+  </data>
+  <data name="EnvironmentsActiveColumn" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="EnvironmentsVariableKeyColumn" xml:space="preserve">
+    <value>Variable key</value>
+  </data>
+  <data name="EnvironmentsVariableValueColumn" xml:space="preserve">
+    <value>Variable value</value>
+  </data>
+  <data name="EnvironmentsVariableKeyPlaceholder" xml:space="preserve">
+    <value>Variable key</value>
+  </data>
+  <data name="EnvironmentsVariableValuePlaceholder" xml:space="preserve">
+    <value>Variable value</value>
+  </data>
+  <data name="EnvironmentsEditButton" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="EnvironmentsDeleteButton" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="EnvironmentsAddVariable" xml:space="preserve">
+    <value>+ Add Variable</value>
+  </data>
+  <data name="EnvironmentsExportJson" xml:space="preserve">
+    <value>Export JSON</value>
+  </data>
+
+  <!-- ═══════════════════════════════ Log Panel / Log Window ═══════════════════════════════ -->
+  <data name="LogPanelTitle" xml:space="preserve">
+    <value>Live Log</value>
+  </data>
+  <data name="LogPanelAutoScroll" xml:space="preserve">
+    <value>Auto-scroll</value>
+  </data>
+  <data name="LogPanelTabScheduled" xml:space="preserve">
+    <value>Scheduled</value>
+  </data>
+  <data name="LogPanelTabHttpDiagnostics" xml:space="preserve">
+    <value>HTTP Diagnostics</value>
+  </data>
+  <data name="LogPanelTabHttpRequests" xml:space="preserve">
+    <value>HTTP Requests</value>
+  </data>
+  <data name="LogPanelTabDebug" xml:space="preserve">
+    <value>Debug</value>
+  </data>
+
+  <!-- ═══════════════════════════════ About Window ═══════════════════════════════ -->
+  <data name="AboutTitle" xml:space="preserve">
+    <value>Arbor HTTP Client</value>
+  </data>
+  <data name="AboutSourceLabel" xml:space="preserve">
+    <value>Source:</value>
+  </data>
+  <data name="AboutClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
+
+  <!-- ═══════════════════════════════ Cookie Jar ═══════════════════════════════ -->
+  <data name="CookieJarTitle" xml:space="preserve">
+    <value>Cookie Jar</value>
+  </data>
+  <data name="CookieJarRefresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="CookieJarClearAll" xml:space="preserve">
+    <value>Clear All</value>
+  </data>
+  <data name="CookieJarAddCookieTitle" xml:space="preserve">
+    <value>Add Cookie</value>
+  </data>
+  <data name="CookieJarNamePlaceholder" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="CookieJarValuePlaceholder" xml:space="preserve">
+    <value>Value</value>
+  </data>
+  <data name="CookieJarDomainPlaceholder" xml:space="preserve">
+    <value>Domain (e.g. example.com)</value>
+  </data>
+  <data name="CookieJarAddButton" xml:space="preserve">
+    <value>Add</value>
+  </data>
+
+  <!-- ═══════════════════════════════ Diagnostics Window ═══════════════════════════════ -->
+  <data name="DiagnosticsTitle" xml:space="preserve">
+    <value>Unhandled Exceptions</value>
+  </data>
+  <data name="DiagnosticsDescription" xml:space="preserve">
+    <value>Review collected exceptions below. Use 'Report on GitHub' to open a pre-filled issue in your browser. The issue is not submitted until you click Submit on GitHub.</value>
+  </data>
+  <data name="DiagnosticsNoEntries" xml:space="preserve">
+    <value>No unhandled exceptions have been collected.</value>
+  </data>
+  <data name="DiagnosticsStackTrace" xml:space="preserve">
+    <value>Stack trace</value>
+  </data>
+  <data name="DiagnosticsReportOnGitHub" xml:space="preserve">
+    <value>Report on GitHub</value>
+  </data>
+  <data name="DiagnosticsDismiss" xml:space="preserve">
+    <value>Dismiss</value>
+  </data>
+  <data name="DiagnosticsClearAll" xml:space="preserve">
+    <value>Clear All</value>
+  </data>
+  <data name="DiagnosticsClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
+
+  <!-- ═══════════════════════════════ Layout Management ═══════════════════════════════ -->
+  <data name="LayoutTitle" xml:space="preserve">
+    <value>Window Layout</value>
+  </data>
+  <data name="LayoutSavedLayouts" xml:space="preserve">
+    <value>Saved layouts:</value>
+  </data>
+  <data name="LayoutSaveAsNew" xml:space="preserve">
+    <value>Save As New</value>
+  </data>
+  <data name="LayoutSaveToSelected" xml:space="preserve">
+    <value>Save to Selected</value>
+  </data>
+  <data name="LayoutRemoveSelected" xml:space="preserve">
+    <value>Remove Selected</value>
+  </data>
+  <data name="LayoutRestoreDefault" xml:space="preserve">
+    <value>Restore Default</value>
+  </data>
+
+  <!-- ═══════════════════════════════ Left Panel ═══════════════════════════════ -->
+  <data name="LeftPanelHistory" xml:space="preserve">
+    <value>History</value>
+  </data>
+  <data name="LeftPanelCollections" xml:space="preserve">
+    <value>Collections</value>
+  </data>
+  <data name="LeftPanelScheduled" xml:space="preserve">
+    <value>Scheduled</value>
+  </data>
+  <data name="LeftPanelSearchHistory" xml:space="preserve">
+    <value>Search history…</value>
+  </data>
+  <data name="LeftPanelCopyAsCurl" xml:space="preserve">
+    <value>Copy as cURL</value>
+  </data>
+  <data name="LeftPanelNewCollection" xml:space="preserve">
+    <value>+ New</value>
+  </data>
+  <data name="LeftPanelCollectionNamePlaceholder" xml:space="preserve">
+    <value>Collection name</value>
+  </data>
+  <data name="LeftPanelAddRequest" xml:space="preserve">
+    <value>+ Add request</value>
+  </data>
+  <data name="LeftPanelImportOpenApi" xml:space="preserve">
+    <value>Import OpenAPI</value>
+  </data>
+  <data name="LeftPanelDeleteCollection" xml:space="preserve">
+    <value>🗑 Delete</value>
+  </data>
+  <data name="LeftPanelSearchRequests" xml:space="preserve">
+    <value>Search requests…</value>
+  </data>
+  <data name="LeftPanelSortLabel" xml:space="preserve">
+    <value>Sort:</value>
+  </data>
+  <data name="LeftPanelSortDefault" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="LeftPanelSortName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="LeftPanelSortMethod" xml:space="preserve">
+    <value>Method</value>
+  </data>
+  <data name="LeftPanelSortPath" xml:space="preserve">
+    <value>Path</value>
+  </data>
+  <data name="LeftPanelShowLabel" xml:space="preserve">
+    <value>Show:</value>
+  </data>
+  <data name="LeftPanelShowNameAndPath" xml:space="preserve">
+    <value>Name+Path</value>
+  </data>
+  <data name="LeftPanelShowName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="LeftPanelShowPath" xml:space="preserve">
+    <value>Path</value>
+  </data>
+  <data name="LeftPanelShowUrl" xml:space="preserve">
+    <value>URL</value>
+  </data>
+  <data name="LeftPanelTreeView" xml:space="preserve">
+    <value>🌿 Tree</value>
+  </data>
+  <data name="LeftPanelAddJob" xml:space="preserve">
+    <value>+ Add Job</value>
+  </data>
+  <data name="LeftPanelJobNamePlaceholder" xml:space="preserve">
+    <value>Job name</value>
+  </data>
+  <data name="LeftPanelJobUrlPlaceholder" xml:space="preserve">
+    <value>URL</value>
+  </data>
+  <data name="LeftPanelJobBodyPlaceholder" xml:space="preserve">
+    <value>Body (optional)</value>
+  </data>
+  <data name="LeftPanelIntervalLabel" xml:space="preserve">
+    <value>Interval (s)</value>
+  </data>
+  <data name="LeftPanelAutoStart" xml:space="preserve">
+    <value>Auto-start</value>
+  </data>
+  <data name="LeftPanelJobFollowRedirects" xml:space="preserve">
+    <value>Follow redirects</value>
+  </data>
+  <data name="LeftPanelJobShowInWebView" xml:space="preserve">
+    <value>Show in web view</value>
+  </data>
+  <data name="LeftPanelJobLastLabel" xml:space="preserve">
+    <value>Last:</value>
+  </data>
+  <data name="LeftPanelJobStart" xml:space="preserve">
+    <value>▶ Start</value>
+  </data>
+  <data name="LeftPanelJobStop" xml:space="preserve">
+    <value>■ Stop</value>
+  </data>
+  <data name="LeftPanelJobWebView" xml:space="preserve">
+    <value>🌐 Web view</value>
+  </data>
+  <data name="LeftPanelJobDelete" xml:space="preserve">
+    <value>🗑 Delete</value>
+  </data>
+  <!-- ═══════════════════════════════ WebView Window ═══════════════════════════════ -->
+  <data name="WebViewWindowTitle" xml:space="preserve">
+    <value>Web View</value>
+  </data>
+  <data name="WebViewGo" xml:space="preserve">
+    <value>Go</value>
+  </data>
+  <data name="WebViewGoBack" xml:space="preserve">
+    <value>Go back</value>
+  </data>
+  <data name="WebViewGoForward" xml:space="preserve">
+    <value>Go forward</value>
+  </data>
+  <data name="WebViewRefresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="WebViewRefreshPage" xml:space="preserve">
+    <value>Refresh page</value>
+  </data>
+  <data name="WebViewUrlTooltip" xml:space="preserve">
+    <value>Enter a URL and press Enter or click Go</value>
+  </data>
+  <data name="WebViewUrlLabel" xml:space="preserve">
+    <value>URL</value>
+  </data>
+  <data name="WebViewNavigate" xml:space="preserve">
+    <value>Navigate to URL</value>
+  </data>
+  <data name="WebViewNavigateTooltip" xml:space="preserve">
+    <value>Navigate to the URL</value>
+  </data>
+
+  <!-- ═══════════════════════════════ Window titles ═══════════════════════════════ -->
+  <data name="MainWindowTitle" xml:space="preserve">
+    <value>Arbor HTTP Client</value>
+    <comment>Translator note: 'HTTP' is a technical acronym and should not be translated. 'Arbor' is a product name.</comment>
+  </data>
+  <data name="AboutWindowTitle" xml:space="preserve">
+    <value>About Arbor HTTP Client</value>
+    <comment>Translator note: 'HTTP' is a technical acronym and should not be translated. 'Arbor' is a product name.</comment>
+  </data>
+  <data name="DiagnosticsWindowTitle" xml:space="preserve">
+    <value>Diagnostics — Unhandled Exceptions</value>
+  </data>
+  <data name="LogWindowTitle" xml:space="preserve">
+    <value>Application Log</value>
+  </data>
+  <data name="OptionsWindowTitle" xml:space="preserve">
+    <value>Options</value>
+  </data>
+
+  <!-- ═══════════════════════════════ Request method badges ═══════════════════════════════ -->
+  <data name="RequestMethodPost" xml:space="preserve">
+    <value>POST</value>
+  </data>
+  <data name="RequestMethodWebSocket" xml:space="preserve">
+    <value>WS</value>
+  </data>
+  <data name="RequestMethodGet" xml:space="preserve">
+    <value>GET</value>
+  </data>
+  <data name="RequestMethodGrpc" xml:space="preserve">
+    <value>gRPC</value>
+  </data>
+</root>

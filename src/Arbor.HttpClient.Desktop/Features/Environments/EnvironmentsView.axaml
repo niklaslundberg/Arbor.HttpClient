@@ -2,17 +2,18 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Arbor.HttpClient.Desktop.Features.Environments"
              xmlns:models="using:Arbor.HttpClient.Core.Environments"
+             xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
              x:Class="Arbor.HttpClient.Desktop.Features.Environments.EnvironmentsView"
              x:DataType="vm:EnvironmentsViewModel">
 
     <Grid Margin="12" RowDefinitions="Auto,*,Auto" RowSpacing="10">
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-            <TextBlock Text="Manage environments"
+            <TextBlock Text="{x:Static loc:Strings.EnvironmentsTitle}"
                        FontSize="16"
                        FontWeight="SemiBold"
                        VerticalAlignment="Center" />
             <Button Grid.Column="1"
-                    Content="+ New Environment"
+                    Content="{x:Static loc:Strings.EnvironmentsNewButton}"
                     Command="{Binding NewEnvironmentCommand}" />
         </Grid>
 
@@ -35,10 +36,10 @@
                                         </Border>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                                        <Button Content="Edit"
+                                        <Button Content="{x:Static loc:Strings.EnvironmentsEditButton}"
                                                 Command="{Binding $parent[UserControl].DataContext.EditEnvironmentCommand}"
                                                 CommandParameter="{Binding}" />
-                                        <Button Content="Delete"
+                                        <Button Content="{x:Static loc:Strings.EnvironmentsDeleteButton}"
                                                 Command="{Binding $parent[UserControl].DataContext.DeleteEnvironmentCommand}"
                                                 CommandParameter="{Binding}" />
                                     </StackPanel>
@@ -50,15 +51,15 @@
 
                 <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10">
                     <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="6">
-                        <TextBlock Text="Environment name" FontWeight="SemiBold" />
+                        <TextBlock Text="{x:Static loc:Strings.EnvironmentsNameLabel}" FontWeight="SemiBold" />
                         <TextBox Grid.Row="1"
-                                 PlaceholderText="Environment name"
+                                 PlaceholderText="{x:Static loc:Strings.EnvironmentsNamePlaceholder}"
                                  Text="{Binding NewEnvironmentName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                         <Grid Grid.Row="2" ColumnDefinitions="Auto,*,*,Auto" ColumnSpacing="8" Margin="0,4,0,0">
-                            <TextBlock Text="Active" FontWeight="SemiBold" />
-                            <TextBlock Grid.Column="1" Text="Variable key" FontWeight="SemiBold" />
-                            <TextBlock Grid.Column="2" Text="Variable value" FontWeight="SemiBold" />
+                            <TextBlock Text="{x:Static loc:Strings.EnvironmentsActiveColumn}" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="1" Text="{x:Static loc:Strings.EnvironmentsVariableKeyColumn}" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="2" Text="{x:Static loc:Strings.EnvironmentsVariableValueColumn}" FontWeight="SemiBold" />
                         </Grid>
 
                         <ItemsControl Grid.Row="3" ItemsSource="{Binding ActiveEnvironmentVariables}">
@@ -68,10 +69,10 @@
                                         <CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay}"
                                                   VerticalAlignment="Center" />
                                         <TextBox Grid.Column="1"
-                                                 PlaceholderText="Variable key"
+                                                 PlaceholderText="{x:Static loc:Strings.EnvironmentsVariableKeyPlaceholder}"
                                                  Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                         <TextBox Grid.Column="2"
-                                                 PlaceholderText="Variable value"
+                                                 PlaceholderText="{x:Static loc:Strings.EnvironmentsVariableValuePlaceholder}"
                                                  Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                         <Button Grid.Column="3"
                                                 Content="✕"
@@ -83,9 +84,9 @@
                         </ItemsControl>
 
                         <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="6">
-                            <Button Content="+ Add Variable"
+                            <Button Content="{x:Static loc:Strings.EnvironmentsAddVariable}"
                                     Command="{Binding AddEnvironmentVariableCommand}" />
-                            <Button Content="Export JSON"
+                            <Button Content="{x:Static loc:Strings.EnvironmentsExportJson}"
                                     Command="{Binding ExportEnvironmentsCommand}" />
                         </StackPanel>
                     </Grid>

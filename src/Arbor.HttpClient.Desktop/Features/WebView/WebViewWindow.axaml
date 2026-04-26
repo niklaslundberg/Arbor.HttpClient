@@ -1,8 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:webview="using:Avalonia.Controls"
+        xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
         x:Class="Arbor.HttpClient.Desktop.Features.WebView.WebViewWindow"
-        Title="Web View"
+        Title="{x:Static loc:Strings.WebViewWindowTitle}"
         Width="1024"
         Height="720"
         MinWidth="480"
@@ -19,29 +20,29 @@
                 <Button x:Name="BackButton"
                         Content="←"
                         Width="32"
-                        AutomationProperties.Name="Go back"
-                        ToolTip.Tip="Go back"
+                        AutomationProperties.Name="{x:Static loc:Strings.WebViewGoBack}"
+                        ToolTip.Tip="{x:Static loc:Strings.WebViewGoBack}"
                         IsEnabled="False" />
                 <Button x:Name="ForwardButton"
                         Content="→"
                         Width="32"
-                        AutomationProperties.Name="Go forward"
-                        ToolTip.Tip="Go forward"
+                        AutomationProperties.Name="{x:Static loc:Strings.WebViewGoForward}"
+                        ToolTip.Tip="{x:Static loc:Strings.WebViewGoForward}"
                         IsEnabled="False" />
                 <Button x:Name="RefreshButton"
                         Content="↺"
                         Width="32"
-                        AutomationProperties.Name="Refresh page"
-                        ToolTip.Tip="Refresh" />
+                        AutomationProperties.Name="{x:Static loc:Strings.WebViewRefreshPage}"
+                        ToolTip.Tip="{x:Static loc:Strings.WebViewRefresh}" />
                 <TextBox x:Name="UrlBox"
                          MinWidth="360"
                          HorizontalAlignment="Stretch"
-                         AutomationProperties.Name="URL"
-                         ToolTip.Tip="Enter a URL and press Enter or click Go" />
+                         AutomationProperties.Name="{x:Static loc:Strings.WebViewUrlLabel}"
+                         ToolTip.Tip="{x:Static loc:Strings.WebViewUrlTooltip}" />
                 <Button x:Name="GoButton"
-                        Content="Go"
-                        AutomationProperties.Name="Navigate to URL"
-                        ToolTip.Tip="Navigate to the URL" />
+                        Content="{x:Static loc:Strings.WebViewGo}"
+                        AutomationProperties.Name="{x:Static loc:Strings.WebViewNavigate}"
+                        ToolTip.Tip="{x:Static loc:Strings.WebViewNavigateTooltip}" />
             </StackPanel>
         </Border>
 

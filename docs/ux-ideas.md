@@ -375,11 +375,37 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 **Scope:** M
 
+### 6.6 Language / Locale selector
+**What it means:** A dropdown in the Options › Look & Feel page that lets the user override the application display language without changing the OS locale. The localization infrastructure (`Strings.resx` + `System.Resources.ResourceManager`) is already in place; this idea covers the UI entry point and translation files.
+
+**How to implement:**
+- Add a `Language` option to `ApplicationOptions` (e.g. `"default"`, `"en"`, `"de"`, `"fr"`, etc.).
+- On startup and on change, call `Thread.CurrentThread.CurrentUICulture = new CultureInfo(language)`.
+- Since `{x:Static}` values are effectively read when the XAML is loaded and do not automatically refresh when the culture changes at runtime, dynamic re-translation requires either (a) restarting the app after a language change, or (b) replacing `{x:Static}` with a custom `LocalizationExtension` that responds to culture-change notifications.
+- Add at least one `Strings.<culture>.resx` file (e.g. `Strings.de.resx`) as a proof-of-concept.
+
+**Scope:** M
+
 ---
 
 ## Implemented
 
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
+
+### Localization Infrastructure ✅ Implemented
+> Implemented in PR #106 (commit `00b551e`) — `src/Arbor.HttpClient.Desktop/Localization/Strings.resx`, `src/Arbor.HttpClient.Desktop/Localization/Strings.Designer.cs`, and all 15 Desktop AXAML view files
+
+**What it means:** All user-visible texts in the Desktop UI are stored in a `.resx` resource file (`Strings.resx`) and referenced from AXAML via `{x:Static loc:Strings.KeyName}`. Adding a new translation requires only creating a `Strings.<culture>.resx` file — the `System.Resources.ResourceManager` picks up the correct file automatically based on `Thread.CurrentThread.CurrentUICulture`.
+
+**What shipped:**
+- `Localization/Strings.resx` — 130+ English string keys covering all AXAML files
+- `Localization/Strings.Designer.cs` — Strongly-typed static accessor class; throws in DEBUG builds when a key is missing
+- All 14 AXAML files updated to use `{x:Static loc:Strings.KeyName}` instead of hardcoded strings
+- Translator comments added to `Strings.resx` for mnemonic underscores and technical terms that should not be translated
+
+**Polish items remaining:**
+- No language selector UI yet (see "Language / Locale selector" idea below)
+- The `Strings.Designer.cs` is hand-authored (the `PublicResXFileCodeGenerator` requires Windows tooling); future maintainers should regenerate it when adding new keys
 
 ### About Window ✅ Implemented
 > Implemented in PR #96 (commit `27e3f57`) — `src/Arbor.HttpClient.Desktop/ViewModels/AboutWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Views/AboutWindow.axaml`, `src/Arbor.HttpClient.Desktop/Views/AboutWindow.axaml.cs`, `src/Arbor.HttpClient.Desktop/Views/MainWindow.axaml`, `src/Arbor.HttpClient.Desktop/Views/MainWindow.axaml.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/MainWindowViewModel.cs`

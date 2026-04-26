@@ -2,19 +2,20 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Arbor.HttpClient.Desktop.Features.Logging"
         xmlns:logging="using:Arbor.HttpClient.Desktop.Features.Logging"
+        xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="500"
         x:Class="Arbor.HttpClient.Desktop.Features.Logging.LogWindow"
         x:DataType="vm:LogWindowViewModel"
-        Title="Application Log"
+        Title="{x:Static loc:Strings.LogWindowTitle}"
         Width="800"
         Height="500">
 
     <Grid RowDefinitions="Auto,*" Margin="12" RowSpacing="8">
         <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Text="Live Log" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
-            <CheckBox Grid.Column="1" Content="Auto-scroll"
+            <TextBlock Text="{x:Static loc:Strings.LogPanelTitle}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <CheckBox Grid.Column="1" Content="{x:Static loc:Strings.LogPanelAutoScroll}"
                       IsChecked="{Binding AutoScroll, Mode=TwoWay}"
                       VerticalAlignment="Center" />
         </Grid>
