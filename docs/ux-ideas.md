@@ -532,3 +532,20 @@ Each idea includes a description of what it means in practice, notes on how it c
 - Options › Diagnostics page — checkbox to enable collection, explanatory note, and "View Collected Exceptions…" button
 - Help › Diagnostics menu item in `MainWindow.axaml`
 - 8 unit tests added to `UnhandledExceptionCollectorTests.cs`
+
+---
+
+### VSCode-Style Activity Bar ✅ Implemented
+> Implemented in PR (commit `05f9a69`) — `src/Arbor.HttpClient.Desktop/Features/Main/MainWindow.axaml`, `src/Arbor.HttpClient.Desktop/Localization/Strings.resx`, `src/Arbor.HttpClient.Desktop/Localization/Strings.Designer.cs`
+
+**What it means:** A narrow (48 px) activity bar docked to the left edge of the main window — inspired by VS Code — provides icon buttons for the main application features. Action buttons previously scattered in the top toolbar are consolidated here, freeing the toolbar to show only the title and environment selector.
+
+**What shipped:**
+- Activity bar `Border` (48 px wide, styled with `OptionsNavBackgroundBrush`) containing a two-zone `Grid`: main navigation icons (top) and auxiliary icons (bottom)
+- Icons for: Collections (📁), Environments (🌐), Options (⚙), Cookies (🍪), Logs (📋), Import OpenAPI (📥), About (ℹ)
+- Each icon `Button` has `ToolTip.Tip` and `AutomationProperties.Name` bound to localized strings for accessibility
+- Old top-toolbar text buttons (Options, Environments, Import OpenAPI, Cookies, Logs) removed
+- Top toolbar now contains only the app title and the environment `ComboBox`
+- 7 new localized string keys added: `ActivityBarCollections`, `ActivityBarEnvironments`, `ActivityBarOptions`, `ActivityBarCookies`, `ActivityBarLogs`, `ActivityBarImportOpenApi`, `ActivityBarAbout`
+
+**Polish items remaining:** Highlighted/active state on the activity bar icon corresponding to the currently visible left-dock panel; keyboard shortcut badge overlays; tooltip delay tuning.
