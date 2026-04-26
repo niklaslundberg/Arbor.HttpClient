@@ -500,8 +500,8 @@ public class ScreenshotGenerator
                 method: "GET",
                 url: "http://localhost:5000/echo");
 
-            // Open the layout panel so it appears in the screenshot
-            viewModel.IsLayoutPanelVisible = true;
+            // Open the layout management dockable so it appears in the screenshot
+            viewModel.OpenLayoutPanelCommand.Execute(null);
 
             window.Show();
 

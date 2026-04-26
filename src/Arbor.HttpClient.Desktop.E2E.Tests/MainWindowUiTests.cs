@@ -213,6 +213,41 @@ public class MainWindowUiTests
     }
 
     [Fact]
+    public async Task OpenLayoutPanelCommand_ShouldActivateDockableLayoutPanel()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+            leftToolDock.Should().NotBeNull();
+            leftToolDock!.VisibleDockables!.Should().Contain(d => d.Id == "layout-management");
+
+            viewModel.OpenLayoutPanelCommand.Execute(null);
+
+            leftToolDock.ActiveDockable?.Id.Should().Be("layout-management");
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task InitializeAsync_ShouldNotAutoStartScheduledJobs_WhenApplicationOptionIsDisabled()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));

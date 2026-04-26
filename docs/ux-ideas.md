@@ -458,4 +458,20 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ---
 
+### Layout Management Dockable Panel ✅ Implemented
+> Implemented in PR #86 (commit `e412b95`) — `src/Arbor.HttpClient.Desktop/ViewModels/LayoutManagementViewModel.cs`, `src/Arbor.HttpClient.Desktop/Views/LayoutManagementView.axaml`, `src/Arbor.HttpClient.Desktop/ViewModels/DockFactory.cs`, `src/Arbor.HttpClient.Desktop/Views/MainWindow.axaml`
+
+**What it means:** The window layout management controls (save/restore/remove named layouts) are now a proper dockable tool panel in the left dock, instead of a fixed horizontal bar toggled at the top of the window. The panel can be moved, floated, and repositioned like all other tool panels.
+
+**What shipped:**
+- New `LayoutManagementViewModel` (extends `Tool`) with proxy commands to `MainWindowViewModel`
+- New `LayoutManagementView.axaml` with the "Window Layout" title, "Saved layouts:" ComboBox, and "Save As New", "Save to Selected", "Remove Selected", "Restore Default" buttons
+- `DockFactory` adds the Layout panel as the sixth dockable in the left `ToolDock`
+- `Window > Layout` menu item now focuses/activates the Layout dockable instead of toggling a fixed bar
+- Old inline `Border` layout bar removed from `MainWindow.axaml`
+
+**Polish items remaining:** Keyboard shortcut to focus the Layout panel directly.
+
+---
+
 *Last updated: April 2026. Suggestions sourced from comparative review of Hoppscotch, Insomnia, Postman, Bruno, and browser DevTools.*
