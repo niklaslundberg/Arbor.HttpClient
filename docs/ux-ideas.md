@@ -381,6 +381,20 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
 
+### About Window ✅ Implemented
+> Implemented in PR #96 (commit `27e3f57`) — `src/Arbor.HttpClient.Desktop/ViewModels/AboutWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Views/AboutWindow.axaml`, `src/Arbor.HttpClient.Desktop/Views/AboutWindow.axaml.cs`, `src/Arbor.HttpClient.Desktop/Views/MainWindow.axaml`, `src/Arbor.HttpClient.Desktop/Views/MainWindow.axaml.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/MainWindowViewModel.cs`
+
+**What it means:** An About window accessible from the Help menu that shows the application version, the git commit hash the binary was built from, MIT license attribution, copyright, and a link to the GitHub repository.
+
+**What shipped:**
+- `AboutWindowViewModel` reads `AssemblyInformationalVersion` (format `1.0.0+<hash>`) to expose `AppVersion`, `GitHash`, `BuildLabel`, `Copyright`, `License`, `LicenseText`, and `GitHubUrl`
+- `Directory.Build.targets` embeds the short git hash into the assembly via the SDK's `SourceRevisionId` mechanism (gracefully omitted when git is unavailable)
+- `AboutWindow` — a fixed-size dialog with version/hash label, MIT license text, copyright, and a clickable GitHub link
+- Help > About menu item in `MainWindow.axaml`
+- `OpenAboutWindowAction` delegate on `MainWindowViewModel` (same pattern as `ExitApplicationAction`) wired in `MainWindow.axaml.cs`
+
+---
+
 ### 1.3 GraphQL / WebSocket / SSE / gRPC request types ✅ Implemented
 > Implemented in PR (commit TBD) — `src/Arbor.HttpClient.Core/Models/RequestType.cs`, `src/Arbor.HttpClient.Core/Services/GraphQlService.cs`, `src/Arbor.HttpClient.Core/Services/WebSocketService.cs`, `src/Arbor.HttpClient.Core/Services/SseService.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/GraphQlViewModel.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/WebSocketViewModel.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/SseViewModel.cs`, `src/Arbor.HttpClient.Desktop/Views/RequestView.axaml`
 

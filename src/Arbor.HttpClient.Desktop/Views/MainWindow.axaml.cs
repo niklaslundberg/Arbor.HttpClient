@@ -18,6 +18,11 @@ public partial class MainWindow : Avalonia.Controls.Window
             viewModel.StorageProvider = StorageProvider;
             viewModel.Clipboard = Clipboard;
             viewModel.ExitApplicationAction = Close;
+            viewModel.OpenAboutWindowAction = () =>
+            {
+                var about = new AboutWindow { DataContext = new Arbor.HttpClient.Desktop.ViewModels.AboutWindowViewModel() };
+                about.ShowDialog(this);
+            };
         }
     }
 

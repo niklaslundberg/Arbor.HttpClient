@@ -769,6 +769,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>Set by the view layer to close the main window.</summary>
     public Action? ExitApplicationAction { get; set; }
 
+    /// <summary>Set by the view layer to open the About window.</summary>
+    public Action? OpenAboutWindowAction { get; set; }
+
+    [RelayCommand]
+    private void OpenAbout() => OpenAboutWindowAction?.Invoke();
+
     [RelayCommand]
     private void OpenLogWindow()
     {

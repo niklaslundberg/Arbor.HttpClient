@@ -126,6 +126,35 @@ public class ScreenshotCaptureTests
         }, CancellationToken.None);
     }
 
+    /// <summary>
+    /// Saves a screenshot of the About window showing the version, git hash,
+    /// copyright, license attribution, and GitHub link.
+    /// Output directory is controlled by the SCREENSHOT_OUTPUT_DIR environment variable
+    /// (defaults to the system temp folder).
+    /// </summary>
+    [Fact]
+    public async Task Capture_AboutWindow()
+    {
+        var outputDir = ResolveOutputDir();
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(() =>
+        {
+            var viewModel = new AboutWindowViewModel();
+            var window = new AboutWindow { DataContext = viewModel };
+            window.Show();
+
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+
+            var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            screenshot?.Save(Path.Join(outputDir, "about-window.png"));
+
+            window.Close();
+            return Task.FromResult(true);
+        }, CancellationToken.None);
+    }
+
     private static string ResolveOutputDir()
     {
         var dir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")

@@ -1,0 +1,87 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Arbor.HttpClient.Desktop.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="440"
+        x:Class="Arbor.HttpClient.Desktop.Views.AboutWindow"
+        x:DataType="vm:AboutWindowViewModel"
+        Title="About Arbor HTTP Client"
+        Width="480"
+        Height="440"
+        MinWidth="400"
+        MinHeight="360"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid RowDefinitions="*,Auto">
+
+        <ScrollViewer Padding="28,24,28,12"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="16">
+
+                <!-- App name -->
+                <TextBlock Text="Arbor HTTP Client"
+                           FontSize="22"
+                           FontWeight="Bold"
+                           HorizontalAlignment="Center" />
+
+                <!-- Version and build info -->
+                <StackPanel HorizontalAlignment="Center" Spacing="4">
+                    <TextBlock Text="{Binding BuildLabel}"
+                               HorizontalAlignment="Center"
+                               Opacity="0.75" />
+                    <TextBlock Text="{Binding Copyright}"
+                               HorizontalAlignment="Center"
+                               Opacity="0.75" />
+                </StackPanel>
+
+                <!-- Separator -->
+                <Rectangle Height="1"
+                           Fill="{DynamicResource PanelBorderBrush}"
+                           Margin="0,4" />
+
+                <!-- License -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding License}"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding LicenseText}"
+                               TextWrapping="Wrap"
+                               Opacity="0.75"
+                               FontSize="11" />
+                </StackPanel>
+
+                <!-- Separator -->
+                <Rectangle Height="1"
+                           Fill="{DynamicResource PanelBorderBrush}"
+                           Margin="0,4" />
+
+                <!-- GitHub link -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="Source:"
+                               VerticalAlignment="Center"
+                               Opacity="0.75" />
+                    <Button Content="{Binding GitHubUrl}"
+                            Command="{Binding OpenGitHubCommand}"
+                            AutomationProperties.Name="Open GitHub repository"
+                            ToolTip.Tip="Open on GitHub"
+                            Cursor="Hand" />
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Close button -->
+        <Border Grid.Row="1"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="12,8">
+            <Button Content="Close"
+                    HorizontalAlignment="Right"
+                    Click="OnCloseClicked"
+                    AutomationProperties.Name="Close About window" />
+        </Border>
+
+    </Grid>
+</Window>
