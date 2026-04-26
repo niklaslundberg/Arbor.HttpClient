@@ -1,0 +1,129 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Arbor.HttpClient.Desktop.Features.Diagnostics"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="520"
+        x:Class="Arbor.HttpClient.Desktop.Features.Diagnostics.DiagnosticsWindow"
+        x:DataType="vm:DiagnosticsViewModel"
+        Title="Diagnostics — Unhandled Exceptions"
+        Width="680"
+        Height="520"
+        MinWidth="500"
+        MinHeight="360"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- Header -->
+        <Border Padding="20,16,20,12"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="0,0,0,1">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Unhandled Exceptions"
+                           FontSize="16"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="Review collected exceptions below. Use 'Report on GitHub' to open a pre-filled issue in your browser. The issue is not submitted until you click Submit on GitHub."
+                           TextWrapping="Wrap"
+                           Opacity="0.65"
+                           FontSize="11" />
+            </StackPanel>
+        </Border>
+
+        <!-- Entry list -->
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Padding="0">
+            <StackPanel Spacing="0">
+
+                <!-- No entries placeholder -->
+                <TextBlock IsVisible="{Binding !HasEntries}"
+                           Text="No unhandled exceptions have been collected."
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Margin="0,48,0,0"
+                           Opacity="0.55" />
+
+                <!-- Entries -->
+                <ItemsControl ItemsSource="{Binding Entries}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:UnhandledExceptionEntryViewModel">
+                            <Border BorderBrush="{DynamicResource PanelBorderBrush}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="20,14">
+                                <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+                                    <!-- Timestamp + type -->
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <TextBlock Text="{Binding DisplayTimestamp}"
+                                                   Opacity="0.55"
+                                                   FontSize="11" />
+                                        <TextBlock Text="{Binding DisplayType}"
+                                                   FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+
+                                    <!-- Message -->
+                                    <TextBlock Grid.Row="1"
+                                               Text="{Binding DisplayMessage}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,4,0,0"
+                                               Opacity="0.85" />
+
+                                    <!-- Stack trace (collapsed) -->
+                                    <Expander Grid.Row="2"
+                                              Header="Stack trace"
+                                              Margin="0,8,0,0">
+                                        <TextBox Text="{Binding DisplayStackTrace}"
+                                                 IsReadOnly="True"
+                                                 AcceptsReturn="True"
+                                                 FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                                 FontSize="11"
+                                                 Background="Transparent"
+                                                 BorderThickness="0"
+                                                 Padding="0" />
+                                    </Expander>
+
+                                    <!-- Actions -->
+                                    <StackPanel Grid.Row="3"
+                                                Orientation="Horizontal"
+                                                Spacing="8"
+                                                Margin="0,10,0,0">
+                                        <Button Content="Report on GitHub"
+                                                AutomationProperties.Name="Report this exception on GitHub"
+                                                Command="{Binding ReportOnGitHubCommand}" />
+                                        <Button Content="Dismiss"
+                                                AutomationProperties.Name="Dismiss this exception"
+                                                Command="{Binding DismissCommand}" />
+                                    </StackPanel>
+
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Bottom action bar -->
+        <Border Grid.Row="2"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="12,8">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="8">
+                <Button Content="Clear All"
+                        AutomationProperties.Name="Clear all collected exceptions"
+                        IsEnabled="{Binding HasEntries}"
+                        Command="{Binding ClearAllCommand}" />
+                <Button Content="Close"
+                        AutomationProperties.Name="Close diagnostics window"
+                        Click="OnCloseClicked" />
+            </StackPanel>
+        </Border>
+
+    </Grid>
+</Window>

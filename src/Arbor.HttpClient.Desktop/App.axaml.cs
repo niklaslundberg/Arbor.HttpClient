@@ -4,6 +4,7 @@ using System.Net.Security;
 using System.Security.Authentication;
 using System.Threading.Tasks;
 using Arbor.HttpClient.Desktop.Demo;
+using Arbor.HttpClient.Desktop.Features.Diagnostics;
 using Arbor.HttpClient.Desktop.Features.Layout;
 using Arbor.HttpClient.Desktop.Features.Logging;
 using Arbor.HttpClient.Desktop.Features.Main;
@@ -43,6 +44,12 @@ public partial class App : Application
                 "Arbor.HttpClient",
                 "options.json");
 
+            var exceptionsPath = Path.Join(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Arbor.HttpClient",
+                "exceptions.json");
+            var exceptionCollector = new UnhandledExceptionCollector(exceptionsPath);
+
             // Logging
             var inMemorySink = new InMemorySink();
             Log.Logger = new LoggerConfiguration()
@@ -72,6 +79,24 @@ public partial class App : Application
                 Log.Logger.Warning(ex, "Failed to load application options; using defaults");
                 currentOptions = new ApplicationOptions();
             }
+
+            // Apply initial diagnostics collection state from options
+            exceptionCollector.IsCollecting = currentOptions.Diagnostics.CollectUnhandledExceptions;
+
+            // Register global unhandled exception handlers
+            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            {
+                if (e.ExceptionObject is Exception ex)
+                {
+                    exceptionCollector.Add(ex);
+                }
+            };
+
+            TaskScheduler.UnobservedTaskException += (_, e) =>
+            {
+                exceptionCollector.Add(e.Exception);
+                e.SetObserved();
+            };
 
             // Services
             var sharedCookieContainer = new System.Net.CookieContainer();
@@ -128,10 +153,12 @@ public partial class App : Application
                     configuredHttpClient = CreateHttpClient(currentOptions.Http, cookieContainer: sharedCookieContainer);
                     inverseRedirectHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects, cookieContainer: sharedCookieContainer);
                     httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
+                    exceptionCollector.IsCollecting = currentOptions.Diagnostics.CollectUnhandledExceptions;
                 },
                 cookieContainer: sharedCookieContainer,
                 draftPersistenceService: draftPersistenceService,
-                demoServer: demoServer);
+                demoServer: demoServer,
+                unhandledExceptionCollector: exceptionCollector);
 
             var window = new MainWindow
             {

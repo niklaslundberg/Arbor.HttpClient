@@ -1,4 +1,5 @@
 using Arbor.HttpClient.Desktop.Features.About;
+using Arbor.HttpClient.Desktop.Features.Diagnostics;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Avalonia.Controls;
 
@@ -23,6 +24,15 @@ public partial class MainWindow : Avalonia.Controls.Window
             {
                 var aboutWindow = new AboutWindow { DataContext = new AboutWindowViewModel() };
                 _ = aboutWindow.ShowDialog(this);
+            };
+            viewModel.OpenDiagnosticsWindowAction = () =>
+            {
+                if (viewModel.UnhandledExceptionCollector is { } collector)
+                {
+                    var vm = new DiagnosticsViewModel(collector);
+                    var diagnosticsWindow = new DiagnosticsWindow { DataContext = vm };
+                    _ = diagnosticsWindow.ShowDialog(this);
+                }
             };
         }
     }

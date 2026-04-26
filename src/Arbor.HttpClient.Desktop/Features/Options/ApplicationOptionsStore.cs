@@ -95,6 +95,11 @@ public sealed class ApplicationOptionsStore(string optionsPath)
             throw new InvalidDataException("Layout options are required.");
         }
 
+        if (options.Diagnostics is null)
+        {
+            throw new InvalidDataException("Diagnostics options are required.");
+        }
+
         if (!ValidHttpVersions.Contains(options.Http.HttpVersion))
         {
             throw new InvalidDataException($"Unsupported HTTP version '{options.Http.HttpVersion}'.");

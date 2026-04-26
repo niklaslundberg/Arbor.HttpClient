@@ -40,6 +40,7 @@
             </MenuItem>
             <MenuItem Header="_Help">
                 <MenuItem Header="_About" Command="{Binding OpenAboutCommand}" />
+                <MenuItem Header="_Diagnostics" Command="{Binding OpenDiagnosticsCommand}" />
             </MenuItem>
         </Menu>
 

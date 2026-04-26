@@ -15,6 +15,7 @@ using System.Xml.Linq;
 using Arbor.HttpClient.Desktop.Demo;
 using Arbor.HttpClient.Desktop.Features.Collections;
 using Arbor.HttpClient.Desktop.Features.Cookies;
+using Arbor.HttpClient.Desktop.Features.Diagnostics;
 using Arbor.HttpClient.Desktop.Features.Environments;
 using Arbor.HttpClient.Desktop.Features.GraphQl;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
@@ -87,12 +88,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private CancellationTokenSource? _draftAutoSaveCts;
     private DraftState? _pendingDraft;
     private readonly DemoServer? _demoServer;
+    private readonly UnhandledExceptionCollector? _unhandledExceptionCollector;
 
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
 
     // Needed for clipboard (e.g. "Copy as cURL" on history items) – set by the view
     public global::Avalonia.Input.Platform.IClipboard? Clipboard { get; set; }
+
+    /// <summary>The collector used for unhandled exceptions; may be null when not configured.</summary>
+    public UnhandledExceptionCollector? UnhandledExceptionCollector => _unhandledExceptionCollector;
 
     /// <summary>Dock layout root; bound to DockControl.Layout in MainWindow.</summary>
     public IRootDock? Layout { get; private set; }
@@ -242,6 +247,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private int _defaultScheduledJobIntervalSeconds = 60;
 
+    [ObservableProperty]
+    private bool _collectUnhandledExceptions;
+
     public double UiFontSize =>
         double.TryParse(UiFontSizeText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
             ? parsed
@@ -364,6 +372,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     partial void OnDefaultScheduledJobIntervalSecondsChanged(int value) =>
         QueueOptionsAutoSave();
 
+    partial void OnCollectUnhandledExceptionsChanged(bool value)
+    {
+        if (_unhandledExceptionCollector is { } collector)
+        {
+            collector.IsCollecting = value;
+        }
+
+        QueueOptionsAutoSave();
+    }
+
     partial void OnDemoServerPortChanged(int value) =>
         QueueOptionsAutoSave();
 
@@ -393,7 +411,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         Action<ApplicationOptions>? onApplicationOptionsChanged = null,
         CookieContainer? cookieContainer = null,
         DraftPersistenceService? draftPersistenceService = null,
-        DemoServer? demoServer = null)
+        DemoServer? demoServer = null,
+        UnhandledExceptionCollector? unhandledExceptionCollector = null)
     {
         _httpRequestService = httpRequestService;
         _requestHistoryRepository = requestHistoryRepository;
@@ -407,6 +426,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _onApplicationOptionsChanged = onApplicationOptionsChanged;
         _draftPersistenceService = draftPersistenceService;
         _demoServer = demoServer;
+        _unhandledExceptionCollector = unhandledExceptionCollector;
         var appLogger = (logger ?? Log.Logger).ForContext<MainWindowViewModel>();
         _debugLogger = appLogger.ForContext("LogTab", Logging.LogTab.Debug);
         _httpRequestsLogger = appLogger.ForContext("LogTab", Logging.LogTab.HttpRequests);
@@ -585,7 +605,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 AutoStartOnLaunch = AutoStartScheduledJobsOnLaunch,
                 DefaultIntervalSeconds = Math.Max(1, DefaultScheduledJobIntervalSeconds)
             },
-            Layouts = BuildLayoutOptions()
+            Layouts = BuildLayoutOptions(),
+            Diagnostics = new DiagnosticsOptions
+            {
+                CollectUnhandledExceptions = CollectUnhandledExceptions
+            }
         };
 
         ApplicationOptionsStore.Validate(options);
@@ -616,6 +640,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             AutoStartScheduledJobsOnLaunch = options.ScheduledJobs.AutoStartOnLaunch;
             DefaultScheduledJobIntervalSeconds = options.ScheduledJobs.DefaultIntervalSeconds;
             DemoServerPort = options.Http.DemoServerPort;
+            CollectUnhandledExceptions = options.Diagnostics.CollectUnhandledExceptions;
 
             if (_requestEditor.FollowRedirectsForRequest == previousDefaultFollowRedirects)
             {
@@ -822,6 +847,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [RelayCommand]
     private void OpenAbout() => OpenAboutWindowAction?.Invoke();
+
+    /// <summary>Set by the view layer to open the Diagnostics window.</summary>
+    public Action? OpenDiagnosticsWindowAction { get; set; }
+
+    [RelayCommand]
+    private void OpenDiagnostics() => OpenDiagnosticsWindowAction?.Invoke();
 
     [RelayCommand]
     private void OpenLogWindow()
