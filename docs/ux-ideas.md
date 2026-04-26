@@ -474,4 +474,17 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ---
 
+### Full Menu Bar Coverage ✅ Implemented
+> Implemented in PR #93 (commit `4d99849`) — `src/Arbor.HttpClient.Desktop/Features/Main/MainWindow.axaml`
+
+**What it means:** Every feature panel and action in the application is reachable from the top menu bar. There is no case where a panel is closed and cannot be re-opened.
+
+**What shipped:**
+- `File` menu: Import OpenAPI… (`ImportCollectionCommand`) and Exit
+- `View` menu: History, Collections, Scheduled Jobs (left-panel tabs), Options, Environments, Cookies, Logs, Layout (left tool-dock panels)
+- `Help` menu: About
+- The old `Window > Layout` item replaced by `View > Layout` together with all other panel items
+
+---
+
 *Last updated: April 2026. Suggestions sourced from comparative review of Hoppscotch, Insomnia, Postman, Bruno, and browser DevTools.*
