@@ -8,7 +8,7 @@
         mc:Ignorable="d" d:DesignWidth="820" d:DesignHeight="560"
         x:Class="Arbor.HttpClient.Desktop.Features.Options.OptionsWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="Options"
+        Title="{x:Static loc:Strings.OptionsWindowTitle}"
         Width="820"
         Height="560"
         MinWidth="600"

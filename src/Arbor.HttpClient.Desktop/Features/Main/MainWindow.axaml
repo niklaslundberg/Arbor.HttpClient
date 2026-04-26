@@ -11,7 +11,7 @@
         x:Class="Arbor.HttpClient.Desktop.Features.Main.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
-        Title="Arbor.HttpClient"
+        Title="{x:Static loc:Strings.MainWindowTitle}"
         Width="1300"
         Height="820"
         FontFamily="{Binding UiFontFamily}"

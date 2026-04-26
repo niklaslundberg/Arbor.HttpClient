@@ -709,8 +709,51 @@
     <value>🗑 Delete</value>
   </data>
   <!-- ═══════════════════════════════ WebView Window ═══════════════════════════════ -->
+  <data name="WebViewWindowTitle" xml:space="preserve">
+    <value>Web View</value>
+  </data>
   <data name="WebViewGo" xml:space="preserve">
     <value>Go</value>
+  </data>
+  <data name="WebViewGoBack" xml:space="preserve">
+    <value>Go back</value>
+  </data>
+  <data name="WebViewGoForward" xml:space="preserve">
+    <value>Go forward</value>
+  </data>
+  <data name="WebViewRefresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="WebViewRefreshPage" xml:space="preserve">
+    <value>Refresh page</value>
+  </data>
+  <data name="WebViewUrlTooltip" xml:space="preserve">
+    <value>Enter a URL and press Enter or click Go</value>
+  </data>
+  <data name="WebViewNavigate" xml:space="preserve">
+    <value>Navigate to URL</value>
+  </data>
+  <data name="WebViewNavigateTooltip" xml:space="preserve">
+    <value>Navigate to the URL</value>
+  </data>
+
+  <!-- ═══════════════════════════════ Window titles ═══════════════════════════════ -->
+  <data name="MainWindowTitle" xml:space="preserve">
+    <value>Arbor HTTP Client</value>
+    <comment>Translator note: 'HTTP' is a technical acronym and should not be translated. 'Arbor' is a product name.</comment>
+  </data>
+  <data name="AboutWindowTitle" xml:space="preserve">
+    <value>About Arbor HTTP Client</value>
+    <comment>Translator note: 'HTTP' is a technical acronym and should not be translated. 'Arbor' is a product name.</comment>
+  </data>
+  <data name="DiagnosticsWindowTitle" xml:space="preserve">
+    <value>Diagnostics — Unhandled Exceptions</value>
+  </data>
+  <data name="LogWindowTitle" xml:space="preserve">
+    <value>Application Log</value>
+  </data>
+  <data name="OptionsWindowTitle" xml:space="preserve">
+    <value>Options</value>
   </data>
 
   <!-- ═══════════════════════════════ Request method badges ═══════════════════════════════ -->

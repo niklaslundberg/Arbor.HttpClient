@@ -381,7 +381,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 **How to implement:**
 - Add a `Language` option to `ApplicationOptions` (e.g. `"default"`, `"en"`, `"de"`, `"fr"`, etc.).
 - On startup and on change, call `Thread.CurrentThread.CurrentUICulture = new CultureInfo(language)`.
-- Since `{x:Static}` bindings are resolved at build time, dynamic re-translation requires either (a) restarting the app after a language change, or (b) replacing `{x:Static}` with a custom `LocalizationExtension` that responds to culture-change notifications.
+- Since `{x:Static}` values are effectively read when the XAML is loaded and do not automatically refresh when the culture changes at runtime, dynamic re-translation requires either (a) restarting the app after a language change, or (b) replacing `{x:Static}` with a custom `LocalizationExtension` that responds to culture-change notifications.
 - Add at least one `Strings.<culture>.resx` file (e.g. `Strings.de.resx`) as a proof-of-concept.
 
 **Scope:** M
@@ -393,7 +393,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
 
 ### Localization Infrastructure ✅ Implemented
-> Implemented in this PR — `src/Arbor.HttpClient.Desktop/Localization/Strings.resx`, `src/Arbor.HttpClient.Desktop/Localization/Strings.Designer.cs`, and all 14 Desktop AXAML view files
+> Implemented in PR #106 (commit `00b551e`) — `src/Arbor.HttpClient.Desktop/Localization/Strings.resx`, `src/Arbor.HttpClient.Desktop/Localization/Strings.Designer.cs`, and all 15 Desktop AXAML view files
 
 **What it means:** All user-visible texts in the Desktop UI are stored in a `.resx` resource file (`Strings.resx`) and referenced from AXAML via `{x:Static loc:Strings.KeyName}`. Adding a new translation requires only creating a `Strings.<culture>.resx` file — the `System.Resources.ResourceManager` picks up the correct file automatically based on `Thread.CurrentThread.CurrentUICulture`.
 

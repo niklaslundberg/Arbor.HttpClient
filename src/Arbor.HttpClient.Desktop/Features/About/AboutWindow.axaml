@@ -7,7 +7,7 @@
         mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="440"
         x:Class="Arbor.HttpClient.Desktop.Features.About.AboutWindow"
         x:DataType="vm:AboutWindowViewModel"
-        Title="About Arbor HTTP Client"
+        Title="{x:Static loc:Strings.AboutWindowTitle}"
         Width="480"
         Height="440"
         MinWidth="400"

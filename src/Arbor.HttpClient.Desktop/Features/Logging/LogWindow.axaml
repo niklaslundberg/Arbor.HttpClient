@@ -8,7 +8,7 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="500"
         x:Class="Arbor.HttpClient.Desktop.Features.Logging.LogWindow"
         x:DataType="vm:LogWindowViewModel"
-        Title="Application Log"
+        Title="{x:Static loc:Strings.LogWindowTitle}"
         Width="800"
         Height="500">
 

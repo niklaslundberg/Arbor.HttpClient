@@ -7,7 +7,7 @@
         mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="520"
         x:Class="Arbor.HttpClient.Desktop.Features.Diagnostics.DiagnosticsWindow"
         x:DataType="vm:DiagnosticsViewModel"
-        Title="Diagnostics — Unhandled Exceptions"
+        Title="{x:Static loc:Strings.DiagnosticsWindowTitle}"
         Width="680"
         Height="520"
         MinWidth="500"
