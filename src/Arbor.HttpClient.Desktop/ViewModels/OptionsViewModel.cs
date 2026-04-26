@@ -1,5 +1,5 @@
-using Dock.Model.Mvvm.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Dock.Model.Mvvm.Controls;
 
 namespace Arbor.HttpClient.Desktop.ViewModels;
 

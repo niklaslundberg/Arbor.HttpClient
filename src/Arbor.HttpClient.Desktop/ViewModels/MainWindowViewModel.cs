@@ -67,7 +67,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _suppressOptionsAutoSave;
     private CancellationTokenSource? _optionsAutoSaveCts;
     private DockLayoutSnapshot? _defaultLayout;
-    private byte[] _lastResponseBodyBytes = Array.Empty<byte>();
+    private byte[] _lastResponseBodyBytes = [];
     private readonly DraftPersistenceService? _draftPersistenceService;
     private CancellationTokenSource? _draftAutoSaveCts;
     private DraftState? _pendingDraft;
@@ -2145,7 +2145,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ResponseStatusCode = response.StatusCode;
             ResponseTimeDisplay = FormatElapsedMilliseconds(response.ElapsedMilliseconds);
             ResponseSizeDisplay = FormatByteSize(response.BodyBytes?.LongLength ?? 0);
-            _lastResponseBodyBytes = response.BodyBytes ?? Array.Empty<byte>();
+            _lastResponseBodyBytes = response.BodyBytes ?? [];
             RawResponseBody = response.Body;
 
             ResponseHeaders.Clear();
@@ -2187,7 +2187,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ResponseStatusCode = response.StatusCode;
             ResponseTimeDisplay = FormatElapsedMilliseconds(response.ElapsedMilliseconds);
             ResponseSizeDisplay = FormatByteSize(response.BodyBytes?.LongLength ?? 0);
-            _lastResponseBodyBytes = response.BodyBytes ?? Array.Empty<byte>();
+            _lastResponseBodyBytes = response.BodyBytes ?? [];
             RawResponseBody = response.Body;
 
             ResponseHeaders.Clear();

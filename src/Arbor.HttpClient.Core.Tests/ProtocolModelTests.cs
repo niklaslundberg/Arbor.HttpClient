@@ -1,5 +1,4 @@
 using Arbor.HttpClient.Core.Models;
-using AwesomeAssertions;
 
 namespace Arbor.HttpClient.Core.Tests;
 

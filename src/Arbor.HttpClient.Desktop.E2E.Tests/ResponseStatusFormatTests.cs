@@ -1,6 +1,5 @@
 using Arbor.HttpClient.Desktop.Converters;
 using Arbor.HttpClient.Desktop.ViewModels;
-using AwesomeAssertions;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 

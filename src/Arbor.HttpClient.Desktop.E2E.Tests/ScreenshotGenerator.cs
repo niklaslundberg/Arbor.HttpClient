@@ -1,11 +1,6 @@
 using System.Net;
 using System.Net.Http;
 using System.Text;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Headless;
-using Avalonia.Skia;
-using Avalonia.VisualTree;
 using Arbor.HttpClient.Core.Abstractions;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
@@ -14,6 +9,11 @@ using Arbor.HttpClient.Desktop.Logging;
 using Arbor.HttpClient.Desktop.Services;
 using Arbor.HttpClient.Desktop.ViewModels;
 using Arbor.HttpClient.Desktop.Views;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Skia;
+using Avalonia.VisualTree;
 using Serilog;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;

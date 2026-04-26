@@ -1,11 +1,8 @@
-using System.IO;
 using System.Net;
-using System.Net.Http;
 using System.Text;
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Core.Services;
 using Arbor.HttpClient.Testing.Fakes;
-using AwesomeAssertions;
 
 namespace Arbor.HttpClient.Core.Tests;
 
@@ -128,7 +125,7 @@ public class SseServiceTests
     [Fact]
     public async Task ParseSseStreamAsync_ShouldHandleEmptyStream()
     {
-        using var reader = new StreamReader(new MemoryStream(Array.Empty<byte>()));
+        using var reader = new StreamReader(new MemoryStream([]));
         var events = new List<SseEvent>();
 
         await SseService.ParseSseStreamAsync(reader, events.Add, CancellationToken.None);
@@ -210,7 +207,7 @@ public class SseServiceTests
             captured = req;
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new ByteArrayContent(Array.Empty<byte>())
+                Content = new ByteArrayContent([])
             };
         });
 
@@ -231,7 +228,7 @@ public class SseServiceTests
             captured = req;
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new ByteArrayContent(Array.Empty<byte>())
+                Content = new ByteArrayContent([])
             };
         });
 
@@ -254,7 +251,7 @@ public class SseServiceTests
             captured = req;
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new ByteArrayContent(Array.Empty<byte>())
+                Content = new ByteArrayContent([])
             };
         });
 
@@ -277,7 +274,7 @@ public class SseServiceTests
             captured = req;
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new ByteArrayContent(Array.Empty<byte>())
+                Content = new ByteArrayContent([])
             };
         });
 
@@ -299,7 +296,7 @@ public class SseServiceTests
             captured = req;
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new ByteArrayContent(Array.Empty<byte>())
+                Content = new ByteArrayContent([])
             };
         });
 

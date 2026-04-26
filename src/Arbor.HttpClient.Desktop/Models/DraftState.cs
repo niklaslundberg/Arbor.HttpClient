@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 
 namespace Arbor.HttpClient.Desktop.Models;
 
@@ -30,12 +28,4 @@ public sealed class DraftState
 
     /// <summary>UTC timestamp of when the draft was last saved.</summary>
     public DateTimeOffset SavedAt { get; init; } = DateTimeOffset.UtcNow;
-}
-
-/// <summary>Serialisation model for a single request header entry inside a <see cref="DraftState"/>.</summary>
-public sealed class DraftHeaderDto
-{
-    public string Name { get; init; } = string.Empty;
-    public string Value { get; init; } = string.Empty;
-    public bool IsEnabled { get; init; } = true;
 }

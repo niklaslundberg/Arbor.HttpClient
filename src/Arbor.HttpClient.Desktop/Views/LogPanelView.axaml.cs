@@ -1,6 +1,6 @@
+using System.Collections.Specialized;
 using Arbor.HttpClient.Desktop.ViewModels;
 using Avalonia.Controls;
-using System.Collections.Specialized;
 
 namespace Arbor.HttpClient.Desktop.Views;
 

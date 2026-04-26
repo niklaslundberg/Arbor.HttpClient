@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
+using Arbor.HttpClient.Desktop.ViewModels;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Styling;
-using Arbor.HttpClient.Desktop.ViewModels;
 using AvaloniaEdit;
 using AvaloniaEdit.TextMate;
 using TextMateSharp.Grammars;
