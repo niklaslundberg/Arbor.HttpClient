@@ -20,8 +20,8 @@ public partial class MainWindow : Avalonia.Controls.Window
             viewModel.ExitApplicationAction = Close;
             viewModel.OpenAboutWindowAction = () =>
             {
-                var about = new AboutWindow { DataContext = new Arbor.HttpClient.Desktop.ViewModels.AboutWindowViewModel() };
-                about.ShowDialog(this);
+                var aboutWindow = new AboutWindow { DataContext = new Arbor.HttpClient.Desktop.ViewModels.AboutWindowViewModel() };
+                _ = aboutWindow.ShowDialog(this);
             };
         }
     }

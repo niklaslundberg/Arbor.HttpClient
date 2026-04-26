@@ -18,9 +18,15 @@ public sealed partial class AboutWindowViewModel : ViewModelBase
             assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? string.Empty;
 
+        (AppVersion, GitHash) = ParseInformationalVersion(informationalVersion);
+    }
+
+    private static (string version, string hash) ParseInformationalVersion(string informationalVersion)
+    {
         var plusIndex = informationalVersion.IndexOf('+', StringComparison.Ordinal);
-        AppVersion = plusIndex >= 0 ? informationalVersion[..plusIndex] : informationalVersion;
-        GitHash = plusIndex >= 0 ? informationalVersion[(plusIndex + 1)..] : string.Empty;
+        return plusIndex >= 0
+            ? (informationalVersion[..plusIndex], informationalVersion[(plusIndex + 1)..])
+            : (informationalVersion, string.Empty);
     }
 
     /// <summary>Application version (e.g. "1.0.0").</summary>

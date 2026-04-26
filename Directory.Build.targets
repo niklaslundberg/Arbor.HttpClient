@@ -7,7 +7,7 @@
   <Target Name="SetSourceRevisionId" BeforeTargets="GetAssemblyVersion">
     <Exec Command="git rev-parse --short HEAD"
           ConsoleToMSBuild="true"
-          IgnoreExitCode="true"
+          ContinueOnError="true"
           StandardOutputImportance="Low">
       <Output TaskParameter="ConsoleOutput" PropertyName="_GitShortHash" />
     </Exec>
