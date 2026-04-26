@@ -127,7 +127,12 @@ public sealed class UnhandledExceptionCollector
                 snapshot = [.. _entries];
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(_storagePath)!);
+            var directory = Path.GetDirectoryName(_storagePath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
             var json = JsonSerializer.Serialize(snapshot, SerializerOptions);
             File.WriteAllText(_storagePath, json);
         }

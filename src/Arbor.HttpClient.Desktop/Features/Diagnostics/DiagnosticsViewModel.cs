@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
 using System.Text;
 using Arbor.HttpClient.Desktop.Shared;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -66,7 +65,7 @@ public sealed partial class DiagnosticsViewModel : ViewModelBase
         {
             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
         }
-        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or FileNotFoundException or PlatformNotSupportedException)
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or PlatformNotSupportedException)
         {
             // No default browser or unsupported platform — silently ignore.
         }
