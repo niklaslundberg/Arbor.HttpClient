@@ -1,4 +1,4 @@
-using Arbor.HttpClient.Desktop.Views;
+using Arbor.HttpClient.Desktop.Features.Variables;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 

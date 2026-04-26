@@ -1,5 +1,5 @@
 using System.Text;
-using Arbor.HttpClient.Core.Services;
+using Arbor.HttpClient.Core.OpenApiImport;
 
 namespace Arbor.HttpClient.Core.Tests;
 

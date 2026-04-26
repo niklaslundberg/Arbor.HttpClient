@@ -1,6 +1,6 @@
 using System.Text;
-using Arbor.HttpClient.Core.Models;
-using Arbor.HttpClient.Core.Services;
+using Arbor.HttpClient.Core.Environments;
+using Arbor.HttpClient.Core.Variables;
 
 namespace Arbor.HttpClient.Core.Tests;
 

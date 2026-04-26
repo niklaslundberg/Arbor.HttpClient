@@ -55,21 +55,68 @@ This document answers the architecture questions raised in [issue #33](https://g
    - Extract reusable UI controls (request headers list, query parameters list, response body viewer) so they consume feature interfaces instead of the whole main VM.
    - Keep shared models (`SavedRequest`, `RequestEnvironment`, etc.) in `Arbor.HttpClient.Core` so they stay UI-agnostic.
 
+## Folder structure (feature-centric)
+
+All code is now organized into feature-centric vertical slices rather than type-based horizontal layers. The old `Models/`, `Services/`, `Abstractions/`, `ViewModels/`, `Views/`, `Converters/` directories have been removed.
+
+### `Arbor.HttpClient.Core`
+
+```
+Collections/     — ICollectionRepository, Collection, CollectionRequest
+Environments/    — IEnvironmentRepository, EnvironmentVariable, RequestEnvironment
+GraphQl/         — GraphQlService, GraphQlDraft
+HttpRequest/     — IRequestHistoryRepository, SavedRequest, HttpRequestDraft, HttpResponseDetails,
+                   HttpRequestDiagnostics, RequestHeader, RequestType, HttpRequestService, CurlFormatter
+OpenApiImport/   — OpenApiImportService
+ScheduledJobs/   — IScheduledJobRepository, ScheduledJobConfig
+Sse/             — SseService, SseEvent
+Variables/       — VariableResolver
+WebSocket/       — WebSocketService, WebSocketMessage
+```
+
+### `Arbor.HttpClient.Desktop`
+
+```
+Demo/                     — DemoServer
+Features/
+  About/                  — AboutWindowViewModel, AboutWindow
+  Collections/            — CollectionGroupViewModel, CollectionItemViewModel, LeftPanelViewModel,
+                            LeftPanelView, BoolToExpandIconConverter
+  Cookies/                — CookieJarViewModel, CookieEntryViewModel, CookieJarView
+  Environments/           — EnvironmentsViewModel, EnvironmentVariableViewModel, EnvironmentsView
+  GraphQl/                — GraphQlViewModel
+  HttpRequest/            — RequestEditorViewModel, RequestViewModel, ResponseViewModel,
+                            RequestHeaderViewModel, RequestQueryParameterViewModel,
+                            RequestView, ResponseView, MethodToColorConverter, StatusCodeToColorConverter
+  Layout/                 — DockFactory, DockLayoutSnapshot, FloatingWindowSnapshot, LayoutManagementViewModel,
+                            LayoutManagementView, LayoutOptions, NamedDockLayout,
+                            DraftPersistenceService, DraftHeaderDto, DraftState
+  Logging/                — InMemorySink, LogEntry, LogTab, LogPanelViewModel,
+                            LogWindowViewModel, LogPanelView, LogWindow
+  Main/                   — MainWindowViewModel, MainWindow
+  Options/                — ApplicationOptions, AppearanceOptions, HttpOptions, ApplicationOptionsStore,
+                            OptionsViewModel, OptionsView, OptionsWindow
+  ScheduledJobs/          — ScheduledJobService, ScheduledJobViewModel, ScheduledJobsOptions
+  Sse/                    — SseViewModel
+  Variables/              — VariableAutoCompleteController, VariableCompletionData, VariableCompletionEngine,
+                            VariableNameHelper, VariableTextBox, VariableTokenColorizer
+  WebSocket/              — WebSocketViewModel
+  WebView/                — WebViewWindow
+Shared/                   — ViewModelBase, NotNullConverter, StringEqualityConverter, TabFontWeightConverter
+```
+
 ## Additional questions to track continuously
 
-- Are feature boundaries represented in folder/module structure (vertical slices), not only in class names?
 - Does every new feature have at least one test that does not require the full UI runtime?
 - Can a feature be disabled or replaced without modifying unrelated features?
 - Are cross-feature dependencies explicit (constructor interfaces) rather than implicit (shared mutable state)?
 - How should state persistence be scoped — per feature vs global auto-save? What is the rollback story if persistence fails?
-- What is the extension-point story for future panels (e.g., WebSocket, gRPC, GraphQL)?
 - How do we handle threading and cancellation consistently across features (request sending, file watching, scheduled jobs)?
 - What accessibility guarantees must each new panel meet (keyboard navigation, contrast, screen-reader labels)?
 
 ## Ordered next steps
 
-1. Extract `RequestEditorViewModel` and move request-specific logic out of `MainWindowViewModel` into a dedicated VM; cover with focused unit tests.
-2. Apply the same pattern to options and scheduler — one slice per PR (`EnvironmentsViewModel` extraction is complete).
-3. Refactor `DockFactory` to consume feature registrations and stop requiring a `MainWindowViewModel` reference.
-4. Evaluate whether a mediator/event-bus is needed after 1–2 successful slice extractions.
-5. Introduce a DI container (e.g., `Microsoft.Extensions.DependencyInjection`) only when constructor/composition friction remains significant after slice extraction.
+1. ~~Feature-centric folder structure~~ ✅ Complete — all projects now use vertical-slice feature folders.
+2. Refactor `DockFactory` to consume feature registrations and stop requiring a `MainWindowViewModel` reference.
+3. Evaluate whether a mediator/event-bus is needed after 1–2 successful slice extractions.
+4. Introduce a DI container (e.g., `Microsoft.Extensions.DependencyInjection`) only when constructor/composition friction remains significant after slice extraction.

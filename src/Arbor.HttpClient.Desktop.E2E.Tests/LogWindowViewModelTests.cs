@@ -1,5 +1,4 @@
-using Arbor.HttpClient.Desktop.Logging;
-using Arbor.HttpClient.Desktop.ViewModels;
+using Arbor.HttpClient.Desktop.Features.Logging;
 using Serilog;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;

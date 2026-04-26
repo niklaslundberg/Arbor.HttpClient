@@ -1,5 +1,6 @@
-using Arbor.HttpClient.Desktop.Models;
-using Arbor.HttpClient.Desktop.Services;
+using Arbor.HttpClient.Desktop.Features.Layout;
+using Arbor.HttpClient.Desktop.Features.Options;
+using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 

@@ -1,5 +1,5 @@
 using System.Net;
-using Arbor.HttpClient.Desktop.ViewModels;
+using Arbor.HttpClient.Desktop.Features.Cookies;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
