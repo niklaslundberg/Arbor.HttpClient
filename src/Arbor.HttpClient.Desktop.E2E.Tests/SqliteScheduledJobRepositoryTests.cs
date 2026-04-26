@@ -1,6 +1,7 @@
 using Arbor.HttpClient.Core.Models;
 using Arbor.HttpClient.Storage.Sqlite;
 using AwesomeAssertions;
+using Microsoft.Data.Sqlite;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
@@ -14,22 +15,33 @@ public class SqliteScheduledJobRepositoryTests
         var repository = new SqliteScheduledJobRepository(connectionString);
         await repository.InitializeAsync();
 
-        var id = await repository.SaveAsync(new ScheduledJobConfig(
-            0,
-            "job",
-            "GET",
-            "https://example.com",
-            null,
-            null,
-            30,
-            AutoStart: true,
-            FollowRedirects: false));
+        try
+        {
+            var id = await repository.SaveAsync(new ScheduledJobConfig(
+                0,
+                "job",
+                "GET",
+                "https://example.com",
+                null,
+                null,
+                30,
+                AutoStart: true,
+                FollowRedirects: false));
 
-        var items = await repository.GetAllAsync();
+            var items = await repository.GetAllAsync();
 
-        items.Should().ContainSingle();
-        items[0].Id.Should().Be(id);
-        items[0].FollowRedirects.Should().BeFalse();
+            items.Should().ContainSingle();
+            items[0].Id.Should().Be(id);
+            items[0].FollowRedirects.Should().BeFalse();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
     }
 
     [Fact]
@@ -62,6 +74,7 @@ public class SqliteScheduledJobRepositoryTests
         }
         finally
         {
+            SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath))
             {
                 File.Delete(dbPath);
@@ -97,6 +110,7 @@ public class SqliteScheduledJobRepositoryTests
         }
         finally
         {
+            SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath))
             {
                 File.Delete(dbPath);
@@ -143,6 +157,7 @@ public class SqliteScheduledJobRepositoryTests
         }
         finally
         {
+            SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath))
             {
                 File.Delete(dbPath);
