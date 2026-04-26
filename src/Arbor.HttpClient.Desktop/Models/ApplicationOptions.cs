@@ -24,6 +24,8 @@ public sealed class HttpOptions
     public bool FollowRedirects { get; init; } = true;
 
     public string DefaultRequestUrl { get; init; } = "http://localhost:5000/echo";
+
+    public int DemoServerPort { get; init; } = Services.DemoServer.DefaultPort;
 }
 
 public sealed class AppearanceOptions

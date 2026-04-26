@@ -11,7 +11,7 @@
         <conv:MethodToColorConverter x:Key="MethodToColorConverter" />
     </UserControl.Resources>
 
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
 
         <Grid.KeyBindings>
             <!-- Standard across Hoppscotch / Insomnia / Postman: Ctrl+Enter (or Cmd+Enter) sends the request -->
@@ -107,16 +107,35 @@
                     Command="{Binding App.SendRequestCommand}" />
         </Grid>
 
-        <!-- Row 2: HTTP-only options (follow redirects) -->
-        <CheckBox Grid.Row="2"
+        <!-- Row 2: Demo server banner — shown when the current request targets the local demo server
+             but the demo server is not yet running. -->
+        <Border Grid.Row="2"
+                IsVisible="{Binding App.IsDemoServerBannerVisible}"
+                Background="{DynamicResource PreviewPanelBackgroundBrush}"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="1" CornerRadius="4" Padding="10,7">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                           Text="⚡ This request targets the local demo server which is not running." />
+                <Button Grid.Column="1" Content="Start server"
+                        AutomationProperties.Name="Start demo server"
+                        Command="{Binding App.StartDemoServerCommand}" />
+                <Button Grid.Column="2" Content="✕"
+                        AutomationProperties.Name="Dismiss demo server banner"
+                        Command="{Binding App.DismissDemoServerBannerCommand}" />
+            </Grid>
+        </Border>
+
+        <!-- Row 3: HTTP-only options (follow redirects) -->
+        <CheckBox Grid.Row="3"
                   IsVisible="{Binding App.RequestEditor.IsHttpRequest}"
                   Content="Follow redirects"
                   IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
 
-        <TextBlock Grid.Row="3" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
+        <TextBlock Grid.Row="4" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
 
-        <!-- Row 4: Type-specific editor tabs -->
-        <TabControl Grid.Row="4">
+        <!-- Row 5: Type-specific editor tabs -->
+        <TabControl Grid.Row="5">
 
             <!-- ═══════════════════════════════ HTTP-only tabs ═══════════════════════════════ -->
             <TabItem Header="Query" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">

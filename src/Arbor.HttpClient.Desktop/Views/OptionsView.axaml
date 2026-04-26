@@ -102,6 +102,39 @@
                                 <TextBox Text="{Binding App.DefaultRequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
 
+                            <!-- Demo server settings -->
+                            <Border BorderBrush="{DynamicResource PanelBorderBrush}"
+                                    BorderThickness="0,1,0,0" Margin="0,4,0,0" Padding="0,16,0,0">
+                                <StackPanel Spacing="12">
+                                    <TextBlock Text="Demo Server" FontWeight="SemiBold" FontSize="14" />
+                                    <TextBlock Text="An embedded Kestrel server that provides /echo, /sse, /ws, and /status endpoints for the 'Localhost Demo' collection."
+                                               TextWrapping="Wrap" Opacity="0.7" FontSize="11" />
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                        <TextBlock Text="Port" VerticalAlignment="Center" />
+                                        <TextBox Grid.Column="1"
+                                                 Text="{Binding App.DemoServerPort, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 MaxWidth="120" HorizontalAlignment="Left" />
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                                            <Button Content="Start"
+                                                    AutomationProperties.Name="Start demo server"
+                                                    IsEnabled="{Binding !App.IsDemoServerRunning}"
+                                                    Command="{Binding App.StartDemoServerCommand}" />
+                                            <Button Content="Stop"
+                                                    AutomationProperties.Name="Stop demo server"
+                                                    IsEnabled="{Binding App.IsDemoServerRunning}"
+                                                    Command="{Binding App.StopDemoServerCommand}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <TextBlock Text="● Running"
+                                               IsVisible="{Binding App.IsDemoServerRunning}"
+                                               Foreground="{DynamicResource MethodPostBrush}"
+                                               FontWeight="SemiBold" FontSize="11" />
+                                    <TextBlock Text="○ Stopped"
+                                               IsVisible="{Binding !App.IsDemoServerRunning}"
+                                               Opacity="0.55" FontSize="11" />
+                                </StackPanel>
+                            </Border>
+
                         </StackPanel>
 
                         <!-- Scheduled Jobs page -->
