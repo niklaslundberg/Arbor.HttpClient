@@ -28,6 +28,9 @@
             <MenuItem Header="_Window">
                 <MenuItem Header="_Layout" Command="{Binding ToggleLayoutPanelCommand}" />
             </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="_About" Command="{Binding OpenAboutCommand}" />
+            </MenuItem>
         </Menu>
 
         <!-- Top toolbar -->
