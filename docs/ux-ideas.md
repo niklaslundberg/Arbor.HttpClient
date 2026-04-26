@@ -475,7 +475,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### Full Menu Bar Coverage ✅ Implemented
-> Implemented in PR #93 (commit `pending`) — `src/Arbor.HttpClient.Desktop/Features/Main/MainWindow.axaml`
+> Implemented in PR #93 (commit `4d99849`) — `src/Arbor.HttpClient.Desktop/Features/Main/MainWindow.axaml`
 
 **What it means:** Every feature panel and action in the application is reachable from the top menu bar. There is no case where a panel is closed and cannot be re-opened.
 
