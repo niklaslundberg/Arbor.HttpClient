@@ -194,7 +194,7 @@ public class SseServiceTests
         var service = new SseService(new global::System.Net.Http.HttpClient(handler));
         var events = new List<SseEvent>();
 
-        await service.ConnectAsync("https://example.com/stream", events.Add);
+        await service.ConnectAsync("https://example.com/stream", events.Add, cancellationToken: TestContext.Current.CancellationToken);
 
         events.Should().ContainSingle();
         events[0].Data.Should().Be("from-http");
@@ -215,7 +215,7 @@ public class SseServiceTests
         });
 
         var service = new SseService(new global::System.Net.Http.HttpClient(handler));
-        await service.ConnectAsync("https://example.com/stream", _ => { });
+        await service.ConnectAsync("https://example.com/stream", _ => { }, cancellationToken: TestContext.Current.CancellationToken);
 
         captured.Should().NotBeNull();
         captured!.Headers.Accept.Should().Contain(h => h.MediaType == "text/event-stream");
@@ -238,7 +238,7 @@ public class SseServiceTests
         var service = new SseService(new global::System.Net.Http.HttpClient(handler));
         var headers = new[] { new RequestHeader("X-Api-Key", "secret-token") };
 
-        await service.ConnectAsync("https://example.com/stream", _ => { }, headers);
+        await service.ConnectAsync("https://example.com/stream", _ => { }, headers, TestContext.Current.CancellationToken);
 
         captured!.Headers.Should().Contain(h => h.Key == "X-Api-Key" && h.Value.Contains("secret-token"));
     }
@@ -261,7 +261,7 @@ public class SseServiceTests
         var service = new SseService(new global::System.Net.Http.HttpClient(handler));
         var headers = new[] { new RequestHeader("Accept", "text/html") };
 
-        await service.ConnectAsync("https://example.com/stream", _ => { }, headers);
+        await service.ConnectAsync("https://example.com/stream", _ => { }, headers, TestContext.Current.CancellationToken);
 
         // Should still carry exactly one Accept value: text/event-stream
         captured!.Headers.Accept.Should().ContainSingle(h => h.MediaType == "text/event-stream");
@@ -284,7 +284,7 @@ public class SseServiceTests
         var service = new SseService(new global::System.Net.Http.HttpClient(handler));
         var headers = new[] { new RequestHeader("X-Disabled", "value", IsEnabled: false) };
 
-        await service.ConnectAsync("https://example.com/stream", _ => { }, headers);
+        await service.ConnectAsync("https://example.com/stream", _ => { }, headers, TestContext.Current.CancellationToken);
 
         captured!.Headers.Should().NotContain(h => h.Key == "X-Disabled");
     }

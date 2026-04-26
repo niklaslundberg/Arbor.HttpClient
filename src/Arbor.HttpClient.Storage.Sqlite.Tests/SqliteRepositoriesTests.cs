@@ -15,12 +15,12 @@ public class SqliteRepositoriesTests
         {
             var repository = new SqliteRequestHistoryRepository(dbPath);
 
-            await repository.InitializeAsync();
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
             var request = new SavedRequest("Test GET", "GET", "https://example.com/api", null, DateTimeOffset.UtcNow);
-            await repository.SaveAsync(request);
+            await repository.SaveAsync(request, TestContext.Current.CancellationToken);
 
-            var recent = await repository.GetRecentAsync(10);
+            var recent = await repository.GetRecentAsync(10, TestContext.Current.CancellationToken);
 
             recent.Should().ContainSingle();
             recent[0].Name.Should().Be("Test GET");
@@ -45,14 +45,14 @@ public class SqliteRepositoriesTests
         {
             var repository = new SqliteRequestHistoryRepository(dbPath);
 
-            await repository.InitializeAsync();
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
             for (int i = 0; i < 15; i++)
             {
-                await repository.SaveAsync(new SavedRequest($"Request {i}", "GET", $"https://example.com/{i}", null, DateTimeOffset.UtcNow));
+                await repository.SaveAsync(new SavedRequest($"Request {i}", "GET", $"https://example.com/{i}", null, DateTimeOffset.UtcNow), TestContext.Current.CancellationToken);
             }
 
-            var recent = await repository.GetRecentAsync(5);
+            var recent = await repository.GetRecentAsync(5, TestContext.Current.CancellationToken);
 
             recent.Should().HaveCount(5);
         }
@@ -75,7 +75,7 @@ public class SqliteRepositoriesTests
             var connectionString = $"Data Source={dbPath}";
             var repository = new SqliteEnvironmentRepository(connectionString);
 
-            await repository.InitializeAsync();
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
             var variables = new List<EnvironmentVariable>
             {
@@ -83,9 +83,9 @@ public class SqliteRepositoriesTests
                 new("apiKey", "dev-key-123", IsEnabled: false)
             };
 
-            var environmentId = await repository.SaveAsync("Development", variables);
+            var environmentId = await repository.SaveAsync("Development", variables, TestContext.Current.CancellationToken);
 
-            var environments = await repository.GetAllAsync();
+            var environments = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
             environments.Should().ContainSingle();
             environments[0].Id.Should().Be(environmentId);
@@ -114,14 +114,14 @@ public class SqliteRepositoriesTests
             var connectionString = $"Data Source={dbPath}";
             var repository = new SqliteEnvironmentRepository(connectionString);
 
-            await repository.InitializeAsync();
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
             var initialVariables = new List<EnvironmentVariable>
             {
                 new("baseUrl", "https://old.example.com", IsEnabled: true)
             };
 
-            var environmentId = await repository.SaveAsync("Test", initialVariables);
+            var environmentId = await repository.SaveAsync("Test", initialVariables, TestContext.Current.CancellationToken);
 
             var updatedVariables = new List<EnvironmentVariable>
             {
@@ -129,9 +129,9 @@ public class SqliteRepositoriesTests
                 new("newVar", "newValue", IsEnabled: false)
             };
 
-            await repository.UpdateAsync(environmentId, "Test Updated", updatedVariables);
+            await repository.UpdateAsync(environmentId, "Test Updated", updatedVariables, TestContext.Current.CancellationToken);
 
-            var environments = await repository.GetAllAsync();
+            var environments = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
             environments.Should().ContainSingle();
             environments[0].Name.Should().Be("Test Updated");
@@ -157,18 +157,18 @@ public class SqliteRepositoriesTests
             var connectionString = $"Data Source={dbPath}";
             var repository = new SqliteEnvironmentRepository(connectionString);
 
-            await repository.InitializeAsync();
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
             var variables = new List<EnvironmentVariable>
             {
                 new("key", "value", IsEnabled: true)
             };
 
-            var environmentId = await repository.SaveAsync("ToDelete", variables);
+            var environmentId = await repository.SaveAsync("ToDelete", variables, TestContext.Current.CancellationToken);
 
-            await repository.DeleteAsync(environmentId);
+            await repository.DeleteAsync(environmentId, TestContext.Current.CancellationToken);
 
-            var environments = await repository.GetAllAsync();
+            var environments = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
             environments.Should().BeEmpty();
         }
@@ -191,7 +191,7 @@ public class SqliteRepositoriesTests
             var connectionString = $"Data Source={dbPath}";
             var repository = new SqliteCollectionRepository(connectionString);
 
-            await repository.InitializeAsync();
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
             var requests = new List<CollectionRequest>
             {
@@ -199,9 +199,9 @@ public class SqliteRepositoriesTests
                 new("Create", "POST", "/items", "Creates a new item", "Requires authentication")
             };
 
-            var collectionId = await repository.SaveAsync("My API", "/path/to/spec", "https://api.example.com", requests);
+            var collectionId = await repository.SaveAsync("My API", "/path/to/spec", "https://api.example.com", requests, TestContext.Current.CancellationToken);
 
-            var collections = await repository.GetAllAsync();
+            var collections = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
             collections.Should().ContainSingle();
             collections[0].Id.Should().Be(collectionId);
@@ -231,18 +231,18 @@ public class SqliteRepositoriesTests
             var connectionString = $"Data Source={dbPath}";
             var repository = new SqliteCollectionRepository(connectionString);
 
-            await repository.InitializeAsync();
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
             var requests = new List<CollectionRequest>
             {
                 new("Test Request", "GET", "/test", null)
             };
 
-            var collectionId = await repository.SaveAsync("Test Collection", null, null, requests);
+            var collectionId = await repository.SaveAsync("Test Collection", null, null, requests, TestContext.Current.CancellationToken);
 
-            await repository.DeleteAsync(collectionId);
+            await repository.DeleteAsync(collectionId, TestContext.Current.CancellationToken);
 
-            var collections = await repository.GetAllAsync();
+            var collections = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
             collections.Should().BeEmpty();
         }
@@ -264,12 +264,12 @@ public class SqliteRepositoriesTests
         {
             var connectionString = $"Data Source={dbPath}";
             var repository = new SqliteCollectionRepository(connectionString);
-            await repository.InitializeAsync();
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
             var id = await repository.SaveAsync("Original Name", null, "https://api.example.com",
             [
                 new CollectionRequest("Old Request", "GET", "/old", null)
-            ]);
+            ], TestContext.Current.CancellationToken);
 
             var updatedRequests = new List<CollectionRequest>
             {
@@ -277,9 +277,9 @@ public class SqliteRepositoriesTests
                 new("New Request B", "DELETE", "/new-b", "Second new request")
             };
 
-            await repository.UpdateAsync(id, "Updated Name", "/path/to/spec", "https://updated.example.com", updatedRequests);
+            await repository.UpdateAsync(id, "Updated Name", "/path/to/spec", "https://updated.example.com", updatedRequests, TestContext.Current.CancellationToken);
 
-            var collections = await repository.GetAllAsync();
+            var collections = await repository.GetAllAsync(TestContext.Current.CancellationToken);
             collections.Should().HaveCount(1);
             collections[0].Name.Should().Be("Updated Name");
             collections[0].SourcePath.Should().Be("/path/to/spec");
@@ -306,16 +306,16 @@ public class SqliteRepositoriesTests
         {
             var connectionString = $"Data Source={dbPath}";
             var repository = new SqliteCollectionRepository(connectionString);
-            await repository.InitializeAsync();
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
             var id = await repository.SaveAsync("My Collection", null, null,
             [
                 new CollectionRequest("Request", "GET", "/test", null)
-            ]);
+            ], TestContext.Current.CancellationToken);
 
-            await repository.UpdateAsync(id, "My Collection", null, null, []);
+            await repository.UpdateAsync(id, "My Collection", null, null, [], TestContext.Current.CancellationToken);
 
-            var collections = await repository.GetAllAsync();
+            var collections = await repository.GetAllAsync(TestContext.Current.CancellationToken);
             collections.Should().HaveCount(1);
             collections[0].Requests.Should().BeEmpty();
         }

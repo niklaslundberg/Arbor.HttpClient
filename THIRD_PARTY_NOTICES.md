@@ -165,6 +165,29 @@ This project makes use of third-party packages. Their licenses and attribution d
 
 ---
 
+## xunit.v3
+
+**Package:** xunit.v3  
+**Version:** 3.2.2  
+**Authors:** jnewkirk, bradwilson  
+**Copyright:** Copyright (C) .NET Foundation  
+**Project URL:** https://github.com/xunit/xunit  
+**License:** Apache-2.0  
+**Note:** Test-only dependency used by unit test projects to enable parallel test execution. Not included in production builds.
+
+---
+
+## Meziantou.Xunit.v3.ParallelTestFramework
+
+**Package:** Meziantou.Xunit.v3.ParallelTestFramework  
+**Version:** 1.0.6  
+**Authors:** Meziantou  
+**Project URL:** https://github.com/meziantou/Meziantou.Xunit.v3.ParallelTestFramework  
+**License:** MIT  
+**Note:** Test-only dependency that enables true parallel test execution within xUnit v3 test assemblies. Not included in production builds.
+
+---
+
 ## xunit.runner.visualstudio
 
 **Package:** xunit.runner.visualstudio  
