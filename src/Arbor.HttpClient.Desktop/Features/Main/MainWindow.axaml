@@ -23,9 +23,19 @@
     <DockPanel Margin="0">
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_File">
+                <MenuItem Header="Import _OpenAPI..." Command="{Binding ImportCollectionCommand}" />
+                <Separator />
                 <MenuItem Header="E_xit" Command="{Binding ExitApplicationCommand}" />
             </MenuItem>
-            <MenuItem Header="_Window">
+            <MenuItem Header="_View">
+                <MenuItem Header="_History" Command="{Binding ShowHistoryTabCommand}" />
+                <MenuItem Header="_Collections" Command="{Binding ShowCollectionsTabCommand}" />
+                <MenuItem Header="_Scheduled Jobs" Command="{Binding ShowScheduledJobsTabCommand}" />
+                <Separator />
+                <MenuItem Header="_Options" Command="{Binding OpenOptionsCommand}" />
+                <MenuItem Header="_Environments" Command="{Binding OpenEnvironmentsCommand}" />
+                <MenuItem Header="C_ookies" Command="{Binding OpenCookieJarCommand}" />
+                <MenuItem Header="_Logs" Command="{Binding OpenLogWindowCommand}" />
                 <MenuItem Header="_Layout" Command="{Binding OpenLayoutPanelCommand}" />
             </MenuItem>
             <MenuItem Header="_Help">
