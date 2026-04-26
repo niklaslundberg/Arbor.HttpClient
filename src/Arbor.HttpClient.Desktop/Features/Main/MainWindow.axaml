@@ -21,6 +21,17 @@
         <conv:MethodToColorConverter x:Key="MethodToColorConverter" />
     </Window.Resources>
 
+    <Window.Styles>
+        <!-- Shared style for every activity-bar icon button -->
+        <Style Selector="Button.ActivityBarButton">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+    </Window.Styles>
+
     <DockPanel Margin="0">
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="{x:Static loc:Strings.MenuFile}">
@@ -96,71 +107,50 @@
 
                     <!-- Main navigation buttons -->
                     <StackPanel Grid.Row="0" Orientation="Vertical" Spacing="2" Margin="4,8,4,0">
-                        <Button Command="{Binding ShowCollectionsTabCommand}"
+                        <Button Classes="ActivityBarButton"
+                                Command="{Binding ShowCollectionsTabCommand}"
                                 ToolTip.Tip="{x:Static loc:Strings.ActivityBarCollections}"
-                                AutomationProperties.Name="{x:Static loc:Strings.ActivityBarCollections}"
-                                Width="40" Height="40"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                Padding="0">
+                                AutomationProperties.Name="{x:Static loc:Strings.ActivityBarCollections}">
                             <TextBlock Text="📁" FontSize="18" HorizontalAlignment="Center" IsHitTestVisible="False" />
                         </Button>
-                        <Button Command="{Binding OpenEnvironmentsCommand}"
+                        <Button Classes="ActivityBarButton"
+                                Command="{Binding OpenEnvironmentsCommand}"
                                 ToolTip.Tip="{x:Static loc:Strings.ActivityBarEnvironments}"
-                                AutomationProperties.Name="{x:Static loc:Strings.ActivityBarEnvironments}"
-                                Width="40" Height="40"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                Padding="0">
+                                AutomationProperties.Name="{x:Static loc:Strings.ActivityBarEnvironments}">
                             <TextBlock Text="🌐" FontSize="18" HorizontalAlignment="Center" IsHitTestVisible="False" />
                         </Button>
-                        <Button Command="{Binding OpenOptionsCommand}"
+                        <Button Classes="ActivityBarButton"
+                                Command="{Binding OpenOptionsCommand}"
                                 ToolTip.Tip="{x:Static loc:Strings.ActivityBarOptions}"
-                                AutomationProperties.Name="{x:Static loc:Strings.ActivityBarOptions}"
-                                Width="40" Height="40"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                Padding="0">
+                                AutomationProperties.Name="{x:Static loc:Strings.ActivityBarOptions}">
                             <TextBlock Text="⚙" FontSize="18" HorizontalAlignment="Center" IsHitTestVisible="False" />
                         </Button>
-                        <Button Command="{Binding OpenCookieJarCommand}"
+                        <Button Classes="ActivityBarButton"
+                                Command="{Binding OpenCookieJarCommand}"
                                 ToolTip.Tip="{x:Static loc:Strings.ActivityBarCookies}"
-                                AutomationProperties.Name="{x:Static loc:Strings.ActivityBarCookies}"
-                                Width="40" Height="40"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                Padding="0">
+                                AutomationProperties.Name="{x:Static loc:Strings.ActivityBarCookies}">
                             <TextBlock Text="🍪" FontSize="18" HorizontalAlignment="Center" IsHitTestVisible="False" />
                         </Button>
-                        <Button Command="{Binding OpenLogWindowCommand}"
+                        <Button Classes="ActivityBarButton"
+                                Command="{Binding OpenLogWindowCommand}"
                                 ToolTip.Tip="{x:Static loc:Strings.ActivityBarLogs}"
-                                AutomationProperties.Name="{x:Static loc:Strings.ActivityBarLogs}"
-                                Width="40" Height="40"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                Padding="0">
+                                AutomationProperties.Name="{x:Static loc:Strings.ActivityBarLogs}">
                             <TextBlock Text="📋" FontSize="18" HorizontalAlignment="Center" IsHitTestVisible="False" />
                         </Button>
-                        <Button Command="{Binding ImportCollectionCommand}"
+                        <Button Classes="ActivityBarButton"
+                                Command="{Binding ImportCollectionCommand}"
                                 ToolTip.Tip="{x:Static loc:Strings.ActivityBarImportOpenApi}"
-                                AutomationProperties.Name="{x:Static loc:Strings.ActivityBarImportOpenApi}"
-                                Width="40" Height="40"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                Padding="0">
+                                AutomationProperties.Name="{x:Static loc:Strings.ActivityBarImportOpenApi}">
                             <TextBlock Text="📥" FontSize="18" HorizontalAlignment="Center" IsHitTestVisible="False" />
                         </Button>
                     </StackPanel>
 
                     <!-- Bottom auxiliary buttons -->
                     <StackPanel Grid.Row="1" Orientation="Vertical" Spacing="2" Margin="4,0,4,8">
-                        <Button Command="{Binding OpenAboutCommand}"
+                        <Button Classes="ActivityBarButton"
+                                Command="{Binding OpenAboutCommand}"
                                 ToolTip.Tip="{x:Static loc:Strings.ActivityBarAbout}"
-                                AutomationProperties.Name="{x:Static loc:Strings.ActivityBarAbout}"
-                                Width="40" Height="40"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                Padding="0">
+                                AutomationProperties.Name="{x:Static loc:Strings.ActivityBarAbout}">
                             <TextBlock Text="ℹ" FontSize="18" HorizontalAlignment="Center" IsHitTestVisible="False" />
                         </Button>
                     </StackPanel>
