@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:webview="using:Avalonia.Controls"
+        xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
         x:Class="Arbor.HttpClient.Desktop.Features.WebView.WebViewWindow"
         Title="Web View"
         Width="1024"
@@ -39,7 +40,7 @@
                          AutomationProperties.Name="URL"
                          ToolTip.Tip="Enter a URL and press Enter or click Go" />
                 <Button x:Name="GoButton"
-                        Content="Go"
+                        Content="{x:Static loc:Strings.WebViewGo}"
                         AutomationProperties.Name="Navigate to URL"
                         ToolTip.Tip="Navigate to the URL" />
             </StackPanel>

@@ -36,8 +36,19 @@ public static class Strings
     [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Advanced)]
     public static CultureInfo? Culture { get; set; }
 
-    private static string Get(string key) =>
-        ResourceManager.GetString(key, Culture) ?? key;
+    private static string Get(string key)
+    {
+        var value = ResourceManager.GetString(key, Culture);
+#if DEBUG
+        if (value is null)
+        {
+            throw new InvalidOperationException(
+                $"Resource string '{key}' not found in {ResourceManager.BaseName}. " +
+                "Add the missing key to Strings.resx.");
+        }
+#endif
+        return value ?? key;
+    }
 
     // ═══════════════════════════════ Main Menu ═══════════════════════════════
 
@@ -684,4 +695,23 @@ public static class Strings
 
     /// <summary>🗑 Delete</summary>
     public static string LeftPanelJobDelete => Get(nameof(LeftPanelJobDelete));
+
+    // ═══════════════════════════════ WebView Window ═══════════════════════════════
+
+    /// <summary>Go</summary>
+    public static string WebViewGo => Get(nameof(WebViewGo));
+
+    // ═══════════════════════════════ Request method badges ═══════════════════════════════
+
+    /// <summary>POST</summary>
+    public static string RequestMethodPost => Get(nameof(RequestMethodPost));
+
+    /// <summary>WS</summary>
+    public static string RequestMethodWebSocket => Get(nameof(RequestMethodWebSocket));
+
+    /// <summary>GET</summary>
+    public static string RequestMethodGet => Get(nameof(RequestMethodGet));
+
+    /// <summary>gRPC</summary>
+    public static string RequestMethodGrpc => Get(nameof(RequestMethodGrpc));
 }

@@ -62,12 +62,15 @@
   <!-- ═══════════════════════════════ Main Menu ═══════════════════════════════ -->
   <data name="MenuFile" xml:space="preserve">
     <value>_File</value>
+    <comment>Translator note: The underscore marks the keyboard access key (mnemonic). Place it before the letter that should be the shortcut. Do not use the same letter as another top-level menu item.</comment>
   </data>
   <data name="MenuImportOpenApi" xml:space="preserve">
     <value>Import _OpenAPI…</value>
+    <comment>Translator note: 'OpenAPI' is a standard name and should not be translated. The underscore marks the keyboard access key.</comment>
   </data>
   <data name="MenuExit" xml:space="preserve">
     <value>E_xit</value>
+    <comment>Translator note: The underscore marks the keyboard access key.</comment>
   </data>
   <data name="MenuView" xml:space="preserve">
     <value>_View</value>
@@ -266,6 +269,7 @@
   </data>
   <data name="GrpcDescription" xml:space="preserve">
     <value>gRPC calls require a compiled Protocol Buffer schema. Full proto file import and runtime compilation is in development. To test gRPC endpoints now, use the HTTP type with gRPC-JSON transcoding (Content-Type: application/grpc-web+json) if your server supports it.</value>
+    <comment>Translator note: 'gRPC', 'Protocol Buffer', 'HTTP', and 'Content-Type: application/grpc-web+json' are technical terms and should not be translated. The phrase 'gRPC-JSON transcoding' should also remain in English.</comment>
   </data>
 
   <!-- Headers tab -->
@@ -703,5 +707,23 @@
   </data>
   <data name="LeftPanelJobDelete" xml:space="preserve">
     <value>🗑 Delete</value>
+  </data>
+  <!-- ═══════════════════════════════ WebView Window ═══════════════════════════════ -->
+  <data name="WebViewGo" xml:space="preserve">
+    <value>Go</value>
+  </data>
+
+  <!-- ═══════════════════════════════ Request method badges ═══════════════════════════════ -->
+  <data name="RequestMethodPost" xml:space="preserve">
+    <value>POST</value>
+  </data>
+  <data name="RequestMethodWebSocket" xml:space="preserve">
+    <value>WS</value>
+  </data>
+  <data name="RequestMethodGet" xml:space="preserve">
+    <value>GET</value>
+  </data>
+  <data name="RequestMethodGrpc" xml:space="preserve">
+    <value>gRPC</value>
   </data>
 </root>

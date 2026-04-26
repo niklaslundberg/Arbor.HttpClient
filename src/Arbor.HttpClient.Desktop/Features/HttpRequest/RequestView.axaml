@@ -61,22 +61,22 @@
                     <Border Grid.Column="0"
                             IsVisible="{Binding App.RequestEditor.IsGraphQlRequest}"
                             Padding="8,4" VerticalAlignment="Center">
-                        <TextBlock Text="POST" FontWeight="SemiBold" Opacity="0.7" />
+                        <TextBlock Text="{x:Static loc:Strings.RequestMethodPost}" FontWeight="SemiBold" Opacity="0.7" />
                     </Border>
                     <Border Grid.Column="0"
                             IsVisible="{Binding App.RequestEditor.IsWebSocketRequest}"
                             Padding="8,4" VerticalAlignment="Center">
-                        <TextBlock Text="WS" FontWeight="SemiBold" Opacity="0.7" />
+                        <TextBlock Text="{x:Static loc:Strings.RequestMethodWebSocket}" FontWeight="SemiBold" Opacity="0.7" />
                     </Border>
                     <Border Grid.Column="0"
                             IsVisible="{Binding App.RequestEditor.IsSseRequest}"
                             Padding="8,4" VerticalAlignment="Center">
-                        <TextBlock Text="GET" FontWeight="SemiBold" Opacity="0.7" />
+                        <TextBlock Text="{x:Static loc:Strings.RequestMethodGet}" FontWeight="SemiBold" Opacity="0.7" />
                     </Border>
                     <Border Grid.Column="0"
                             IsVisible="{Binding App.RequestEditor.IsGrpcRequest}"
                             Padding="8,4" VerticalAlignment="Center">
-                        <TextBlock Text="gRPC" FontWeight="SemiBold" Opacity="0.7" />
+                        <TextBlock Text="{x:Static loc:Strings.RequestMethodGrpc}" FontWeight="SemiBold" Opacity="0.7" />
                     </Border>
                     <Rectangle Grid.Column="1" Width="1" VerticalAlignment="Stretch"
                                Fill="{DynamicResource PanelBorderBrush}" />
