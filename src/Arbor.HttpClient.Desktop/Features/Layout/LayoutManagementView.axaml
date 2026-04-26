@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Arbor.HttpClient.Desktop.Features.Layout"
+             xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="400"
@@ -11,12 +12,12 @@
                   HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="12" Spacing="12">
 
-            <TextBlock Text="Window Layout"
+            <TextBlock Text="{x:Static loc:Strings.LayoutTitle}"
                        FontSize="16"
                        FontWeight="SemiBold" />
 
             <StackPanel Spacing="6">
-                <TextBlock Text="Saved layouts:" />
+                <TextBlock Text="{x:Static loc:Strings.LayoutSavedLayouts}" />
                 <ComboBox MinWidth="180"
                           HorizontalAlignment="Stretch"
                           ItemsSource="{Binding App.SavedLayoutNames}"
@@ -24,18 +25,18 @@
             </StackPanel>
 
             <StackPanel Spacing="6">
-                <Button Content="Save As New"
+                <Button Content="{x:Static loc:Strings.LayoutSaveAsNew}"
                         HorizontalAlignment="Stretch"
                         Command="{Binding SaveLayoutAsNewCommand}" />
-                <Button Content="Save to Selected"
+                <Button Content="{x:Static loc:Strings.LayoutSaveToSelected}"
                         HorizontalAlignment="Stretch"
                         Command="{Binding SaveLayoutToExistingCommand}"
                         CommandParameter="{Binding App.SelectedLayoutName}" />
-                <Button Content="Remove Selected"
+                <Button Content="{x:Static loc:Strings.LayoutRemoveSelected}"
                         HorizontalAlignment="Stretch"
                         Command="{Binding RemoveLayoutCommand}"
                         CommandParameter="{Binding App.SelectedLayoutName}" />
-                <Button Content="Restore Default"
+                <Button Content="{x:Static loc:Strings.LayoutRestoreDefault}"
                         HorizontalAlignment="Stretch"
                         Command="{Binding RestoreDefaultLayoutCommand}" />
             </StackPanel>

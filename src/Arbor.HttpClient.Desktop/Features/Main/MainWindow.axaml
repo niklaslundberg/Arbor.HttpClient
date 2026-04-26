@@ -6,6 +6,7 @@
         xmlns:dock="using:Dock.Avalonia.Controls"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
         mc:Ignorable="d" d:DesignWidth="1300" d:DesignHeight="820"
         x:Class="Arbor.HttpClient.Desktop.Features.Main.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -22,36 +23,36 @@
 
     <DockPanel Margin="0">
         <Menu DockPanel.Dock="Top">
-            <MenuItem Header="_File">
-                <MenuItem Header="Import _OpenAPI…" Command="{Binding ImportCollectionCommand}" />
+            <MenuItem Header="{x:Static loc:Strings.MenuFile}">
+                <MenuItem Header="{x:Static loc:Strings.MenuImportOpenApi}" Command="{Binding ImportCollectionCommand}" />
                 <Separator />
-                <MenuItem Header="E_xit" Command="{Binding ExitApplicationCommand}" />
+                <MenuItem Header="{x:Static loc:Strings.MenuExit}" Command="{Binding ExitApplicationCommand}" />
             </MenuItem>
-            <MenuItem Header="_View">
-                <MenuItem Header="_History" Command="{Binding ShowHistoryTabCommand}" />
-                <MenuItem Header="_Collections" Command="{Binding ShowCollectionsTabCommand}" />
-                <MenuItem Header="_Scheduled Jobs" Command="{Binding ShowScheduledJobsTabCommand}" />
+            <MenuItem Header="{x:Static loc:Strings.MenuView}">
+                <MenuItem Header="{x:Static loc:Strings.MenuHistory}" Command="{Binding ShowHistoryTabCommand}" />
+                <MenuItem Header="{x:Static loc:Strings.MenuCollections}" Command="{Binding ShowCollectionsTabCommand}" />
+                <MenuItem Header="{x:Static loc:Strings.MenuScheduledJobs}" Command="{Binding ShowScheduledJobsTabCommand}" />
                 <Separator />
-                <MenuItem Header="_Options" Command="{Binding OpenOptionsCommand}" />
-                <MenuItem Header="_Environments" Command="{Binding OpenEnvironmentsCommand}" />
-                <MenuItem Header="Coo_kies" Command="{Binding OpenCookieJarCommand}" />
-                <MenuItem Header="Lo_gs" Command="{Binding OpenLogWindowCommand}" />
-                <MenuItem Header="_Layout" Command="{Binding OpenLayoutPanelCommand}" />
+                <MenuItem Header="{x:Static loc:Strings.MenuOptions}" Command="{Binding OpenOptionsCommand}" />
+                <MenuItem Header="{x:Static loc:Strings.MenuEnvironments}" Command="{Binding OpenEnvironmentsCommand}" />
+                <MenuItem Header="{x:Static loc:Strings.MenuCookies}" Command="{Binding OpenCookieJarCommand}" />
+                <MenuItem Header="{x:Static loc:Strings.MenuLogs}" Command="{Binding OpenLogWindowCommand}" />
+                <MenuItem Header="{x:Static loc:Strings.MenuLayout}" Command="{Binding OpenLayoutPanelCommand}" />
             </MenuItem>
-            <MenuItem Header="_Help">
-                <MenuItem Header="_About" Command="{Binding OpenAboutCommand}" />
-                <MenuItem Header="_Diagnostics" Command="{Binding OpenDiagnosticsCommand}" />
+            <MenuItem Header="{x:Static loc:Strings.MenuHelp}">
+                <MenuItem Header="{x:Static loc:Strings.MenuAbout}" Command="{Binding OpenAboutCommand}" />
+                <MenuItem Header="{x:Static loc:Strings.MenuDiagnostics}" Command="{Binding OpenDiagnosticsCommand}" />
             </MenuItem>
         </Menu>
 
         <!-- Top toolbar -->
         <Border DockPanel.Dock="Top" Padding="16,10" BorderBrush="{DynamicResource TopToolbarBorderBrush}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="*,Auto,Auto">
-                <TextBlock Text="Arbor Http Client" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" />
+                <TextBlock Text="{x:Static loc:Strings.AppTitle}" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" />
 
                 <!-- Environment selector -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,8,0">
-                    <TextBlock Text="Env:" VerticalAlignment="Center" Opacity="0.7" />
+                    <TextBlock Text="{x:Static loc:Strings.ToolbarEnvLabel}" VerticalAlignment="Center" Opacity="0.7" />
                     <ComboBox MinWidth="160"
                               ItemsSource="{Binding Environments}"
                               SelectedItem="{Binding ActiveEnvironment, Mode=TwoWay}">
@@ -64,15 +65,15 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Button Content="Options"
+                    <Button Content="{x:Static loc:Strings.ToolbarOptions}"
                             Command="{Binding OpenOptionsCommand}" />
-                    <Button Content="Environments"
+                    <Button Content="{x:Static loc:Strings.ToolbarEnvironments}"
                             Command="{Binding OpenEnvironmentsCommand}" />
-                    <Button Content="Import OpenAPI"
+                    <Button Content="{x:Static loc:Strings.ToolbarImportOpenApi}"
                             Command="{Binding ImportCollectionCommand}" />
-                    <Button Content="🍪 Cookies"
+                    <Button Content="{x:Static loc:Strings.ToolbarCookies}"
                             Command="{Binding OpenCookieJarCommand}" />
-                    <Button Content="📋 Logs"
+                    <Button Content="{x:Static loc:Strings.ToolbarLogs}"
                             Command="{Binding OpenLogWindowCommand}" />
                 </StackPanel>
             </Grid>
@@ -88,9 +89,9 @@
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="{Binding DraftRestoreMessage}"
                            VerticalAlignment="Center" />
-                <Button Content="Restore"
+                <Button Content="{x:Static loc:Strings.DraftRestore}"
                         Command="{Binding RestoreDraftCommand}" />
-                <Button Content="Discard"
+                <Button Content="{x:Static loc:Strings.DraftDiscard}"
                         Command="{Binding DiscardDraftCommand}" />
             </StackPanel>
         </Border>
@@ -100,3 +101,4 @@
                           Factory="{Binding Factory}" />
     </DockPanel>
 </Window>
+

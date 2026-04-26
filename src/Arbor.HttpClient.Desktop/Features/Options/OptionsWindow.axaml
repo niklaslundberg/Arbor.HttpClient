@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Arbor.HttpClient.Desktop.Features.Main"
         xmlns:conv="using:Arbor.HttpClient.Desktop.Shared"
+        xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="820" d:DesignHeight="560"
@@ -26,11 +27,11 @@
                           Background="Transparent"
                           BorderThickness="0"
                           Margin="0,8,0,8">
-                    <TreeViewItem Header="HTTP" Tag="HTTP" IsSelected="True"
+                    <TreeViewItem Header="{x:Static loc:Strings.OptionsNavHttp}" Tag="HTTP" IsSelected="True"
                                   Padding="16,6,8,6" />
-                    <TreeViewItem Header="Scheduled Jobs" Tag="ScheduledJobs"
+                    <TreeViewItem Header="{x:Static loc:Strings.OptionsNavScheduledJobs}" Tag="ScheduledJobs"
                                   Padding="16,6,8,6" />
-                    <TreeViewItem Header="Look &amp; Feel" Tag="LookAndFeel"
+                    <TreeViewItem Header="{x:Static loc:Strings.OptionsNavLookAndFeel}" Tag="LookAndFeel"
                                   Padding="16,6,8,6" />
                 </TreeView>
             </Border>
@@ -70,27 +71,27 @@
                                         ConverterParameter=HTTP}">
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="HTTP version" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsHttpVersionLabel}" FontWeight="SemiBold" />
                                 <ComboBox ItemsSource="{Binding RequestEditor.HttpVersionOptions}"
                                           SelectedItem="{Binding RequestEditor.SelectedHttpVersionOption, Mode=TwoWay}"
                                           MinWidth="200" HorizontalAlignment="Left" />
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="TLS version" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsTlsVersionLabel}" FontWeight="SemiBold" />
                                 <ComboBox ItemsSource="{Binding TlsVersionOptions}"
                                           SelectedItem="{Binding SelectedTlsVersionOption, Mode=TwoWay}"
                                           MinWidth="200" HorizontalAlignment="Left" />
                             </StackPanel>
 
                             <CheckBox IsChecked="{Binding FollowHttpRedirects, Mode=TwoWay}"
-                                      Content="Follow redirects" />
+                                      Content="{x:Static loc:Strings.OptionsFollowRedirects}" />
 
                             <CheckBox IsChecked="{Binding EnableHttpDiagnostics, Mode=TwoWay}"
-                                      Content="Enable HTTP diagnostics" />
+                                      Content="{x:Static loc:Strings.OptionsEnableHttpDiagnostics}" />
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Default content type (body requests)"
+                                <TextBlock Text="{x:Static loc:Strings.OptionsDefaultContentType}"
                                            FontWeight="SemiBold"
                                            TextWrapping="Wrap" />
                                 <TextBox Text="{Binding DefaultContentType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -98,7 +99,7 @@
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Default URL for new requests" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsDefaultUrl}" FontWeight="SemiBold" />
                                 <TextBox Text="{Binding DefaultRequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
 
@@ -111,14 +112,14 @@
                                         ConverterParameter=ScheduledJobs}">
 
                             <CheckBox IsChecked="{Binding AutoStartScheduledJobsOnLaunch, Mode=TwoWay}"
-                                      Content="Auto-start scheduled jobs on launch" />
+                                      Content="{x:Static loc:Strings.OptionsScheduledJobsAutoStart}" />
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Default interval for new jobs" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsScheduledJobsDefaultInterval}" FontWeight="SemiBold" />
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBox Text="{Binding DefaultScheduledJobIntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                              MinWidth="120" />
-                                    <TextBlock Text="seconds" VerticalAlignment="Center" />
+                                    <TextBlock Text="{x:Static loc:Strings.OptionsScheduledJobsSeconds}" VerticalAlignment="Center" />
                                 </StackPanel>
                             </StackPanel>
 
@@ -131,14 +132,14 @@
                                         ConverterParameter=LookAndFeel}">
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Theme" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsTheme}" FontWeight="SemiBold" />
                                 <ComboBox ItemsSource="{Binding ThemeOptions}"
                                           SelectedItem="{Binding SelectedThemeOption, Mode=TwoWay}"
                                           MinWidth="200" HorizontalAlignment="Left" />
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Font family" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsFontFamily}" FontWeight="SemiBold" />
                                 <ComboBox IsEditable="True"
                                           ItemsSource="{Binding FontFamilyOptions}"
                                           SelectedItem="{Binding UiFontFamily, Mode=TwoWay}"
@@ -146,7 +147,7 @@
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Font size" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsFontSize}" FontWeight="SemiBold" />
                                 <TextBox Text="{Binding UiFontSizeText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                          MinWidth="80" HorizontalAlignment="Left" />
                             </StackPanel>
@@ -164,9 +165,9 @@
                 BorderThickness="0,1,0,0"
                 Padding="12,8">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
-                <Button Content="Import JSON" Command="{Binding ImportOptionsCommand}" />
-                <Button Content="Export JSON" Command="{Binding ExportOptionsCommand}" />
-                <Button Content="Close" Click="OnCloseClicked" />
+                <Button Content="{x:Static loc:Strings.OptionsImportJson}" Command="{Binding ImportOptionsCommand}" />
+                <Button Content="{x:Static loc:Strings.OptionsExportJson}" Command="{Binding ExportOptionsCommand}" />
+                <Button Content="{x:Static loc:Strings.OptionsClose}" Click="OnCloseClicked" />
             </StackPanel>
         </Border>
     </Grid>

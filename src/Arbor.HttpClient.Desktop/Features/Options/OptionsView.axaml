@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Arbor.HttpClient.Desktop.Features.Options"
              xmlns:conv="using:Arbor.HttpClient.Desktop.Shared"
+             xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="820" d:DesignHeight="560"
@@ -21,13 +22,13 @@
                           Background="Transparent"
                           BorderThickness="0"
                           Margin="0,8,0,8">
-                    <TreeViewItem Header="HTTP" Tag="HTTP" IsSelected="True"
+                    <TreeViewItem Header="{x:Static loc:Strings.OptionsNavHttp}" Tag="HTTP" IsSelected="True"
                                   Padding="16,6,8,6" />
-                    <TreeViewItem Header="Scheduled Jobs" Tag="ScheduledJobs"
+                    <TreeViewItem Header="{x:Static loc:Strings.OptionsNavScheduledJobs}" Tag="ScheduledJobs"
                                   Padding="16,6,8,6" />
-                    <TreeViewItem Header="Look &amp; Feel" Tag="LookAndFeel"
+                    <TreeViewItem Header="{x:Static loc:Strings.OptionsNavLookAndFeel}" Tag="LookAndFeel"
                                   Padding="16,6,8,6" />
-                    <TreeViewItem Header="Diagnostics" Tag="Diagnostics"
+                    <TreeViewItem Header="{x:Static loc:Strings.OptionsNavDiagnostics}" Tag="Diagnostics"
                                   Padding="16,6,8,6" />
                 </TreeView>
             </Border>
@@ -67,18 +68,18 @@
                                         ConverterParameter=HTTP}">
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="HTTP version" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsHttpVersionLabel}" FontWeight="SemiBold" />
                                 <ComboBox ItemsSource="{Binding App.RequestEditor.HttpVersionOptions}"
                                           SelectedItem="{Binding App.RequestEditor.SelectedHttpVersionOption, Mode=TwoWay}"
                                           MinWidth="200" HorizontalAlignment="Left" />
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="TLS version" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsTlsVersionLabel}" FontWeight="SemiBold" />
                                 <ComboBox ItemsSource="{Binding App.TlsVersionOptions}"
                                           SelectedItem="{Binding App.SelectedTlsVersionOption, Mode=TwoWay}"
                                           MinWidth="200" HorizontalAlignment="Left" />
-                                <TextBlock Text="⚠ TLS 1.0 and 1.1 are cryptographically broken. Use only for testing against legacy servers."
+                                <TextBlock Text="{x:Static loc:Strings.OptionsTlsWarning}"
                                            IsVisible="{Binding App.IsInsecureTlsVersionSelected}"
                                            Foreground="{DynamicResource WarningBrush}"
                                            TextWrapping="Wrap"
@@ -86,13 +87,13 @@
                             </StackPanel>
 
                             <CheckBox IsChecked="{Binding App.FollowHttpRedirects, Mode=TwoWay}"
-                                      Content="Follow redirects" />
+                                      Content="{x:Static loc:Strings.OptionsFollowRedirects}" />
 
                             <CheckBox IsChecked="{Binding App.EnableHttpDiagnostics, Mode=TwoWay}"
-                                      Content="Enable HTTP diagnostics" />
+                                      Content="{x:Static loc:Strings.OptionsEnableHttpDiagnostics}" />
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Default content type (body requests)"
+                                <TextBlock Text="{x:Static loc:Strings.OptionsDefaultContentType}"
                                            FontWeight="SemiBold"
                                            TextWrapping="Wrap" />
                                 <TextBox Text="{Binding App.DefaultContentType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -100,7 +101,7 @@
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Default URL for new requests" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsDefaultUrl}" FontWeight="SemiBold" />
                                 <TextBox Text="{Binding App.DefaultRequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
 
@@ -108,30 +109,30 @@
                             <Border BorderBrush="{DynamicResource PanelBorderBrush}"
                                     BorderThickness="0,1,0,0" Margin="0,4,0,0" Padding="0,16,0,0">
                                 <StackPanel Spacing="12">
-                                    <TextBlock Text="Demo Server" FontWeight="SemiBold" FontSize="14" />
-                                    <TextBlock Text="An embedded Kestrel server that provides /echo, /sse, /ws, and /status endpoints for the 'Localhost Demo' collection."
+                                    <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerTitle}" FontWeight="SemiBold" FontSize="14" />
+                                    <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerDescription}"
                                                TextWrapping="Wrap" Opacity="0.7" FontSize="11" />
                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                                        <TextBlock Text="Port" VerticalAlignment="Center" />
+                                        <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerPort}" VerticalAlignment="Center" />
                                         <TextBox Grid.Column="1"
                                                  Text="{Binding App.DemoServerPort, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                  MaxWidth="120" HorizontalAlignment="Left" />
                                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                                            <Button Content="Start"
+                                            <Button Content="{x:Static loc:Strings.OptionsDemoServerStart}"
                                                     AutomationProperties.Name="Start demo server"
                                                     IsEnabled="{Binding !App.IsDemoServerRunning}"
                                                     Command="{Binding App.StartDemoServerCommand}" />
-                                            <Button Content="Stop"
+                                            <Button Content="{x:Static loc:Strings.OptionsDemoServerStop}"
                                                     AutomationProperties.Name="Stop demo server"
                                                     IsEnabled="{Binding App.IsDemoServerRunning}"
                                                     Command="{Binding App.StopDemoServerCommand}" />
                                         </StackPanel>
                                     </Grid>
-                                    <TextBlock Text="● Running"
+                                    <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerRunning}"
                                                IsVisible="{Binding App.IsDemoServerRunning}"
                                                Foreground="{DynamicResource MethodPostBrush}"
                                                FontWeight="SemiBold" FontSize="11" />
-                                    <TextBlock Text="○ Stopped"
+                                    <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerStopped}"
                                                IsVisible="{Binding !App.IsDemoServerRunning}"
                                                Opacity="0.55" FontSize="11" />
                                 </StackPanel>
@@ -146,14 +147,14 @@
                                         ConverterParameter=ScheduledJobs}">
 
                             <CheckBox IsChecked="{Binding App.AutoStartScheduledJobsOnLaunch, Mode=TwoWay}"
-                                      Content="Auto-start scheduled jobs on launch" />
+                                      Content="{x:Static loc:Strings.OptionsScheduledJobsAutoStart}" />
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Default interval for new jobs" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsScheduledJobsDefaultInterval}" FontWeight="SemiBold" />
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBox Text="{Binding App.DefaultScheduledJobIntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                              MinWidth="120" />
-                                    <TextBlock Text="seconds" VerticalAlignment="Center" />
+                                    <TextBlock Text="{x:Static loc:Strings.OptionsScheduledJobsSeconds}" VerticalAlignment="Center" />
                                 </StackPanel>
                             </StackPanel>
 
@@ -166,14 +167,14 @@
                                         ConverterParameter=LookAndFeel}">
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Theme" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsTheme}" FontWeight="SemiBold" />
                                 <ComboBox ItemsSource="{Binding App.ThemeOptions}"
                                           SelectedItem="{Binding App.SelectedThemeOption, Mode=TwoWay}"
                                           MinWidth="200" HorizontalAlignment="Left" />
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Font family" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsFontFamily}" FontWeight="SemiBold" />
                                 <ComboBox IsEditable="True"
                                           ItemsSource="{Binding App.FontFamilyOptions}"
                                           SelectedItem="{Binding App.UiFontFamily, Mode=TwoWay}"
@@ -181,7 +182,7 @@
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Font size" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsFontSize}" FontWeight="SemiBold" />
                                 <TextBox Text="{Binding App.UiFontSizeText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                          MinWidth="80" HorizontalAlignment="Left" />
                             </StackPanel>
@@ -195,14 +196,14 @@
                                         ConverterParameter=Diagnostics}">
 
                             <CheckBox IsChecked="{Binding App.CollectUnhandledExceptions, Mode=TwoWay}"
-                                      Content="Collect unhandled exceptions" />
+                                      Content="{x:Static loc:Strings.OptionsCollectExceptions}" />
 
-                            <TextBlock Text="When enabled, unhandled exceptions are stored locally so you can review and optionally report them as GitHub issues. No data is sent automatically."
+                            <TextBlock Text="{x:Static loc:Strings.OptionsCollectExceptionsDescription}"
                                        TextWrapping="Wrap"
                                        Opacity="0.65"
                                        FontSize="11" />
 
-                            <Button Content="View Collected Exceptions…"
+                            <Button Content="{x:Static loc:Strings.OptionsViewCollectedExceptions}"
                                     AutomationProperties.Name="Open diagnostics window to review collected exceptions"
                                     Command="{Binding App.OpenDiagnosticsCommand}" />
 
@@ -219,9 +220,10 @@
                 BorderThickness="0,1,0,0"
                 Padding="12,8">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
-                <Button Content="Import JSON" Command="{Binding App.ImportOptionsCommand}" />
-                <Button Content="Export JSON" Command="{Binding App.ExportOptionsCommand}" />
+                <Button Content="{x:Static loc:Strings.OptionsImportJson}" Command="{Binding App.ImportOptionsCommand}" />
+                <Button Content="{x:Static loc:Strings.OptionsExportJson}" Command="{Binding App.ExportOptionsCommand}" />
             </StackPanel>
         </Border>
     </Grid>
 </UserControl>
+

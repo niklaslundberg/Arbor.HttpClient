@@ -7,6 +7,7 @@
              xmlns:scheduledVm="using:Arbor.HttpClient.Desktop.Features.ScheduledJobs"
              xmlns:collections="using:Arbor.HttpClient.Core.Collections"
              xmlns:httpRequest="using:Arbor.HttpClient.Core.HttpRequest"
+             xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
              x:Class="Arbor.HttpClient.Desktop.Features.Collections.LeftPanelView"
              x:CompileBindings="False">
 
@@ -42,13 +43,13 @@
     <Grid RowDefinitions="Auto,*" Margin="8" Background="{DynamicResource PanelBackgroundBrush}">
         <!-- Tab bar -->
         <StackPanel Orientation="Horizontal" Spacing="0">
-            <Button Classes="tab" Content="History"
+            <Button Classes="tab" Content="{x:Static loc:Strings.LeftPanelHistory}"
                     Command="{Binding App.ShowHistoryTabCommand}"
                     Classes.active="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=History}" />
-            <Button Classes="tab" Content="Collections"
+            <Button Classes="tab" Content="{x:Static loc:Strings.LeftPanelCollections}"
                     Command="{Binding App.ShowCollectionsTabCommand}"
                     Classes.active="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=Collections}" />
-            <Button Classes="tab" Content="Scheduled"
+            <Button Classes="tab" Content="{x:Static loc:Strings.LeftPanelScheduled}"
                     Command="{Binding App.ShowScheduledJobsTabCommand}"
                     Classes.active="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=ScheduledJobs}" />
         </StackPanel>
@@ -57,7 +58,7 @@
         <Border Grid.Row="1" Background="{DynamicResource PanelBackgroundBrush}" Padding="12" CornerRadius="8"
                 IsVisible="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=History}">
             <Grid RowDefinitions="Auto,*">
-                <TextBox PlaceholderText="Search history…"
+                <TextBox PlaceholderText="{x:Static loc:Strings.LeftPanelSearchHistory}"
                          Text="{Binding App.HistorySearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 <ListBox Grid.Row="1" ItemsSource="{Binding App.History}" Margin="0,6,0,0"
                          Background="{DynamicResource PanelBackgroundBrush}">
@@ -66,7 +67,7 @@
                             <StackPanel Margin="0,4">
                                 <StackPanel.ContextMenu>
                                     <ContextMenu>
-                                        <MenuItem Header="Copy as cURL"
+                                        <MenuItem Header="{x:Static loc:Strings.LeftPanelCopyAsCurl}"
                                                   Command="{Binding $parent[UserControl].DataContext.App.CopyHistoryItemAsCurlCommand}"
                                                   CommandParameter="{Binding}" />
                                     </ContextMenu>
@@ -107,7 +108,7 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
                     <Button Grid.Column="1" Classes="compact"
-                            Content="+ New"
+                            Content="{x:Static loc:Strings.LeftPanelNewCollection}"
                             AutomationProperties.Name="Create new collection"
                             ToolTip.Tip="Create a new empty collection"
                             Command="{Binding App.ShowNewCollectionFormCommand}" />
@@ -116,7 +117,7 @@
                 <!-- Row 1: Inline new-collection form -->
                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4" Margin="0,4,0,0"
                       IsVisible="{Binding App.IsNewCollectionFormVisible}">
-                    <TextBox PlaceholderText="Collection name"
+                    <TextBox PlaceholderText="{x:Static loc:Strings.LeftPanelCollectionNamePlaceholder}"
                              Text="{Binding App.NewCollectionName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <Button Grid.Column="1" Classes="compact" Content="✓"
                             AutomationProperties.Name="Confirm new collection"
@@ -130,16 +131,16 @@
                 <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4" Margin="0,4,0,0"
                             IsVisible="{Binding App.SelectedCollection, Converter={x:Static conv:NotNullConverter.Instance}}">
                     <Button Classes="compact"
-                            Content="+ Add request"
+                            Content="{x:Static loc:Strings.LeftPanelAddRequest}"
                             AutomationProperties.Name="Add current request to collection"
                             ToolTip.Tip="Add the current request to this collection"
                             Command="{Binding App.AddRequestToCollectionCommand}" />
                     <Button Classes="compact"
-                            Content="Import OpenAPI"
+                            Content="{x:Static loc:Strings.LeftPanelImportOpenApi}"
                             AutomationProperties.Name="Import OpenAPI specification"
                             Command="{Binding App.ImportCollectionCommand}" />
                     <Button Classes="compact"
-                            Content="🗑 Delete"
+                            Content="{x:Static loc:Strings.LeftPanelDeleteCollection}"
                             AutomationProperties.Name="Delete collection"
                             Command="{Binding App.DeleteCollectionCommand}"
                             CommandParameter="{Binding App.SelectedCollection}" />
@@ -147,43 +148,43 @@
 
                 <!-- Row 3: Search box -->
                 <TextBox Grid.Row="3" Margin="0,6,0,0"
-                         PlaceholderText="Search requests…"
+                         PlaceholderText="{x:Static loc:Strings.LeftPanelSearchRequests}"
                          Text="{Binding App.CollectionSearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 <!-- Row 4: Sort + view-mode toolbar -->
                 <Grid Grid.Row="4" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
                     <!-- Sort row -->
                     <StackPanel Orientation="Horizontal" Spacing="0">
-                        <TextBlock Text="Sort:" VerticalAlignment="Center" Opacity="0.7" Margin="0,0,4,0" FontSize="11" />
-                        <Button Classes="tab" Content="Default" FontSize="11" Padding="6,4"
+                        <TextBlock Text="{x:Static loc:Strings.LeftPanelSortLabel}" VerticalAlignment="Center" Opacity="0.7" Margin="0,0,4,0" FontSize="11" />
+                        <Button Classes="tab" Content="{x:Static loc:Strings.LeftPanelSortDefault}" FontSize="11" Padding="6,4"
                                 Command="{Binding App.SetCollectionSortByCommand}" CommandParameter="Default"
                                 Classes.active="{Binding App.CollectionSortBy, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=Default}" />
-                        <Button Classes="tab" Content="Name" FontSize="11" Padding="6,4"
+                        <Button Classes="tab" Content="{x:Static loc:Strings.LeftPanelSortName}" FontSize="11" Padding="6,4"
                                 Command="{Binding App.SetCollectionSortByCommand}" CommandParameter="Name"
                                 Classes.active="{Binding App.CollectionSortBy, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=Name}" />
-                        <Button Classes="tab" Content="Method" FontSize="11" Padding="6,4"
+                        <Button Classes="tab" Content="{x:Static loc:Strings.LeftPanelSortMethod}" FontSize="11" Padding="6,4"
                                 Command="{Binding App.SetCollectionSortByCommand}" CommandParameter="Method"
                                 Classes.active="{Binding App.CollectionSortBy, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=Method}" />
-                        <Button Classes="tab" Content="Path" FontSize="11" Padding="6,4"
+                        <Button Classes="tab" Content="{x:Static loc:Strings.LeftPanelSortPath}" FontSize="11" Padding="6,4"
                                 Command="{Binding App.SetCollectionSortByCommand}" CommandParameter="Path"
                                 Classes.active="{Binding App.CollectionSortBy, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=Path}" />
                     </StackPanel>
                     <!-- Display mode row -->
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="0" Margin="0,2,0,0">
-                        <TextBlock Text="Show:" VerticalAlignment="Center" Opacity="0.7" Margin="0,0,4,0" FontSize="11" />
-                        <Button Classes="tab" Content="Name+Path" FontSize="11" Padding="6,4"
+                        <TextBlock Text="{x:Static loc:Strings.LeftPanelShowLabel}" VerticalAlignment="Center" Opacity="0.7" Margin="0,0,4,0" FontSize="11" />
+                        <Button Classes="tab" Content="{x:Static loc:Strings.LeftPanelShowNameAndPath}" FontSize="11" Padding="6,4"
                                 Command="{Binding App.SetCollectionDisplayModeCommand}" CommandParameter="NameAndPath"
                                 Classes.active="{Binding App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameAndPath}" />
-                        <Button Classes="tab" Content="Name" FontSize="11" Padding="6,4"
+                        <Button Classes="tab" Content="{x:Static loc:Strings.LeftPanelShowName}" FontSize="11" Padding="6,4"
                                 Command="{Binding App.SetCollectionDisplayModeCommand}" CommandParameter="NameOnly"
                                 Classes.active="{Binding App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=NameOnly}" />
-                        <Button Classes="tab" Content="Path" FontSize="11" Padding="6,4"
+                        <Button Classes="tab" Content="{x:Static loc:Strings.LeftPanelShowPath}" FontSize="11" Padding="6,4"
                                 Command="{Binding App.SetCollectionDisplayModeCommand}" CommandParameter="PathOnly"
                                 Classes.active="{Binding App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=PathOnly}" />
-                        <Button Classes="tab" Content="URL" FontSize="11" Padding="6,4"
+                        <Button Classes="tab" Content="{x:Static loc:Strings.LeftPanelShowUrl}" FontSize="11" Padding="6,4"
                                 Command="{Binding App.SetCollectionDisplayModeCommand}" CommandParameter="FullUrl"
                                 Classes.active="{Binding App.CollectionDisplayMode, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=FullUrl}" />
-                        <Button Classes="tab" Content="🌿 Tree" FontSize="11" Padding="6,4"
+                        <Button Classes="tab" Content="{x:Static loc:Strings.LeftPanelTreeView}" FontSize="11" Padding="6,4"
                                 AutomationProperties.Name="Toggle tree view"
                                 Command="{Binding App.ToggleCollectionTreeViewCommand}"
                                 Classes.active="{Binding App.IsCollectionTreeView}" />
@@ -304,7 +305,7 @@
         <Border Grid.Row="1" Background="{DynamicResource PanelBackgroundBrush}" Padding="12" CornerRadius="8"
                 IsVisible="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=ScheduledJobs}">
             <Grid RowDefinitions="Auto,*">
-                <Button Content="+ Add Job" Command="{Binding App.AddScheduledJobCommand}" />
+                <Button Content="{x:Static loc:Strings.LeftPanelAddJob}" Command="{Binding App.AddScheduledJobCommand}" />
                 <ScrollViewer Grid.Row="1" Margin="0,6,0,0">
                     <ItemsControl ItemsSource="{Binding App.ScheduledJobs}">
                         <ItemsControl.ItemTemplate>
@@ -312,29 +313,29 @@
                                 <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4"
                                         Padding="8,6" Margin="0,4,0,0">
                                     <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
-                                        <TextBox PlaceholderText="Job name"
+                                        <TextBox PlaceholderText="{x:Static loc:Strings.LeftPanelJobNamePlaceholder}"
                                                  Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                         <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="6">
                                             <ComboBox ItemsSource="{Binding Methods}"
                                                       SelectedItem="{Binding Method, Mode=TwoWay}"
                                                       MinWidth="80" />
-                                            <TextBox Grid.Column="1" PlaceholderText="URL"
+                                            <TextBox Grid.Column="1" PlaceholderText="{x:Static loc:Strings.LeftPanelJobUrlPlaceholder}"
                                                      Text="{Binding Url, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                         </Grid>
-                                        <TextBox Grid.Row="2" PlaceholderText="Body (optional)"
+                                        <TextBox Grid.Row="2" PlaceholderText="{x:Static loc:Strings.LeftPanelJobBodyPlaceholder}"
                                                  Text="{Binding Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                         <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
-                                            <TextBlock Text="Interval (s)" VerticalAlignment="Center" />
+                                            <TextBlock Text="{x:Static loc:Strings.LeftPanelIntervalLabel}" VerticalAlignment="Center" />
                                             <TextBox Grid.Column="1"
                                                      Text="{Binding IntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                            <CheckBox Grid.Column="2" Content="Auto-start"
+                                            <CheckBox Grid.Column="2" Content="{x:Static loc:Strings.LeftPanelAutoStart}"
                                                       IsChecked="{Binding AutoStart, Mode=TwoWay}" />
                                         </Grid>
                                         <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="16">
-                                            <CheckBox Content="Follow redirects"
+                                            <CheckBox Content="{x:Static loc:Strings.LeftPanelJobFollowRedirects}"
                                                       IsChecked="{Binding FollowRedirects, Mode=TwoWay}" />
                                             <!-- "Show in web view" is only meaningful for GET requests that return renderable content -->
-                                            <CheckBox Content="Show in web view"
+                                            <CheckBox Content="{x:Static loc:Strings.LeftPanelJobShowInWebView}"
                                                       IsChecked="{Binding UseWebView, Mode=TwoWay}"
                                                       IsVisible="{Binding IsWebViewApplicable}"
                                                       ToolTip.Tip="After each scheduled tick, open the response URL in the in-app browser window" />
@@ -347,7 +348,7 @@
                                                 BorderThickness="1" CornerRadius="3"
                                                 Padding="6,4">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="Last:" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+                                                <TextBlock Text="{x:Static loc:Strings.LeftPanelJobLastLabel}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
                                                 <TextBlock Text="{Binding LastResponseStatus}"
                                                            FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center" />
                                                 <TextBlock Text="{Binding LastResponseAtDisplay}"
@@ -355,18 +356,18 @@
                                             </StackPanel>
                                         </Border>
                                         <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="6">
-                                            <Button Content="▶ Start"
+                                            <Button Content="{x:Static loc:Strings.LeftPanelJobStart}"
                                                     Command="{Binding StartCommand}"
                                                     IsEnabled="{Binding !IsRunning}" />
-                                            <Button Content="■ Stop"
+                                            <Button Content="{x:Static loc:Strings.LeftPanelJobStop}"
                                                     Command="{Binding StopCommand}"
                                                     IsEnabled="{Binding IsRunning}" />
-                                            <Button Content="🌐 Web view"
+                                            <Button Content="{x:Static loc:Strings.LeftPanelJobWebView}"
                                                     AutomationProperties.Name="Open URL in in-app web browser"
                                                     ToolTip.Tip="Open the URL in the in-app web browser"
                                                     IsVisible="{Binding IsWebViewEnabled}"
                                                     Click="OnViewInAppClicked" />
-                                            <Button Content="🗑 Delete"
+                                            <Button Content="{x:Static loc:Strings.LeftPanelJobDelete}"
                                                     Command="{Binding $parent[UserControl].DataContext.RemoveScheduledJobCommand}"
                                                     CommandParameter="{Binding}" />
                                         </StackPanel>

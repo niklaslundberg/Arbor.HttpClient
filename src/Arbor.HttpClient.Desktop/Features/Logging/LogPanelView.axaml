@@ -2,18 +2,19 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Arbor.HttpClient.Desktop.Features.Logging"
              xmlns:logging="using:Arbor.HttpClient.Desktop.Features.Logging"
+             xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
              x:Class="Arbor.HttpClient.Desktop.Features.Logging.LogPanelView"
              x:CompileBindings="False">
     <Grid RowDefinitions="Auto,*" Margin="12" RowSpacing="8">
         <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Text="Live Log" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
-            <CheckBox Grid.Column="1" Content="Auto-scroll"
+            <TextBlock Text="{x:Static loc:Strings.LogPanelTitle}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <CheckBox Grid.Column="1" Content="{x:Static loc:Strings.LogPanelAutoScroll}"
                       IsChecked="{Binding App.LogWindowViewModel.AutoScroll, Mode=TwoWay}"
                       VerticalAlignment="Center" />
         </Grid>
 
         <TabControl Grid.Row="1">
-            <TabItem Header="Scheduled">
+            <TabItem Header="{x:Static loc:Strings.LogPanelTabScheduled}">
                 <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
                     <ListBox x:Name="ScheduledLogList"
                              ItemsSource="{Binding App.LogWindowViewModel.Entries}"
@@ -46,7 +47,7 @@
                     </ListBox>
                 </Border>
             </TabItem>
-            <TabItem Header="HTTP Diagnostics">
+            <TabItem Header="{x:Static loc:Strings.LogPanelTabHttpDiagnostics}">
                 <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
                     <ListBox x:Name="DiagnosticsLogList"
                              ItemsSource="{Binding App.LogWindowViewModel.HttpDiagnosticsEntries}"
@@ -79,7 +80,7 @@
                     </ListBox>
                 </Border>
             </TabItem>
-            <TabItem Header="HTTP Requests">
+            <TabItem Header="{x:Static loc:Strings.LogPanelTabHttpRequests}">
                 <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
                     <ListBox x:Name="RequestLogList"
                              ItemsSource="{Binding App.LogWindowViewModel.HttpRequestEntries}"
@@ -112,7 +113,7 @@
                     </ListBox>
                 </Border>
             </TabItem>
-            <TabItem Header="Debug">
+            <TabItem Header="{x:Static loc:Strings.LogPanelTabDebug}">
                 <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
                     <ListBox x:Name="DebugLogList"
                              ItemsSource="{Binding App.LogWindowViewModel.DebugEntries}"

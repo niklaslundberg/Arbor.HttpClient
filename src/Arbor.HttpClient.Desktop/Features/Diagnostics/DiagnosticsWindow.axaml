@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Arbor.HttpClient.Desktop.Features.Diagnostics"
+        xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="520"
@@ -20,10 +21,10 @@
                 BorderBrush="{DynamicResource PanelBorderBrush}"
                 BorderThickness="0,0,0,1">
             <StackPanel Spacing="4">
-                <TextBlock Text="Unhandled Exceptions"
+                <TextBlock Text="{x:Static loc:Strings.DiagnosticsTitle}"
                            FontSize="16"
                            FontWeight="SemiBold" />
-                <TextBlock Text="Review collected exceptions below. Use 'Report on GitHub' to open a pre-filled issue in your browser. The issue is not submitted until you click Submit on GitHub."
+                <TextBlock Text="{x:Static loc:Strings.DiagnosticsDescription}"
                            TextWrapping="Wrap"
                            Opacity="0.65"
                            FontSize="11" />
@@ -39,7 +40,7 @@
 
                 <!-- No entries placeholder -->
                 <TextBlock IsVisible="{Binding !HasEntries}"
-                           Text="No unhandled exceptions have been collected."
+                           Text="{x:Static loc:Strings.DiagnosticsNoEntries}"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Center"
                            Margin="0,48,0,0"
@@ -73,7 +74,7 @@
 
                                     <!-- Stack trace (collapsed) -->
                                     <Expander Grid.Row="2"
-                                              Header="Stack trace"
+                                              Header="{x:Static loc:Strings.DiagnosticsStackTrace}"
                                               Margin="0,8,0,0">
                                         <TextBox Text="{Binding DisplayStackTrace}"
                                                  IsReadOnly="True"
@@ -90,10 +91,10 @@
                                                 Orientation="Horizontal"
                                                 Spacing="8"
                                                 Margin="0,10,0,0">
-                                        <Button Content="Report on GitHub"
+                                        <Button Content="{x:Static loc:Strings.DiagnosticsReportOnGitHub}"
                                                 AutomationProperties.Name="Report this exception on GitHub"
                                                 Command="{Binding ReportOnGitHubCommand}" />
-                                        <Button Content="Dismiss"
+                                        <Button Content="{x:Static loc:Strings.DiagnosticsDismiss}"
                                                 AutomationProperties.Name="Dismiss this exception"
                                                 Command="{Binding DismissCommand}" />
                                     </StackPanel>
@@ -115,11 +116,11 @@
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right"
                         Spacing="8">
-                <Button Content="Clear All"
+                <Button Content="{x:Static loc:Strings.DiagnosticsClearAll}"
                         AutomationProperties.Name="Clear all collected exceptions"
                         IsEnabled="{Binding HasEntries}"
                         Command="{Binding ClearAllCommand}" />
-                <Button Content="Close"
+                <Button Content="{x:Static loc:Strings.DiagnosticsClose}"
                         AutomationProperties.Name="Close diagnostics window"
                         Click="OnCloseClicked" />
             </StackPanel>
