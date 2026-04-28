@@ -31,6 +31,8 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         await EnsureEnvironmentVariableEnabledColumnAsync(connection, cancellationToken).ConfigureAwait(false);
         await EnsureEnvironmentColorColumnsAsync(connection, cancellationToken).ConfigureAwait(false);
+        await EnsureEnvironmentVariableSensitiveColumnAsync(connection, cancellationToken).ConfigureAwait(false);
+        await EnsureEnvironmentVariableExpiresAtColumnAsync(connection, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<int> SaveAsync(string name, IReadOnlyList<EnvironmentVariable> variables, string? accentColor = null, bool showWarningBanner = false, CancellationToken cancellationToken = default)
@@ -96,7 +98,7 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
         await using var cmd = connection.CreateCommand();
         cmd.CommandText =
             """
-            SELECT e.id, e.name, e.accent_color, e.show_warning_banner, v.name, v.value, v.is_enabled
+            SELECT e.id, e.name, e.accent_color, e.show_warning_banner, v.name, v.value, v.is_enabled, v.is_sensitive, v.expires_at_utc
             FROM environments e
             LEFT JOIN environment_variables v ON v.environment_id = e.id
             ORDER BY e.id, v.id;
@@ -118,7 +120,16 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
 
             if (!reader.IsDBNull(4))
             {
-                entry.Variables.Add(new EnvironmentVariable(reader.GetString(4), reader.GetString(5), reader.GetInt32(6) == 1));
+                var isSensitive = !reader.IsDBNull(7) && reader.GetInt32(7) == 1;
+                DateTimeOffset? expiresAtUtc = null;
+                if (!reader.IsDBNull(8))
+                {
+                    if (DateTimeOffset.TryParse(reader.GetString(8), out var parsed))
+                    {
+                        expiresAtUtc = parsed;
+                    }
+                }
+                entry.Variables.Add(new EnvironmentVariable(reader.GetString(4), reader.GetString(5), reader.GetInt32(6) == 1, isSensitive, expiresAtUtc));
             }
         }
 
@@ -157,13 +168,15 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
         cmd.Transaction = transaction;
         cmd.CommandText =
             """
-            INSERT INTO environment_variables (environment_id, name, value, is_enabled)
-            VALUES ($envId, $name, $value, $isEnabled);
+            INSERT INTO environment_variables (environment_id, name, value, is_enabled, is_sensitive, expires_at_utc)
+            VALUES ($envId, $name, $value, $isEnabled, $isSensitive, $expiresAtUtc);
             """;
         var pEnvId = cmd.Parameters.Add("$envId", SqliteType.Integer);
         var pName = cmd.Parameters.Add("$name", SqliteType.Text);
         var pValue = cmd.Parameters.Add("$value", SqliteType.Text);
         var pIsEnabled = cmd.Parameters.Add("$isEnabled", SqliteType.Integer);
+        var pIsSensitive = cmd.Parameters.Add("$isSensitive", SqliteType.Integer);
+        var pExpiresAtUtc = cmd.Parameters.Add("$expiresAtUtc", SqliteType.Text);
         pEnvId.Value = environmentId;
 
         await cmd.PrepareAsync(cancellationToken).ConfigureAwait(false);
@@ -173,6 +186,10 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
             pName.Value = variable.Name;
             pValue.Value = variable.Value;
             pIsEnabled.Value = variable.IsEnabled ? 1 : 0;
+            pIsSensitive.Value = variable.IsSensitive ? 1 : 0;
+            pExpiresAtUtc.Value = variable.ExpiresAtUtc.HasValue
+                ? (object)variable.ExpiresAtUtc.Value.ToString("O")
+                : DBNull.Value;
             await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
     }
@@ -241,5 +258,61 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
             alterBanner.CommandText = "ALTER TABLE environments ADD COLUMN show_warning_banner INTEGER NOT NULL DEFAULT 0;";
             await alterBanner.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    private static async Task EnsureEnvironmentVariableSensitiveColumnAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var columnInfo = connection.CreateCommand();
+        columnInfo.CommandText = "PRAGMA table_info(environment_variables);";
+
+        var hasSensitiveColumn = false;
+        await using (var reader = await columnInfo.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+        {
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                if (string.Equals(reader.GetString(1), "is_sensitive", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasSensitiveColumn = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasSensitiveColumn)
+        {
+            return;
+        }
+
+        await using var alter = connection.CreateCommand();
+        alter.CommandText = "ALTER TABLE environment_variables ADD COLUMN is_sensitive INTEGER NOT NULL DEFAULT 0;";
+        await alter.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task EnsureEnvironmentVariableExpiresAtColumnAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var columnInfo = connection.CreateCommand();
+        columnInfo.CommandText = "PRAGMA table_info(environment_variables);";
+
+        var hasExpiresAtColumn = false;
+        await using (var reader = await columnInfo.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+        {
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                if (string.Equals(reader.GetString(1), "expires_at_utc", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasExpiresAtColumn = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasExpiresAtColumn)
+        {
+            return;
+        }
+
+        await using var alter = connection.CreateCommand();
+        alter.CommandText = "ALTER TABLE environment_variables ADD COLUMN expires_at_utc TEXT;";
+        await alter.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 }

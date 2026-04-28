@@ -561,6 +561,26 @@
   <data name="EnvironmentsColorAccessibleNamePurple" xml:space="preserve">
     <value>Purple — Demo / sandbox</value>
   </data>
+  <data name="EnvironmentsVariableSensitiveColumn" xml:space="preserve">
+    <value>Sensitive</value>
+    <comment>Column header for the sensitive-data checkbox in the environment-variables table.</comment>
+  </data>
+  <data name="EnvironmentsVariableSensitiveTooltip" xml:space="preserve">
+    <value>Mark as sensitive — value will be masked in the UI</value>
+    <comment>Tooltip on the Sensitive checkbox in the environment-variables table.</comment>
+  </data>
+  <data name="EnvironmentsVariableExpiresColumn" xml:space="preserve">
+    <value>Expires (UTC)</value>
+    <comment>Column header for the optional expiry date/time in the environment-variables table.</comment>
+  </data>
+  <data name="EnvironmentsVariableExpiresPlaceholder" xml:space="preserve">
+    <value>e.g. 2026-12-31T23:59:00Z</value>
+    <comment>Placeholder and tooltip for the expires-at text box in the environment-variables table.</comment>
+  </data>
+  <data name="EnvironmentsVariableRevealTooltip" xml:space="preserve">
+    <value>Reveal / hide sensitive value</value>
+    <comment>Tooltip and accessible name on the reveal-toggle button next to a sensitive variable's value.</comment>
+  </data>
 
   <!-- ═══════════════════════════════ Log Panel / Log Window ═══════════════════════════════ -->
   <data name="LogPanelTitle" xml:space="preserve">
