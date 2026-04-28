@@ -187,7 +187,7 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
             pIsEnabled.Value = variable.IsEnabled ? 1 : 0;
             pIsSensitive.Value = variable.IsSensitive ? 1 : 0;
             pExpiresAtUtc.Value = variable.ExpiresAtUtc.HasValue
-                ? (object)variable.ExpiresAtUtc.Value.ToString("O")
+                ? (object)variable.ExpiresAtUtc.Value.ToUniversalTime().ToString("O")
                 : DBNull.Value;
             await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }

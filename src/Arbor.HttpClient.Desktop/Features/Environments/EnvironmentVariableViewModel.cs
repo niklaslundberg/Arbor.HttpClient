@@ -43,9 +43,6 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
     /// <summary>Returns <c>true</c> when the value should be displayed as masked bullets (sensitive and not revealed).</summary>
     public bool IsValueMasked => IsSensitive && !IsValueRevealed;
 
-    /// <summary>Returns a redacted placeholder when the variable is sensitive and not revealed.</summary>
-    public string DisplayValue => IsSensitive && !IsValueRevealed ? "••••••••" : Value;
-
     /// <summary>Returns <c>true</c> when the variable has expired.</summary>
     public bool IsExpired => ExpiresAtUtc.HasValue && DateTimeOffset.UtcNow >= ExpiresAtUtc.Value;
 
@@ -88,9 +85,12 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
         _name = name;
         _value = value;
         _isSensitive = isSensitive;
-        // Mark as user-overridden when loaded from storage so that typing the name
-        // does not reset an explicitly stored sensitive flag.
-        _sensitiveUserOverride = isSensitive;
+        // Mark as user-overridden when the variable already has a name (i.e. was loaded
+        // from storage), so that a later name edit cannot silently re-enable sensitivity
+        // regardless of whether the stored value was true or false.
+        // For truly new variables (name is empty) the override stays false so that
+        // auto-detection fires as soon as the user types the name.
+        _sensitiveUserOverride = !string.IsNullOrEmpty(name) || isSensitive;
         _expiresAtUtc = expiresAtUtc;
         // If an expiry was loaded from storage, treat it as a user-set value so JWT
         // auto-detection does not silently overwrite it.
@@ -121,14 +121,11 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
         {
             IsValueRevealed = false;
         }
-        OnPropertyChanged(nameof(DisplayValue));
         OnPropertyChanged(nameof(IsValueMasked));
     }
 
     partial void OnValueChanged(string value)
     {
-        OnPropertyChanged(nameof(DisplayValue));
-
         // Auto-detect JWT expiry from the value when the user has not manually set an expiry.
         if (!_expiryUserOverride && JwtExpiryExtractor.TryGetExpiry(value, out var jwtExpiry))
         {
@@ -138,7 +135,6 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
 
     partial void OnIsValueRevealedChanged(bool value)
     {
-        OnPropertyChanged(nameof(DisplayValue));
         OnPropertyChanged(nameof(IsValueMasked));
     }
 
