@@ -741,8 +741,8 @@ public class ScreenshotGenerator
     private sealed class InMemoryEnvironmentRepo : IEnvironmentRepository
     {
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<int> SaveAsync(string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default) => Task.FromResult(1);
-        public Task UpdateAsync(int environmentId, string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> SaveAsync(string name, IReadOnlyList<EnvironmentVariable> variables, string? accentColor = null, bool showWarningBanner = false, CancellationToken cancellationToken = default) => Task.FromResult(1);
+        public Task UpdateAsync(int environmentId, string name, IReadOnlyList<EnvironmentVariable> variables, string? accentColor = null, bool showWarningBanner = false, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<IReadOnlyList<RequestEnvironment>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<RequestEnvironment>>([]);
         public Task DeleteAsync(int environmentId, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }

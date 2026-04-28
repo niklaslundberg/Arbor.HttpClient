@@ -511,6 +511,33 @@ public static class Strings
     /// <summary>Export JSON</summary>
     public static string EnvironmentsExportJson => Get(nameof(EnvironmentsExportJson));
 
+    /// <summary>Color (optional):</summary>
+    public static string EnvironmentsColorLabel => Get(nameof(EnvironmentsColorLabel));
+
+    /// <summary>∅ none</summary>
+    public static string EnvironmentsColorNone => Get(nameof(EnvironmentsColorNone));
+
+    /// <summary>Show warning banner</summary>
+    public static string EnvironmentsShowWarningBanner => Get(nameof(EnvironmentsShowWarningBanner));
+
+    /// <summary>⚠ ACTIVE ENVIRONMENT:</summary>
+    public static string EnvironmentsWarningBannerText => Get(nameof(EnvironmentsWarningBannerText));
+
+    /// <summary>Red — Production / live</summary>
+    public static string EnvironmentsColorAccessibleNameRed => Get(nameof(EnvironmentsColorAccessibleNameRed));
+
+    /// <summary>Amber — Staging / pre-prod</summary>
+    public static string EnvironmentsColorAccessibleNameAmber => Get(nameof(EnvironmentsColorAccessibleNameAmber));
+
+    /// <summary>Green — Development / local</summary>
+    public static string EnvironmentsColorAccessibleNameGreen => Get(nameof(EnvironmentsColorAccessibleNameGreen));
+
+    /// <summary>Blue — QA / test</summary>
+    public static string EnvironmentsColorAccessibleNameBlue => Get(nameof(EnvironmentsColorAccessibleNameBlue));
+
+    /// <summary>Purple — Demo / sandbox</summary>
+    public static string EnvironmentsColorAccessibleNamePurple => Get(nameof(EnvironmentsColorAccessibleNamePurple));
+
     // ═══════════════════════════════ Log Panel / Log Window ═══════════════════════════════
 
     /// <summary>Live Log</summary>

@@ -534,6 +534,33 @@
   <data name="EnvironmentsExportJson" xml:space="preserve">
     <value>Export JSON</value>
   </data>
+  <data name="EnvironmentsColorLabel" xml:space="preserve">
+    <value>Color (optional):</value>
+  </data>
+  <data name="EnvironmentsColorNone" xml:space="preserve">
+    <value>∅ none</value>
+  </data>
+  <data name="EnvironmentsShowWarningBanner" xml:space="preserve">
+    <value>Show warning banner</value>
+  </data>
+  <data name="EnvironmentsWarningBannerText" xml:space="preserve">
+    <value>⚠ ACTIVE ENVIRONMENT:</value>
+  </data>
+  <data name="EnvironmentsColorAccessibleNameRed" xml:space="preserve">
+    <value>Red — Production / live</value>
+  </data>
+  <data name="EnvironmentsColorAccessibleNameAmber" xml:space="preserve">
+    <value>Amber — Staging / pre-prod</value>
+  </data>
+  <data name="EnvironmentsColorAccessibleNameGreen" xml:space="preserve">
+    <value>Green — Development / local</value>
+  </data>
+  <data name="EnvironmentsColorAccessibleNameBlue" xml:space="preserve">
+    <value>Blue — QA / test</value>
+  </data>
+  <data name="EnvironmentsColorAccessibleNamePurple" xml:space="preserve">
+    <value>Purple — Demo / sandbox</value>
+  </data>
 
   <!-- ═══════════════════════════════ Log Panel / Log Window ═══════════════════════════════ -->
   <data name="LogPanelTitle" xml:space="preserve">

@@ -111,6 +111,13 @@ public class AccessibilityContrastTests
     [InlineData("#FFB74D", DarkPanel, "WarningBrush / dark panel")]
     [InlineData("#EF5350", DarkSurface, "StatusServerErrorBrush / dark surface")]
     [InlineData("#EF5350", DarkPanel, "StatusServerErrorBrush / dark panel")]
+    // White text on environment accent color presets (UX idea 7.1).
+    // These presets are used as ComboBox/banner BACKGROUNDS; white (#FFFFFF) is used as foreground text.
+    [InlineData("#FFFFFF", "#B41E1E", "White text / EnvAccentRed")]
+    [InlineData("#FFFFFF", "#8B5500", "White text / EnvAccentAmber")]
+    [InlineData("#FFFFFF", "#1E7A3C", "White text / EnvAccentGreen")]
+    [InlineData("#FFFFFF", "#1E50B4", "White text / EnvAccentBlue")]
+    [InlineData("#FFFFFF", "#6A1EB4", "White text / EnvAccentPurple")]
     public void DarkTheme_ColorPair_MeetsWcagAA(string foreground, string background, string label)
     {
         var ratio = ContrastRatio(foreground, background);

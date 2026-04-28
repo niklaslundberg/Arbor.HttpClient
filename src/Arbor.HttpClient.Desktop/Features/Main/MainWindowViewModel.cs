@@ -516,6 +516,26 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         set => _environmentsViewModel.ActiveEnvironment = value;
     }
 
+    /// <summary>
+    /// The accent color of the currently active environment, or <see langword="null"/> when none is set.
+    /// Bound to the toolbar Env: ComboBox background/foreground so the active environment is visually
+    /// distinct at a glance (UX idea 7.1 — Pattern A).
+    /// </summary>
+    public string? ActiveEnvironmentAccentColor => _environmentsViewModel.ActiveEnvironment?.AccentColor;
+
+    /// <summary>
+    /// <see langword="true"/> when the active environment has a non-empty accent color.
+    /// Used to toggle the badge dot on the activity-bar Environments button (UX idea 7.1 — Pattern D).
+    /// </summary>
+    public bool ActiveEnvironmentHasColor => !string.IsNullOrEmpty(ActiveEnvironmentAccentColor);
+
+    /// <summary>
+    /// <see langword="true"/> when the active environment has <see cref="RequestEnvironment.ShowWarningBanner"/>
+    /// enabled. Bound to the full-width warning banner below the toolbar (UX idea 7.1 — Pattern B).
+    /// </summary>
+    public bool ActiveEnvironmentShowWarningBanner =>
+        _environmentsViewModel.ActiveEnvironment?.ShowWarningBanner ?? false;
+
     public bool IsEnvironmentPanelVisible
     {
         get => _environmentsViewModel.IsEnvironmentPanelVisible;
@@ -560,6 +580,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (string.Equals(e.PropertyName, nameof(EnvironmentsViewModel.ActiveEnvironment), StringComparison.Ordinal))
         {
             OnPropertyChanged(nameof(ActiveEnvironment));
+            OnPropertyChanged(nameof(ActiveEnvironmentAccentColor));
+            OnPropertyChanged(nameof(ActiveEnvironmentHasColor));
+            OnPropertyChanged(nameof(ActiveEnvironmentShowWarningBanner));
             return;
         }
 

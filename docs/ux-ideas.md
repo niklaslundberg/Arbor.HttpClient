@@ -390,21 +390,24 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ## 7. Environments
 
-### 7.1 Environment color indicator
+### 7.1 Environment color indicator ✅ Implemented
+> Implemented in this PR (commit TBD) — `src/Arbor.HttpClient.Core/Environments/RequestEnvironment.cs`, `src/Arbor.HttpClient.Core/Environments/IEnvironmentRepository.cs`, `src/Arbor.HttpClient.Storage.Sqlite/SqliteEnvironmentRepository.cs`, `src/Arbor.HttpClient.Desktop/Features/Environments/EnvironmentsViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Environments/EnvironmentsView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindow.axaml`
+
 **What it means:** Each environment can be assigned an optional accent color (e.g. red for Production, green for Development). When a colored environment is active the color is reflected in the `Env:` dropdown background in the top toolbar, as a small badge dot on the Environments activity-bar icon, and optionally as a full-width warning banner below the toolbar. The color is configured in the Environments panel via a small row of preset color swatches.
 
 **Full design proposal:** [`docs/environment-color-report.md`](environment-color-report.md)
 
-**How to implement:**
-- Add optional `AccentColor` (hex string, nullable) and `ShowWarningBanner` (bool) to `RequestEnvironment` in `Arbor.HttpClient.Core`.
-- Migrate the SQLite schema (new nullable `AccentColor` and `ShowWarningBanner` columns in the environments table).
-- In the Environments panel edit form, add a `Color (optional):` row with preset colored `RadioButton`-style rectangles and a "∅ none" option.
-- Bind the `Env:` ComboBox `Background` and `Foreground` in the toolbar to the active environment's color (a converter maps the hex string to a `SolidColorBrush`; falls back to default when null).
-- Overlay a small circle badge on the activity-bar Environments icon using the same brush.
-- Conditionally show a 24 px full-width colored `Border` + label below the toolbar when `ShowWarningBanner` is true.
-- Enforce WCAG 2.1 AA: verify white text contrast (≥ 4.5:1) at color assignment time; warn the user if the chosen color fails the check.
+**What shipped:**
+- `AccentColor` (nullable hex string) and `ShowWarningBanner` (bool) added to `RequestEnvironment` and wired through `IEnvironmentRepository`, `SqliteEnvironmentRepository` (with schema migration), and `InMemoryEnvironmentRepository`
+- Five preset color swatches in the Environments edit form (Red `#B41E1E`, Amber `#8B5500`, Green `#1E7A3C`, Blue `#1E50B4`, Purple `#6A1EB4`) plus a "∅ none" clear option (Pattern C)
+- Toolbar `Env:` ComboBox background/foreground tinted by the active environment's accent color — white text enforced via `HexColorToForegroundConverter` (Pattern A)
+- Full-width warning banner with environment name shown below the toolbar when `ShowWarningBanner = true` (Pattern B)
+- Activity-bar Environments icon shows a colored badge dot when a color is set (Pattern D)
+- WCAG 2.1 AA verified: all five presets achieve ≥ 4.5:1 contrast against white text; verified in `AccessibilityContrastTests.cs`
 
-**Scope:** M
+**Remaining polish items:**
+- No live contrast-ratio warning when a custom hex color is entered (only preset swatches are offered for now)
+- No deuteranopia/high-contrast theme variant yet (complementary UX idea 6.4 still open)
 
 ---
 

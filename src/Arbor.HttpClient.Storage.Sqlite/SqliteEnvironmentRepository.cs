@@ -30,9 +30,10 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         await EnsureEnvironmentVariableEnabledColumnAsync(connection, cancellationToken).ConfigureAwait(false);
+        await EnsureEnvironmentColorColumnsAsync(connection, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<int> SaveAsync(string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default)
+    public async Task<int> SaveAsync(string name, IReadOnlyList<EnvironmentVariable> variables, string? accentColor = null, bool showWarningBanner = false, CancellationToken cancellationToken = default)
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -44,10 +45,12 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
         insertEnv.Transaction = (SqliteTransaction)transaction;
         insertEnv.CommandText =
             """
-            INSERT INTO environments (name) VALUES ($name);
+            INSERT INTO environments (name, accent_color, show_warning_banner) VALUES ($name, $accentColor, $showWarningBanner);
             SELECT last_insert_rowid();
             """;
         insertEnv.Parameters.AddWithValue("$name", name);
+        insertEnv.Parameters.AddWithValue("$accentColor", (object?)accentColor ?? DBNull.Value);
+        insertEnv.Parameters.AddWithValue("$showWarningBanner", showWarningBanner ? 1 : 0);
         var envId = (long)(await insertEnv.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
 
         await InsertVariablesAsync(connection, (SqliteTransaction)transaction, (int)envId, variables, cancellationToken).ConfigureAwait(false);
@@ -56,7 +59,7 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
         return (int)envId;
     }
 
-    public async Task UpdateAsync(int environmentId, string name, IReadOnlyList<EnvironmentVariable> variables, CancellationToken cancellationToken = default)
+    public async Task UpdateAsync(int environmentId, string name, IReadOnlyList<EnvironmentVariable> variables, string? accentColor = null, bool showWarningBanner = false, CancellationToken cancellationToken = default)
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -66,8 +69,10 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
 
         await using var updateName = connection.CreateCommand();
         updateName.Transaction = (SqliteTransaction)transaction;
-        updateName.CommandText = "UPDATE environments SET name = $name WHERE id = $id;";
+        updateName.CommandText = "UPDATE environments SET name = $name, accent_color = $accentColor, show_warning_banner = $showWarningBanner WHERE id = $id;";
         updateName.Parameters.AddWithValue("$name", name);
+        updateName.Parameters.AddWithValue("$accentColor", (object?)accentColor ?? DBNull.Value);
+        updateName.Parameters.AddWithValue("$showWarningBanner", showWarningBanner ? 1 : 0);
         updateName.Parameters.AddWithValue("$id", environmentId);
         await updateName.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
@@ -91,13 +96,13 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
         await using var cmd = connection.CreateCommand();
         cmd.CommandText =
             """
-            SELECT e.id, e.name, v.name, v.value, v.is_enabled
+            SELECT e.id, e.name, e.accent_color, e.show_warning_banner, v.name, v.value, v.is_enabled
             FROM environments e
             LEFT JOIN environment_variables v ON v.environment_id = e.id
             ORDER BY e.id, v.id;
             """;
 
-        var environments = new Dictionary<int, (string Name, List<EnvironmentVariable> Variables)>();
+        var environments = new Dictionary<int, (string Name, string? AccentColor, bool ShowWarningBanner, List<EnvironmentVariable> Variables)>();
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -105,18 +110,20 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
             var id = reader.GetInt32(0);
             if (!environments.TryGetValue(id, out var entry))
             {
-                entry = (reader.GetString(1), []);
+                var accentColor = reader.IsDBNull(2) ? null : reader.GetString(2);
+                var showWarningBanner = reader.GetInt32(3) == 1;
+                entry = (reader.GetString(1), accentColor, showWarningBanner, []);
                 environments[id] = entry;
             }
 
-            if (!reader.IsDBNull(2))
+            if (!reader.IsDBNull(4))
             {
-                entry.Variables.Add(new EnvironmentVariable(reader.GetString(2), reader.GetString(3), reader.GetInt32(4) == 1));
+                entry.Variables.Add(new EnvironmentVariable(reader.GetString(4), reader.GetString(5), reader.GetInt32(6) == 1));
             }
         }
 
         return environments
-            .Select(kvp => new RequestEnvironment(kvp.Key, kvp.Value.Name, kvp.Value.Variables))
+            .Select(kvp => new RequestEnvironment(kvp.Key, kvp.Value.Name, kvp.Value.Variables, kvp.Value.AccentColor, kvp.Value.ShowWarningBanner))
             .ToList();
     }
 
@@ -196,5 +203,43 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
         await using var alter = connection.CreateCommand();
         alter.CommandText = "ALTER TABLE environment_variables ADD COLUMN is_enabled INTEGER NOT NULL DEFAULT 1;";
         await alter.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task EnsureEnvironmentColorColumnsAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var columnInfo = connection.CreateCommand();
+        columnInfo.CommandText = "PRAGMA table_info(environments);";
+
+        var hasAccentColorColumn = false;
+        var hasShowWarningBannerColumn = false;
+        await using (var reader = await columnInfo.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+        {
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                var colName = reader.GetString(1);
+                if (string.Equals(colName, "accent_color", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasAccentColorColumn = true;
+                }
+                else if (string.Equals(colName, "show_warning_banner", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasShowWarningBannerColumn = true;
+                }
+            }
+        }
+
+        if (!hasAccentColorColumn)
+        {
+            await using var alterAccent = connection.CreateCommand();
+            alterAccent.CommandText = "ALTER TABLE environments ADD COLUMN accent_color TEXT;";
+            await alterAccent.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!hasShowWarningBannerColumn)
+        {
+            await using var alterBanner = connection.CreateCommand();
+            alterBanner.CommandText = "ALTER TABLE environments ADD COLUMN show_warning_banner INTEGER NOT NULL DEFAULT 0;";
+            await alterBanner.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 }

@@ -84,7 +84,7 @@ public class SqliteRepositoriesTests
                 new("apiKey", "dev-key-123", IsEnabled: false)
             };
 
-            var environmentId = await repository.SaveAsync("Development", variables, TestContext.Current.CancellationToken);
+            var environmentId = await repository.SaveAsync("Development", variables, cancellationToken: TestContext.Current.CancellationToken);
 
             var environments = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
@@ -122,7 +122,7 @@ public class SqliteRepositoriesTests
                 new("baseUrl", "http://localhost:5000/old", IsEnabled: true)
             };
 
-            var environmentId = await repository.SaveAsync("Test", initialVariables, TestContext.Current.CancellationToken);
+            var environmentId = await repository.SaveAsync("Test", initialVariables, cancellationToken: TestContext.Current.CancellationToken);
 
             var updatedVariables = new List<EnvironmentVariable>
             {
@@ -130,7 +130,7 @@ public class SqliteRepositoriesTests
                 new("newVar", "newValue", IsEnabled: false)
             };
 
-            await repository.UpdateAsync(environmentId, "Test Updated", updatedVariables, TestContext.Current.CancellationToken);
+            await repository.UpdateAsync(environmentId, "Test Updated", updatedVariables, cancellationToken: TestContext.Current.CancellationToken);
 
             var environments = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
@@ -165,13 +165,131 @@ public class SqliteRepositoriesTests
                 new("key", "value", IsEnabled: true)
             };
 
-            var environmentId = await repository.SaveAsync("ToDelete", variables, TestContext.Current.CancellationToken);
+            var environmentId = await repository.SaveAsync("ToDelete", variables, cancellationToken: TestContext.Current.CancellationToken);
 
             await repository.DeleteAsync(environmentId, TestContext.Current.CancellationToken);
 
             var environments = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
             environments.Should().BeEmpty();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteEnvironmentRepository_SaveAndGetAllAsync_ShouldPersistAccentColorAndBanner()
+    {
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_env_color_{Guid.NewGuid()}.db");
+        try
+        {
+            var connectionString = $"Data Source={dbPath}";
+            var repository = new SqliteEnvironmentRepository(connectionString);
+
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var variables = new List<EnvironmentVariable>
+            {
+                new("apiUrl", "http://prod.example.com", IsEnabled: true)
+            };
+
+            var environmentId = await repository.SaveAsync(
+                "Production",
+                variables,
+                accentColor: "#B41E1E",
+                showWarningBanner: true,
+                cancellationToken: TestContext.Current.CancellationToken);
+
+            var environments = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+
+            environments.Should().ContainSingle();
+            environments[0].Id.Should().Be(environmentId);
+            environments[0].AccentColor.Should().Be("#B41E1E");
+            environments[0].ShowWarningBanner.Should().BeTrue();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteEnvironmentRepository_UpdateAsync_ShouldPersistAccentColorAndBanner()
+    {
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_env_color_update_{Guid.NewGuid()}.db");
+        try
+        {
+            var connectionString = $"Data Source={dbPath}";
+            var repository = new SqliteEnvironmentRepository(connectionString);
+
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var variables = new List<EnvironmentVariable>
+            {
+                new("baseUrl", "http://localhost", IsEnabled: true)
+            };
+
+            var environmentId = await repository.SaveAsync(
+                "Dev",
+                variables,
+                cancellationToken: TestContext.Current.CancellationToken);
+
+            await repository.UpdateAsync(
+                environmentId,
+                "Dev Updated",
+                variables,
+                accentColor: "#1E7A3C",
+                showWarningBanner: false,
+                cancellationToken: TestContext.Current.CancellationToken);
+
+            var environments = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+
+            environments.Should().ContainSingle();
+            environments[0].Name.Should().Be("Dev Updated");
+            environments[0].AccentColor.Should().Be("#1E7A3C");
+            environments[0].ShowWarningBanner.Should().BeFalse();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteEnvironmentRepository_SaveAndGetAllAsync_ShouldReturnNullAccentColorWhenNotSet()
+    {
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_env_nocolor_{Guid.NewGuid()}.db");
+        try
+        {
+            var connectionString = $"Data Source={dbPath}";
+            var repository = new SqliteEnvironmentRepository(connectionString);
+
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var environmentId = await repository.SaveAsync(
+                "Neutral",
+                [],
+                cancellationToken: TestContext.Current.CancellationToken);
+
+            var environments = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+
+            environments.Should().ContainSingle();
+            environments[0].AccentColor.Should().BeNull();
+            environments[0].ShowWarningBanner.Should().BeFalse();
         }
         finally
         {

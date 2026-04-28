@@ -64,6 +64,12 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
     [ObservableProperty]
     private string _newEnvironmentName = string.Empty;
 
+    [ObservableProperty]
+    private string? _editingAccentColor;
+
+    [ObservableProperty]
+    private bool _editingShowWarningBanner;
+
     public async Task LoadEnvironmentsAsync(CancellationToken cancellationToken = default)
     {
         var all = await _environmentRepository.GetAllAsync(cancellationToken);
@@ -106,7 +112,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         IReadOnlyList<EnvironmentVariable> variables,
         CancellationToken cancellationToken = default)
     {
-        await _environmentRepository.SaveAsync(name, variables, cancellationToken);
+        await _environmentRepository.SaveAsync(name, variables, cancellationToken: cancellationToken);
         await LoadEnvironmentsAsync(cancellationToken);
     }
 
@@ -116,6 +122,10 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
             .ToList();
 
     partial void OnNewEnvironmentNameChanged(string value) => QueueEnvironmentAutoSave();
+
+    partial void OnEditingAccentColorChanged(string? value) => QueueEnvironmentAutoSave();
+
+    partial void OnEditingShowWarningBannerChanged(bool value) => QueueEnvironmentAutoSave();
 
     partial void OnActiveEnvironmentChanged(RequestEnvironment? value)
     {
@@ -141,6 +151,18 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         }
 
         _requestEditor.RefreshRequestPreview();
+    }
+
+    [RelayCommand]
+    private void SetAccentColor(string? color)
+    {
+        EditingAccentColor = color;
+    }
+
+    [RelayCommand]
+    private void ClearAccentColor()
+    {
+        EditingAccentColor = null;
     }
 
     [RelayCommand]
@@ -197,6 +219,8 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         {
             ActiveEnvironment = environment;
             NewEnvironmentName = environment.Name;
+            EditingAccentColor = environment.AccentColor;
+            EditingShowWarningBanner = environment.ShowWarningBanner;
             _logger.Information("Editing environment {EnvironmentName}", environment.Name);
             ActiveEnvironmentVariables.Clear();
             foreach (var variable in environment.Variables)
@@ -221,6 +245,8 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         {
             ActiveEnvironment = null;
             NewEnvironmentName = string.Empty;
+            EditingAccentColor = null;
+            EditingShowWarningBanner = false;
             ActiveEnvironmentVariables.Clear();
             IsEnvironmentPanelVisible = true;
             _logger.Information("Creating new environment");
@@ -296,12 +322,12 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
             int? newEnvironmentId = null;
             if (ActiveEnvironment is { } activeEnv)
             {
-                await _environmentRepository.UpdateAsync(activeEnv.Id, NewEnvironmentName, variables, cancellationToken);
+                await _environmentRepository.UpdateAsync(activeEnv.Id, NewEnvironmentName, variables, EditingAccentColor, EditingShowWarningBanner, cancellationToken);
                 _logger.Information("Updated environment {EnvironmentName}", NewEnvironmentName);
             }
             else
             {
-                newEnvironmentId = await _environmentRepository.SaveAsync(NewEnvironmentName, variables, cancellationToken);
+                newEnvironmentId = await _environmentRepository.SaveAsync(NewEnvironmentName, variables, EditingAccentColor, EditingShowWarningBanner, cancellationToken);
                 _logger.Information("Created environment {EnvironmentName}", NewEnvironmentName);
             }
 
