@@ -388,6 +388,26 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ---
 
+## 7. Environments
+
+### 7.1 Environment color indicator
+**What it means:** Each environment can be assigned an optional accent color (e.g. red for Production, green for Development). When a colored environment is active the color is reflected in the `Env:` dropdown background in the top toolbar, as a small badge dot on the Environments activity-bar icon, and optionally as a full-width warning banner below the toolbar. The color is configured in the Environments panel via a small row of preset color swatches.
+
+**Full design proposal:** [`docs/environment-color-report.md`](environment-color-report.md)
+
+**How to implement:**
+- Add optional `AccentColor` (hex string, nullable) and `ShowWarningBanner` (bool) to `RequestEnvironment` in `Arbor.HttpClient.Core`.
+- Migrate the SQLite schema (new nullable `AccentColor` and `ShowWarningBanner` columns in the environments table).
+- In the Environments panel edit form, add a `Color (optional):` row with preset colored `RadioButton`-style rectangles and a "∅ none" option.
+- Bind the `Env:` ComboBox `Background` and `Foreground` in the toolbar to the active environment's color (a converter maps the hex string to a `SolidColorBrush`; falls back to default when null).
+- Overlay a small circle badge on the activity-bar Environments icon using the same brush.
+- Conditionally show a 24 px full-width colored `Border` + label below the toolbar when `ShowWarningBanner` is true.
+- Enforce WCAG 2.1 AA: verify white text contrast (≥ 4.5:1) at color assignment time; warn the user if the chosen color fails the check.
+
+**Scope:** M
+
+---
+
 ## Implemented
 
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
