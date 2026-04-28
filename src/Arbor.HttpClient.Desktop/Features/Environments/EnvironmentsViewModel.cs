@@ -27,6 +27,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
     private readonly ILogger _logger;
     private bool _suppressEnvironmentAutoSave;
     private bool _isSavingEnvironment;
+    private bool _preserveFormStateOnSave;
     private CancellationTokenSource? _environmentAutoSaveCts;
     private sealed record ExportEnvironmentVariable(string Key, string Value, bool Enabled);
     private sealed record ExportEnvironment(string Name, IReadOnlyList<ExportEnvironmentVariable> Variables);
@@ -122,12 +123,15 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         _suppressEnvironmentAutoSave = true;
         try
         {
-            ActiveEnvironmentVariables.Clear();
-            if (value is { } env)
+            if (!_preserveFormStateOnSave)
             {
-                foreach (var variable in env.Variables)
+                ActiveEnvironmentVariables.Clear();
+                if (value is { } env)
                 {
-                    ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(variable.Name, variable.Value, variable.IsEnabled));
+                    foreach (var variable in env.Variables)
+                    {
+                        ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(variable.Name, variable.Value, variable.IsEnabled));
+                    }
                 }
             }
         }
@@ -159,7 +163,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
     }
 
     [RelayCommand]
-    private Task SaveEnvironmentAsync() => SaveEnvironmentCoreAsync(closeEnvironmentPanel: true);
+    private Task SaveEnvironmentAsync() => SaveEnvironmentCoreAsync(closeEnvironmentPanel: true, CancellationToken.None);
 
     [RelayCommand]
     private async Task DeleteEnvironmentAsync(RequestEnvironment? environment)
@@ -272,7 +276,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         _logger.Information("Exported environments to {Path}", file.Path.LocalPath);
     }
 
-    private async Task SaveEnvironmentCoreAsync(bool closeEnvironmentPanel)
+    private async Task SaveEnvironmentCoreAsync(bool closeEnvironmentPanel, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(NewEnvironmentName) || _isSavingEnvironment)
         {
@@ -292,20 +296,31 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
             int? newEnvironmentId = null;
             if (ActiveEnvironment is { } activeEnv)
             {
-                await _environmentRepository.UpdateAsync(activeEnv.Id, NewEnvironmentName, variables);
+                await _environmentRepository.UpdateAsync(activeEnv.Id, NewEnvironmentName, variables, cancellationToken);
                 _logger.Information("Updated environment {EnvironmentName}", NewEnvironmentName);
             }
             else
             {
-                newEnvironmentId = await _environmentRepository.SaveAsync(NewEnvironmentName, variables);
+                newEnvironmentId = await _environmentRepository.SaveAsync(NewEnvironmentName, variables, cancellationToken);
                 _logger.Information("Created environment {EnvironmentName}", NewEnvironmentName);
             }
 
-            await LoadEnvironmentsAsync();
-
-            if (newEnvironmentId.HasValue)
+            if (!closeEnvironmentPanel)
             {
-                ActiveEnvironment = Environments.FirstOrDefault(environment => environment.Id == newEnvironmentId.Value);
+                _preserveFormStateOnSave = true;
+            }
+            try
+            {
+                await LoadEnvironmentsAsync(cancellationToken);
+
+                if (newEnvironmentId.HasValue)
+                {
+                    ActiveEnvironment = Environments.FirstOrDefault(environment => environment.Id == newEnvironmentId.Value);
+                }
+            }
+            finally
+            {
+                _preserveFormStateOnSave = false;
             }
 
             if (closeEnvironmentPanel)
@@ -341,8 +356,8 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
     {
         try
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(450), cancellationToken).ConfigureAwait(false);
-            await Dispatcher.UIThread.InvokeAsync(async () => await SaveEnvironmentCoreAsync(closeEnvironmentPanel: false));
+            await Task.Delay(TimeSpan.FromMilliseconds(1000), cancellationToken).ConfigureAwait(false);
+            await Dispatcher.UIThread.InvokeAsync(async () => await SaveEnvironmentCoreAsync(closeEnvironmentPanel: false, cancellationToken));
         }
         catch (OperationCanceledException)
         {
