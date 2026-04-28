@@ -3,6 +3,9 @@ using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Testing.Repositories;
 using Arbor.HttpClient.Core.Environments;
 using Arbor.HttpClient.Core.Variables;
+using Avalonia;
+using Avalonia.Headless;
+using Avalonia.Skia;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
@@ -97,5 +100,64 @@ public class EnvironmentsViewModelTests
         variables.Should().HaveCount(2);
         variables[0].Name.Should().Be("host");
         variables[1].IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SwitchActiveEnvironment_ShouldRefreshVariables()
+    {
+        var repository = new InMemoryEnvironmentRepository();
+        var id1 = await repository.SaveAsync("env1", [new EnvironmentVariable("key1", "val1", true)]);
+        var id2 = await repository.SaveAsync("env2", [new EnvironmentVariable("key2", "val2", true)]);
+        var viewModel = CreateViewModel(repository);
+        await viewModel.LoadEnvironmentsAsync();
+
+        viewModel.ActiveEnvironment = viewModel.Environments.Single(environment => environment.Id == id1);
+        viewModel.ActiveEnvironmentVariables.Should().ContainSingle(variable => variable.Name == "key1");
+
+        viewModel.ActiveEnvironment = viewModel.Environments.Single(environment => environment.Id == id2);
+        viewModel.ActiveEnvironmentVariables.Should().ContainSingle(variable => variable.Name == "key2");
+    }
+}
+
+[Collection("HeadlessAvalonia")]
+public class EnvironmentsViewModelAutoSaveTests
+{
+    [Fact]
+    public async Task AutoSave_ShouldNotWipeVariablesAfterReload()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryEnvironmentRepository();
+            var requestEditor = new RequestEditorViewModel(new VariableResolver(), () => []);
+            var viewModel = new EnvironmentsViewModel(repository, requestEditor, () => null);
+
+            viewModel.NewEnvironmentCommand.Execute(null);
+            viewModel.NewEnvironmentName = "myenv";
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
+
+            // Wait long enough for auto-save debounce to fire and complete.
+            await Task.Delay(1500);
+
+            // Environment should have been created and the panel should remain open.
+            viewModel.ActiveEnvironment.Should().NotBeNull();
+            viewModel.ActiveEnvironment!.Name.Should().Be("myenv");
+            viewModel.IsEnvironmentPanelVisible.Should().BeTrue();
+
+            // Variables must not have been wiped by the reload triggered by auto-save.
+            viewModel.ActiveEnvironmentVariables.Should().ContainSingle(variable => variable.Name == "host");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    private sealed class TestEntryPoint
+    {
+        public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
+            .UseSkia()
+            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
+            .WithInterFont()
+            .LogToTrace();
     }
 }
