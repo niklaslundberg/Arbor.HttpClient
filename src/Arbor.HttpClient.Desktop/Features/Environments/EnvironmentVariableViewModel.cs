@@ -15,6 +15,12 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
     /// </summary>
     private bool _sensitiveUserOverride;
 
+    /// <summary>
+    /// Set to <c>true</c> when the user has manually set (or cleared) the expiry,
+    /// preventing JWT auto-detection from overriding the explicit value.
+    /// </summary>
+    private bool _expiryUserOverride;
+
     [ObservableProperty]
     private bool _isEnabled;
 
@@ -56,11 +62,14 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
         {
             if (string.IsNullOrWhiteSpace(value))
             {
+                // Explicit clear — user is removing the expiry.
+                _expiryUserOverride = true;
                 ExpiresAtUtc = null;
             }
             else if (DateTimeOffset.TryParse(value, null, DateTimeStyles.RoundtripKind, out var parsed))
             {
                 // Normalise to UTC regardless of the input offset.
+                _expiryUserOverride = true;
                 ExpiresAtUtc = parsed.ToUniversalTime();
             }
             // Invalid input is silently ignored; the existing value is retained.
@@ -83,6 +92,9 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
         // does not reset an explicitly stored sensitive flag.
         _sensitiveUserOverride = isSensitive;
         _expiresAtUtc = expiresAtUtc;
+        // If an expiry was loaded from storage, treat it as a user-set value so JWT
+        // auto-detection does not silently overwrite it.
+        _expiryUserOverride = expiresAtUtc.HasValue;
     }
 
     partial void OnNameChanged(string value)
@@ -116,6 +128,12 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
     partial void OnValueChanged(string value)
     {
         OnPropertyChanged(nameof(DisplayValue));
+
+        // Auto-detect JWT expiry from the value when the user has not manually set an expiry.
+        if (!_expiryUserOverride && JwtExpiryExtractor.TryGetExpiry(value, out var jwtExpiry))
+        {
+            ExpiresAtUtc = jwtExpiry;
+        }
     }
 
     partial void OnIsValueRevealedChanged(bool value)
