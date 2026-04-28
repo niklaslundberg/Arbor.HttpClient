@@ -34,10 +34,9 @@ public static class SensitiveVariableDetector
             return false;
         }
 
-        var lower = variableName.ToLowerInvariant();
         foreach (var keyword in SensitiveKeywords)
         {
-            if (lower.Contains(keyword, StringComparison.Ordinal))
+            if (variableName.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }

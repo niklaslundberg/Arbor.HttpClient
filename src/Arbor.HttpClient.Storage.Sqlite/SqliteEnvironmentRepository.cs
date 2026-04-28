@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Data.Sqlite;
 using Arbor.HttpClient.Core.Environments;
 
@@ -124,7 +125,7 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
                 DateTimeOffset? expiresAtUtc = null;
                 if (!reader.IsDBNull(8))
                 {
-                    if (DateTimeOffset.TryParse(reader.GetString(8), out var parsed))
+                    if (DateTimeOffset.TryParse(reader.GetString(8), null, DateTimeStyles.RoundtripKind, out var parsed))
                     {
                         expiresAtUtc = parsed;
                     }

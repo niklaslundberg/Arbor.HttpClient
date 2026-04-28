@@ -9,6 +9,12 @@ namespace Arbor.HttpClient.Desktop.Features.Environments;
 
 public sealed partial class EnvironmentVariableViewModel : ViewModelBase
 {
+    /// <summary>
+    /// Set to <c>true</c> when the user has manually toggled the Sensitive checkbox,
+    /// preventing auto-detection from overriding the explicit choice.
+    /// </summary>
+    private bool _sensitiveUserOverride;
+
     [ObservableProperty]
     private bool _isEnabled;
 
@@ -39,20 +45,22 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
 
     /// <summary>
     /// Text representation of <see cref="ExpiresAtUtc"/> for two-way binding to a TextBox.
-    /// Accepts ISO 8601 date/time strings (e.g. <c>2026-12-31T23:59:00Z</c> or <c>2026-12-31</c>).
+    /// Accepts ISO 8601 date/time strings with a UTC offset (e.g. <c>2026-12-31T23:59:00Z</c>).
     /// Setting an empty or whitespace string clears the expiry.
+    /// Invalid input is silently ignored and the existing value is retained.
     /// </summary>
     public string ExpiresAtUtcText
     {
-        get => ExpiresAtUtc?.ToString("yyyy-MM-ddTHH:mm:ssZ") ?? string.Empty;
+        get => ExpiresAtUtc?.ToString("O") ?? string.Empty;
         set
         {
             if (string.IsNullOrWhiteSpace(value))
             {
                 ExpiresAtUtc = null;
             }
-            else if (DateTimeOffset.TryParse(value, null, DateTimeStyles.RoundtripKind | DateTimeStyles.AssumeUniversal, out var parsed))
+            else if (DateTimeOffset.TryParse(value, null, DateTimeStyles.RoundtripKind, out var parsed))
             {
+                // Normalise to UTC regardless of the input offset.
                 ExpiresAtUtc = parsed.ToUniversalTime();
             }
             // Invalid input is silently ignored; the existing value is retained.
@@ -71,14 +79,16 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
         _name = name;
         _value = value;
         _isSensitive = isSensitive;
+        // Mark as user-overridden when loaded from storage so that typing the name
+        // does not reset an explicitly stored sensitive flag.
+        _sensitiveUserOverride = isSensitive;
         _expiresAtUtc = expiresAtUtc;
     }
 
     partial void OnNameChanged(string value)
     {
-        // Auto-detect sensitivity when the name is changed, but only if the user
-        // has not explicitly flagged it yet.
-        if (SensitiveVariableDetector.IsSensitive(value) && !_isSensitive)
+        // Auto-detect sensitivity only when the user has never manually set the checkbox.
+        if (!_sensitiveUserOverride && SensitiveVariableDetector.IsSensitive(value))
         {
             IsSensitive = true;
         }
@@ -92,6 +102,8 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
 
     partial void OnIsSensitiveChanged(bool value)
     {
+        // Treat any change via the checkbox as a deliberate user override.
+        _sensitiveUserOverride = true;
         // When sensitivity is toggled off, hide the value again.
         if (!value)
         {
