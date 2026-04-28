@@ -115,6 +115,31 @@ Authorization: Bearer {{token}}
 
 If a variable name has no match in the active environment, the `{{token}}` placeholder is replaced with an empty string.
 
+### 4 – Reference system environment variables
+
+Use the `env:` prefix to insert a value from the **system (process) environment variables**:
+
+```
+{{env:SomeVariable}}
+```
+
+For example, if the `HOME` environment variable is `/home/alice`, then:
+
+```
+{{env:HOME}}/config
+```
+
+resolves to `/home/alice/config`.
+
+**Autocomplete** — when you type `{{env:` in the URL bar or request body, a drop-down lists the available system environment variables.  Start typing the name to filter the list.
+
+**Syntax coloring** — `{{env:` tokens use three distinct colors:
+- `{{` / `}}` — bracket color (amber)
+- `env:` — prefix color (teal) — distinct from regular variables
+- `SomeVariable` — name color (violet)
+
+If a system environment variable is not set, the token is replaced with an empty string.
+
 ## Scheduled Jobs
 
 Any request can be scheduled to run automatically in the background:
