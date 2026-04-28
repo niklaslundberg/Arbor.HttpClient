@@ -416,7 +416,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
 
 ### 1.2b System environment variable support (`{{env:VAR}}`) ✅ Implemented
-> Implemented in PR (commit TBD) — `src/Arbor.HttpClient.Core/Variables/ISystemEnvironmentVariableProvider.cs`, `src/Arbor.HttpClient.Core/Variables/SystemEnvironmentVariableProvider.cs`, `src/Arbor.HttpClient.Core/Variables/VariableResolver.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableTokenColorizer.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableCompletionEngine.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableAutoCompleteController.cs`, `src/Arbor.HttpClient.Desktop/App.axaml`
+> Implemented in PR #116 (commit `b1437c8`) — `src/Arbor.HttpClient.Core/Variables/ISystemEnvironmentVariableProvider.cs`, `src/Arbor.HttpClient.Core/Variables/SystemEnvironmentVariableProvider.cs`, `src/Arbor.HttpClient.Core/Variables/VariableResolver.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableTokenColorizer.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableCompletionEngine.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableAutoCompleteController.cs`, `src/Arbor.HttpClient.Desktop/App.axaml`
 
 **What it means:** Users can reference the host machine's system (process) environment variables directly in requests using `{{env:SomeVariable}}`. This is distinct from the in-app environment variables (`{{variableName}}`), which are managed in the Environments panel.
 

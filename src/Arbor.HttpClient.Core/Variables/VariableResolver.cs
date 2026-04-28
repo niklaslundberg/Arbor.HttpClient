@@ -42,7 +42,7 @@ public sealed class VariableResolver
 
             if (key.StartsWith(EnvPrefix, StringComparison.OrdinalIgnoreCase))
             {
-                var envKey = key[EnvPrefix.Length..];
+                var envKey = key[EnvPrefix.Length..].Trim();
                 envLookup ??= _environmentVariableProvider.GetAll();
                 return envLookup.TryGetValue(envKey, out var envValue) ? envValue : string.Empty;
             }

@@ -241,5 +241,18 @@ public class VariableResolverTests
         var result = resolver.Resolve("{{ENV:REGION}}", []);
         result.Should().Be("eu-west");
     }
+
+    /// <summary>
+    /// Whitespace after the <c>env:</c> colon is trimmed so <c>{{env: HOME }}</c> still resolves,
+    /// consistent with the trimming applied to regular variable tokens.
+    /// </summary>
+    [Fact]
+    public void Resolve_EnvTokenNameWithWhitespace_ShouldTrimAndResolve()
+    {
+        var envVars = new Dictionary<string, string> { ["HOME"] = "/home/alice" };
+        var resolver = new VariableResolver(new FakeSystemEnvironmentVariableProvider(envVars));
+        var result = resolver.Resolve("{{env: HOME }}", []);
+        result.Should().Be("/home/alice");
+    }
 }
 

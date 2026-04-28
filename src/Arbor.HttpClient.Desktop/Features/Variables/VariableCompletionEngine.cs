@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Arbor.HttpClient.Core.Variables;
 
 namespace Arbor.HttpClient.Desktop.Features.Variables;
 
 public static class VariableCompletionEngine
 {
-    private const string EnvPrefix = "env:";
+    private static readonly string EnvPrefix = VariableResolver.EnvPrefix;
 
     public static bool TryGetContext(string text, int caretOffset, out VariableCompletionContext context)
     {

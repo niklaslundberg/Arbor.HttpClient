@@ -131,7 +131,7 @@ For example, if the `HOME` environment variable is `/home/alice`, then:
 
 resolves to `/home/alice/config`.
 
-**Autocomplete** — when you type `{{env:` in the URL bar or request body, a drop-down lists the available system environment variables.  Start typing the name to filter the list.
+**Autocomplete** — when you type `{{env:` in the URL bar or request body, a drop-down lists the available system environment variables. Start typing the name to filter the list.
 
 **Syntax coloring** — `{{env:` tokens use three distinct colors:
 - `{{` / `}}` — bracket color (amber)
