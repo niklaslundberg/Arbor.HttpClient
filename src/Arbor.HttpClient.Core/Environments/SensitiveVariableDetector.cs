@@ -34,14 +34,6 @@ public static class SensitiveVariableDetector
             return false;
         }
 
-        foreach (var keyword in SensitiveKeywords)
-        {
-            if (variableName.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return SensitiveKeywords.Any(keyword => variableName.Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
 }

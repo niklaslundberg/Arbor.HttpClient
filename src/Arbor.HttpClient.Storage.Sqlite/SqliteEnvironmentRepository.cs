@@ -123,12 +123,10 @@ public sealed class SqliteEnvironmentRepository(string connectionString) : IEnvi
             {
                 var isSensitive = !reader.IsDBNull(7) && reader.GetInt32(7) == 1;
                 DateTimeOffset? expiresAtUtc = null;
-                if (!reader.IsDBNull(8))
+                if (!reader.IsDBNull(8) &&
+                    DateTimeOffset.TryParse(reader.GetString(8), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed))
                 {
-                    if (DateTimeOffset.TryParse(reader.GetString(8), null, DateTimeStyles.RoundtripKind, out var parsed))
-                    {
-                        expiresAtUtc = parsed;
-                    }
+                    expiresAtUtc = parsed.ToUniversalTime();
                 }
                 entry.Variables.Add(new EnvironmentVariable(reader.GetString(4), reader.GetString(5), reader.GetInt32(6) == 1, isSensitive, expiresAtUtc));
             }

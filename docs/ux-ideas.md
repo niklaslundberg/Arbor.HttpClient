@@ -555,7 +555,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### Sensitive Variables & TTL ✅ Implemented
-> Implemented in this PR — `src/Arbor.HttpClient.Core/Environments/EnvironmentVariable.cs`, `src/Arbor.HttpClient.Core/Environments/SensitiveVariableDetector.cs`, `src/Arbor.HttpClient.Core/Variables/VariableResolver.cs`, `src/Arbor.HttpClient.Desktop/Features/Environments/EnvironmentVariableViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Environments/EnvironmentsView.axaml`, `src/Arbor.HttpClient.Storage.Sqlite/SqliteEnvironmentRepository.cs`
+> Implemented in PR #118 (commit `03fcf56`) — `src/Arbor.HttpClient.Core/Environments/EnvironmentVariable.cs`, `src/Arbor.HttpClient.Core/Environments/SensitiveVariableDetector.cs`, `src/Arbor.HttpClient.Core/Variables/VariableResolver.cs`, `src/Arbor.HttpClient.Desktop/Features/Environments/EnvironmentVariableViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Environments/EnvironmentsView.axaml`, `src/Arbor.HttpClient.Storage.Sqlite/SqliteEnvironmentRepository.cs`
 
 **What it means:** Variables whose names match common sensitive patterns (password, token, secret, apikey, etc.) are automatically flagged as sensitive. Sensitive values are masked in the UI with bullet characters; a per-variable reveal button (👁/🔒) lets the user temporarily show the real value for editing. Any variable can optionally carry a UTC expiry date — when reached, the variable is automatically ignored during request resolution.
 

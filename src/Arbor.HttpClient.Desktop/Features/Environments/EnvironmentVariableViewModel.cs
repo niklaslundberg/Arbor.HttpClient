@@ -57,7 +57,7 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
     /// </summary>
     public string ExpiresAtUtcText
     {
-        get => ExpiresAtUtc?.ToString("O") ?? string.Empty;
+        get => ExpiresAtUtc?.ToUniversalTime().ToString("O") ?? string.Empty;
         set
         {
             if (string.IsNullOrWhiteSpace(value))
@@ -66,7 +66,7 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
                 _expiryUserOverride = true;
                 ExpiresAtUtc = null;
             }
-            else if (DateTimeOffset.TryParse(value, null, DateTimeStyles.RoundtripKind, out var parsed))
+            else if (DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed))
             {
                 // Normalise to UTC regardless of the input offset.
                 _expiryUserOverride = true;

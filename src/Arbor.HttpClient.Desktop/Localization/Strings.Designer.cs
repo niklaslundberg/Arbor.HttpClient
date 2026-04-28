@@ -553,6 +553,9 @@ public static class Strings
     /// <summary>Reveal / hide sensitive value</summary>
     public static string EnvironmentsVariableRevealTooltip => Get(nameof(EnvironmentsVariableRevealTooltip));
 
+    /// <summary>Remove variable</summary>
+    public static string EnvironmentsVariableRemoveAccessibleName => Get(nameof(EnvironmentsVariableRemoveAccessibleName));
+
     // ═══════════════════════════════ Log Panel / Log Window ═══════════════════════════════
 
     /// <summary>Live Log</summary>

@@ -581,6 +581,10 @@
     <value>Reveal / hide sensitive value</value>
     <comment>Tooltip and accessible name on the reveal-toggle button next to a sensitive variable's value.</comment>
   </data>
+  <data name="EnvironmentsVariableRemoveAccessibleName" xml:space="preserve">
+    <value>Remove variable</value>
+    <comment>Accessible name (AutomationProperties.Name) on the icon-only delete button in the environment-variables table row.</comment>
+  </data>
 
   <!-- ═══════════════════════════════ Log Panel / Log Window ═══════════════════════════════ -->
   <data name="LogPanelTitle" xml:space="preserve">
