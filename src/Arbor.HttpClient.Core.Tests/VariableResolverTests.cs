@@ -254,5 +254,38 @@ public class VariableResolverTests
         var result = resolver.Resolve("{{env: HOME }}", []);
         result.Should().Be("/home/alice");
     }
+
+    /// <summary>
+    /// An expired variable should not be substituted — the token collapses to an empty string.
+    /// </summary>
+    [Fact]
+    public void Resolve_ExpiredVariable_ShouldCollapseToEmptyString()
+    {
+        var expired = new EnvironmentVariable("token", "secret", ExpiresAtUtc: DateTimeOffset.UtcNow.AddDays(-1));
+        var result = _resolver.Resolve("Bearer {{token}}", [expired]);
+        result.Should().Be("Bearer ");
+    }
+
+    /// <summary>
+    /// A non-expired variable with a future expiry date should still be substituted normally.
+    /// </summary>
+    [Fact]
+    public void Resolve_NonExpiredVariable_ShouldBeSubstituted()
+    {
+        var valid = new EnvironmentVariable("token", "secret", ExpiresAtUtc: DateTimeOffset.UtcNow.AddDays(1));
+        var result = _resolver.Resolve("Bearer {{token}}", [valid]);
+        result.Should().Be("Bearer secret");
+    }
+
+    /// <summary>
+    /// A variable with no expiry set should always be substituted.
+    /// </summary>
+    [Fact]
+    public void Resolve_VariableWithoutExpiry_ShouldBeSubstituted()
+    {
+        var noExpiry = new EnvironmentVariable("host", "localhost");
+        var result = _resolver.Resolve("http://{{host}}/api", [noExpiry]);
+        result.Should().Be("http://localhost/api");
+    }
 }
 

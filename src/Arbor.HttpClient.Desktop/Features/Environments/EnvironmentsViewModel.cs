@@ -29,7 +29,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
     private bool _isSavingEnvironment;
     private bool _preserveFormStateOnSave;
     private CancellationTokenSource? _environmentAutoSaveCts;
-    private sealed record ExportEnvironmentVariable(string Key, string Value, bool Enabled);
+    private sealed record ExportEnvironmentVariable(string Key, string Value, bool Enabled, bool IsSensitive, string? ExpiresAtUtc);
     private sealed record ExportEnvironment(string Name, IReadOnlyList<ExportEnvironmentVariable> Variables, string? AccentColor, bool ShowWarningBanner);
     private sealed record EnvironmentExportPayload(string Format, int Version, IReadOnlyList<ExportEnvironment> Environments);
 
@@ -118,7 +118,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
 
     public IReadOnlyList<EnvironmentVariable> GetActiveVariablesForEditor() =>
         ActiveEnvironmentVariables
-            .Select(variable => new EnvironmentVariable(variable.Name, variable.Value, variable.IsEnabled))
+            .Select(variable => new EnvironmentVariable(variable.Name, variable.Value, variable.IsEnabled, variable.IsSensitive, variable.ExpiresAtUtc))
             .ToList();
 
     partial void OnNewEnvironmentNameChanged(string value) => QueueEnvironmentAutoSave();
@@ -140,7 +140,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
                 {
                     foreach (var variable in env.Variables)
                     {
-                        ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(variable.Name, variable.Value, variable.IsEnabled));
+                        ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(variable.Name, variable.Value, variable.IsEnabled, variable.IsSensitive, variable.ExpiresAtUtc));
                     }
                 }
             }
@@ -225,7 +225,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
             ActiveEnvironmentVariables.Clear();
             foreach (var variable in environment.Variables)
             {
-                ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(variable.Name, variable.Value, variable.IsEnabled));
+                ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(variable.Name, variable.Value, variable.IsEnabled, variable.IsSensitive, variable.ExpiresAtUtc));
             }
 
             IsEnvironmentPanelVisible = true;
@@ -272,7 +272,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
             Environments.Select(environment => new ExportEnvironment(
                     environment.Name,
                     environment.Variables
-                        .Select(variable => new ExportEnvironmentVariable(variable.Name, variable.Value, variable.IsEnabled))
+                        .Select(variable => new ExportEnvironmentVariable(variable.Name, variable.Value, variable.IsEnabled, variable.IsSensitive, variable.ExpiresAtUtc?.ToString("O")))
                         .ToList(),
                     environment.AccentColor,
                     environment.ShowWarningBanner))
@@ -318,7 +318,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         {
             var variables = ActiveEnvironmentVariables
                 .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
-                .Select(variable => new EnvironmentVariable(variable.Name, variable.Value, variable.IsEnabled))
+                .Select(variable => new EnvironmentVariable(variable.Name, variable.Value, variable.IsEnabled, variable.IsSensitive, variable.ExpiresAtUtc))
                 .ToList();
 
             int? newEnvironmentId = null;

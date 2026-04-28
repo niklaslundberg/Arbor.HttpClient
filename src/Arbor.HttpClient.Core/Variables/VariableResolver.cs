@@ -32,6 +32,7 @@ public sealed class VariableResolver
         }
 
         var lookup = variables
+            .Where(v => !v.IsExpired)
             .GroupBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.Last().Value, StringComparer.OrdinalIgnoreCase);
 

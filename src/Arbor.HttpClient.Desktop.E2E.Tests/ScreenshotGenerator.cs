@@ -179,7 +179,7 @@ public class ScreenshotGenerator
                 new EnvironmentVariable("baseUrl", "http://localhost:5000"),
                 new EnvironmentVariable("queryKey", "city"),
                 new EnvironmentVariable("queryValue", "stockholm"),
-                new EnvironmentVariable("token", "demo-token"),
+                new EnvironmentVariable("token", "demo-token", IsSensitive: true),
                 new EnvironmentVariable("headerName", "Tenant"),
                 new EnvironmentVariable("headerValue", "blue", false)
             ]));

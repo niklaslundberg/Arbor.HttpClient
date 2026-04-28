@@ -447,4 +447,96 @@ public class SqliteRepositoriesTests
             }
         }
     }
+
+    [Fact]
+    public async Task SqliteEnvironmentRepository_SaveAndGetAllAsync_ShouldPersistSensitiveFlagAndExpiry()
+    {
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_env_sensitive_{Guid.NewGuid()}.db");
+        try
+        {
+            var connectionString = $"Data Source={dbPath}";
+            var repository = new SqliteEnvironmentRepository(connectionString);
+
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var expiry = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            var variables = new List<EnvironmentVariable>
+            {
+                new("apiKey", "secret123", IsEnabled: true, IsSensitive: true, ExpiresAtUtc: expiry),
+                new("baseUrl", "http://localhost", IsEnabled: true, IsSensitive: false, ExpiresAtUtc: null)
+            };
+
+            var environmentId = await repository.SaveAsync("Dev", variables, cancellationToken: TestContext.Current.CancellationToken);
+
+            var environments = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+
+            environments.Should().ContainSingle();
+            environments[0].Id.Should().Be(environmentId);
+            environments[0].Variables.Should().HaveCount(2);
+
+            var sensitiveVar = environments[0].Variables[0];
+            sensitiveVar.Name.Should().Be("apiKey");
+            sensitiveVar.IsSensitive.Should().BeTrue();
+            sensitiveVar.ExpiresAtUtc.Should().NotBeNull();
+            sensitiveVar.ExpiresAtUtc!.Value.Should().BeCloseTo(expiry, TimeSpan.FromSeconds(1));
+
+            var nonSensitiveVar = environments[0].Variables[1];
+            nonSensitiveVar.Name.Should().Be("baseUrl");
+            nonSensitiveVar.IsSensitive.Should().BeFalse();
+            nonSensitiveVar.ExpiresAtUtc.Should().BeNull();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteEnvironmentRepository_UpdateAsync_ShouldPersistUpdatedSensitiveFlagAndExpiry()
+    {
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_env_sensitive_update_{Guid.NewGuid()}.db");
+        try
+        {
+            var connectionString = $"Data Source={dbPath}";
+            var repository = new SqliteEnvironmentRepository(connectionString);
+
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var initialVariables = new List<EnvironmentVariable>
+            {
+                new("token", "old-token", IsEnabled: true, IsSensitive: false, ExpiresAtUtc: null)
+            };
+
+            var environmentId = await repository.SaveAsync("Test", initialVariables, cancellationToken: TestContext.Current.CancellationToken);
+
+            var expiry = new DateTimeOffset(2029, 6, 15, 12, 0, 0, TimeSpan.Zero);
+            var updatedVariables = new List<EnvironmentVariable>
+            {
+                new("token", "new-token", IsEnabled: true, IsSensitive: true, ExpiresAtUtc: expiry)
+            };
+
+            await repository.UpdateAsync(environmentId, "Test", updatedVariables, cancellationToken: TestContext.Current.CancellationToken);
+
+            var environments = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+
+            environments.Should().ContainSingle();
+            var updatedVar = environments[0].Variables[0];
+            updatedVar.IsSensitive.Should().BeTrue();
+            updatedVar.ExpiresAtUtc.Should().NotBeNull();
+            updatedVar.ExpiresAtUtc!.Value.Should().BeCloseTo(expiry, TimeSpan.FromSeconds(1));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+    }
 }
+

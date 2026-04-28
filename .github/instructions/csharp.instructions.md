@@ -67,6 +67,20 @@ var dbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
 
 **[RECOMMENDED]** Prefer `DateTimeOffset` over `DateTime` for timestamps. Always specify the timezone offset so timestamps are unambiguous across time zones.
 
+## Date and Time Parsing
+
+**[REQUIRED]** Always pass `CultureInfo.InvariantCulture` (never `null`) to `DateTimeOffset.TryParse`, `DateTimeOffset.Parse`, `DateTime.TryParse`, and similar parsing methods whenever the input is expected to be in ISO 8601 or any other culture-independent format. Passing `null` silently falls back to the current thread culture, which can cause parsing failures or incorrect results on non-English systems:
+
+```csharp
+// ✅ culture-invariant — safe on all locales
+DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed)
+
+// ❌ uses current thread culture — silently breaks on non-English locales
+DateTimeOffset.TryParse(value, null, DateTimeStyles.RoundtripKind, out var parsed)
+```
+
+**[REQUIRED]** When materialising a stored UTC timestamp (e.g. from SQLite), call `.ToUniversalTime()` after parsing to normalise the offset to UTC, regardless of what offset the stored string may carry.
+
 ## Test Methods
 
 **[REQUIRED]** Name tests using the `Method_Scenario_ExpectedResult` pattern (e.g. `Parse_EmptyInput_ThrowsArgumentException`). Each test should verify one behavioral intent.
@@ -76,6 +90,34 @@ var dbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
 **[REQUIRED]** Wrap every locally created `IDisposable` in a `using` declaration or statement so it is disposed even when an exception is thrown (e.g. `using var response = new HttpResponseMessage()`).
 
 **[REQUIRED]** Use `.Where()` instead of an inner `if` inside a `foreach` when filtering a collection. This prevents the CodeQL "Missed opportunity to use Where" diagnostic.
+
+**[REQUIRED]** Use `.Any()` instead of a `foreach + if + return true / return false` pattern for existence checks. This prevents the same CodeQL diagnostic and is more readable:
+
+```csharp
+// ✅ idiomatic
+return keywords.Any(k => name.Contains(k, StringComparison.OrdinalIgnoreCase));
+
+// ❌ triggers CodeQL — use .Any() instead
+foreach (var k in keywords)
+{
+    if (name.Contains(k, StringComparison.OrdinalIgnoreCase))
+        return true;
+}
+return false;
+```
+
+**[REQUIRED]** Combine nested `if` statements into a single compound condition when there is no intermediate logic between them. Nested `if`s trigger the CodeQL "Nested 'if' statements can be combined" diagnostic:
+
+```csharp
+// ✅ combined
+if (conditionA && conditionB) { ... }
+
+// ❌ triggers CodeQL
+if (conditionA)
+{
+    if (conditionB) { ... }
+}
+```
 
 ## Logging
 

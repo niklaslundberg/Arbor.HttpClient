@@ -10,6 +10,9 @@
     <UserControl.Resources>
         <vm:HexColorToBrushConverter x:Key="HexColorToBrushConverter" />
         <shared:NotNullConverter x:Key="NotNullConverter" />
+        <vm:BoolToPasswordCharConverter x:Key="BoolToPasswordCharConverter" />
+        <vm:BoolToRevealIconConverter x:Key="BoolToRevealIconConverter" />
+        <vm:BoolToExpiredOpacityConverter x:Key="BoolToExpiredOpacityConverter" />
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -129,26 +132,50 @@
                                   Content="{x:Static loc:Strings.EnvironmentsShowWarningBanner}"
                                   IsChecked="{Binding EditingShowWarningBanner, Mode=TwoWay}" />
 
-                        <Grid Grid.Row="4" ColumnDefinitions="Auto,*,*,Auto" ColumnSpacing="8" Margin="0,4,0,0">
+                        <Grid Grid.Row="4" ColumnDefinitions="Auto,*,Auto,*,Auto,Auto" ColumnSpacing="8" Margin="0,4,0,0">
                             <TextBlock Text="{x:Static loc:Strings.EnvironmentsActiveColumn}" FontWeight="SemiBold" />
                             <TextBlock Grid.Column="1" Text="{x:Static loc:Strings.EnvironmentsVariableKeyColumn}" FontWeight="SemiBold" />
-                            <TextBlock Grid.Column="2" Text="{x:Static loc:Strings.EnvironmentsVariableValueColumn}" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="2" Text="{x:Static loc:Strings.EnvironmentsVariableSensitiveColumn}" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="3" Text="{x:Static loc:Strings.EnvironmentsVariableValueColumn}" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="4" Text="{x:Static loc:Strings.EnvironmentsVariableExpiresColumn}" FontWeight="SemiBold" />
                         </Grid>
 
                         <ItemsControl Grid.Row="5" ItemsSource="{Binding ActiveEnvironmentVariables}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:EnvironmentVariableViewModel">
-                                    <Grid ColumnDefinitions="Auto,*,*,Auto" ColumnSpacing="8" Margin="0,2">
+                                    <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,Auto" ColumnSpacing="8" Margin="0,2"
+                                          Opacity="{Binding IsExpired, Converter={StaticResource BoolToExpiredOpacityConverter}}">
                                         <CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay}"
                                                   VerticalAlignment="Center" />
                                         <TextBox Grid.Column="1"
                                                  PlaceholderText="{x:Static loc:Strings.EnvironmentsVariableKeyPlaceholder}"
                                                  Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <TextBox Grid.Column="2"
-                                                 PlaceholderText="{x:Static loc:Strings.EnvironmentsVariableValuePlaceholder}"
-                                                 Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <Button Grid.Column="3"
+                                        <CheckBox Grid.Column="2"
+                                                  IsChecked="{Binding IsSensitive, Mode=TwoWay}"
+                                                  VerticalAlignment="Center"
+                                                  ToolTip.Tip="{x:Static loc:Strings.EnvironmentsVariableSensitiveTooltip}"
+                                                  AutomationProperties.Name="{x:Static loc:Strings.EnvironmentsVariableSensitiveTooltip}" />
+                                        <Grid Grid.Column="3" ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                                            <TextBox PlaceholderText="{x:Static loc:Strings.EnvironmentsVariableValuePlaceholder}"
+                                                     Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                     PasswordChar="{Binding IsValueMasked, Converter={StaticResource BoolToPasswordCharConverter}}" />
+                                            <Button Grid.Column="1"
+                                                    Command="{Binding ToggleRevealCommand}"
+                                                    IsVisible="{Binding IsSensitive}"
+                                                    ToolTip.Tip="{x:Static loc:Strings.EnvironmentsVariableRevealTooltip}"
+                                                    AutomationProperties.Name="{x:Static loc:Strings.EnvironmentsVariableRevealTooltip}"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding IsValueRevealed, Converter={StaticResource BoolToRevealIconConverter}}" />
+                                            </Button>
+                                        </Grid>
+                                        <TextBox Grid.Column="4"
+                                                 PlaceholderText="{x:Static loc:Strings.EnvironmentsVariableExpiresPlaceholder}"
+                                                 Text="{Binding ExpiresAtUtcText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                 ToolTip.Tip="{x:Static loc:Strings.EnvironmentsVariableExpiresPlaceholder}" />
+                                        <Button Grid.Column="5"
                                                 Content="✕"
+                                                AutomationProperties.Name="{x:Static loc:Strings.EnvironmentsVariableRemoveAccessibleName}"
+                                                ToolTip.Tip="{x:Static loc:Strings.EnvironmentsVariableRemoveAccessibleName}"
                                                 Command="{Binding $parent[UserControl].DataContext.RemoveEnvironmentVariableCommand}"
                                                 CommandParameter="{Binding}" />
                                     </Grid>

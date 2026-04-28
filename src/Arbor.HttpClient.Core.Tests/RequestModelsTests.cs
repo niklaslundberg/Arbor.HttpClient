@@ -98,6 +98,48 @@ public class RequestModelsTests
     }
 
     [Fact]
+    public void EnvironmentVariable_DefaultsSensitiveToFalse()
+    {
+        var variable = new EnvironmentVariable("baseUrl", "http://localhost:5000");
+        variable.IsSensitive.Should().BeFalse();
+    }
+
+    [Fact]
+    public void EnvironmentVariable_DefaultsExpiresAtToNull()
+    {
+        var variable = new EnvironmentVariable("baseUrl", "http://localhost:5000");
+        variable.ExpiresAtUtc.Should().BeNull();
+    }
+
+    [Fact]
+    public void EnvironmentVariable_IsExpired_FalseWhenNoExpiry()
+    {
+        var variable = new EnvironmentVariable("key", "value");
+        variable.IsExpired.Should().BeFalse();
+    }
+
+    [Fact]
+    public void EnvironmentVariable_IsExpired_FalseWhenExpiryInFuture()
+    {
+        var variable = new EnvironmentVariable("key", "value", ExpiresAtUtc: DateTimeOffset.UtcNow.AddDays(1));
+        variable.IsExpired.Should().BeFalse();
+    }
+
+    [Fact]
+    public void EnvironmentVariable_IsExpired_TrueWhenExpiryInPast()
+    {
+        var variable = new EnvironmentVariable("key", "value", ExpiresAtUtc: DateTimeOffset.UtcNow.AddDays(-1));
+        variable.IsExpired.Should().BeTrue();
+    }
+
+    [Fact]
+    public void EnvironmentVariable_SensitiveFlagCanBeSet()
+    {
+        var variable = new EnvironmentVariable("password", "secret123", IsSensitive: true);
+        variable.IsSensitive.Should().BeTrue();
+    }
+
+    [Fact]
     public void Collection_ShouldStoreAllProperties()
     {
         var requests = new List<CollectionRequest>

@@ -538,6 +538,24 @@ public static class Strings
     /// <summary>Purple — Demo / sandbox</summary>
     public static string EnvironmentsColorAccessibleNamePurple => Get(nameof(EnvironmentsColorAccessibleNamePurple));
 
+    /// <summary>Sensitive</summary>
+    public static string EnvironmentsVariableSensitiveColumn => Get(nameof(EnvironmentsVariableSensitiveColumn));
+
+    /// <summary>Mark as sensitive — value will be masked in the UI</summary>
+    public static string EnvironmentsVariableSensitiveTooltip => Get(nameof(EnvironmentsVariableSensitiveTooltip));
+
+    /// <summary>Expires (UTC)</summary>
+    public static string EnvironmentsVariableExpiresColumn => Get(nameof(EnvironmentsVariableExpiresColumn));
+
+    /// <summary>e.g. 2026-12-31T23:59:00Z</summary>
+    public static string EnvironmentsVariableExpiresPlaceholder => Get(nameof(EnvironmentsVariableExpiresPlaceholder));
+
+    /// <summary>Reveal / hide sensitive value</summary>
+    public static string EnvironmentsVariableRevealTooltip => Get(nameof(EnvironmentsVariableRevealTooltip));
+
+    /// <summary>Remove variable</summary>
+    public static string EnvironmentsVariableRemoveAccessibleName => Get(nameof(EnvironmentsVariableRemoveAccessibleName));
+
     // ═══════════════════════════════ Log Panel / Log Window ═══════════════════════════════
 
     /// <summary>Live Log</summary>

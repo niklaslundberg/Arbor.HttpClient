@@ -554,6 +554,27 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ---
 
+### Sensitive Variables & TTL ✅ Implemented
+> Implemented in PR #118 (commit `03fcf56`) — `src/Arbor.HttpClient.Core/Environments/EnvironmentVariable.cs`, `src/Arbor.HttpClient.Core/Environments/SensitiveVariableDetector.cs`, `src/Arbor.HttpClient.Core/Variables/VariableResolver.cs`, `src/Arbor.HttpClient.Desktop/Features/Environments/EnvironmentVariableViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Environments/EnvironmentsView.axaml`, `src/Arbor.HttpClient.Storage.Sqlite/SqliteEnvironmentRepository.cs`
+
+**What it means:** Variables whose names match common sensitive patterns (password, token, secret, apikey, etc.) are automatically flagged as sensitive. Sensitive values are masked in the UI with bullet characters; a per-variable reveal button (👁/🔒) lets the user temporarily show the real value for editing. Any variable can optionally carry a UTC expiry date — when reached, the variable is automatically ignored during request resolution.
+
+**What shipped:**
+- `EnvironmentVariable` record gains `IsSensitive` (bool) and `ExpiresAtUtc` (DateTimeOffset?) properties with `IsExpired` computed helper
+- `SensitiveVariableDetector` — static class with case-insensitive keyword matching for 18 common sensitive-data patterns; auto-applied when a variable name is typed
+- `VariableResolver.Resolve` skips expired variables (token collapses to empty string, consistent with disabled-variable behavior)
+- `EnvironmentVariableViewModel` gains `IsSensitive`, `ExpiresAtUtc`, `IsValueRevealed`, `IsValueMasked`, `IsExpired`, `ExpiresAtUtcText`, and `ToggleRevealCommand`; the `OnNameChanged` partial auto-detects sensitivity
+- `EnvironmentsView.axaml` — new "Sensitive" checkbox column, value TextBox uses `PasswordChar` converter (`BoolToPasswordCharConverter`) to mask when sensitive, reveal button appears when `IsSensitive=true`, "Expires (UTC)" TextBox column for TTL, expired rows dimmed via `BoolToExpiredOpacityConverter`
+- SQLite migration: `is_sensitive INTEGER NOT NULL DEFAULT 0` and `expires_at_utc TEXT` columns added to `environment_variables` via `EnsureEnvironmentVariable*ColumnAsync` helpers (non-destructive upgrade of existing databases)
+- Export JSON includes `IsSensitive` and `ExpiresAtUtc` fields
+
+**Polish items remaining:**
+- Encryption at rest for sensitive values: see `docs/security-review.md` § "Future — Sensitive Variable Encryption" for guidance
+- External secret sources (HashiCorp Vault, OS Keychain, Azure Key Vault): not yet implemented
+- Global "show all sensitive values" toggle on the Environments panel (currently per-variable only)
+
+---
+
 *Last updated: April 2026. Suggestions sourced from comparative review of Hoppscotch, Insomnia, Postman, Bruno, and browser DevTools.*
 
 ---

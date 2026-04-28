@@ -247,6 +247,41 @@ If any step fails locally, fix it before pushing — this avoids triggering a CI
 - Pass the token through to all downstream async calls unless there is a clear, documented reason not to (e.g. a fire-and-forget cleanup path).
 - Name the parameter `cancellationToken` (not `ct` or other abbreviations) for consistency with the .NET BCL.
 
+## 9a. Date and Time Parsing Conventions
+
+- **[REQUIRED][QUALITY]** Always pass `CultureInfo.InvariantCulture` (never `null`) to `DateTimeOffset.TryParse`, `DateTimeOffset.Parse`, `DateTime.TryParse`, and similar parsing overloads that accept a format provider. Passing `null` silently falls back to the current thread culture and will produce incorrect results or silent parse failures on non-English systems.
+  ```csharp
+  // ✅ culture-invariant — safe on all locales
+  DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed)
+
+  // ❌ uses current thread culture — silently breaks on non-English locales
+  DateTimeOffset.TryParse(value, null, DateTimeStyles.RoundtripKind, out var parsed)
+  ```
+- **[REQUIRED][QUALITY]** When reading a stored UTC timestamp (e.g. from SQLite `TEXT` column), call `.ToUniversalTime()` after parsing to normalise the offset to UTC regardless of what offset the stored string carries.
+
+## 9b. LINQ Conventions
+
+- **[REQUIRED][QUALITY]** Use `.Any(predicate)` instead of a `foreach + if + return true / return false` existence-check pattern. The loop form triggers the CodeQL "Missed opportunity to use Where" diagnostic. The `.Any()` form is also more readable:
+  ```csharp
+  // ✅ idiomatic LINQ
+  return keywords.Any(k => name.Contains(k, StringComparison.OrdinalIgnoreCase));
+
+  // ❌ verbose loop — triggers CodeQL
+  foreach (var k in keywords) { if (condition) return true; } return false;
+  ```
+- **[REQUIRED][QUALITY]** Use `.Where(predicate)` instead of an inner `if` inside a `foreach` when filtering a collection. This prevents the same CodeQL diagnostic.
+- **[REQUIRED][QUALITY]** Combine nested `if` statements into a single compound condition when there is no intermediate logic between them. Nested `if`s without intervening code trigger the CodeQL "Nested 'if' statements can be combined" diagnostic:
+  ```csharp
+  // ✅ combined
+  if (condition1 && condition2) { ... }
+
+  // ❌ triggers CodeQL
+  if (condition1)
+  {
+      if (condition2) { ... }
+  }
+  ```
+
 ## 10. Logging and Observability Conventions
 
 - Use structured logging fields consistently: `requestId`, `environment`, `jobId`, `statusCode`, `durationMs`.
