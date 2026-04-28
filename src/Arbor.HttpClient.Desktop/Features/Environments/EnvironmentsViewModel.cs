@@ -27,6 +27,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
     private readonly ILogger _logger;
     private bool _suppressEnvironmentAutoSave;
     private bool _isSavingEnvironment;
+    private bool _preserveFormStateOnSave;
     private CancellationTokenSource? _environmentAutoSaveCts;
     private sealed record ExportEnvironmentVariable(string Key, string Value, bool Enabled);
     private sealed record ExportEnvironment(string Name, IReadOnlyList<ExportEnvironmentVariable> Variables);
@@ -122,12 +123,15 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         _suppressEnvironmentAutoSave = true;
         try
         {
-            ActiveEnvironmentVariables.Clear();
-            if (value is { } env)
+            if (!_preserveFormStateOnSave)
             {
-                foreach (var variable in env.Variables)
+                ActiveEnvironmentVariables.Clear();
+                if (value is { } env)
                 {
-                    ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(variable.Name, variable.Value, variable.IsEnabled));
+                    foreach (var variable in env.Variables)
+                    {
+                        ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(variable.Name, variable.Value, variable.IsEnabled));
+                    }
                 }
             }
         }
@@ -282,6 +286,10 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         _isSavingEnvironment = true;
         var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
         _suppressEnvironmentAutoSave = true;
+        if (!closeEnvironmentPanel)
+        {
+            _preserveFormStateOnSave = true;
+        }
         try
         {
             var variables = ActiveEnvironmentVariables
@@ -315,6 +323,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         }
         finally
         {
+            _preserveFormStateOnSave = false;
             _suppressEnvironmentAutoSave = previousSuppressEnvironmentAutoSave;
             _isSavingEnvironment = false;
         }
@@ -341,7 +350,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
     {
         try
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(450), cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromMilliseconds(1000), cancellationToken).ConfigureAwait(false);
             await Dispatcher.UIThread.InvokeAsync(async () => await SaveEnvironmentCoreAsync(closeEnvironmentPanel: false));
         }
         catch (OperationCanceledException)
