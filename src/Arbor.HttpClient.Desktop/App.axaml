@@ -35,6 +35,14 @@
                     <!-- Variable token colors: brackets {{ }} amber, name violet -->
                     <SolidColorBrush x:Key="VariableBracketBrush" Color="#FFB74D" />
                     <SolidColorBrush x:Key="VariableNameBrush" Color="#CE93D8" />
+                    <!-- Environment accent color presets — used as ComboBox/banner background; white text on all meets WCAG AA ≥ 4.5:1 -->
+                    <SolidColorBrush x:Key="EnvironmentsPresetRedBrush" Color="#B41E1E" />
+                    <SolidColorBrush x:Key="EnvironmentsPresetAmberBrush" Color="#8B5500" />
+                    <SolidColorBrush x:Key="EnvironmentsPresetGreenBrush" Color="#1E7A3C" />
+                    <SolidColorBrush x:Key="EnvironmentsPresetBlueBrush" Color="#1E50B4" />
+                    <SolidColorBrush x:Key="EnvironmentsPresetPurpleBrush" Color="#6A1EB4" />
+                    <!-- Text color for use on environment accent color backgrounds -->
+                    <SolidColorBrush x:Key="AccentOnColorBrush" Color="#FFFFFF" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="OptionsNavBackgroundBrush" Color="#F0F0F0" />
@@ -63,6 +71,14 @@
                     <!-- Variable token colors: brackets {{ }} amber, name violet -->
                     <SolidColorBrush x:Key="VariableBracketBrush" Color="#875F09" />
                     <SolidColorBrush x:Key="VariableNameBrush" Color="#744DA9" />
+                    <!-- Environment accent color presets — used as ComboBox/banner background; white text on all meets WCAG AA ≥ 4.5:1 -->
+                    <SolidColorBrush x:Key="EnvironmentsPresetRedBrush" Color="#B41E1E" />
+                    <SolidColorBrush x:Key="EnvironmentsPresetAmberBrush" Color="#8B5500" />
+                    <SolidColorBrush x:Key="EnvironmentsPresetGreenBrush" Color="#1E7A3C" />
+                    <SolidColorBrush x:Key="EnvironmentsPresetBlueBrush" Color="#1E50B4" />
+                    <SolidColorBrush x:Key="EnvironmentsPresetPurpleBrush" Color="#6A1EB4" />
+                    <!-- Text color for use on environment accent color backgrounds -->
+                    <SolidColorBrush x:Key="AccentOnColorBrush" Color="#FFFFFF" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>

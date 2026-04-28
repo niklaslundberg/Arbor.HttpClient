@@ -16,12 +16,14 @@ public sealed class InMemoryEnvironmentRepository : IEnvironmentRepository
     public Task<int> SaveAsync(
         string name,
         IReadOnlyList<EnvironmentVariable> variables,
+        string? accentColor = null,
+        bool showWarningBanner = false,
         CancellationToken cancellationToken = default)
     {
         lock (_lock)
         {
             var id = _nextId++;
-            _items.Add(new RequestEnvironment(id, name, variables.ToList()));
+            _items.Add(new RequestEnvironment(id, name, variables.ToList(), accentColor, showWarningBanner));
             return Task.FromResult(id);
         }
     }
@@ -30,6 +32,8 @@ public sealed class InMemoryEnvironmentRepository : IEnvironmentRepository
         int environmentId,
         string name,
         IReadOnlyList<EnvironmentVariable> variables,
+        string? accentColor = null,
+        bool showWarningBanner = false,
         CancellationToken cancellationToken = default)
     {
         lock (_lock)
@@ -37,7 +41,7 @@ public sealed class InMemoryEnvironmentRepository : IEnvironmentRepository
             var idx = _items.FindIndex(e => e.Id == environmentId);
             if (idx >= 0)
             {
-                _items[idx] = new RequestEnvironment(environmentId, name, variables.ToList());
+                _items[idx] = new RequestEnvironment(environmentId, name, variables.ToList(), accentColor, showWarningBanner);
             }
         }
 
