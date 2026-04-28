@@ -42,6 +42,9 @@ public class AccessibilityContrastTests
     // VariableNameBrush (violet): same value as MethodPatchBrush – already verified above.
     private const string DarkVariableName = "#CE93D8";
 
+    // EnvVariablePrefixBrush (teal) — WCAG AA ≥ 4.5:1 on dark surfaces.
+    private const string DarkEnvVariablePrefix = "#4EC9B0";
+
     // ─── Light-theme backgrounds ─────────────────────────────────────────────
 
     private const string LightSurface = "#FFFFFF";
@@ -74,6 +77,9 @@ public class AccessibilityContrastTests
     // VariableNameBrush (violet): same value as MethodPatchBrush – already verified above.
     private const string LightVariableName = "#744DA9";
 
+    // EnvVariablePrefixBrush (teal) — WCAG AA ≥ 4.5:1 on light surfaces.
+    private const string LightEnvVariablePrefix = "#0E7C6E";
+
     // WCAG AA minimum for normal text (≥ 4.5:1).
     // Method labels are bold, so 3:1 (large-text AA) would suffice, but 4.5:1 is used for safety.
     private const double MinContrastRatio = 4.5;
@@ -100,6 +106,8 @@ public class AccessibilityContrastTests
     [InlineData(DarkVariableBracket, DarkPanel, "Variable bracket / dark panel")]
     [InlineData(DarkVariableName, DarkSurface, "Variable name / dark surface")]
     [InlineData(DarkVariableName, DarkPanel, "Variable name / dark panel")]
+    [InlineData(DarkEnvVariablePrefix, DarkSurface, "Env variable prefix / dark surface")]
+    [InlineData(DarkEnvVariablePrefix, DarkPanel, "Env variable prefix / dark panel")]
     // Response-status brushes (same palette values as above, re-verified explicitly).
     [InlineData("#6FCF97", DarkSurface, "StatusSuccessBrush / dark surface")]
     [InlineData("#6FCF97", DarkPanel, "StatusSuccessBrush / dark panel")]
@@ -147,6 +155,8 @@ public class AccessibilityContrastTests
     [InlineData(LightVariableBracket, LightPanel, "Variable bracket / light panel")]
     [InlineData(LightVariableName, LightSurface, "Variable name / light surface")]
     [InlineData(LightVariableName, LightPanel, "Variable name / light panel")]
+    [InlineData(LightEnvVariablePrefix, LightSurface, "Env variable prefix / light surface")]
+    [InlineData(LightEnvVariablePrefix, LightPanel, "Env variable prefix / light panel")]
     // Response-status brushes (same palette values as above, re-verified explicitly).
     [InlineData("#107C10", LightSurface, "StatusSuccessBrush / light surface")]
     [InlineData("#107C10", LightPanel, "StatusSuccessBrush / light panel")]

@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Arbor.HttpClient.Core.Variables;
 
 namespace Arbor.HttpClient.Desktop.Features.Variables;
 
 public static class VariableCompletionEngine
 {
+    private static readonly string EnvPrefix = VariableResolver.EnvPrefix;
+
     public static bool TryGetContext(string text, int caretOffset, out VariableCompletionContext context)
     {
         context = default;
@@ -28,13 +31,27 @@ public static class VariableCompletionEngine
         }
 
         var prefixStart = tokenStart + 2;
-        var prefix = text[prefixStart..caretOffset];
-        if (prefix.IndexOfAny(['{', '}', '\r', '\n']) >= 0)
+        var rawPrefix = text[prefixStart..caretOffset];
+        if (rawPrefix.IndexOfAny(['{', '}', '\r', '\n']) >= 0)
         {
             return false;
         }
 
-        context = new VariableCompletionContext(prefixStart, prefix);
+        // Detect whether we are inside an {{env:...}} token.
+        if (rawPrefix.StartsWith(EnvPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var envNameStart = prefixStart + EnvPrefix.Length;
+            var envNamePrefix = text[envNameStart..caretOffset];
+
+            // Trim any leading whitespace so "{{env: HOME}}" autocomplete works
+            // consistently with how the resolver handles the same whitespace.
+            var trimmedEnvNamePrefix = envNamePrefix.TrimStart();
+            var trimmedEnvNameStart = envNameStart + (envNamePrefix.Length - trimmedEnvNamePrefix.Length);
+            context = new VariableCompletionContext(trimmedEnvNameStart, trimmedEnvNamePrefix, IsEnvVariable: true);
+            return true;
+        }
+
+        context = new VariableCompletionContext(prefixStart, rawPrefix, IsEnvVariable: false);
         return true;
     }
 
@@ -91,4 +108,4 @@ public static class VariableCompletionEngine
     }
 }
 
-public readonly record struct VariableCompletionContext(int ReplaceStartOffset, string Prefix);
+public readonly record struct VariableCompletionContext(int ReplaceStartOffset, string Prefix, bool IsEnvVariable);

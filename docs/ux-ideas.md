@@ -415,6 +415,24 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
 
+### 1.2b System environment variable support (`{{env:VAR}}`) ✅ Implemented
+> Implemented in PR #116 (commit `b1437c8`) — `src/Arbor.HttpClient.Core/Variables/ISystemEnvironmentVariableProvider.cs`, `src/Arbor.HttpClient.Core/Variables/SystemEnvironmentVariableProvider.cs`, `src/Arbor.HttpClient.Core/Variables/VariableResolver.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableTokenColorizer.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableCompletionEngine.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableAutoCompleteController.cs`, `src/Arbor.HttpClient.Desktop/App.axaml`
+
+**What it means:** Users can reference the host machine's system (process) environment variables directly in requests using `{{env:SomeVariable}}`. This is distinct from the in-app environment variables (`{{variableName}}`), which are managed in the Environments panel.
+
+**What shipped:**
+- `{{env:VarName}}` tokens are resolved at send time via `VariableResolver` using the real process environment
+- `ISystemEnvironmentVariableProvider` abstraction allows tests to inject a fake set of env vars without depending on the real process environment (`FakeSystemEnvironmentVariableProvider` in `Arbor.HttpClient.Testing`)
+- Autocomplete: typing `{{env:` in the URL bar or request body triggers a drop-down listing all available system environment variables, filtered as you type
+- Syntax coloring: `env:` prefix is rendered in a distinct teal color (`EnvVariablePrefixBrush`) separate from the bracket color (amber) and variable-name color (violet) — both Dark and Light theme variants meet WCAG AA ≥ 4.5:1
+- Env prefix lookup is case-insensitive (`{{ENV:VAR}}` and `{{env:var}}` both work)
+- If the referenced variable is not set, the token collapses to an empty string (consistent with app variable behavior)
+
+**Polish items remaining:**
+- Header fields use plain `TextBox` controls — system env variable autocomplete in header keys/values requires additional work (see idea 1.2)
+
+---
+
 ### Localization Infrastructure ✅ Implemented
 > Implemented in PR #106 (commit `00b551e`) — `src/Arbor.HttpClient.Desktop/Localization/Strings.resx`, `src/Arbor.HttpClient.Desktop/Localization/Strings.Designer.cs`, and all 15 Desktop AXAML view files
 

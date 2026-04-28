@@ -1,12 +1,13 @@
 using System.Text;
 using Arbor.HttpClient.Core.Environments;
 using Arbor.HttpClient.Core.Variables;
+using Arbor.HttpClient.Testing.Fakes;
 
 namespace Arbor.HttpClient.Core.Tests;
 
 public class VariableResolverTests
 {
-    private readonly VariableResolver _resolver = new();
+    private readonly VariableResolver _resolver = new(new FakeSystemEnvironmentVariableProvider());
 
     [Fact]
     public void Resolve_ShouldReplaceKnownToken()
@@ -179,6 +180,79 @@ public class VariableResolverTests
         var variables = new List<EnvironmentVariable> { new("host", "localhost") };
         var result = _resolver.Resolve("https://{{host}}/{{version}}/users", variables);
         result.Should().Be("https://localhost//users");
+    }
+
+    /// <summary>
+    /// <c>{{env:VAR}}</c> tokens are resolved via the injected environment variable provider.
+    /// </summary>
+    [Fact]
+    public void Resolve_ShouldResolveEnvPrefixedToken()
+    {
+        var envVars = new Dictionary<string, string> { ["MY_VAR"] = "hello" };
+        var resolver = new VariableResolver(new FakeSystemEnvironmentVariableProvider(envVars));
+        var result = resolver.Resolve("{{env:MY_VAR}}/path", []);
+        result.Should().Be("hello/path");
+    }
+
+    /// <summary>
+    /// Env var lookup is case-insensitive so <c>{{env:my_var}}</c> resolves the same as <c>{{env:MY_VAR}}</c>.
+    /// </summary>
+    [Fact]
+    public void Resolve_EnvTokenLookup_IsCaseInsensitive()
+    {
+        var envVars = new Dictionary<string, string> { ["MY_VAR"] = "world" };
+        var resolver = new VariableResolver(new FakeSystemEnvironmentVariableProvider(envVars));
+        var result = resolver.Resolve("{{env:my_var}}", []);
+        result.Should().Be("world");
+    }
+
+    /// <summary>
+    /// When the referenced environment variable does not exist, the token collapses to empty string.
+    /// </summary>
+    [Fact]
+    public void Resolve_UnknownEnvToken_ShouldCollapseToEmptyString()
+    {
+        var resolver = new VariableResolver(new FakeSystemEnvironmentVariableProvider());
+        var result = resolver.Resolve("{{env:NONEXISTENT}}", []);
+        result.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Regular app variables and env variables can be mixed in the same input.
+    /// </summary>
+    [Fact]
+    public void Resolve_ShouldResolveMixedAppAndEnvVariables()
+    {
+        var appVars = new List<EnvironmentVariable> { new("host", "localhost") };
+        var envVars = new Dictionary<string, string> { ["PORT"] = "8080" };
+        var resolver = new VariableResolver(new FakeSystemEnvironmentVariableProvider(envVars));
+        var result = resolver.Resolve("http://{{host}}:{{env:PORT}}/api", appVars);
+        result.Should().Be("http://localhost:8080/api");
+    }
+
+    /// <summary>
+    /// Env prefix matching is case-insensitive so <c>{{ENV:VAR}}</c> is treated the same as <c>{{env:VAR}}</c>.
+    /// </summary>
+    [Fact]
+    public void Resolve_EnvPrefix_IsCaseInsensitive()
+    {
+        var envVars = new Dictionary<string, string> { ["REGION"] = "eu-west" };
+        var resolver = new VariableResolver(new FakeSystemEnvironmentVariableProvider(envVars));
+        var result = resolver.Resolve("{{ENV:REGION}}", []);
+        result.Should().Be("eu-west");
+    }
+
+    /// <summary>
+    /// Whitespace after the <c>env:</c> colon is trimmed so <c>{{env: HOME }}</c> still resolves,
+    /// consistent with the trimming applied to regular variable tokens.
+    /// </summary>
+    [Fact]
+    public void Resolve_EnvTokenNameWithWhitespace_ShouldTrimAndResolve()
+    {
+        var envVars = new Dictionary<string, string> { ["HOME"] = "/home/alice" };
+        var resolver = new VariableResolver(new FakeSystemEnvironmentVariableProvider(envVars));
+        var result = resolver.Resolve("{{env: HOME }}", []);
+        result.Should().Be("/home/alice");
     }
 }
 

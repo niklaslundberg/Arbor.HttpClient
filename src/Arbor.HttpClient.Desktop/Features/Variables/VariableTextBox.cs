@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Variables;
@@ -9,9 +10,9 @@ using Avalonia.Media;
 namespace Arbor.HttpClient.Desktop.Features.Variables;
 
 /// <summary>
-/// A single-line text input that highlights <c>{{variable}}</c> tokens with two-colour syntax
-/// coloring (bracket colour vs. name colour) while otherwise appearing identical to a Fluent
-/// <c>TextBox</c>. Use <see cref="TextProperty"/> with <c>Mode=TwoWay</c> for data binding.
+/// A single-line text input that highlights <c>{{variable}}</c> and <c>{{env:variable}}</c> tokens
+/// with distinct syntax coloring while otherwise appearing identical to a Fluent <c>TextBox</c>.
+/// Use <see cref="TextProperty"/> with <c>Mode=TwoWay</c> for data binding.
 /// </summary>
 public sealed class VariableTextBox : UserControl
 {
@@ -94,7 +95,7 @@ public sealed class VariableTextBox : UserControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        _autoCompleteController ??= new VariableAutoCompleteController(_editor, GetVariableNames);
+        _autoCompleteController ??= new VariableAutoCompleteController(_editor, GetVariableNames, GetEnvVariableNames);
         ApplyFont();
         ApplyBrushes();
     }
@@ -163,6 +164,7 @@ public sealed class VariableTextBox : UserControl
         var theme = ActualThemeVariant;
         IBrush bracketBrush = Brushes.Orange;
         IBrush nameBrush = Brushes.MediumPurple;
+        IBrush envPrefixBrush = Brushes.SteelBlue;
 
         if (Application.Current?.TryGetResource("VariableBracketBrush", theme, out var b) == true && b is IBrush bb)
         {
@@ -174,7 +176,12 @@ public sealed class VariableTextBox : UserControl
             nameBrush = nb;
         }
 
-        _colorizer.SetBrushes(bracketBrush, nameBrush);
+        if (Application.Current?.TryGetResource("EnvVariablePrefixBrush", theme, out var ep) == true && ep is IBrush epb)
+        {
+            envPrefixBrush = epb;
+        }
+
+        _colorizer.SetBrushes(bracketBrush, nameBrush, envPrefixBrush);
         _editor.TextArea.TextView.Redraw();
 
         if (Application.Current?.TryGetResource("PanelBorderBrush", theme, out var borderResource) == true &&
@@ -192,4 +199,8 @@ public sealed class VariableTextBox : UserControl
 
     private IReadOnlyList<string> GetVariableNames() =>
         VariableNameHelper.ExtractDistinctNames(AppViewModel?.ActiveEnvironmentVariables);
+
+    private static IReadOnlyList<string> GetEnvVariableNames() =>
+        VariableNameHelper.GetSystemEnvironmentVariableNames();
 }
+

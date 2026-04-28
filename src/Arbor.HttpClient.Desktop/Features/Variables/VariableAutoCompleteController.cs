@@ -10,12 +10,17 @@ internal sealed class VariableAutoCompleteController : IDisposable
 {
     private readonly TextEditor _editor;
     private readonly Func<IReadOnlyList<string>> _getVariableNames;
+    private readonly Func<IReadOnlyList<string>> _getEnvVariableNames;
     private CompletionWindow? _completionWindow;
 
-    public VariableAutoCompleteController(TextEditor editor, Func<IReadOnlyList<string>> getVariableNames)
+    public VariableAutoCompleteController(
+        TextEditor editor,
+        Func<IReadOnlyList<string>> getVariableNames,
+        Func<IReadOnlyList<string>> getEnvVariableNames)
     {
         _editor = editor;
         _getVariableNames = getVariableNames;
+        _getEnvVariableNames = getEnvVariableNames;
         _editor.TextArea.TextEntered += OnTextEntered;
         _editor.TextArea.TextEntering += OnTextEntering;
     }
@@ -56,7 +61,8 @@ internal sealed class VariableAutoCompleteController : IDisposable
             return;
         }
 
-        var suggestions = VariableCompletionEngine.GetSuggestions(_getVariableNames(), context.Prefix);
+        var sourceNames = context.IsEnvVariable ? _getEnvVariableNames() : _getVariableNames();
+        var suggestions = VariableCompletionEngine.GetSuggestions(sourceNames, context.Prefix);
         if (suggestions.Count == 0)
         {
             CloseCompletionWindow();

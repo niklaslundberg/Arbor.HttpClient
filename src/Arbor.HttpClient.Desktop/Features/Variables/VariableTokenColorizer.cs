@@ -6,27 +6,48 @@ using AvaloniaEdit.Rendering;
 namespace Arbor.HttpClient.Desktop.Features.Variables;
 
 /// <summary>
-/// Colors <c>{{variableName}}</c> tokens with two distinct brushes:
-/// one for the <c>{{</c> and <c>}}</c> brackets and another for the name between them.
+/// Colors <c>{{variableName}}</c> and <c>{{env:variableName}}</c> tokens with distinct brushes:
+/// one for the <c>{{</c> and <c>}}</c> brackets, one for the variable name, and a third for the
+/// <c>env:</c> prefix in system environment variable references.
 /// </summary>
 internal sealed partial class VariableTokenColorizer : DocumentColorizingTransformer
 {
-    // Capture groups: (1) opening bracket, (2) variable name, (3) closing bracket
-    [GeneratedRegex(@"(\{\{)([^}]+)(\}\})", RegexOptions.Compiled)]
+    // Matches {{env:varName}} — groups: (1) {{ (2) env: (3) varName (4) }}
+    [GeneratedRegex(@"(\{\{)(env:)([^}]*)(\}\})", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
+    private static partial Regex EnvTokenRegex();
+
+    // Matches regular {{varName}} — groups: (1) {{ (2) varName (3) }}
+    // Uses a negative look-ahead so it does not match {{env:...}} again.
+    [GeneratedRegex(@"(\{\{)(?!env:)([^}]+)(\}\})", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
     private static partial Regex VariableTokenRegex();
 
     private IBrush _bracketBrush = Brushes.Orange;
     private IBrush _nameBrush = Brushes.MediumPurple;
+    private IBrush _envPrefixBrush = Brushes.SteelBlue;
 
-    public void SetBrushes(IBrush bracketBrush, IBrush nameBrush)
+    public void SetBrushes(IBrush bracketBrush, IBrush nameBrush, IBrush envPrefixBrush)
     {
         _bracketBrush = bracketBrush;
         _nameBrush = nameBrush;
+        _envPrefixBrush = envPrefixBrush;
     }
 
     protected override void ColorizeLine(DocumentLine line)
     {
         var lineText = CurrentContext.Document.GetText(line);
+
+        foreach (Match match in EnvTokenRegex().Matches(lineText))
+        {
+            // Group 1: {{ — opening bracket
+            ColorGroup(line, match.Groups[1], _bracketBrush);
+            // Group 2: env: — prefix
+            ColorGroup(line, match.Groups[2], _envPrefixBrush);
+            // Group 3: variable name
+            ColorGroup(line, match.Groups[3], _nameBrush);
+            // Group 4: }} — closing bracket
+            ColorGroup(line, match.Groups[4], _bracketBrush);
+        }
+
         foreach (Match match in VariableTokenRegex().Matches(lineText))
         {
             // Group 1: {{ — opening bracket

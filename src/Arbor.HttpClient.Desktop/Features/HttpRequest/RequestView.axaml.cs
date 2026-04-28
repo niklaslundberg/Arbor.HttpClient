@@ -126,7 +126,7 @@ public partial class RequestView : UserControl
                 _requestBodyEditor.TextArea.TextView.LineTransformers.Add(_bodyVariableColorizer);
             }
 
-            _requestBodyAutoCompleteController = new VariableAutoCompleteController(_requestBodyEditor, GetVariableNames);
+            _requestBodyAutoCompleteController = new VariableAutoCompleteController(_requestBodyEditor, GetVariableNames, GetEnvVariableNames);
         }
 
         if (_requestUrlEditor is not null)
@@ -140,7 +140,7 @@ public partial class RequestView : UserControl
                 _requestUrlEditor.TextArea.TextView.LineTransformers.Add(_urlVariableColorizer);
             }
 
-            _requestUrlAutoCompleteController = new VariableAutoCompleteController(_requestUrlEditor, GetVariableNames);
+            _requestUrlAutoCompleteController = new VariableAutoCompleteController(_requestUrlEditor, GetVariableNames, GetEnvVariableNames);
         }
 
         if (_requestPreviewEditor is not null)
@@ -523,9 +523,16 @@ public partial class RequestView : UserControl
             nameBrush = n;
         }
 
-        _urlVariableColorizer.SetBrushes(bracketBrush, nameBrush);
-        _bodyVariableColorizer.SetBrushes(bracketBrush, nameBrush);
-        _previewVariableColorizer.SetBrushes(bracketBrush, nameBrush);
+        IBrush envPrefixBrush = Brushes.SteelBlue;
+        if (Application.Current?.TryGetResource("EnvVariablePrefixBrush", theme, out var envPrefixResource) == true &&
+            envPrefixResource is IBrush ep)
+        {
+            envPrefixBrush = ep;
+        }
+
+        _urlVariableColorizer.SetBrushes(bracketBrush, nameBrush, envPrefixBrush);
+        _bodyVariableColorizer.SetBrushes(bracketBrush, nameBrush, envPrefixBrush);
+        _previewVariableColorizer.SetBrushes(bracketBrush, nameBrush, envPrefixBrush);
 
         _requestUrlEditor?.TextArea.TextView.Redraw();
         _requestBodyEditor?.TextArea.TextView.Redraw();
@@ -551,5 +558,8 @@ public partial class RequestView : UserControl
 
     private IReadOnlyList<string> GetVariableNames() =>
         VariableNameHelper.ExtractDistinctNames(_appVm?.ActiveEnvironmentVariables);
+
+    private static IReadOnlyList<string> GetEnvVariableNames() =>
+        VariableNameHelper.GetSystemEnvironmentVariableNames();
 }
 

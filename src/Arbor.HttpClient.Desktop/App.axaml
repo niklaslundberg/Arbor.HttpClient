@@ -35,6 +35,8 @@
                     <!-- Variable token colors: brackets {{ }} amber, name violet -->
                     <SolidColorBrush x:Key="VariableBracketBrush" Color="#FFB74D" />
                     <SolidColorBrush x:Key="VariableNameBrush" Color="#CE93D8" />
+                    <!-- env: prefix color: teal — distinct from bracket and name colors; WCAG AA ≥ 4.5:1 on #1E1E1E -->
+                    <SolidColorBrush x:Key="EnvVariablePrefixBrush" Color="#4EC9B0" />
                     <!-- Environment accent color presets — used as ComboBox/banner background; white text on all meets WCAG AA ≥ 4.5:1 -->
                     <SolidColorBrush x:Key="EnvironmentsPresetRedBrush" Color="#B41E1E" />
                     <SolidColorBrush x:Key="EnvironmentsPresetAmberBrush" Color="#8B5500" />
@@ -71,6 +73,8 @@
                     <!-- Variable token colors: brackets {{ }} amber, name violet -->
                     <SolidColorBrush x:Key="VariableBracketBrush" Color="#875F09" />
                     <SolidColorBrush x:Key="VariableNameBrush" Color="#744DA9" />
+                    <!-- env: prefix color: teal — distinct from bracket and name colors; WCAG AA ≥ 4.5:1 on #FFFFFF -->
+                    <SolidColorBrush x:Key="EnvVariablePrefixBrush" Color="#0E7C6E" />
                     <!-- Environment accent color presets — used as ComboBox/banner background; white text on all meets WCAG AA ≥ 4.5:1 -->
                     <SolidColorBrush x:Key="EnvironmentsPresetRedBrush" Color="#B41E1E" />
                     <SolidColorBrush x:Key="EnvironmentsPresetAmberBrush" Color="#8B5500" />
