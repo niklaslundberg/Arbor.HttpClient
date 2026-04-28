@@ -30,7 +30,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
     private bool _preserveFormStateOnSave;
     private CancellationTokenSource? _environmentAutoSaveCts;
     private sealed record ExportEnvironmentVariable(string Key, string Value, bool Enabled);
-    private sealed record ExportEnvironment(string Name, IReadOnlyList<ExportEnvironmentVariable> Variables);
+    private sealed record ExportEnvironment(string Name, IReadOnlyList<ExportEnvironmentVariable> Variables, string? AccentColor, bool ShowWarningBanner);
     private sealed record EnvironmentExportPayload(string Format, int Version, IReadOnlyList<ExportEnvironment> Environments);
 
     public EnvironmentsViewModel(
@@ -273,7 +273,9 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
                     environment.Name,
                     environment.Variables
                         .Select(variable => new ExportEnvironmentVariable(variable.Name, variable.Value, variable.IsEnabled))
-                        .ToList()))
+                        .ToList(),
+                    environment.AccentColor,
+                    environment.ShowWarningBanner))
                 .ToList()),
             new JsonSerializerOptions { WriteIndented = true });
 
@@ -322,12 +324,12 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
             int? newEnvironmentId = null;
             if (ActiveEnvironment is { } activeEnv)
             {
-                await _environmentRepository.UpdateAsync(activeEnv.Id, NewEnvironmentName, variables, EditingAccentColor, EditingShowWarningBanner, cancellationToken);
+                await _environmentRepository.UpdateAsync(activeEnv.Id, NewEnvironmentName, variables, accentColor: EditingAccentColor, showWarningBanner: EditingShowWarningBanner, cancellationToken: cancellationToken);
                 _logger.Information("Updated environment {EnvironmentName}", NewEnvironmentName);
             }
             else
             {
-                newEnvironmentId = await _environmentRepository.SaveAsync(NewEnvironmentName, variables, EditingAccentColor, EditingShowWarningBanner, cancellationToken);
+                newEnvironmentId = await _environmentRepository.SaveAsync(NewEnvironmentName, variables, accentColor: EditingAccentColor, showWarningBanner: EditingShowWarningBanner, cancellationToken: cancellationToken);
                 _logger.Information("Created environment {EnvironmentName}", NewEnvironmentName);
             }
 

@@ -90,11 +90,11 @@
                 MinHeight="28">
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <TextBlock Text="{x:Static loc:Strings.EnvironmentsWarningBannerText}"
-                           Foreground="White"
+                           Foreground="{DynamicResource AccentOnColorBrush}"
                            FontWeight="SemiBold"
                            VerticalAlignment="Center" />
                 <TextBlock Text="{Binding ActiveEnvironment.Name}"
-                           Foreground="White"
+                           Foreground="{DynamicResource AccentOnColorBrush}"
                            FontWeight="SemiBold"
                            VerticalAlignment="Center" />
             </StackPanel>

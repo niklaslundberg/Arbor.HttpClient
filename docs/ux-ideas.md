@@ -391,7 +391,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ## 7. Environments
 
 ### 7.1 Environment color indicator ✅ Implemented
-> Implemented in this PR (commit TBD) — `src/Arbor.HttpClient.Core/Environments/RequestEnvironment.cs`, `src/Arbor.HttpClient.Core/Environments/IEnvironmentRepository.cs`, `src/Arbor.HttpClient.Storage.Sqlite/SqliteEnvironmentRepository.cs`, `src/Arbor.HttpClient.Desktop/Features/Environments/EnvironmentsViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Environments/EnvironmentsView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindow.axaml`
+> Implemented in PR #114 (commit `71a8e69`) — `src/Arbor.HttpClient.Core/Environments/RequestEnvironment.cs`, `src/Arbor.HttpClient.Core/Environments/IEnvironmentRepository.cs`, `src/Arbor.HttpClient.Storage.Sqlite/SqliteEnvironmentRepository.cs`, `src/Arbor.HttpClient.Desktop/Features/Environments/EnvironmentsViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Environments/EnvironmentsView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindow.axaml`
 
 **What it means:** Each environment can be assigned an optional accent color (e.g. red for Production, green for Development). When a colored environment is active the color is reflected in the `Env:` dropdown background in the top toolbar, as a small badge dot on the Environments activity-bar icon, and optionally as a full-width warning banner below the toolbar. The color is configured in the Environments panel via a small row of preset color swatches.
 

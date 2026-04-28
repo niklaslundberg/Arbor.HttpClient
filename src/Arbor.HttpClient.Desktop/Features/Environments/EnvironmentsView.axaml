@@ -93,27 +93,27 @@
                                 <TextBlock Text="∅" FontSize="13" />
                             </Button>
                             <!-- Red -->
-                            <Button Classes="ColorSwatch" Background="#B41E1E"
+                            <Button Classes="ColorSwatch" Background="{DynamicResource EnvironmentsPresetRedBrush}"
                                     Command="{Binding SetAccentColorCommand}" CommandParameter="#B41E1E"
                                     ToolTip.Tip="{x:Static loc:Strings.EnvironmentsColorAccessibleNameRed}"
                                     AutomationProperties.Name="{x:Static loc:Strings.EnvironmentsColorAccessibleNameRed}" />
                             <!-- Amber -->
-                            <Button Classes="ColorSwatch" Background="#8B5500"
+                            <Button Classes="ColorSwatch" Background="{DynamicResource EnvironmentsPresetAmberBrush}"
                                     Command="{Binding SetAccentColorCommand}" CommandParameter="#8B5500"
                                     ToolTip.Tip="{x:Static loc:Strings.EnvironmentsColorAccessibleNameAmber}"
                                     AutomationProperties.Name="{x:Static loc:Strings.EnvironmentsColorAccessibleNameAmber}" />
                             <!-- Green -->
-                            <Button Classes="ColorSwatch" Background="#1E7A3C"
+                            <Button Classes="ColorSwatch" Background="{DynamicResource EnvironmentsPresetGreenBrush}"
                                     Command="{Binding SetAccentColorCommand}" CommandParameter="#1E7A3C"
                                     ToolTip.Tip="{x:Static loc:Strings.EnvironmentsColorAccessibleNameGreen}"
                                     AutomationProperties.Name="{x:Static loc:Strings.EnvironmentsColorAccessibleNameGreen}" />
                             <!-- Blue -->
-                            <Button Classes="ColorSwatch" Background="#1E50B4"
+                            <Button Classes="ColorSwatch" Background="{DynamicResource EnvironmentsPresetBlueBrush}"
                                     Command="{Binding SetAccentColorCommand}" CommandParameter="#1E50B4"
                                     ToolTip.Tip="{x:Static loc:Strings.EnvironmentsColorAccessibleNameBlue}"
                                     AutomationProperties.Name="{x:Static loc:Strings.EnvironmentsColorAccessibleNameBlue}" />
                             <!-- Purple -->
-                            <Button Classes="ColorSwatch" Background="#6A1EB4"
+                            <Button Classes="ColorSwatch" Background="{DynamicResource EnvironmentsPresetPurpleBrush}"
                                     Command="{Binding SetAccentColorCommand}" CommandParameter="#6A1EB4"
                                     ToolTip.Tip="{x:Static loc:Strings.EnvironmentsColorAccessibleNamePurple}"
                                     AutomationProperties.Name="{x:Static loc:Strings.EnvironmentsColorAccessibleNamePurple}" />

@@ -280,7 +280,7 @@ public class SqliteRepositoriesTests
 
             await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
-            var environmentId = await repository.SaveAsync(
+            await repository.SaveAsync(
                 "Neutral",
                 [],
                 cancellationToken: TestContext.Current.CancellationToken);
