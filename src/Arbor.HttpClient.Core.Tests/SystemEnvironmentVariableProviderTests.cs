@@ -3,8 +3,13 @@ using Arbor.HttpClient.Core.Variables;
 namespace Arbor.HttpClient.Core.Tests;
 
 /// <summary>
-/// Tests for <see cref="SystemEnvironmentVariableProvider"/> that exercise the real process environment.
+/// Integration tests for <see cref="SystemEnvironmentVariableProvider"/> that exercise the real
+/// process environment. These tests mutate process-level state and must not run in parallel with
+/// other tests that depend on the same environment keys — hence the
+/// <see cref="ProcessEnvironmentCollection"/> collection with <c>DisableParallelization = true</c>.
 /// </summary>
+[Collection("ProcessEnvironment")]
+[Trait("Category", "Integration")]
 public class SystemEnvironmentVariableProviderTests
 {
     [Fact]
@@ -12,6 +17,7 @@ public class SystemEnvironmentVariableProviderTests
     {
         const string key = "ARBOR_HTTP_CLIENT_TEST_VAR";
         const string value = "test_value_42";
+        var previous = Environment.GetEnvironmentVariable(key);
         Environment.SetEnvironmentVariable(key, value);
         try
         {
@@ -23,7 +29,7 @@ public class SystemEnvironmentVariableProviderTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable(key, null);
+            Environment.SetEnvironmentVariable(key, previous);
         }
     }
 
@@ -32,6 +38,7 @@ public class SystemEnvironmentVariableProviderTests
     {
         const string key = "ARBOR_HTTP_CLIENT_CI_TEST";
         const string value = "ci_value";
+        var previous = Environment.GetEnvironmentVariable(key);
         Environment.SetEnvironmentVariable(key, value);
         try
         {
@@ -43,7 +50,7 @@ public class SystemEnvironmentVariableProviderTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable(key, null);
+            Environment.SetEnvironmentVariable(key, previous);
         }
     }
 
@@ -51,12 +58,21 @@ public class SystemEnvironmentVariableProviderTests
     public void GetAll_ShouldNotContainRemovedVariable()
     {
         const string key = "ARBOR_HTTP_CLIENT_REMOVED_VAR";
-        Environment.SetEnvironmentVariable(key, "transient");
-        Environment.SetEnvironmentVariable(key, null);
+        var previous = Environment.GetEnvironmentVariable(key);
+        try
+        {
+            // Set, then explicitly remove the variable so we verify that null/removal is reflected.
+            Environment.SetEnvironmentVariable(key, "transient");
+            Environment.SetEnvironmentVariable(key, null);
 
-        var provider = new SystemEnvironmentVariableProvider();
-        var result = provider.GetAll();
+            var provider = new SystemEnvironmentVariableProvider();
+            var result = provider.GetAll();
 
-        result.Should().NotContainKey(key);
+            result.Should().NotContainKey(key);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(key, previous);
+        }
     }
 }

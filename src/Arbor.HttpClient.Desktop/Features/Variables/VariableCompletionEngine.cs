@@ -42,7 +42,12 @@ public static class VariableCompletionEngine
         {
             var envNameStart = prefixStart + EnvPrefix.Length;
             var envNamePrefix = text[envNameStart..caretOffset];
-            context = new VariableCompletionContext(envNameStart, envNamePrefix, IsEnvVariable: true);
+
+            // Trim any leading whitespace so "{{env: HOME}}" autocomplete works
+            // consistently with how the resolver handles the same whitespace.
+            var trimmedEnvNamePrefix = envNamePrefix.TrimStart();
+            var trimmedEnvNameStart = envNameStart + (envNamePrefix.Length - trimmedEnvNamePrefix.Length);
+            context = new VariableCompletionContext(trimmedEnvNameStart, trimmedEnvNamePrefix, IsEnvVariable: true);
             return true;
         }
 

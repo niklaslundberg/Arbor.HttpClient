@@ -197,6 +197,20 @@ If any step fails locally, fix it before pushing — this avoids triggering a CI
     - `Arbor.HttpClient.Testing`: no minimum — this project provides test doubles and its coverage is driven indirectly.
   - After every feature PR, run coverage, read the XML output, update `docs/coverage.md`, and include the numbers in the PR description.
 - **Test naming convention**: Name tests using the `Method_Scenario_ExpectedResult` pattern (e.g. `Parse_EmptyInput_ThrowsArgumentException`). Each test should verify one behavioral intent; arrange test data explicitly rather than relying on implicit state.
+- **[REQUIRED][QUALITY]** Integration tests — tests that exercise real external resources (file system, network, process environment variables, database, etc.) — must be clearly distinguished from pure unit tests:
+  - Annotate integration test classes with `[Trait("Category", "Integration")]`.
+  - Any tests that mutate process-global state (e.g. `Environment.SetEnvironmentVariable`) must belong to a dedicated xUnit collection with `DisableParallelization = true` so they do not race with other tests that read the same state. Define the collection in a `*Collection.cs` file in the same test project:
+    ```csharp
+    [CollectionDefinition("ProcessEnvironment", DisableParallelization = true)]
+    public sealed class ProcessEnvironmentCollection;
+    ```
+    Then apply the collection to every test class that mutates that state:
+    ```csharp
+    [Collection("ProcessEnvironment")]
+    [Trait("Category", "Integration")]
+    public class MyIntegrationTests { ... }
+    ```
+  - Always save the previous value of any mutated global state before the test and restore it in a `finally` block (or equivalent teardown), even if the variable was `null` before the test. This ensures cleanup is complete whether the test passes or fails and avoids leaking state changes that could affect the rest of the test run.
 - Profiling-oriented validation is required when changing request execution hot paths, scheduled/background job loops, data-processing loops, or code that introduces disposable/resource-heavy objects.
 - Treat code as a hot path when it runs on every request, for each item in a collection, or on a recurring timer. Profiling is optional for isolated admin/one-off flows.
 - Use JetBrains dotMemory Unit or equivalent tools (for example `dotnet-counters` or BenchmarkDotNet) to catch memory leaks, performance bottlenecks, or resource leaks. Attach profiling evidence in the PR when this requirement applies.

@@ -20,6 +20,7 @@ public sealed class VariableResolver
     /// <summary>Initialises the resolver with the supplied environment variable provider (allows test injection).</summary>
     public VariableResolver(ISystemEnvironmentVariableProvider environmentVariableProvider)
     {
+        ArgumentNullException.ThrowIfNull(environmentVariableProvider);
         _environmentVariableProvider = environmentVariableProvider;
     }
 

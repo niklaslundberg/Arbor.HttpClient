@@ -87,4 +87,19 @@ public class VariableCompletionEngineTests
         context.IsEnvVariable.Should().BeTrue();
         context.Prefix.Should().Be("VAR");
     }
+
+    [Fact]
+    public void TryGetContext_ShouldTrimLeadingWhitespace_AfterEnvColon()
+    {
+        // "{{env: HOME" — space after the colon; prefix and start offset must skip the space
+        var text = "{{env: HOME";
+        var caretOffset = text.Length;
+
+        var hasContext = VariableCompletionEngine.TryGetContext(text, caretOffset, out var context);
+
+        hasContext.Should().BeTrue();
+        context.IsEnvVariable.Should().BeTrue();
+        context.Prefix.Should().Be("HOME");
+        context.ReplaceStartOffset.Should().Be("{{env: ".Length);
+    }
 }
