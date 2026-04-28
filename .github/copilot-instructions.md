@@ -630,3 +630,57 @@ All text-input controls must have a consistent look and feel that matches the Av
   - Font family and size must be explicitly propagated from the app-level `UiFontFamily`/`UiFontSize` bindings via `ApplyEditorFont`
 - **`TextBox` controls that remain as plain `TextBox`** do not need additional styling; they automatically inherit font and appearance from the Fluent theme and window-level `FontFamily`/`FontSize` bindings.
 - Never mix raw `TextEditor` controls and styled `TextBox` controls in the same row or form group without ensuring they have the same effective height and padding.
+
+## 21. Hyper-V System Tests (Pre-Commit Check for Windows Developers)
+
+**`[RECOMMENDED][PROCESS]`** When working on the desktop application (`Arbor.HttpClient.Desktop`) on a Windows 11 machine with Hyper-V enabled, run the VM-based system tests before declaring a PR ready.
+
+### Quick availability probe
+
+Run `scripts/Test-HyperVAvailability.ps1` first. This is a fast, non-destructive check (no VMs created). Exit code 0 means Hyper-V is available and you can proceed with full system tests.
+
+```powershell
+scripts/Test-HyperVAvailability.ps1
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "Hyper-V is available — full system tests can run."
+} else {
+    Write-Host "Hyper-V not available on this machine — skip full system tests."
+}
+```
+
+If exit code is 0, run the full system tests:
+
+```powershell
+scripts/Start-UIAutomation.ps1 `
+    -BaseVhdx "C:\HyperV\Base\win11-base.vhdx" `
+    -RecordVideo `
+    -Theme Light       # preferred for video recordings
+```
+
+For dark-theme screenshots, run a second pass:
+
+```powershell
+scripts/Start-UIAutomation.ps1 `
+    -BaseVhdx  "C:\HyperV\Base\win11-base.vhdx" `
+    -OutputDir "docs\system-test-screenshots\dark" `
+    -Theme     Dark
+```
+
+### When to run
+
+- **Always** when making changes to the application UI (`.axaml`, ViewModels, main window layout).
+- **Optional** for backend-only changes (services, HTTP logic, storage).
+
+### CI integration
+
+- Full VM system tests run on demand via `.github/workflows/system-tests.yml` (`workflow_dispatch`).
+- The Hyper-V environment probe runs on demand via `.github/workflows/vm-probe.yml` (`workflow_dispatch`).
+- Neither workflow runs automatically in the standard CI pipeline — they are on-demand only.
+
+### Artifacts persisted in the repository
+
+System test screenshots are committed to `docs/system-test-screenshots/` when the workflow is run with `commit_screenshots: true` (on a self-hosted runner with write access). Locally, commit output to `docs/system-test-screenshots/` and include them in the PR description the same way as headless screenshots from `docs/screenshots/`.
+
+### Base VHDX preparation
+
+See `docs/vm-ui-automation.md` section 4 for step-by-step instructions on preparing a sysprepped Windows VHDX to use as the base image.

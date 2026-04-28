@@ -86,8 +86,9 @@ virtualisation enabled. The scripts:
 
 | Script | Platform | Purpose |
 |---|---|---|
+| `scripts/Test-HyperVAvailability.ps1` | Windows | Fast non-destructive probe — checks if Hyper-V is available and usable. Exit 0 = available. |
 | `scripts/Start-UIAutomation.ps1` | Windows 11 + Hyper-V | Orchestrator — manages VM lifecycle, deploys app, runs automation, assembles video |
-| `scripts/Invoke-InVMAutomation.ps1` | Windows guest (run via PowerShell Direct) | Inner automation driver — launches app, sends keyboard/mouse, saves screenshots |
+| `scripts/Invoke-InVMAutomation.ps1` | Windows guest (run via PowerShell Direct) | Inner automation driver — launches app, sends keyboard/mouse, saves screenshots. Supports `-Theme Light/Dark/Default`. |
 | `scripts/start-ui-automation-kvm.sh` | Ubuntu 22.04+ host + QEMU/KVM | Bash orchestrator using KVM, SSH, xdotool, and ffmpeg |
 
 ---
@@ -234,23 +235,21 @@ remain valid even if the window moves or resizes.
 Install the signed MSIX package (from the release workflow) inside the VM instead of a raw
 publish directory, giving end-to-end coverage of the package + installer path.
 
-### Sub-task 7 — Self-hosted runner OR large Linux runner CI integration *(future)*
-Add a GitHub Actions workflow job that triggers `start-ui-automation-kvm.sh` automatically on
-pushes to `main` or on demand via `workflow_dispatch`.
+### Sub-task 7 — System tests via on-demand GitHub Actions workflow ✅ Implemented
 
-**Two implementation options:**
+Two on-demand workflows have been added to the repository:
 
-- **Option A — Large Linux runner (recommended first step):** GitHub's large Linux runners
-  (4+ vCPU paid tier) officially expose `/dev/kvm`. The workflow can start a QEMU/KVM guest,
-  install the app, run xdotool/Xvfb automation, and export screenshots — no self-hosted
-  infrastructure required. This is the most practical next CI step.
-  ```yaml
-  runs-on: ubuntu-latest-4-cores   # or ubuntu-22.04-4-cores
-  ```
+- **`.github/workflows/system-tests.yml`** — triggers via `workflow_dispatch`. Accepts
+  optional `base_vhdx_path` (for self-hosted runners with a prepared base VHDX) and
+  `commit_screenshots` inputs. When Hyper-V + a base VHDX are available it runs the full
+  VM-based automation; otherwise it falls back to direct runner UI automation. Captures
+  screenshots in both light and dark themes; records video in light theme.
+- **`.github/workflows/vm-probe.yml`** — on-demand diagnostics (`workflow_dispatch` only).
+  Contains the Hyper-V environment probe steps that were previously part of the standard
+  CI pipeline. Use this when further investigation of the runner environment is needed.
 
-- **Option B — Self-hosted Windows runner:** A Windows 11 machine owned by the code author,
-  enrolled as a self-hosted runner and Hyper-V enabled, allows `Start-UIAutomation.ps1` to run
-  as a workflow step. Provides the full Windows GUI experience but requires maintaining the runner.
+The standard CI pipeline (`ci.yml`) no longer contains the `experimental-vm-probe` job.
+All Hyper-V/VM activity is on-demand only.
 
 ### Sub-task 8 — Result reporting *(future)*
 Parse step results and screenshots from the VM run and post a summary comment to the pull

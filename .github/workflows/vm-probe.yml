@@ -1,0 +1,158 @@
+name: Hyper-V Environment Probe (On-Demand)
+
+on:
+  workflow_dispatch:
+
+# This workflow is for on-demand investigation of the Hyper-V / virtualisation
+# capabilities of the Windows runner. It is NOT part of the standard CI pipeline.
+# Run it manually when further diagnostics are needed.
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  vm-probe:
+    name: Windows VM / Hyper-V Probe
+    runs-on: windows-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: "10.0.x"
+
+      # -----------------------------------------------------------------------
+      # Step 1: Probe the environment
+      # -----------------------------------------------------------------------
+      - name: Probe environment and virtualisation capabilities
+        id: probe-env
+        continue-on-error: true
+        shell: pwsh
+        run: scripts/Probe-Environment.ps1
+
+      # -----------------------------------------------------------------------
+      # Step 2: Try to enable Hyper-V (may require a reboot — expected to fail)
+      # -----------------------------------------------------------------------
+      - name: Try enabling Hyper-V Windows feature
+        id: enable-hv
+        continue-on-error: true
+        shell: pwsh
+        run: scripts/Enable-HyperV.ps1
+
+      # -----------------------------------------------------------------------
+      # Step 3: Build and publish the desktop app
+      # -----------------------------------------------------------------------
+      - name: Restore NuGet packages
+        id: restore
+        continue-on-error: true
+        run: dotnet restore Arbor.HttpClient.slnx --locked-mode
+
+      - name: Publish win-x64 self-contained
+        id: publish
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          dotnet publish src/Arbor.HttpClient.Desktop/Arbor.HttpClient.Desktop.csproj `
+              --configuration Release `
+              -r win-x64 `
+              --self-contained true `
+              -o publish/win-x64 `
+              -v quiet
+          $exe = "publish/win-x64/Arbor.HttpClient.Desktop.exe"
+          $ok  = Test-Path $exe
+          Write-Host "Publish succeeded: $ok  (exe: $exe)"
+          "PUBLISH_OK=$ok" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      # -----------------------------------------------------------------------
+      # Step 4: Try creating a minimal Hyper-V VM (no OS — proves the API)
+      # -----------------------------------------------------------------------
+      - name: Try creating a minimal Hyper-V VM
+        id: vm-create
+        continue-on-error: true
+        shell: pwsh
+        run: scripts/New-ProbeVM.ps1
+
+      # -----------------------------------------------------------------------
+      # Step 5: Launch the app, record a 5s screen capture with ffmpeg,
+      # drive it with Win32 UI automation, then validate video content.
+      # -----------------------------------------------------------------------
+      - name: Launch app, record screen, and validate video
+        id: launch-app
+        continue-on-error: true
+        shell: pwsh
+        run: scripts/Invoke-UIAutomationProbe.ps1
+
+      - name: Upload screenshots and screen recording
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ui-automation-artifacts
+          path: |
+            desktop-before.png
+            desktop-after.png
+            app-recording.mp4
+            validation-frame.png
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # -----------------------------------------------------------------------
+      # Step 6: Summarise all findings
+      # -----------------------------------------------------------------------
+      - name: Write probe summary
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          scripts/Write-ProbeSummary.ps1 `
+            -CpuVirt           '${{ steps.probe-env.outputs.CPU_VIRT }}' `
+            -HvState           '${{ steps.probe-env.outputs.HV_STATE }}' `
+            -HvModule          '${{ steps.probe-env.outputs.HV_MODULE }}' `
+            -HvEnable          '${{ steps.enable-hv.outputs.RESTART_NEEDED }}' `
+            -RestoreOutcome    '${{ steps.restore.outcome }}' `
+            -PublishOutcome    '${{ steps.publish.outcome }}' `
+            -PublishOk         '${{ steps.publish.outputs.PUBLISH_OK }}' `
+            -VmResult          '${{ steps.vm-create.outputs.VM_RESULT }}' `
+            -VmStart           '${{ steps.vm-create.outputs.VM_START }}' `
+            -AppRunning        '${{ steps.launch-app.outputs.APP_RUNNING }}' `
+            -WindowFound       '${{ steps.launch-app.outputs.WINDOW_FOUND }}' `
+            -UiInteraction     '${{ steps.launch-app.outputs.UI_INTERACTION }}' `
+            -ScreenshotBefore  '${{ steps.launch-app.outputs.SCREENSHOT_BEFORE }}' `
+            -ScreenshotAfter   '${{ steps.launch-app.outputs.SCREENSHOT_AFTER }}' `
+            -RecordingStarted  '${{ steps.launch-app.outputs.RECORDING_STARTED }}' `
+            -RecordingExit     '${{ steps.launch-app.outputs.RECORDING_EXIT }}' `
+            -RecordingSizeMb   '${{ steps.launch-app.outputs.RECORDING_SIZE_MB }}' `
+            -VideoDuration     '${{ steps.launch-app.outputs.VIDEO_DURATION }}' `
+            -VideoFrames       '${{ steps.launch-app.outputs.VIDEO_FRAMES }}' `
+            -VideoHasContent   '${{ steps.launch-app.outputs.VIDEO_HAS_CONTENT }}' `
+            -VideoUniqueColors '${{ steps.launch-app.outputs.VIDEO_UNIQUE_COLORS }}'
+
+      - name: Upload probe report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: vm-probe-report
+          path: |
+            probe-env.txt
+            probe-summary.md
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # -----------------------------------------------------------------------
+      # Step 7: Post a run summary of the probe results
+      # -----------------------------------------------------------------------
+      - name: Add probe summary to job summary
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          if (Test-Path 'probe-summary.md') {
+            Get-Content 'probe-summary.md' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          }

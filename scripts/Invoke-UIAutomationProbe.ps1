@@ -16,10 +16,31 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$ExePath = "publish/win-x64/Arbor.HttpClient.Desktop.exe"
+    [string]$ExePath = "publish/win-x64/Arbor.HttpClient.Desktop.exe",
+
+    # Windows theme to apply before launching the application.
+    # Light — sets AppsUseLightTheme=1 and SystemUsesLightTheme=1.
+    # Dark  — sets both to 0.
+    # Default — leaves the current OS theme unchanged.
+    [ValidateSet('Light', 'Dark', 'Default')]
+    [string]$Theme = 'Default'
 )
 
 Set-StrictMode -Version Latest
+
+# Apply Windows theme before launching (no-op when Theme = 'Default')
+if ($Theme -ne 'Default') {
+    $regPath    = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+    $lightValue = if ($Theme -eq 'Light') { 1 } else { 0 }
+    try {
+        Set-ItemProperty -Path $regPath -Name 'AppsUseLightTheme'    -Value $lightValue -ErrorAction Stop
+        Set-ItemProperty -Path $regPath -Name 'SystemUsesLightTheme' -Value $lightValue -ErrorAction Stop
+        Write-Host "Theme set to: $Theme"
+        Start-Sleep -Seconds 2
+    } catch {
+        Write-Warning "Could not set $Theme theme via registry: $_"
+    }
+}
 
 if (-not (Test-Path $ExePath)) {
     Write-Host "Exe not found at $ExePath — skipping."
