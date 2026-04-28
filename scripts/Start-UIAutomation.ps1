@@ -79,6 +79,12 @@
 .PARAMETER ScreenHeight
     Guest screen height in pixels. Defaults to 800.
 
+.PARAMETER Theme
+    Windows theme to apply inside the VM before launching the application.
+    Light   — preferred for video recordings and demos (sets AppsUseLightTheme=1).
+    Dark    — use for dark-theme screenshots (sets AppsUseLightTheme=0).
+    Default — leave the guest OS theme unchanged (the default).
+
 .EXAMPLE
     # Minimal run — prompts for base VHDX path and guest password
     .\scripts\Start-UIAutomation.ps1 -BaseVhdx "C:\HyperV\Base\win11-base.vhdx"
@@ -134,7 +140,14 @@ param(
     # Name of the Hyper-V virtual switch to attach to the VM.
     # If omitted the script selects the first External switch automatically.
     # Run 'Get-VMSwitch' to list available switches.
-    [string]$SwitchName           = ""
+    [string]$SwitchName           = "",
+
+    # Windows theme to apply inside the VM before launching the application.
+    # Light — preferred for video recordings and demos.
+    # Dark  — use for dark-theme screenshots.
+    # Default — leave the guest OS theme unchanged.
+    [ValidateSet('Light', 'Dark', 'Default')]
+    [string]$Theme                = 'Default'
 )
 
 Set-StrictMode -Version Latest
@@ -409,17 +422,16 @@ Invoke-Step "Copying application into VM" {
 # ---------------------------------------------------------------------------
 
 Invoke-Step "Running UI automation inside VM" {
-    $pauseFlag = if ($PauseAfterEachStep) { '$true' } else { '$false' }
-
     $result = Invoke-Command -VMName $VmName -Credential $credential -ScriptBlock {
-        param([bool]$Pause)
+        param([bool]$Pause, [string]$Theme)
         Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
         & "C:\automation\Invoke-InVMAutomation.ps1" `
             -AppExe        "C:\automation\app\Arbor.HttpClient.Desktop.exe" `
             -ScreenshotDir "C:\automation\screenshots" `
+            -Theme         $Theme `
             -PauseAfterEachStep:$Pause `
             -Verbose
-    } -ArgumentList $PauseAfterEachStep
+    } -ArgumentList $PauseAfterEachStep, $Theme
 
     Write-Host "    Automation result: $result" -ForegroundColor DarkGray
 }

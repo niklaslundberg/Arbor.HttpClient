@@ -40,6 +40,12 @@
 .PARAMETER StepDelaySeconds
     Seconds to wait between automation steps for UI to settle. Default: 1.
 
+.PARAMETER Theme
+    Windows theme to apply before launching the application.
+    Light   — sets AppsUseLightTheme=1 and SystemUsesLightTheme=1 in the registry.
+    Dark    — sets both values to 0.
+    Default — leaves the current OS theme unchanged (the default).
+
 .EXAMPLE
     # Typically invoked by Start-UIAutomation.ps1 via PowerShell Direct:
     .\Invoke-InVMAutomation.ps1 -AppExe "C:\automation\app\Arbor.HttpClient.Desktop.exe" `
@@ -53,11 +59,35 @@ param(
     [string]$ScreenshotDir       = "C:\automation\screenshots",
     [switch]$PauseAfterEachStep,
     [int]$StartupWaitSeconds     = 15,
-    [int]$StepDelaySeconds       = 1
+    [int]$StepDelaySeconds       = 1,
+
+    # Windows theme to apply before launching the application.
+    # Light — sets AppsUseLightTheme=1 and SystemUsesLightTheme=1 in the registry.
+    # Dark  — sets both values to 0.
+    # Default — leaves the current OS theme unchanged.
+    [ValidateSet('Light', 'Dark', 'Default')]
+    [string]$Theme               = 'Default'
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# ---------------------------------------------------------------------------
+# Apply Windows theme before launching the application
+# ---------------------------------------------------------------------------
+
+if ($Theme -ne 'Default') {
+    $regPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+    $lightValue = if ($Theme -eq 'Light') { 1 } else { 0 }
+    try {
+        Set-ItemProperty -Path $regPath -Name 'AppsUseLightTheme'    -Value $lightValue -ErrorAction Stop
+        Set-ItemProperty -Path $regPath -Name 'SystemUsesLightTheme' -Value $lightValue -ErrorAction Stop
+        Write-Host "Theme set to: $Theme"
+        Start-Sleep -Seconds 2
+    } catch {
+        Write-Warning "Could not set $Theme theme via registry: $_"
+    }
+}
 
 # ---------------------------------------------------------------------------
 # Win32 P/Invoke helpers

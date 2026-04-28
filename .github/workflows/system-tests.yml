@@ -1,0 +1,266 @@
+name: System Tests (VM UI Automation)
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_vhdx_path:
+        description: >
+          Path to a sysprepped Windows VHDX on the runner host.
+          Required for full Hyper-V VM automation. Leave blank to fall back
+          to direct runner UI automation (no real VM).
+        required: false
+        default: ''
+      commit_screenshots:
+        description: >
+          Commit updated screenshots and videos back to the repository
+          (docs/system-test-screenshots/). Set to true when running on a
+          self-hosted runner with push rights.
+        type: boolean
+        required: false
+        default: false
+
+# System tests run on demand only. They exercise the real application in a
+# Windows environment, optionally inside a Hyper-V VM when a base VHDX is
+# available on the runner host.
+#
+# Screenshots are captured in both light and dark themes.
+# Video recording uses light theme (preferred for demos/documentation).
+#
+# Artifacts are always uploaded to the Actions run. When commit_screenshots
+# is true (requires a self-hosted runner with write rights), results are
+# also committed to docs/system-test-screenshots/ in the repository.
+
+permissions:
+  contents: read
+
+jobs:
+  system-tests:
+    name: Windows System Tests
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload-system-artifacts.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: "10.0.x"
+
+      # -----------------------------------------------------------------------
+      # Step 1: Check whether Hyper-V is usable on this runner
+      # -----------------------------------------------------------------------
+      - name: Check Hyper-V availability
+        id: hv-check
+        continue-on-error: true
+        shell: pwsh
+        run: scripts/Test-HyperVAvailability.ps1
+
+      # -----------------------------------------------------------------------
+      # Step 2: Build the desktop application
+      # -----------------------------------------------------------------------
+      - name: Restore NuGet packages
+        run: dotnet restore Arbor.HttpClient.slnx --locked-mode
+
+      - name: Audit NuGet dependencies for vulnerabilities
+        run: dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive
+
+      - name: Publish win-x64 self-contained
+        id: publish
+        shell: pwsh
+        run: |
+          dotnet publish src/Arbor.HttpClient.Desktop/Arbor.HttpClient.Desktop.csproj `
+              --configuration Release `
+              -r win-x64 `
+              --self-contained true `
+              -o publish/win-x64 `
+              -v quiet
+          $exe = "publish/win-x64/Arbor.HttpClient.Desktop.exe"
+          $ok  = Test-Path $exe
+          Write-Host "Publish succeeded: $ok  (exe: $exe)"
+          "PUBLISH_OK=$ok" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Verify publish output
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'publish/win-x64/Arbor.HttpClient.Desktop.exe')) {
+            Write-Error "Desktop exe not found after publish — aborting."
+            exit 1
+          }
+
+      # -----------------------------------------------------------------------
+      # Step 3a: Full VM-based system tests (when Hyper-V + base VHDX available)
+      # -----------------------------------------------------------------------
+      - name: Run full VM system tests — light theme (screenshots + video)
+        id: vm-light
+        if: >
+          steps.hv-check.outputs.HYPERV_AVAILABLE == 'True' &&
+          inputs.base_vhdx_path != ''
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path 'system-test-screenshots/vm/light' | Out-Null
+          scripts/Start-UIAutomation.ps1 `
+            -BaseVhdx    '${{ inputs.base_vhdx_path }}' `
+            -OutputDir   'system-test-screenshots/vm/light' `
+            -Theme       Light `
+            -RecordVideo
+
+      - name: Run full VM system tests — dark theme (screenshots only)
+        id: vm-dark
+        if: >
+          steps.hv-check.outputs.HYPERV_AVAILABLE == 'True' &&
+          inputs.base_vhdx_path != ''
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path 'system-test-screenshots/vm/dark' | Out-Null
+          scripts/Start-UIAutomation.ps1 `
+            -BaseVhdx    '${{ inputs.base_vhdx_path }}' `
+            -OutputDir   'system-test-screenshots/vm/dark' `
+            -Theme       Dark
+
+      # -----------------------------------------------------------------------
+      # Step 3b: Direct runner UI automation (fallback — no real VM)
+      # -----------------------------------------------------------------------
+      - name: Run direct runner UI automation — light theme (screenshots + video)
+        id: runner-light
+        if: >
+          steps.hv-check.outputs.HYPERV_AVAILABLE != 'True' ||
+          inputs.base_vhdx_path == ''
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path 'system-test-screenshots/runner/light' | Out-Null
+          scripts/Invoke-UIAutomationProbe.ps1 `
+            -ExePath 'publish/win-x64/Arbor.HttpClient.Desktop.exe' `
+            -Theme Light
+          # Move produced screenshots to the output directory
+          $dest = 'system-test-screenshots/runner/light'
+          foreach ($f in @('desktop-before.png', 'desktop-after.png', 'app-recording.mp4', 'validation-frame.png')) {
+            if (Test-Path $f) { Move-Item $f (Join-Path $dest $f) -Force }
+          }
+
+      - name: Run direct runner UI automation — dark theme (screenshots only)
+        id: runner-dark
+        if: >
+          steps.hv-check.outputs.HYPERV_AVAILABLE != 'True' ||
+          inputs.base_vhdx_path == ''
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path 'system-test-screenshots/runner/dark' | Out-Null
+          scripts/Invoke-UIAutomationProbe.ps1 `
+            -ExePath 'publish/win-x64/Arbor.HttpClient.Desktop.exe' `
+            -Theme Dark
+          $dest = 'system-test-screenshots/runner/dark'
+          foreach ($f in @('desktop-before.png', 'desktop-after.png')) {
+            if (Test-Path $f) { Move-Item $f (Join-Path $dest $f) -Force }
+          }
+
+      # -----------------------------------------------------------------------
+      # Step 4: Upload all artifacts
+      # -----------------------------------------------------------------------
+      - name: Upload system test screenshots and recordings
+        if: always()
+        id: upload-system-artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: system-test-artifacts-${{ github.run_number }}
+          path: system-test-screenshots/
+          retention-days: 90
+          if-no-files-found: ignore
+
+      # -----------------------------------------------------------------------
+      # Step 5: Job summary
+      # -----------------------------------------------------------------------
+      - name: Write job summary
+        if: always()
+        shell: pwsh
+        run: |
+          $lines = @(
+            "## System Test Results"
+            ""
+            "| Step | Outcome |"
+            "|---|---|"
+            "| Hyper-V available | $('${{ steps.hv-check.outputs.HYPERV_AVAILABLE }}' -replace '^$','(check skipped)') |"
+            "| Publish | ${{ steps.publish.outcome }} |"
+          )
+          if ('${{ inputs.base_vhdx_path }}') {
+            $lines += "| VM system tests (light) | ${{ steps.vm-light.outcome }} |"
+            $lines += "| VM system tests (dark)  | ${{ steps.vm-dark.outcome }} |"
+          } else {
+            $lines += "| Runner UI automation (light) | ${{ steps.runner-light.outcome }} |"
+            $lines += "| Runner UI automation (dark)  | ${{ steps.runner-dark.outcome }} |"
+          }
+          $lines += ""
+          $artifactUrl = '${{ steps.upload-system-artifacts.outputs.artifact-url }}'
+          if ($artifactUrl) {
+            $lines += "Artifacts uploaded: [$artifactUrl]($artifactUrl)"
+          }
+          $lines | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+  # Separate job with write permissions — only runs when commit_screenshots=true.
+  # Isolating this ensures the test job always runs with read-only access.
+  commit-results:
+    name: Commit Screenshots to Repository
+    needs: system-tests
+    if: inputs.commit_screenshots
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - name: Download system test artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: system-test-artifacts-${{ github.run_number }}
+          path: system-test-screenshots
+
+      - name: Commit screenshots
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Authenticate push via token in remote URL (persist-credentials: false
+          # does not leave credentials in git config).
+          git remote set-url origin "https://x-access-token:$env:GH_TOKEN@github.com/${{ github.repository }}.git"
+
+          $dest = 'docs/system-test-screenshots'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+
+          $srcDir = Resolve-Path 'system-test-screenshots' -ErrorAction SilentlyContinue
+          if (-not $srcDir) {
+            Write-Host "No system-test-screenshots directory found — nothing to commit."
+            exit 0
+          }
+
+          # Copy new screenshots and videos into the docs directory
+          Get-ChildItem -Path $srcDir -Recurse -File | ForEach-Object {
+            $rel  = $_.FullName.Substring($srcDir.Path.Length + 1)
+            $out  = Join-Path $dest $rel
+            New-Item -ItemType Directory -Force -Path (Split-Path $out) | Out-Null
+            Copy-Item $_.FullName $out -Force
+          }
+
+          git add docs/system-test-screenshots/
+          # Use --cached to check only staged changes, avoiding noise from
+          # untracked build outputs (publish/, system-test-screenshots/, etc.)
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "chore: update system test screenshots [skip ci]"
+            git push
+            Write-Host "Screenshots committed."
+          } else {
+            Write-Host "No screenshot changes — nothing to commit."
+          }
