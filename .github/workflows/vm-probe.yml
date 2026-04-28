@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   vm-probe:
@@ -18,7 +17,6 @@ jobs:
     continue-on-error: true
     permissions:
       contents: read
-      pull-requests: write
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
@@ -54,6 +52,10 @@ jobs:
         id: restore
         continue-on-error: true
         run: dotnet restore Arbor.HttpClient.slnx --locked-mode
+
+      - name: Audit NuGet dependencies for vulnerabilities
+        continue-on-error: true
+        run: dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive
 
       - name: Publish win-x64 self-contained
         id: publish

@@ -79,6 +79,12 @@
 .PARAMETER ScreenHeight
     Guest screen height in pixels. Defaults to 800.
 
+.PARAMETER Theme
+    Windows theme to apply inside the VM before launching the application.
+    Light   — preferred for video recordings and demos (sets AppsUseLightTheme=1).
+    Dark    — use for dark-theme screenshots (sets AppsUseLightTheme=0).
+    Default — leave the guest OS theme unchanged (the default).
+
 .EXAMPLE
     # Minimal run — prompts for base VHDX path and guest password
     .\scripts\Start-UIAutomation.ps1 -BaseVhdx "C:\HyperV\Base\win11-base.vhdx"

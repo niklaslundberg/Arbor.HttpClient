@@ -47,7 +47,11 @@ function Write-Outcome {
 }
 
 # 1. Must be Windows
-$onWindows = ($IsWindows -or ($env:OS -match 'Windows_NT'))
+# $IsWindows is not defined in Windows PowerShell 5.1, so guard against
+# strict-mode errors by testing whether the variable is set first.
+$onWindows = (
+    (Test-Path variable:IsWindows) -and $IsWindows
+) -or ($env:OS -match 'Windows_NT')
 if (-not $onWindows) {
     Write-Outcome -Available $false -Reason 'not running on Windows'
     exit 1

@@ -13,6 +13,12 @@
 .PARAMETER ExePath
     Path to the self-contained Arbor.HttpClient.Desktop.exe. Defaults to
     publish/win-x64/Arbor.HttpClient.Desktop.exe relative to the working directory.
+
+.PARAMETER Theme
+    Windows theme to apply before launching the application.
+    Light   — sets AppsUseLightTheme=1 and SystemUsesLightTheme=1 in the registry.
+    Dark    — sets both values to 0.
+    Default — leaves the current OS theme unchanged (the default).
 #>
 [CmdletBinding()]
 param(

@@ -40,6 +40,12 @@
 .PARAMETER StepDelaySeconds
     Seconds to wait between automation steps for UI to settle. Default: 1.
 
+.PARAMETER Theme
+    Windows theme to apply before launching the application.
+    Light   — sets AppsUseLightTheme=1 and SystemUsesLightTheme=1 in the registry.
+    Dark    — sets both values to 0.
+    Default — leaves the current OS theme unchanged (the default).
+
 .EXAMPLE
     # Typically invoked by Start-UIAutomation.ps1 via PowerShell Direct:
     .\Invoke-InVMAutomation.ps1 -AppExe "C:\automation\app\Arbor.HttpClient.Desktop.exe" `

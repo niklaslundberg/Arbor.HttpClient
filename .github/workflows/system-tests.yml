@@ -38,12 +38,13 @@ jobs:
     name: Windows System Tests
     runs-on: windows-latest
     permissions:
-      contents: write  # needed when commit_screenshots=true
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload-system-artifacts.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
-          # persist-credentials only when we need to commit back
-          persist-credentials: ${{ inputs.commit_screenshots }}
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
@@ -64,6 +65,9 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Restore NuGet packages
         run: dotnet restore Arbor.HttpClient.slnx --locked-mode
+
+      - name: Audit NuGet dependencies for vulnerabilities
+        run: dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive
 
       - name: Publish win-x64 self-contained
         id: publish
@@ -172,44 +176,7 @@ jobs:
           if-no-files-found: ignore
 
       # -----------------------------------------------------------------------
-      # Step 5: Optionally commit screenshots back to the repository
-      # -----------------------------------------------------------------------
-      - name: Commit screenshots to repository
-        if: inputs.commit_screenshots && hashFiles('system-test-screenshots/**/*.png') != ''
-        shell: pwsh
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          $dest = 'docs/system-test-screenshots'
-          New-Item -ItemType Directory -Force -Path $dest | Out-Null
-
-          $srcDir = Resolve-Path 'system-test-screenshots' -ErrorAction SilentlyContinue
-          if (-not $srcDir) {
-            Write-Host "No system-test-screenshots directory found — nothing to commit."
-            exit 0
-          }
-
-          # Copy new screenshots and video into the docs directory
-          Get-ChildItem -Path $srcDir -Recurse -File | ForEach-Object {
-            $rel  = $_.FullName.Substring($srcDir.Path.Length + 1)
-            $out  = Join-Path $dest $rel
-            New-Item -ItemType Directory -Force -Path (Split-Path $out) | Out-Null
-            Copy-Item $_.FullName $out -Force
-          }
-
-          git add docs/system-test-screenshots/
-          $status = git status --porcelain
-          if ($status) {
-            git commit -m "chore: update system test screenshots [skip ci]"
-            git push
-            Write-Host "Screenshots committed."
-          } else {
-            Write-Host "No screenshot changes — nothing to commit."
-          }
-
-      # -----------------------------------------------------------------------
-      # Step 6: Job summary
+      # Step 5: Job summary
       # -----------------------------------------------------------------------
       - name: Write job summary
         if: always()
@@ -236,3 +203,64 @@ jobs:
             $lines += "Artifacts uploaded: [$artifactUrl]($artifactUrl)"
           }
           $lines | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+  # Separate job with write permissions — only runs when commit_screenshots=true.
+  # Isolating this ensures the test job always runs with read-only access.
+  commit-results:
+    name: Commit Screenshots to Repository
+    needs: system-tests
+    if: inputs.commit_screenshots
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - name: Download system test artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: system-test-artifacts-${{ github.run_number }}
+          path: system-test-screenshots
+
+      - name: Commit screenshots
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Authenticate push via token in remote URL (persist-credentials: false
+          # does not leave credentials in git config).
+          git remote set-url origin "https://x-access-token:$env:GH_TOKEN@github.com/${{ github.repository }}.git"
+
+          $dest = 'docs/system-test-screenshots'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+
+          $srcDir = Resolve-Path 'system-test-screenshots' -ErrorAction SilentlyContinue
+          if (-not $srcDir) {
+            Write-Host "No system-test-screenshots directory found — nothing to commit."
+            exit 0
+          }
+
+          # Copy new screenshots and videos into the docs directory
+          Get-ChildItem -Path $srcDir -Recurse -File | ForEach-Object {
+            $rel  = $_.FullName.Substring($srcDir.Path.Length + 1)
+            $out  = Join-Path $dest $rel
+            New-Item -ItemType Directory -Force -Path (Split-Path $out) | Out-Null
+            Copy-Item $_.FullName $out -Force
+          }
+
+          git add docs/system-test-screenshots/
+          # Use --cached to check only staged changes, avoiding noise from
+          # untracked build outputs (publish/, system-test-screenshots/, etc.)
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "chore: update system test screenshots [skip ci]"
+            git push
+            Write-Host "Screenshots committed."
+          } else {
+            Write-Host "No screenshot changes — nothing to commit."
+          }

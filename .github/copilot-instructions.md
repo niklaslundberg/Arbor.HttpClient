@@ -652,7 +652,8 @@ If exit code is 0, run the full system tests:
 
 ```powershell
 scripts/Start-UIAutomation.ps1 `
-    -BaseVhdx "C:\HyperV\Base\win11-base.vhdx" `
+    -BaseVhdx  "C:\HyperV\Base\win11-base.vhdx" `
+    -OutputDir "docs\system-test-screenshots\light" `
     -RecordVideo `
     -Theme Light       # preferred for video recordings
 ```
