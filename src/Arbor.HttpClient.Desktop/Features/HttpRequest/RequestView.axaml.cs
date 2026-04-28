@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using Arbor.HttpClient.Desktop.Features.GraphQl;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
@@ -560,20 +559,7 @@ public partial class RequestView : UserControl
     private IReadOnlyList<string> GetVariableNames() =>
         VariableNameHelper.ExtractDistinctNames(_appVm?.ActiveEnvironmentVariables);
 
-    private static IReadOnlyList<string> GetEnvVariableNames()
-    {
-        var envVars = Environment.GetEnvironmentVariables();
-        var names = new List<string>(envVars.Count);
-        foreach (DictionaryEntry entry in envVars)
-        {
-            if (entry.Key is string key)
-            {
-                names.Add(key);
-            }
-        }
-
-        names.Sort(StringComparer.OrdinalIgnoreCase);
-        return names;
-    }
+    private static IReadOnlyList<string> GetEnvVariableNames() =>
+        VariableNameHelper.GetSystemEnvironmentVariableNames();
 }
 

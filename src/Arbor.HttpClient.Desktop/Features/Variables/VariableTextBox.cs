@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Variables;
@@ -201,20 +200,7 @@ public sealed class VariableTextBox : UserControl
     private IReadOnlyList<string> GetVariableNames() =>
         VariableNameHelper.ExtractDistinctNames(AppViewModel?.ActiveEnvironmentVariables);
 
-    private static IReadOnlyList<string> GetEnvVariableNames()
-    {
-        var envVars = Environment.GetEnvironmentVariables();
-        var names = new List<string>(envVars.Count);
-        foreach (DictionaryEntry entry in envVars)
-        {
-            if (entry.Key is string key)
-            {
-                names.Add(key);
-            }
-        }
-
-        names.Sort(StringComparer.OrdinalIgnoreCase);
-        return names;
-    }
+    private static IReadOnlyList<string> GetEnvVariableNames() =>
+        VariableNameHelper.GetSystemEnvironmentVariableNames();
 }
 
