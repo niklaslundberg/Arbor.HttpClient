@@ -1,4 +1,5 @@
 using Arbor.HttpClient.Core.Collections;
+using Arbor.HttpClient.Core.HttpRequest;
 
 
 namespace Arbor.HttpClient.Desktop.Features.Collections;
@@ -10,6 +11,10 @@ public sealed class CollectionItemViewModel(CollectionRequest request, string? b
     public string Path { get; } = request.Path;
     public string? Description { get; } = request.Description;
     public string? Notes { get; } = request.Notes;
+    public string? Tag { get; } = request.Tag;
+    public string? Body { get; } = request.Body;
+    public string? ContentType { get; } = request.ContentType;
+    public IReadOnlyList<RequestHeader>? Headers { get; } = request.Headers;
     public CollectionRequest Request { get; } = request;
 
     /// <summary>
@@ -24,10 +29,13 @@ public sealed class CollectionItemViewModel(CollectionRequest request, string? b
             : request.Path;
 
     /// <summary>
-    /// Top-level path segment used to group requests in the tree view.
-    /// E.g. "/users/123" → "users", "/" → "(root)".
+    /// Key used to group requests in the tree view.
+    /// Uses the OpenAPI tag when available; otherwise falls back to the top-level path segment.
+    /// E.g. tag "pets" → "pets"; no tag + "/users/123" → "users"; "/" → "(root)".
     /// </summary>
-    public string GroupKey { get; } = GetGroupKey(request.Path);
+    public string GroupKey { get; } = !string.IsNullOrWhiteSpace(request.Tag)
+        ? request.Tag
+        : GetGroupKey(request.Path);
 
     private static string GetGroupKey(string path)
     {

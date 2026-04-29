@@ -1,5 +1,7 @@
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Arbor.HttpClient.Core.Collections;
+using Arbor.HttpClient.Core.HttpRequest;
 
 namespace Arbor.HttpClient.Storage.Sqlite;
 
@@ -35,19 +37,11 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-        await using var migrateCommand = connection.CreateCommand();
-        migrateCommand.CommandText =
-            """
-            ALTER TABLE collection_requests ADD COLUMN notes TEXT NULL;
-            """;
-        try
-        {
-            await migrateCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (SqliteException)
-        {
-            // Column already exists — safe to ignore
-        }
+        await RunMigrationAsync(connection, "ALTER TABLE collection_requests ADD COLUMN notes TEXT NULL;", cancellationToken).ConfigureAwait(false);
+        await RunMigrationAsync(connection, "ALTER TABLE collection_requests ADD COLUMN tag TEXT NULL;", cancellationToken).ConfigureAwait(false);
+        await RunMigrationAsync(connection, "ALTER TABLE collection_requests ADD COLUMN body TEXT NULL;", cancellationToken).ConfigureAwait(false);
+        await RunMigrationAsync(connection, "ALTER TABLE collection_requests ADD COLUMN content_type TEXT NULL;", cancellationToken).ConfigureAwait(false);
+        await RunMigrationAsync(connection, "ALTER TABLE collection_requests ADD COLUMN headers TEXT NULL;", cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<int> SaveAsync(string name, string? sourcePath, string? baseUrl, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken = default)
@@ -89,7 +83,8 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         cmd.CommandText =
             """
             SELECT c.id, c.name, c.source_path, c.base_url,
-                   r.name, r.method, r.path, r.description, r.notes
+                   r.name, r.method, r.path, r.description, r.notes,
+                   r.tag, r.body, r.content_type, r.headers
             FROM collections c
             LEFT JOIN collection_requests r ON r.collection_id = c.id
             ORDER BY c.id, r.id;
@@ -109,12 +104,23 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
 
             if (!reader.IsDBNull(4))
             {
+                var headersJson = reader.IsDBNull(12) ? null : reader.GetString(12);
+                IReadOnlyList<RequestHeader>? headers = null;
+                if (!string.IsNullOrEmpty(headersJson))
+                {
+                    headers = JsonSerializer.Deserialize<List<RequestHeader>>(headersJson);
+                }
+
                 entry.Requests.Add(new CollectionRequest(
                     reader.GetString(4),
                     reader.GetString(5),
                     reader.GetString(6),
                     reader.IsDBNull(7) ? null : reader.GetString(7),
-                    reader.IsDBNull(8) ? null : reader.GetString(8)));
+                    reader.IsDBNull(8) ? null : reader.GetString(8),
+                    Tag: reader.IsDBNull(9) ? null : reader.GetString(9),
+                    Body: reader.IsDBNull(10) ? null : reader.GetString(10),
+                    ContentType: reader.IsDBNull(11) ? null : reader.GetString(11),
+                    Headers: headers));
             }
         }
 
@@ -175,6 +181,20 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    private static async Task RunMigrationAsync(SqliteConnection connection, string sql, CancellationToken cancellationToken)
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = sql;
+        try
+        {
+            await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (SqliteException)
+        {
+            // Column already exists — safe to ignore
+        }
+    }
+
     private static async Task InsertRequestsAsync(SqliteConnection connection, SqliteTransaction transaction, int collectionId, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken)
     {
         if (requests.Count == 0)
@@ -186,8 +206,8 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         cmd.Transaction = transaction;
         cmd.CommandText =
             """
-            INSERT INTO collection_requests (collection_id, name, method, path, description, notes)
-            VALUES ($collectionId, $name, $method, $path, $description, $notes);
+            INSERT INTO collection_requests (collection_id, name, method, path, description, notes, tag, body, content_type, headers)
+            VALUES ($collectionId, $name, $method, $path, $description, $notes, $tag, $body, $contentType, $headers);
             """;
         var pCollectionId = cmd.Parameters.Add("$collectionId", SqliteType.Integer);
         var pName = cmd.Parameters.Add("$name", SqliteType.Text);
@@ -195,6 +215,10 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         var pPath = cmd.Parameters.Add("$path", SqliteType.Text);
         var pDescription = cmd.Parameters.Add("$description", SqliteType.Text);
         var pNotes = cmd.Parameters.Add("$notes", SqliteType.Text);
+        var pTag = cmd.Parameters.Add("$tag", SqliteType.Text);
+        var pBody = cmd.Parameters.Add("$body", SqliteType.Text);
+        var pContentType = cmd.Parameters.Add("$contentType", SqliteType.Text);
+        var pHeaders = cmd.Parameters.Add("$headers", SqliteType.Text);
         pCollectionId.Value = collectionId;
 
         await cmd.PrepareAsync(cancellationToken).ConfigureAwait(false);
@@ -206,6 +230,12 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
             pPath.Value = request.Path;
             pDescription.Value = request.Description ?? (object)DBNull.Value;
             pNotes.Value = request.Notes ?? (object)DBNull.Value;
+            pTag.Value = request.Tag ?? (object)DBNull.Value;
+            pBody.Value = request.Body ?? (object)DBNull.Value;
+            pContentType.Value = request.ContentType ?? (object)DBNull.Value;
+            pHeaders.Value = request.Headers is { Count: > 0 }
+                ? JsonSerializer.Serialize(request.Headers)
+                : (object)DBNull.Value;
             await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
     }

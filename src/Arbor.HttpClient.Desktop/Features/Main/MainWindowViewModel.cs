@@ -1092,7 +1092,34 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _requestEditor.RequestName = item.Name;
         _requestEditor.RequestNotes = item.Notes ?? string.Empty;
 
-        if (item.Method is "POST" or "PUT" or "PATCH")
+        // Populate headers from the collection request (header parameters + auth from import)
+        _requestEditor.RequestHeaders.Clear();
+        if (item.Headers is { } importedHeaders)
+        {
+            foreach (var h in importedHeaders)
+            {
+                _requestEditor.RequestHeaders.Add(new RequestHeaderViewModel { Name = h.Name, Value = h.Value, IsEnabled = h.IsEnabled });
+            }
+        }
+
+        // Populate content type from the collection request
+        if (!string.IsNullOrEmpty(item.ContentType))
+        {
+            _requestEditor.SelectedContentTypeOption = _requestEditor.ContentTypeOptions.Contains(item.ContentType)
+                ? item.ContentType
+                : RequestEditorViewModel.CustomContentTypeOption;
+            if (_requestEditor.SelectedContentTypeOption == RequestEditorViewModel.CustomContentTypeOption)
+            {
+                _requestEditor.CustomContentType = item.ContentType;
+            }
+        }
+
+        // Populate body: prefer stored body over the generic "{}" placeholder
+        if (!string.IsNullOrEmpty(item.Body))
+        {
+            _requestEditor.RequestBody = item.Body;
+        }
+        else if (item.Method is "POST" or "PUT" or "PATCH")
         {
             _requestEditor.RequestBody = "{}";
         }

@@ -1,6 +1,11 @@
+using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.OpenApi.Any;
+using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi.Readers;
 using Arbor.HttpClient.Core.Collections;
+using Arbor.HttpClient.Core.HttpRequest;
 
 namespace Arbor.HttpClient.Core.OpenApiImport;
 
@@ -42,14 +47,141 @@ public sealed class OpenApiImportService
                 // Convert OpenAPI {param} to our {{param}} convention atomically via regex
                 var resolvedPath = PathParamPattern.Replace(path.Key, m => $"{{{{{m.Groups[1].Value}}}}}");
 
+                // Append query parameters as {{paramName}} placeholders
+                var queryParams = operationValue.Parameters
+                    .Where(p => p.In == ParameterLocation.Query)
+                    .Select(p => $"{p.Name}={{{{{p.Name}}}}}");
+                var queryString = string.Join("&", queryParams);
+                if (!string.IsNullOrEmpty(queryString))
+                {
+                    resolvedPath += "?" + queryString;
+                }
+
+                // Collect header parameters and security (auth) headers
+                var headers = BuildHeaders(document, operationValue);
+
+                // Extract first example body and matching content type
+                var (body, contentType) = ExtractBodyAndContentType(operationValue);
+
+                // Use the first tag if available for tree grouping
+                var tag = operationValue.Tags?.Count > 0 ? operationValue.Tags[0].Name : null;
+
                 requests.Add(new CollectionRequest(
                     requestName,
                     method,
                     resolvedPath,
-                    operationValue.Summary));
+                    operationValue.Summary,
+                    Tag: tag,
+                    Body: body,
+                    ContentType: contentType,
+                    Headers: headers.Count > 0 ? headers : null));
             }
         }
 
         return new Collection(0, name, sourcePath, baseUrl, requests);
+    }
+
+    private static List<RequestHeader> BuildHeaders(OpenApiDocument document, OpenApiOperation operation)
+    {
+        var headers = new List<RequestHeader>();
+
+        // Header parameters → {{paramName}} placeholder
+        foreach (var param in operation.Parameters.Where(p => p.In == ParameterLocation.Header))
+        {
+            headers.Add(new RequestHeader(param.Name, $"{{{{{param.Name}}}}}"));
+        }
+
+        // Security / auth headers derived from the operation's security requirements
+        foreach (var requirement in operation.Security ?? [])
+        {
+            foreach (var scheme in requirement.Keys)
+            {
+                // The key may be a reference object; resolve via document components
+                var schemeId = scheme.Reference?.Id ?? scheme.Name;
+                var resolved = !string.IsNullOrEmpty(schemeId) &&
+                               document.Components?.SecuritySchemes?.TryGetValue(schemeId, out var s) == true
+                    ? s
+                    : scheme;
+
+                if (resolved.Type == SecuritySchemeType.Http)
+                {
+                    if (string.Equals(resolved.Scheme, "bearer", StringComparison.OrdinalIgnoreCase)
+                        && !headers.Any(h => string.Equals(h.Name, "Authorization", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        headers.Add(new RequestHeader("Authorization", "Bearer {{bearerToken}}"));
+                    }
+                    else if (string.Equals(resolved.Scheme, "basic", StringComparison.OrdinalIgnoreCase)
+                             && !headers.Any(h => string.Equals(h.Name, "Authorization", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        headers.Add(new RequestHeader("Authorization", "Basic {{credentials}}"));
+                    }
+                }
+                else if (resolved.Type == SecuritySchemeType.ApiKey && resolved.In == ParameterLocation.Header
+                         && !string.IsNullOrEmpty(resolved.Name)
+                         && !headers.Any(h => string.Equals(h.Name, resolved.Name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    headers.Add(new RequestHeader(resolved.Name, $"{{{{{resolved.Name}}}}}"));
+                }
+            }
+        }
+
+        return headers;
+    }
+
+    private static (string? Body, string? ContentType) ExtractBodyAndContentType(OpenApiOperation operation)
+    {
+        if (operation.RequestBody is null || operation.RequestBody.Content.Count == 0)
+        {
+            return (null, null);
+        }
+
+        // Prefer JSON, then fall back to the first available media type
+        var contentEntry = operation.RequestBody.Content
+            .FirstOrDefault(c => c.Key.Contains("json", StringComparison.OrdinalIgnoreCase));
+
+        if (contentEntry.Value is null)
+        {
+            contentEntry = operation.RequestBody.Content.First();
+        }
+
+        var mediaType = contentEntry.Value;
+        var contentType = contentEntry.Key;
+
+        // Use the inline example first; fall back to the first named example
+        IOpenApiAny? exampleValue = mediaType.Example;
+        if (exampleValue is null && mediaType.Examples?.Count > 0)
+        {
+            exampleValue = mediaType.Examples.Values.First().Value;
+        }
+
+        var body = exampleValue is { } ? SerializeAny(exampleValue) : null;
+        return (body, contentType);
+    }
+
+    /// <summary>
+    /// Converts an <see cref="IOpenApiAny"/> value to a compact JSON string using
+    /// <see cref="JsonSerializer"/> so that no private OpenAPI writer APIs are needed.
+    /// </summary>
+    private static string? SerializeAny(IOpenApiAny any)
+    {
+        var obj = ConvertAny(any);
+        return obj is null ? null : JsonSerializer.Serialize(obj);
+    }
+
+    private static object? ConvertAny(IOpenApiAny any)
+    {
+        return any switch
+        {
+            OpenApiNull => null,
+            OpenApiBoolean b => (object)b.Value,
+            OpenApiInteger i => i.Value,
+            OpenApiLong l => l.Value,
+            OpenApiFloat f => f.Value,
+            OpenApiDouble d => d.Value,
+            OpenApiString s => s.Value,
+            OpenApiArray arr => arr.Select(ConvertAny).ToList(),
+            OpenApiObject obj => obj.ToDictionary(kvp => kvp.Key, kvp => ConvertAny(kvp.Value)),
+            _ => null
+        };
     }
 }
