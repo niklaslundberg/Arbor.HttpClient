@@ -16,8 +16,9 @@ internal sealed class VariableCompletionData(string variableName) : ICompletionD
     public void Complete(TextArea textArea, ISegment completionSegment, EventArgs insertionRequestEventArgs)
     {
         var document = textArea.Document;
+        var insertionOffset = completionSegment.Offset;
         var insertionText = VariableCompletionEngine.BuildInsertionText(document.Text, completionSegment.EndOffset, variableName);
-        document.Replace(completionSegment.Offset, completionSegment.Length, insertionText);
-        textArea.Caret.Offset = completionSegment.Offset + insertionText.Length;
+        document.Replace(insertionOffset, completionSegment.Length, insertionText);
+        textArea.Caret.Offset = insertionOffset + insertionText.Length;
     }
 }
