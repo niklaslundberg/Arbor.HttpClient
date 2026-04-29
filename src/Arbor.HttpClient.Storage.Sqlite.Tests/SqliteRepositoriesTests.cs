@@ -572,6 +572,7 @@ public class SqliteRepositoriesTests
 
             collections.Should().ContainSingle();
             var loaded = collections[0];
+            loaded.Id.Should().Be(collectionId);
             loaded.Requests.Should().HaveCount(2);
 
             var createPet = loaded.Requests[0];
