@@ -25,6 +25,16 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="BorderThickness" Value="0" />
         </Style>
+        <!-- Preserve the swatch background color on pointer-over and pressed so the Fluent hover overlay
+             does not replace the custom accent color with grey. -->
+        <Style Selector="Button.ColorSwatch:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{TemplateBinding Background}" />
+            <Setter Property="Opacity" Value="0.85" />
+        </Style>
+        <Style Selector="Button.ColorSwatch:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{TemplateBinding Background}" />
+            <Setter Property="Opacity" Value="0.70" />
+        </Style>
     </UserControl.Styles>
 
     <Grid Margin="12" RowDefinitions="Auto,*,Auto" RowSpacing="10">

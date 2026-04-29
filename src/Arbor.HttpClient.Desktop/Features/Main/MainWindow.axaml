@@ -33,6 +33,15 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Padding" Value="0" />
         </Style>
+        <!-- The env ComboBox sets Foreground=white on colored backgrounds so the selected item label
+             remains readable. That white foreground is inherited by ComboBoxItem descendants inside
+             the dropdown popup, making items invisible in the light theme (white text on white/light
+             hover background). This style resets each ComboBoxItem's foreground to the Fluent default
+             so dropdown items always display with the correct theme foreground regardless of the
+             ComboBox-level Foreground override. -->
+        <Style Selector="ComboBox.EnvSelector ComboBoxItem">
+            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+        </Style>
     </Window.Styles>
 
     <DockPanel Margin="0">
@@ -67,7 +76,8 @@
                 <!-- Environment selector with accent color background (Pattern A) -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <TextBlock Text="{x:Static loc:Strings.ToolbarEnvLabel}" VerticalAlignment="Center" Opacity="0.7" />
-                    <ComboBox MinWidth="160"
+                    <ComboBox Classes="EnvSelector"
+                              MinWidth="160"
                               ItemsSource="{Binding Environments}"
                               SelectedItem="{Binding ActiveEnvironment, Mode=TwoWay}"
                               Background="{Binding ActiveEnvironmentAccentColor, Converter={StaticResource HexColorToBrushConverter}}"
