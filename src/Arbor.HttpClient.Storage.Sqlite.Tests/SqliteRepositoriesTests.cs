@@ -641,5 +641,41 @@ public class SqliteRepositoriesTests
             }
         }
     }
+
+    [Fact]
+    public async Task SqliteCollectionRepository_UpdateAsync_ShouldRenameCollectionAndPreserveRequests()
+    {
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_collection_rename_{Guid.NewGuid()}.db");
+        try
+        {
+            var connectionString = $"Data Source={dbPath}";
+            var repository = new SqliteCollectionRepository(connectionString);
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var requests = new List<CollectionRequest>
+            {
+                new("Get Items", "GET", "/items", null)
+            };
+
+            var id = await repository.SaveAsync("Old Name", null, "http://localhost:5000", requests, TestContext.Current.CancellationToken);
+
+            await repository.UpdateAsync(id, "New Name", null, "http://localhost:5000", requests, TestContext.Current.CancellationToken);
+
+            var collections = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+
+            collections.Should().ContainSingle();
+            collections[0].Name.Should().Be("New Name");
+            collections[0].Requests.Should().ContainSingle();
+            collections[0].Requests[0].Name.Should().Be("Get Items");
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+    }
 }
 

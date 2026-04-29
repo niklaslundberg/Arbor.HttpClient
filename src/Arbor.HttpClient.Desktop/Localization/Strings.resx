@@ -720,6 +720,12 @@
   <data name="LeftPanelDeleteCollection" xml:space="preserve">
     <value>🗑 Delete</value>
   </data>
+  <data name="LeftPanelRenameCollection" xml:space="preserve">
+    <value>✏ Rename</value>
+  </data>
+  <data name="LeftPanelRenameCollectionNamePlaceholder" xml:space="preserve">
+    <value>New collection name</value>
+  </data>
   <data name="LeftPanelSearchRequests" xml:space="preserve">
     <value>Search requests…</value>
   </data>

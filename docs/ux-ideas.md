@@ -516,12 +516,14 @@ Each idea includes a description of what it means in practice, notes on how it c
 - **Display modes**: toolbar cycles between Name+Path, Name only, Path only, Full URL
 - **Tree view**: "🌿 Tree" toggle groups requests by their first path segment (e.g. `/pets/…` → "pets"), each group is individually collapsible
 - **Import OpenAPI**: existing OpenAPI import button moved into the per-collection toolbar
+- **Rename collections**: inline "✏ Rename" form in the per-collection toolbar; uniqueness enforced (case-insensitive); rename form hidden on collection change
+- **Unique name enforcement**: creating or renaming a collection with a name already in use shows an error and is blocked
 - `ICollectionRepository.UpdateAsync` added; SQLite and in-memory implementations updated
 - `CollectionItemViewModel`: `FullUrl` and `GroupKey` computed properties
 - `CollectionGroupViewModel`: collapsible group VM with `ToggleExpandedCommand`
 - `BoolToExpandIconConverter`: `▼`/`▶` expand/collapse icons
 
-**Polish items remaining:** rename a collection inline; reorder requests via drag-and-drop; export a collection as JSON/OpenAPI; per-request notes editor in the collection entry.
+**Polish items remaining:** reorder requests via drag-and-drop; export a collection as JSON/OpenAPI; per-request notes editor in the collection entry.
 
 ---
 
