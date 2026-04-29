@@ -108,7 +108,14 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
                 IReadOnlyList<RequestHeader>? headers = null;
                 if (!string.IsNullOrEmpty(headersJson))
                 {
-                    headers = JsonSerializer.Deserialize<List<RequestHeader>>(headersJson);
+                    try
+                    {
+                        headers = JsonSerializer.Deserialize<List<RequestHeader>>(headersJson);
+                    }
+                    catch (JsonException)
+                    {
+                        headers = null;
+                    }
                 }
 
                 entry.Requests.Add(new CollectionRequest(
@@ -189,11 +196,15 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         {
             await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (SqliteException)
+        catch (SqliteException ex) when (IsDuplicateColumnException(ex))
         {
             // Column already exists — safe to ignore
         }
     }
+
+    private static bool IsDuplicateColumnException(SqliteException exception) =>
+        exception.SqliteErrorCode == 1 &&
+        exception.Message.Contains("duplicate column name", StringComparison.OrdinalIgnoreCase);
 
     private static async Task InsertRequestsAsync(SqliteConnection connection, SqliteTransaction transaction, int collectionId, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken)
     {

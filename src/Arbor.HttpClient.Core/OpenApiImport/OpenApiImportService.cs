@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.OpenApi.Any;
@@ -47,8 +46,11 @@ public sealed class OpenApiImportService
                 // Convert OpenAPI {param} to our {{param}} convention atomically via regex
                 var resolvedPath = PathParamPattern.Replace(path.Key, m => $"{{{{{m.Groups[1].Value}}}}}");
 
+                // Merge path-item level parameters with operation-level parameters (operation takes precedence)
+                var effectiveParams = MergeParameters(path.Value.Parameters, operationValue.Parameters);
+
                 // Append query parameters as {{paramName}} placeholders
-                var queryParams = operationValue.Parameters
+                var queryParams = effectiveParams
                     .Where(p => p.In == ParameterLocation.Query)
                     .Select(p => $"{p.Name}={{{{{p.Name}}}}}");
                 var queryString = string.Join("&", queryParams);
@@ -58,7 +60,7 @@ public sealed class OpenApiImportService
                 }
 
                 // Collect header parameters and security (auth) headers
-                var headers = BuildHeaders(document, operationValue);
+                var headers = BuildHeaders(document, operationValue, effectiveParams);
 
                 // Extract first example body and matching content type
                 var (body, contentType) = ExtractBodyAndContentType(operationValue);
@@ -81,18 +83,62 @@ public sealed class OpenApiImportService
         return new Collection(0, name, sourcePath, baseUrl, requests);
     }
 
-    private static List<RequestHeader> BuildHeaders(OpenApiDocument document, OpenApiOperation operation)
+    /// <summary>
+    /// Merges path-item-level parameters with operation-level parameters.
+    /// Operation-level parameters override path-item parameters with the same name+location.
+    /// </summary>
+    private static IReadOnlyList<OpenApiParameter> MergeParameters(
+        IList<OpenApiParameter>? pathItemParams,
+        IList<OpenApiParameter>? operationParams)
+    {
+        if (pathItemParams is null or { Count: 0 })
+        {
+            return operationParams?.ToList() ?? [];
+        }
+
+        if (operationParams is null or { Count: 0 })
+        {
+            return pathItemParams.ToList();
+        }
+
+        var merged = new Dictionary<string, OpenApiParameter>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in pathItemParams)
+        {
+            merged[$"{p.In}:{p.Name}"] = p;
+        }
+
+        foreach (var p in operationParams)
+        {
+            merged[$"{p.In}:{p.Name}"] = p;
+        }
+
+        return merged.Values.ToList();
+    }
+
+    private static List<RequestHeader> BuildHeaders(
+        OpenApiDocument document,
+        OpenApiOperation operation,
+        IReadOnlyList<OpenApiParameter> effectiveParams)
     {
         var headers = new List<RequestHeader>();
 
         // Header parameters → {{paramName}} placeholder
-        foreach (var param in operation.Parameters.Where(p => p.In == ParameterLocation.Header))
+        foreach (var param in effectiveParams.Where(p => p.In == ParameterLocation.Header))
         {
             headers.Add(new RequestHeader(param.Name, $"{{{{{param.Name}}}}}"));
         }
 
-        // Security / auth headers derived from the operation's security requirements
-        foreach (var requirement in operation.Security ?? [])
+        // Security / auth headers derived from the effective security requirements.
+        // When the operation defines no security entries (null or empty list), fall back
+        // to the document-level security requirements. The Microsoft.OpenApi library
+        // returns an empty (non-null) list for both "not declared" and "security: []",
+        // so we treat count == 0 as "use document defaults".
+        IEnumerable<OpenApiSecurityRequirement> effectiveSecurityRequirements =
+            operation.Security is null or { Count: 0 }
+                ? document.SecurityRequirements ?? []
+                : operation.Security;
+
+        foreach (var requirement in effectiveSecurityRequirements)
         {
             foreach (var scheme in requirement.Keys)
             {

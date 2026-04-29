@@ -615,7 +615,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### OpenAPI Import Structure ✅ Implemented
-> Implemented in this PR — `src/Arbor.HttpClient.Core/OpenApiImport/OpenApiImportService.cs`, `src/Arbor.HttpClient.Core/Collections/CollectionRequest.cs`, `src/Arbor.HttpClient.Desktop/Features/Collections/CollectionItemViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Storage.Sqlite/SqliteCollectionRepository.cs`
+> Implemented in PR #124 (commit `e085960`) — `src/Arbor.HttpClient.Core/OpenApiImport/OpenApiImportService.cs`, `src/Arbor.HttpClient.Core/Collections/CollectionRequest.cs`, `src/Arbor.HttpClient.Desktop/Features/Collections/CollectionItemViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Storage.Sqlite/SqliteCollectionRepository.cs`
 
 **What it means:** OpenAPI import now enriches each imported request with structural metadata drawn directly from the spec: query parameters are appended to the URL as `{{param}}` placeholders, header parameters and security auth headers are stored on the request, the first available example body is stored and populated on load, the matching `Content-Type` is detected and applied, and OpenAPI tags drive the tree-view grouping instead of path segment splitting.
 

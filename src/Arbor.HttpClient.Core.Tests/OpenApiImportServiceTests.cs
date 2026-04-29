@@ -267,4 +267,97 @@ public class OpenApiImportServiceTests
         var collection = _service.Import(stream);
         collection.Requests.Should().AllSatisfy(r => r.ContentType.Should().BeNull());
     }
+
+    // ── Path-item-level parameters ────────────────────────────────────────────
+
+    [Fact]
+    public void Import_ShouldMergePathItemQueryParamsWithOperationParams()
+    {
+        const string specWithPathItemParams = """
+            {
+              "openapi": "3.0.3",
+              "info": { "title": "Test API", "version": "1.0.0" },
+              "paths": {
+                "/items": {
+                  "parameters": [
+                    { "name": "apiVersion", "in": "query", "schema": { "type": "string" } }
+                  ],
+                  "get": {
+                    "operationId": "listItems",
+                    "parameters": [
+                      { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+                    ]
+                  }
+                }
+              }
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithPathItemParams));
+        var collection = _service.Import(stream);
+        var listItems = collection.Requests.Single(r => r.Name == "listItems");
+        listItems.Path.Should().Contain("apiVersion={{apiVersion}}");
+        listItems.Path.Should().Contain("limit={{limit}}");
+    }
+
+    [Fact]
+    public void Import_ShouldLetOperationParamOverridePathItemParam()
+    {
+        const string specWithOverride = """
+            {
+              "openapi": "3.0.3",
+              "info": { "title": "Test API", "version": "1.0.0" },
+              "paths": {
+                "/items": {
+                  "parameters": [
+                    { "name": "format", "in": "query", "schema": { "type": "string" }, "description": "path-item" }
+                  ],
+                  "get": {
+                    "operationId": "listItems",
+                    "parameters": [
+                      { "name": "format", "in": "query", "schema": { "type": "string" }, "description": "operation" }
+                    ]
+                  }
+                }
+              }
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithOverride));
+        var collection = _service.Import(stream);
+        var listItems = collection.Requests.Single(r => r.Name == "listItems");
+        // Should appear exactly once (not duplicated)
+        listItems.Path.Should().Contain("format={{format}}");
+        listItems.Path.Split("format=").Length.Should().Be(2);
+    }
+
+    // ── Document-level security fallback ─────────────────────────────────────
+
+    [Fact]
+    public void Import_ShouldUseDocumentSecurityWhenOperationSecurityIsNull()
+    {
+        const string specWithGlobalSecurity = """
+            {
+              "openapi": "3.0.3",
+              "info": { "title": "Secured API", "version": "1.0.0" },
+              "security": [{ "globalBearer": [] }],
+              "components": {
+                "securitySchemes": {
+                  "globalBearer": { "type": "http", "scheme": "bearer" }
+                }
+              },
+              "paths": {
+                "/data": {
+                  "get": {
+                    "operationId": "getData",
+                    "summary": "Get data"
+                  }
+                }
+              }
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithGlobalSecurity));
+        var collection = _service.Import(stream);
+        var getData = collection.Requests.Single(r => r.Name == "getData");
+        getData.Headers.Should().ContainSingle(h =>
+            h.Name == "Authorization" && h.Value == "Bearer {{bearerToken}}");
+    }
 }

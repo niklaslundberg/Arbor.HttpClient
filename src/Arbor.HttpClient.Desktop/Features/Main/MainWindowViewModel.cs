@@ -1102,16 +1102,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
         }
 
-        // Populate content type from the collection request
-        if (!string.IsNullOrEmpty(item.ContentType))
+        // Populate content type from the collection request; always reset to avoid leaking a previous request's value
+        if (string.IsNullOrEmpty(item.ContentType))
         {
-            _requestEditor.SelectedContentTypeOption = _requestEditor.ContentTypeOptions.Contains(item.ContentType)
-                ? item.ContentType
-                : RequestEditorViewModel.CustomContentTypeOption;
-            if (_requestEditor.SelectedContentTypeOption == RequestEditorViewModel.CustomContentTypeOption)
-            {
-                _requestEditor.CustomContentType = item.ContentType;
-            }
+            _requestEditor.SelectedContentTypeOption = RequestEditorViewModel.NoneContentTypeOption;
+            _requestEditor.CustomContentType = string.Empty;
+        }
+        else if (_requestEditor.ContentTypeOptions.Contains(item.ContentType))
+        {
+            _requestEditor.SelectedContentTypeOption = item.ContentType;
+            _requestEditor.CustomContentType = string.Empty;
+        }
+        else
+        {
+            _requestEditor.SelectedContentTypeOption = RequestEditorViewModel.CustomContentTypeOption;
+            _requestEditor.CustomContentType = item.ContentType;
         }
 
         // Populate body: prefer stored body over the generic "{}" placeholder
