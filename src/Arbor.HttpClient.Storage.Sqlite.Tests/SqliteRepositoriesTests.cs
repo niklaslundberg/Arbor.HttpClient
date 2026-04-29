@@ -538,5 +538,108 @@ public class SqliteRepositoriesTests
             }
         }
     }
+
+    [Fact]
+    public async Task SqliteCollectionRepository_SaveAndGetAllAsync_ShouldRoundTripNewFields()
+    {
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_collection_newfields_{Guid.NewGuid()}.db");
+        try
+        {
+            var connectionString = $"Data Source={dbPath}";
+            var repository = new SqliteCollectionRepository(connectionString);
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var headers = new List<RequestHeader>
+            {
+                new("Authorization", "Bearer {{bearerToken}}"),
+                new("X-Request-ID", "{{X-Request-ID}}", IsEnabled: false)
+            };
+
+            var requests = new List<CollectionRequest>
+            {
+                new("Create Pet", "POST", "/pets?limit={{limit}}",
+                    "Creates a pet",
+                    Tag: "pets",
+                    Body: """{"name":"Fluffy"}""",
+                    ContentType: "application/json",
+                    Headers: headers),
+                new("List Pets", "GET", "/pets", "Lists pets")
+            };
+
+            var collectionId = await repository.SaveAsync("Pet API", null, "http://localhost:5000", requests, TestContext.Current.CancellationToken);
+
+            var collections = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+
+            collections.Should().ContainSingle();
+            var loaded = collections[0];
+            loaded.Id.Should().Be(collectionId);
+            loaded.Requests.Should().HaveCount(2);
+
+            var createPet = loaded.Requests[0];
+            createPet.Tag.Should().Be("pets");
+            createPet.Body.Should().Be("""{"name":"Fluffy"}""");
+            createPet.ContentType.Should().Be("application/json");
+            createPet.Headers.Should().HaveCount(2);
+            createPet.Headers![0].Name.Should().Be("Authorization");
+            createPet.Headers![0].Value.Should().Be("Bearer {{bearerToken}}");
+            createPet.Headers![1].Name.Should().Be("X-Request-ID");
+            createPet.Headers![1].IsEnabled.Should().BeFalse();
+
+            var listPets = loaded.Requests[1];
+            listPets.Tag.Should().BeNull();
+            listPets.Body.Should().BeNull();
+            listPets.ContentType.Should().BeNull();
+            listPets.Headers.Should().BeNull();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteCollectionRepository_GetAllAsync_ShouldReturnNullHeadersForMalformedJson()
+    {
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_collection_badjson_{Guid.NewGuid()}.db");
+        try
+        {
+            // Write a row with corrupt headers JSON directly via raw SQL
+            var connectionString = $"Data Source={dbPath}";
+            var repository = new SqliteCollectionRepository(connectionString);
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            await using var connection = new SqliteConnection(connectionString);
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+
+            await using var insertCollection = connection.CreateCommand();
+            insertCollection.CommandText =
+                "INSERT INTO collections (name, source_path, base_url, created_at_utc) VALUES ('Bad', NULL, NULL, '2024-01-01'); SELECT last_insert_rowid();";
+            var collectionId = (long)(await insertCollection.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
+
+            await using var insertRequest = connection.CreateCommand();
+            insertRequest.CommandText =
+                "INSERT INTO collection_requests (collection_id, name, method, path, description, notes, tag, body, content_type, headers) VALUES ($cid, 'Bad Request', 'GET', '/test', NULL, NULL, NULL, NULL, NULL, 'not-valid-json');";
+            insertRequest.Parameters.AddWithValue("$cid", collectionId);
+            await insertRequest.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+
+            var collections = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+
+            collections.Should().ContainSingle();
+            collections[0].Requests.Should().ContainSingle();
+            collections[0].Requests[0].Headers.Should().BeNull();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+    }
 }
 

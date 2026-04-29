@@ -611,3 +611,18 @@ Each idea includes a description of what it means in practice, notes on how it c
 - 7 new localized string keys added: `ActivityBarCollections`, `ActivityBarEnvironments`, `ActivityBarOptions`, `ActivityBarCookies`, `ActivityBarLogs`, `ActivityBarImportOpenApi`, `ActivityBarAbout`
 
 **Polish items remaining:** Highlighted/active state on the activity bar icon corresponding to the currently visible left-dock panel; keyboard shortcut badge overlays; tooltip delay tuning.
+
+---
+
+### OpenAPI Import Structure ✅ Implemented
+> Implemented in PR #124 (commit `e085960`) — `src/Arbor.HttpClient.Core/OpenApiImport/OpenApiImportService.cs`, `src/Arbor.HttpClient.Core/Collections/CollectionRequest.cs`, `src/Arbor.HttpClient.Desktop/Features/Collections/CollectionItemViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Storage.Sqlite/SqliteCollectionRepository.cs`
+
+**What it means:** OpenAPI import now enriches each imported request with structural metadata drawn directly from the spec: query parameters are appended to the URL as `{{param}}` placeholders, header parameters and security auth headers are stored on the request, the first available example body is stored and populated on load, the matching `Content-Type` is detected and applied, and OpenAPI tags drive the tree-view grouping instead of path segment splitting.
+
+**What shipped:**
+- `CollectionRequest` gains four new optional fields: `Tag`, `Body`, `ContentType`, `Headers`
+- `OpenApiImportService.Import` extracts: first operation tag → `Tag`; query parameters → appended to path as `?param={{param}}`; header parameters → `Headers` as `{{paramName}}`; HTTP Bearer / Basic / API Key security schemes → `Headers` with placeholder values; first JSON example (inline or named) → `Body`; content media type → `ContentType`
+- `CollectionItemViewModel.GroupKey` now prefers `Tag` over the first path segment for tree grouping
+- `LoadCollectionRequestCore` in `MainWindowViewModel` populates body, content type, and request headers from the stored `CollectionRequest` fields
+- SQLite schema: `tag`, `body`, `content_type`, `headers` columns added via non-destructive `ALTER TABLE` migrations; headers serialised as JSON
+- 13 new unit tests added to `OpenApiImportServiceTests`
