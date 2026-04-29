@@ -129,11 +129,13 @@ public sealed class OpenApiImportService
         }
 
         // Security / auth headers derived from the effective security requirements.
-        // Only an unspecified operation-level security declaration inherits the
-        // document-level security requirements. An explicit empty list means the
-        // operation requires no security, so no auth headers should be added.
+        // When the operation defines no security entries (null or empty list), fall back
+        // to the document-level security requirements. The Microsoft.OpenApi library
+        // returns an empty (non-null) list for both "not declared" and "security: []",
+        // so we treat count == 0 as "use document defaults" — this matches the common
+        // case of inheriting global auth from the document root.
         IEnumerable<OpenApiSecurityRequirement> effectiveSecurityRequirements =
-            operation.Security is null
+            operation.Security is null or { Count: 0 }
                 ? document.SecurityRequirements ?? []
                 : operation.Security;
 
