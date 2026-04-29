@@ -94,7 +94,7 @@
         <!-- Collections tab -->
         <Border Grid.Row="1" Background="{DynamicResource PanelBackgroundBrush}" Padding="12" CornerRadius="8"
                 IsVisible="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=Collections}">
-            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
 
                 <!-- Row 0: Collection selector + New button -->
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
@@ -140,19 +140,37 @@
                             AutomationProperties.Name="Import OpenAPI specification"
                             Command="{Binding App.ImportCollectionCommand}" />
                     <Button Classes="compact"
+                            Content="{x:Static loc:Strings.LeftPanelRenameCollection}"
+                            AutomationProperties.Name="Rename collection"
+                            ToolTip.Tip="Rename this collection"
+                            Command="{Binding App.ShowRenameCollectionFormCommand}" />
+                    <Button Classes="compact"
                             Content="{x:Static loc:Strings.LeftPanelDeleteCollection}"
                             AutomationProperties.Name="Delete collection"
                             Command="{Binding App.DeleteCollectionCommand}"
                             CommandParameter="{Binding App.SelectedCollection}" />
                 </StackPanel>
 
-                <!-- Row 3: Search box -->
-                <TextBox Grid.Row="3" Margin="0,6,0,0"
+                <!-- Row 3: Inline rename-collection form -->
+                <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4" Margin="0,4,0,0"
+                      IsVisible="{Binding App.IsRenameCollectionFormVisible}">
+                    <TextBox PlaceholderText="{x:Static loc:Strings.LeftPanelRenameCollectionNamePlaceholder}"
+                             Text="{Binding App.RenameCollectionName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Grid.Column="1" Classes="compact" Content="✓"
+                            AutomationProperties.Name="Confirm rename collection"
+                            Command="{Binding App.ConfirmRenameCollectionCommand}" />
+                    <Button Grid.Column="2" Classes="compact" Content="✕"
+                            AutomationProperties.Name="Cancel rename collection"
+                            Command="{Binding App.CancelRenameCollectionCommand}" />
+                </Grid>
+
+                <!-- Row 4: Search box -->
+                <TextBox Grid.Row="4" Margin="0,6,0,0"
                          PlaceholderText="{x:Static loc:Strings.LeftPanelSearchRequests}"
                          Text="{Binding App.CollectionSearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-                <!-- Row 4: Sort + view-mode toolbar -->
-                <Grid Grid.Row="4" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
+                <!-- Row 5: Sort + view-mode toolbar -->
+                <Grid Grid.Row="5" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
                     <!-- Sort row -->
                     <StackPanel Orientation="Horizontal" Spacing="0">
                         <TextBlock Text="{x:Static loc:Strings.LeftPanelSortLabel}" VerticalAlignment="Center" Opacity="0.7" Margin="0,0,4,0" FontSize="11" />
@@ -191,8 +209,8 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- Row 5: Flat list view (default) -->
-                <ScrollViewer Grid.Row="5" Margin="0,6,0,0"
+                <!-- Row 6: Flat list view (default) -->
+                <ScrollViewer Grid.Row="6" Margin="0,6,0,0"
                               IsVisible="{Binding !App.IsCollectionTreeView}">
                     <ItemsControl ItemsSource="{Binding App.FilteredCollectionItems}">
                         <ItemsControl.ItemTemplate>
@@ -232,8 +250,8 @@
                     </ItemsControl>
                 </ScrollViewer>
 
-                <!-- Row 5: Tree view (grouped by path segment) -->
-                <ScrollViewer Grid.Row="5" Margin="0,6,0,0"
+                <!-- Row 6: Tree view (grouped by path segment) -->
+                <ScrollViewer Grid.Row="6" Margin="0,6,0,0"
                               IsVisible="{Binding App.IsCollectionTreeView}">
                     <ItemsControl ItemsSource="{Binding App.CollectionGroups}">
                         <ItemsControl.ItemTemplate>

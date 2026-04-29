@@ -691,6 +691,12 @@ public static class Strings
     /// <summary>🗑 Delete</summary>
     public static string LeftPanelDeleteCollection => Get(nameof(LeftPanelDeleteCollection));
 
+    /// <summary>✏ Rename</summary>
+    public static string LeftPanelRenameCollection => Get(nameof(LeftPanelRenameCollection));
+
+    /// <summary>New collection name</summary>
+    public static string LeftPanelRenameCollectionNamePlaceholder => Get(nameof(LeftPanelRenameCollectionNamePlaceholder));
+
     /// <summary>Search requests…</summary>
     public static string LeftPanelSearchRequests => Get(nameof(LeftPanelSearchRequests));
 

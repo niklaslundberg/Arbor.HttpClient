@@ -182,6 +182,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _isNewCollectionFormVisible;
 
     [ObservableProperty]
+    private string _renameCollectionName = string.Empty;
+
+    [ObservableProperty]
+    private bool _isRenameCollectionFormVisible;
+
+    [ObservableProperty]
     private string? _selectedLayoutName;
 
     public const string SystemThemeOption = "System";
@@ -326,6 +332,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedCollectionChanged(Collection? value)
     {
+        IsRenameCollectionFormVisible = false;
+        RenameCollectionName = string.Empty;
+
         CollectionItems.Clear();
         if (value is { } collection)
         {
@@ -1195,7 +1204,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private async Task CreateCollectionAsync()
+    private async Task CreateCollectionAsync(CancellationToken cancellationToken)
     {
         var name = NewCollectionName.Trim();
         if (string.IsNullOrWhiteSpace(name))
@@ -1203,14 +1212,70 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var id = await _collectionRepository.SaveAsync(name, null, null, []);
+        if (Collections.Any(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            ErrorMessage = $"A collection named \"{name}\" already exists. Choose a different name.";
+            return;
+        }
+
+        ErrorMessage = string.Empty;
+        var id = await _collectionRepository.SaveAsync(name, null, null, [], cancellationToken);
         IsNewCollectionFormVisible = false;
         NewCollectionName = string.Empty;
 
-        await LoadCollectionsAsync();
+        await LoadCollectionsAsync(cancellationToken);
         SelectedCollection = Collections.FirstOrDefault(c => c.Id == id);
         LeftPanelTab = "Collections";
         _debugLogger.Information("Created new collection {CollectionName}", name);
+    }
+
+    [RelayCommand]
+    private void ShowRenameCollectionForm()
+    {
+        if (SelectedCollection is not { } collection)
+        {
+            return;
+        }
+
+        RenameCollectionName = collection.Name;
+        IsRenameCollectionFormVisible = true;
+    }
+
+    [RelayCommand]
+    private void CancelRenameCollection()
+    {
+        RenameCollectionName = string.Empty;
+        IsRenameCollectionFormVisible = false;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmRenameCollectionAsync(CancellationToken cancellationToken)
+    {
+        if (SelectedCollection is not { } collection)
+        {
+            return;
+        }
+
+        var newName = RenameCollectionName.Trim();
+        if (string.IsNullOrWhiteSpace(newName))
+        {
+            return;
+        }
+
+        if (Collections.Any(c => c.Id != collection.Id && string.Equals(c.Name, newName, StringComparison.OrdinalIgnoreCase)))
+        {
+            ErrorMessage = $"A collection named \"{newName}\" already exists. Choose a different name.";
+            return;
+        }
+
+        ErrorMessage = string.Empty;
+        await _collectionRepository.UpdateAsync(collection.Id, newName, collection.SourcePath, collection.BaseUrl, collection.Requests, cancellationToken);
+        IsRenameCollectionFormVisible = false;
+        RenameCollectionName = string.Empty;
+        _debugLogger.Information("Renamed collection {OldName} to {NewName}", collection.Name, newName);
+
+        await LoadCollectionsAsync(cancellationToken);
+        SelectedCollection = Collections.FirstOrDefault(c => c.Id == collection.Id);
     }
 
     [RelayCommand]
