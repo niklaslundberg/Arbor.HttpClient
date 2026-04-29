@@ -102,4 +102,5 @@ public class VariableCompletionEngineTests
         context.Prefix.Should().Be("HOME");
         context.ReplaceStartOffset.Should().Be("{{env: ".Length);
     }
+
 }
