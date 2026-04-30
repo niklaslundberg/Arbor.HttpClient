@@ -183,6 +183,106 @@ sudo apt-get install -y \
 
 ---
 
+## 5a. Alpine Linux / QEMU-KVM Architecture ✅ Implemented
+
+The Alpine-based approach (`start-ui-automation-kvm-alpine.sh`) is the recommended
+choice for replicating system tests locally on any Ubuntu 22.04+ machine because:
+
+- **No manual image preparation** — the Alpine NoCloud QEMU cloud image (~90 MB)
+  is downloaded automatically from the Alpine CDN and cached locally.
+- **musl-libc binary** — the application is published with `--runtime linux-musl-x64`
+  so the self-contained binary runs on Alpine without any .NET installation in the guest.
+- **Cloud-init configuration** — a seed ISO configures the guest user, SSH access, and
+  all required X11 automation packages (`xvfb`, `xdotool`, `scrot`, `ffmpeg`) at first boot.
+- **Structured reporting** — produces a JSON results file and a Markdown report alongside
+  the screenshots.
+
+```
+Host (Ubuntu 22.04+, KVM enabled)
+│
+├── start-ui-automation-kvm-alpine.sh
+│     │
+│     ├── Downloads Alpine 3.21 NoCloud QEMU image (with SHA256 check)
+│     ├── Creates cloud-init seed ISO (user/SSH/packages)
+│     ├── Creates overlay qcow2 on top of the base image
+│     ├── Starts QEMU/KVM VM (VNC :11, SSH port 52223)
+│     ├── Waits for SSH and cloud-init completion
+│     ├── dotnet publish linux-musl-x64 self-contained on host
+│     ├── scp app into guest
+│     ├── SSH: Xvfb :99 + optional ffmpeg x11grab recording
+│     ├── SSH: DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 ./Arbor.HttpClient.Desktop
+│     ├── SSH: xdotool for URL, click Send → wait for response
+│     ├── SSH: scrot screenshots after each automation step
+│     ├── scp screenshots and video back to host output dir
+│     ├── Generates alpine-test-results.json + alpine-test-report.md
+│     └── Shuts down and deletes overlay + seed images
+│
+└── docs/system-test-screenshots/alpine/  ←── final artifacts
+```
+
+### Host prerequisites (Alpine approach)
+
+```bash
+sudo apt-get install -y \
+    qemu-kvm qemu-utils cloud-image-utils \
+    sshpass ffmpeg \
+    dotnet-sdk-10
+```
+
+`cloud-image-utils` provides `cloud-localds` for building the seed ISO.
+If unavailable, `genisoimage` or `mkisofs` is used automatically.
+
+### Quick start — local developer run
+
+```bash
+# With auto-download of the Alpine image (recommended first run):
+./scripts/start-ui-automation-kvm-alpine.sh
+
+# With a previously downloaded image (faster repeated runs):
+./scripts/start-ui-automation-kvm-alpine.sh \
+    --base-image /tmp/arbor-vms/nocloud_alpine-3.21.3-x86_64-bios-cloudinit-r0.qcow2
+
+# With video recording and step-by-step inspection:
+./scripts/start-ui-automation-kvm-alpine.sh \
+    --record-video \
+    --pause
+
+# Override output directory and memory:
+./scripts/start-ui-automation-kvm-alpine.sh \
+    --output-dir /tmp/my-run \
+    --memory 4096
+```
+
+### CI workflow
+
+`.github/workflows/kvm-alpine-tests.yml` provides on-demand KVM+Alpine system tests
+via `workflow_dispatch`. It:
+
+1. Caches the Alpine QEMU image between runs using `actions/cache`.
+2. Installs `qemu-kvm`, `cloud-image-utils`, `sshpass`, and `ffmpeg` on the runner.
+3. Runs `start-ui-automation-kvm-alpine.sh` with the requested version and options.
+4. Uploads screenshots, video, JSON results, and the Markdown report as a run artifact.
+5. Writes the Markdown report to the workflow job summary.
+6. A separate `commit-results` job (with `contents: write`) optionally commits the
+   artifacts to `docs/system-test-screenshots/alpine/` in the repository.
+
+**Note:** Standard GitHub-hosted runners expose KVM experimentally (Azure VM nesting).
+The script falls back to software emulation automatically. For reliable KVM in CI,
+use a large Linux runner (4+ vCPU, paid tier) by changing `runs-on` to
+`ubuntu-latest-4-cores` in the workflow.
+
+### Script inventory update
+
+| Script | Platform | Purpose |
+|---|---|---|
+| `scripts/Test-HyperVAvailability.ps1` | Windows | Fast non-destructive Hyper-V probe. Exit 0 = available. |
+| `scripts/Start-UIAutomation.ps1` | Windows 11 + Hyper-V | Orchestrator — manages Hyper-V VM lifecycle, deploys app, runs automation. |
+| `scripts/Invoke-InVMAutomation.ps1` | Windows guest | Inner automation driver — real Win32 keyboard/mouse events, screenshots. |
+| `scripts/start-ui-automation-kvm.sh` | Ubuntu 22.04+ host + QEMU/KVM | Bash orchestrator using Ubuntu guest, SSH, xdotool, and ffmpeg. Requires a manually prepared base image. |
+| `scripts/start-ui-automation-kvm-alpine.sh` | Ubuntu 22.04+ host + QEMU/KVM | **Recommended Linux approach.** Alpine guest, cloud-init, auto-downloads base image, produces JSON+Markdown report. |
+
+---
+
 ## 6. Pause / Inspection Mode
 
 Both scripts support a `-PauseAfterEachStep` / `--pause` flag:
@@ -226,6 +326,18 @@ and support step-level pause.
 
 ### Sub-task 4 — Ubuntu/KVM alternative *(this PR — `start-ui-automation-kvm.sh`)*
 Bash implementation using QEMU/KVM, SSH, xdotool, scrot, and ffmpeg.
+
+### Sub-task 4a — Alpine/KVM alternative ✅ Implemented
+
+`scripts/start-ui-automation-kvm-alpine.sh` — the recommended Linux VM approach.
+
+Key improvements over the Ubuntu variant:
+- Auto-downloads the official Alpine NoCloud QEMU image (no manual base image preparation).
+- Configures the guest entirely via cloud-init (user, SSH, X11 packages).
+- Publishes the app with `linux-musl-x64` RID — Alpine's musl libc is supported out of the box.
+- Generates a JSON results file (`alpine-test-results.json`) and a Markdown summary
+  (`alpine-test-report.md`) alongside the screenshots.
+- Backed by `.github/workflows/kvm-alpine-tests.yml` for on-demand CI runs.
 
 ### Sub-task 5 — Windows UI Automation integration *(future)*
 Replace coordinate-based clicking with `System.Windows.Automation` element lookup so tests
@@ -285,12 +397,16 @@ parallel without the full provisioning overhead.
 - **Windows hosted runners** may support Hyper-V nested virtualisation experimentally (same
   Azure VM reasoning as above), but this is unsupported. For reliable Windows VM automation,
   use a self-hosted Windows 11 runner or the developer's own machine with Hyper-V enabled.
-- **Base image required** — the developer must prepare the guest OS image separately; the
-  scripts do not download or install the guest OS.
-- **Windows guest only for primary script** — `Invoke-InVMAutomation.ps1` uses Win32 APIs
-  and requires a Windows guest; the KVM script targets Ubuntu guests.
+- **Base image required for Ubuntu KVM script** — `start-ui-automation-kvm.sh` requires a
+  manually prepared Ubuntu qcow2. The Alpine variant (`start-ui-automation-kvm-alpine.sh`)
+  downloads and verifies the base image automatically.
+- **Windows guest only for primary PowerShell script** — `Invoke-InVMAutomation.ps1` uses
+  Win32 APIs and requires a Windows guest; the KVM scripts target Linux guests.
 - **Coordinate-based clicking** — control positions are hardcoded from the default 1280×800
   layout; changes to the application layout will require coordinate updates until sub-task 5
   (UI Automation) is implemented.
-- **Antivirus / Defender SmartScreen** — inside the VM, Defender may block the unsigned
+- **Alpine musl libc** — `linux-musl-x64` binaries run correctly on Alpine. The self-contained
+  publish includes the .NET runtime for musl, so no .NET installation is required in the guest.
+  Native Avalonia/Skia libraries (`libSkiaSharp`) include musl variants from NuGet 2.88+.
+- **Antivirus / Defender SmartScreen** — inside the Windows VM, Defender may block the unsigned
   xcopy deployment; the MSIX approach (sub-task 6) avoids this.

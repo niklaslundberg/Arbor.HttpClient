@@ -1,0 +1,255 @@
+name: System Tests (KVM + Alpine Linux)
+
+on:
+  workflow_dispatch:
+    inputs:
+      alpine_version:
+        description: >
+          Alpine Linux version to download and use as the VM guest
+          (e.g. 3.21.7). Leave blank to use the script default (3.21.7).
+        required: false
+        default: ''
+      record_video:
+        description: Record the UI session as an MP4 inside the guest VM.
+        type: boolean
+        required: false
+        default: true
+      commit_artifacts:
+        description: >
+          Commit screenshots, video, and reports to
+          docs/system-test-screenshots/alpine/ in the repository.
+          Requires the workflow to run on a self-hosted runner with push access.
+        type: boolean
+        required: false
+        default: false
+
+# KVM+Alpine system tests run on demand only. They exercise the real application
+# inside a minimal Alpine Linux VM to verify end-to-end desktop behaviour on a
+# Linux/musl platform and to confirm the UI automation pipeline is replicable
+# outside Windows/Hyper-V environments.
+#
+# Screenshots are captured after each UI automation step.
+# When record_video is enabled, an MP4 of the full session is produced.
+#
+# KVM availability on GitHub-hosted runners:
+#   Standard runners are Azure VMs — KVM is experimental and unsupported.
+#   The script degrades automatically to software emulation (slow) when
+#   /dev/kvm is absent. For guaranteed KVM on GitHub Actions, use a large
+#   Linux runner (4+ vCPU, paid tier).
+
+permissions:
+  contents: read
+
+jobs:
+  kvm-alpine-tests:
+    name: KVM Alpine System Tests
+    runs-on: ubuntu-latest
+    # This job is inherently best-effort: KVM may not be available on standard
+    # runners, and the QEMU software fallback takes significantly longer.
+    continue-on-error: true
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload-artifacts.outputs.artifact-id }}
+      artifact-url: ${{ steps.upload-artifacts.outputs.artifact-url }}
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: "10.0.x"
+
+      # -----------------------------------------------------------------------
+      # Restore and audit before any build step
+      # -----------------------------------------------------------------------
+      - name: Restore NuGet packages
+        run: dotnet restore Arbor.HttpClient.slnx --locked-mode
+
+      - name: Audit NuGet dependencies for vulnerabilities
+        run: dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive
+
+      # -----------------------------------------------------------------------
+      # Host prerequisites
+      # -----------------------------------------------------------------------
+      - name: Install host prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            qemu-kvm qemu-utils cloud-image-utils \
+            sshpass ffmpeg
+
+      # -----------------------------------------------------------------------
+      # Cache the Alpine QEMU cloud image between workflow runs.
+      # The cache key includes the Alpine version so a version change forces
+      # a fresh download.
+      # -----------------------------------------------------------------------
+      - name: Determine Alpine version
+        id: alpine-ver
+        run: |
+          VER="${{ inputs.alpine_version }}"
+          if [[ -z "$VER" ]]; then
+            VER="3.21.7"
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          MAJOR_MINOR="${VER%.*}"
+          echo "major_minor=$MAJOR_MINOR" >> "$GITHUB_OUTPUT"
+          IMAGE="nocloud_alpine-${VER}-x86_64-bios-cloudinit-r0.qcow2"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Alpine image from cache
+        id: cache-alpine
+        uses: actions/cache@5a3ec84eff668e56bc51ca40d99671ee91efbd15
+        with:
+          path: /tmp/arbor-vms/${{ steps.alpine-ver.outputs.image }}
+          key: alpine-qcow2-${{ steps.alpine-ver.outputs.version }}
+
+      # -----------------------------------------------------------------------
+      # Check KVM availability (non-blocking diagnostic)
+      # -----------------------------------------------------------------------
+      - name: Check KVM availability
+        id: kvm-check
+        continue-on-error: true
+        run: |
+          set +e
+          if lsmod | grep -q kvm || [[ -c /dev/kvm ]]; then
+            echo "KVM_AVAILABLE=true" >> "$GITHUB_OUTPUT"
+            echo "KVM acceleration is available on this runner."
+          else
+            echo "KVM_AVAILABLE=false" >> "$GITHUB_OUTPUT"
+            echo "KVM not available — QEMU will use software emulation (slower)."
+          fi
+
+      # -----------------------------------------------------------------------
+      # Run the Alpine KVM automation
+      # -----------------------------------------------------------------------
+      - name: Run Alpine KVM UI automation
+        id: kvm-run
+        continue-on-error: true
+        env:
+          # Non-interactive mode: script uses default password 'alpine'
+          CI: "true"
+        run: |
+          set +e
+          EXTRA_FLAGS=""
+          if [[ "${{ inputs.record_video }}" == "true" ]]; then
+            EXTRA_FLAGS="$EXTRA_FLAGS --record-video"
+          fi
+          if [[ -n "${{ inputs.alpine_version }}" ]]; then
+            EXTRA_FLAGS="$EXTRA_FLAGS --alpine-version ${{ inputs.alpine_version }}"
+          fi
+
+          chmod +x scripts/start-ui-automation-kvm-alpine.sh
+          bash scripts/start-ui-automation-kvm-alpine.sh \
+            --images-dir /tmp/arbor-vms \
+            --output-dir kvm-alpine-artifacts \
+            $EXTRA_FLAGS
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      # -----------------------------------------------------------------------
+      # Upload all artifacts
+      # -----------------------------------------------------------------------
+      - name: Upload KVM Alpine artifacts
+        if: always()
+        id: upload-artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: kvm-alpine-artifacts-${{ github.run_number }}
+          path: |
+            kvm-alpine-artifacts/
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Upload video artifact
+        if: always() && inputs.record_video
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: kvm-alpine-video-${{ github.run_number }}
+          path: kvm-alpine-artifacts/../demo-alpine.mp4
+          retention-days: 30
+          if-no-files-found: ignore
+
+      # -----------------------------------------------------------------------
+      # Write job summary from the generated Markdown report
+      # -----------------------------------------------------------------------
+      - name: Write job summary
+        if: always()
+        run: |
+          {
+            if [[ -f kvm-alpine-artifacts/alpine-test-report.md ]]; then
+              cat kvm-alpine-artifacts/alpine-test-report.md
+            else
+              echo "## Alpine KVM System Test Results"
+              echo ""
+              echo "| Property | Value |"
+              echo "|---|---|"
+              echo "| KVM available | ${{ steps.kvm-check.outputs.KVM_AVAILABLE }} |"
+              echo "| Alpine version | ${{ steps.alpine-ver.outputs.version }} |"
+              echo "| Run outcome | ${{ steps.kvm-run.outcome }} |"
+            fi
+            echo ""
+            ARTIFACT_URL="${{ steps.upload-artifacts.outputs.artifact-url }}"
+            if [[ -n "$ARTIFACT_URL" ]]; then
+              echo "**Artifacts:** [Download](${ARTIFACT_URL})"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Separate job with write permissions — only runs when commit_artifacts=true.
+  # Isolating this ensures the test job always runs with read-only permissions.
+  # ---------------------------------------------------------------------------
+  commit-results:
+    name: Commit Artifacts to Repository
+    needs: kvm-alpine-tests
+    if: inputs.commit_artifacts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - name: Download KVM Alpine artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: kvm-alpine-artifacts-${{ github.run_number }}
+          path: kvm-alpine-artifacts
+
+      - name: Commit artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Authenticate push via token (persist-credentials: false removes default auth)
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+
+          DEST="docs/system-test-screenshots/alpine"
+          mkdir -p "$DEST"
+
+          SRC="kvm-alpine-artifacts"
+          if [[ ! -d "$SRC" ]]; then
+            echo "No artifacts directory found — nothing to commit."
+            exit 0
+          fi
+
+          # Copy screenshots, reports, and logs into the docs directory
+          find "$SRC" -type f | while read -r f; do
+            rel="${f#$SRC/}"
+            out="$DEST/$rel"
+            mkdir -p "$(dirname "$out")"
+            cp "$f" "$out"
+          done
+
+          git add docs/system-test-screenshots/alpine/
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update Alpine KVM system test artifacts [skip ci]"
+            git push
+            echo "Artifacts committed to $DEST."
+          else
+            echo "No artifact changes — nothing to commit."
+          fi
