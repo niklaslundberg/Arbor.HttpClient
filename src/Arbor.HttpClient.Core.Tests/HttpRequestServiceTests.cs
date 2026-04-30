@@ -406,4 +406,68 @@ public class HttpRequestServiceTests
         repository.Items.Should().ContainSingle();
         repository.Items[0].Name.Should().Be("http://localhost:5000/path");
     }
+
+    [Fact]
+    public async Task SendAsync_WithHttpsDiagnosticsEnabled_ShouldInvokeTlsProbe()
+    {
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent("ok")
+            });
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        HttpRequestDiagnostics? diagnostics = null;
+        service.SetHttpDiagnosticsObserver(d => diagnostics = d);
+        service.SetHttpDiagnosticsEnabled(true);
+
+        // Use a port guaranteed to be closed so the TLS probe fails quickly and
+        // the catch block in ProbeTlsAsync returns "TLS probe failed: ..."
+        await service.SendAsync(new HttpRequestDraft("TLSTest", "GET", "https://localhost:1/test", null), TestContext.Current.CancellationToken);
+
+        diagnostics.Should().NotBeNull();
+        diagnostics!.TlsNegotiation.Should().StartWith("TLS probe failed:");
+    }
+
+    [Fact]
+    public async Task SendAsync_WithHttpsDiagnosticsDisabled_ShouldReportTlsUnavailable()
+    {
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent("ok")
+            });
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        HttpRequestDiagnostics? diagnostics = null;
+        service.SetHttpDiagnosticsObserver(d => diagnostics = d);
+        service.SetHttpDiagnosticsEnabled(true);
+
+        // For http:// the TLS result is "Not applicable (HTTP)"
+        await service.SendAsync(new HttpRequestDraft("NoTLS", "GET", "http://localhost:5000/test", null), TestContext.Current.CancellationToken);
+
+        diagnostics.Should().NotBeNull();
+        diagnostics!.TlsNegotiation.Should().Be("Not applicable (HTTP)");
+    }
+
+    [Fact]
+    public async Task SendAsync_WithDiagnosticsEnabledOnUnresolvableHost_ShouldReportDnsFailure()
+    {
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent("ok")
+            });
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        HttpRequestDiagnostics? diagnostics = null;
+        service.SetHttpDiagnosticsObserver(d => diagnostics = d);
+        service.SetHttpDiagnosticsEnabled(true);
+
+        // Use a domain guaranteed to not resolve so the DNS catch block fires
+        await service.SendAsync(new HttpRequestDraft("DnsTest", "GET", "http://host.invalid/test", null), TestContext.Current.CancellationToken);
+
+        diagnostics.Should().NotBeNull();
+        diagnostics!.DnsLookup.Should().StartWith("DNS lookup failed:");
+    }
 }

@@ -464,4 +464,182 @@ public class OpenApiImportServiceTests
         getData.Headers.Should().ContainSingle(h =>
             h.Name == "Authorization" && h.Value == "Bearer {{bearerToken}}");
     }
+
+    // ── Collection name fallbacks ─────────────────────────────────────────────
+
+    [Fact]
+    public void Import_WhenDocumentHasNoTitle_ShouldUseFallbackFromSourcePath()
+    {
+        const string specWithNoTitle = """
+            {
+              "openapi": "3.0.3",
+              "info": { "version": "1.0.0" },
+              "paths": {}
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithNoTitle));
+        var collection = _service.Import(stream, "/path/to/my-api.json");
+        collection.Name.Should().Be("my-api");
+    }
+
+    [Fact]
+    public void Import_WhenDocumentHasNoTitleAndNoSourcePath_ShouldUseDefaultName()
+    {
+        const string specWithNoTitle = """
+            {
+              "openapi": "3.0.3",
+              "info": { "version": "1.0.0" },
+              "paths": {}
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithNoTitle));
+        var collection = _service.Import(stream, sourcePath: null);
+        collection.Name.Should().Be("Imported Collection");
+    }
+
+    // ── No servers ────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Import_WhenDocumentHasNoServers_ShouldReturnNullBaseUrl()
+    {
+        const string specWithNoServers = """
+            {
+              "openapi": "3.0.3",
+              "info": { "title": "No Server API", "version": "1.0.0" },
+              "paths": {
+                "/items": {
+                  "get": { "operationId": "listItems" }
+                }
+              }
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithNoServers));
+        var collection = _service.Import(stream);
+        collection.BaseUrl.Should().BeNull();
+    }
+
+    // ── Operation name fallback when no operationId ───────────────────────────
+
+    [Fact]
+    public void Import_WhenOperationHasNoOperationId_ShouldUseMethodAndPathAsFallbackName()
+    {
+        const string specWithNoOperationId = """
+            {
+              "openapi": "3.0.3",
+              "info": { "title": "Test API", "version": "1.0.0" },
+              "paths": {
+                "/items/{id}": {
+                  "get": {
+                    "summary": "Get item by id"
+                  }
+                }
+              }
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithNoOperationId));
+        var collection = _service.Import(stream);
+        collection.Requests.Should().ContainSingle();
+        collection.Requests[0].Name.Should().Be("GET /items/{id}");
+    }
+
+    // ── Basic auth security scheme ────────────────────────────────────────────
+
+    [Fact]
+    public void Import_ShouldAddBasicAuthHeaderFromSecurityScheme()
+    {
+        const string specWithBasicAuth = """
+            {
+              "openapi": "3.0.3",
+              "info": { "title": "Basic Auth API", "version": "1.0.0" },
+              "components": {
+                "securitySchemes": {
+                  "basicAuth": { "type": "http", "scheme": "basic" }
+                }
+              },
+              "paths": {
+                "/data": {
+                  "get": {
+                    "operationId": "getData",
+                    "security": [{ "basicAuth": [] }]
+                  }
+                }
+              }
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithBasicAuth));
+        var collection = _service.Import(stream);
+        var getData = collection.Requests.Single(r => r.Name == "getData");
+        getData.Headers.Should().ContainSingle(h =>
+            h.Name == "Authorization" && h.Value == "Basic {{credentials}}");
+    }
+
+    // ── ConvertAny primitive type coverage ────────────────────────────────────
+
+    [Fact]
+    public void Import_ShouldSerializeOpenApiExampleWithAllPrimitiveTypes()
+    {
+        const string specWithPrimitiveExamples = """
+            {
+              "openapi": "3.0.3",
+              "info": { "title": "Primitive Types API", "version": "1.0.0" },
+              "paths": {
+                "/create": {
+                  "post": {
+                    "operationId": "create",
+                    "requestBody": {
+                      "required": true,
+                      "content": {
+                        "application/json": {
+                          "example": {
+                            "name": "test",
+                            "count": 42,
+                            "ratio": 3.14,
+                            "active": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithPrimitiveExamples));
+        var collection = _service.Import(stream);
+        var create = collection.Requests.Single(r => r.Name == "create");
+        create.Body.Should().NotBeNullOrEmpty();
+        create.Body.Should().Contain("test");
+        create.Body.Should().Contain("42");
+    }
+
+    [Fact]
+    public void Import_ShouldHandleNonJsonContentTypeFallback()
+    {
+        const string specWithFormContent = """
+            {
+              "openapi": "3.0.3",
+              "info": { "title": "Form API", "version": "1.0.0" },
+              "paths": {
+                "/upload": {
+                  "post": {
+                    "operationId": "upload",
+                    "requestBody": {
+                      "required": true,
+                      "content": {
+                        "text/plain": {
+                          "example": "hello world"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithFormContent));
+        var collection = _service.Import(stream);
+        var upload = collection.Requests.Single(r => r.Name == "upload");
+        upload.ContentType.Should().Be("text/plain");
+        upload.Body.Should().NotBeNullOrEmpty();
+    }
 }
