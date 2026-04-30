@@ -129,7 +129,7 @@ public partial class App : Application
 
                 return inverseRedirectHttpClient;
             });
-            var scheduledJobService = new ScheduledJobService(httpRequestService, Log.Logger);
+            var scheduledJobService = new ScheduledJobService(httpRequestService, Log.Logger, exceptionCollector);
             var demoServer = new DemoServer();
 
             // ViewModels
@@ -165,7 +165,7 @@ public partial class App : Application
                 DataContext = viewModel,
             };
 
-            window.Opened += async (_, _) => await InitializeAsync(historyRepository, collectionRepository, environmentRepository, scheduledJobRepository, viewModel);
+            window.Opened += async (_, _) => await InitializeAsync(historyRepository, collectionRepository, environmentRepository, scheduledJobRepository, viewModel, exceptionCollector);
             window.Closed += (_, _) => DisposeResources();
 
             async void DisposeResources()
@@ -193,7 +193,8 @@ public partial class App : Application
         ICollectionRepository collectionRepository,
         IEnvironmentRepository environmentRepository,
         IScheduledJobRepository scheduledJobRepository,
-        MainWindowViewModel viewModel)
+        MainWindowViewModel viewModel,
+        UnhandledExceptionCollector? exceptionCollector)
     {
         try
         {
@@ -203,8 +204,9 @@ public partial class App : Application
             await scheduledJobRepository.InitializeAsync();
             await viewModel.InitializeAsync();
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            exceptionCollector?.Add(exception);
             viewModel.ErrorMessage = exception.Message;
         }
     }

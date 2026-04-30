@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using Arbor.HttpClient.Desktop.Features.Diagnostics;
 using Arbor.HttpClient.Desktop.Features.Logging;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Serilog;
@@ -20,12 +21,14 @@ public sealed class ScheduledJobService : IDisposable
 {
     private readonly HttpRequestService _httpRequestService;
     private readonly ILogger _logger;
+    private readonly UnhandledExceptionCollector? _exceptionCollector;
     private readonly ConcurrentDictionary<int, JobHandle> _handles = new();
 
-    public ScheduledJobService(HttpRequestService httpRequestService, ILogger logger)
+    public ScheduledJobService(HttpRequestService httpRequestService, ILogger logger, UnhandledExceptionCollector? exceptionCollector = null)
     {
         _httpRequestService = httpRequestService;
         _logger = logger.ForContext<ScheduledJobService>().ForContext("LogTab", LogTab.ScheduledLive);
+        _exceptionCollector = exceptionCollector;
     }
 
     public bool IsRunning(int jobId) => _handles.ContainsKey(jobId);
@@ -99,6 +102,7 @@ public sealed class ScheduledJobService : IDisposable
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.Error(ex, "Scheduled job {JobName} failed", config.Name);
+            _exceptionCollector?.Add(ex);
         }
     }
 
