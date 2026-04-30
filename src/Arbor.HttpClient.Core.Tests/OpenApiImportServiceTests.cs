@@ -285,6 +285,74 @@ public class OpenApiImportServiceTests
         createItem.ContentType.Should().Be("application/json");
     }
 
+    [Fact]
+    public void Import_ShouldLeaveBodyNullWhenMediaTypeValueIsNull()
+    {
+        // The OpenAPI parser sets a null OpenApiMediaType value in Content when the
+        // content entry is explicitly "null" in the document. This would previously
+        // throw NullReferenceException when accessing mediaType.Example.
+        const string specWithNullMediaType = """
+            {
+              "openapi": "3.0.3",
+              "info": { "title": "Test API", "version": "1.0.0" },
+              "paths": {
+                "/items": {
+                  "post": {
+                    "operationId": "createItem",
+                    "requestBody": {
+                      "required": true,
+                      "content": {
+                        "application/json": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithNullMediaType));
+        var collection = _service.Import(stream);
+        var createItem = collection.Requests.Single(r => r.Name == "createItem");
+        createItem.Body.Should().BeNull();
+        createItem.ContentType.Should().Be("application/json");
+    }
+
+    [Fact]
+    public void Import_ShouldLeaveBodyNullWhenNamedExampleValueIsNull()
+    {
+        // The OpenAPI parser sets a null OpenApiExample entry in the Examples dictionary
+        // when an example is explicitly "null" in the document. This would previously
+        // throw NullReferenceException when calling .First().Value on that entry.
+        const string specWithNullNamedExample = """
+            {
+              "openapi": "3.0.3",
+              "info": { "title": "Test API", "version": "1.0.0" },
+              "paths": {
+                "/items": {
+                  "post": {
+                    "operationId": "createItem",
+                    "requestBody": {
+                      "required": true,
+                      "content": {
+                        "application/json": {
+                          "examples": {
+                            "sample": null
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithNullNamedExample));
+        var collection = _service.Import(stream);
+        var createItem = collection.Requests.Single(r => r.Name == "createItem");
+        createItem.Body.Should().BeNull();
+        createItem.ContentType.Should().Be("application/json");
+    }
+
     // ── Content type ──────────────────────────────────────────────────────────
 
     [Fact]
