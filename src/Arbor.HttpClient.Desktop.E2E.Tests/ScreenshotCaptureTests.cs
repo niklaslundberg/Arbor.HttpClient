@@ -155,6 +155,76 @@ public class ScreenshotCaptureTests
         }, CancellationToken.None);
     }
 
+    /// <summary>
+    /// Saves a screenshot of the main window toolbar showing the environment ComboBox with
+    /// the Production environment selected — demonstrating the red accent background, the
+    /// warning banner, and the activity-bar badge dot.  The color dots on each dropdown item
+    /// are a runtime visual inside the Avalonia popup visual root and cannot be captured by
+    /// <see cref="Window.GetLastRenderedFrame"/>; they are verified by the ItemTemplate XAML
+    /// and the <see cref="Arbor.HttpClient.Desktop.Shared.NotNullConverter"/> binding.
+    /// Output directory is controlled by the SCREENSHOT_OUTPUT_DIR environment variable
+    /// (defaults to the system temp folder).
+    /// </summary>
+    [Fact]
+    public async Task Capture_EnvironmentColorDropdown()
+    {
+        // Preset accent colors matching EnvironmentsPreset*Brush resources defined in App.axaml.
+        const string DevelopmentGreen = "#1E7A3C";
+        const string StagingAmber = "#8B5500";
+        const string ProductionRed = "#B41E1E";
+
+        var outputDir = ResolveOutputDir();
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var repository = new InMemoryRequestHistoryRepository();
+            using var httpClient = new global::System.Net.Http.HttpClient(handler);
+            var httpRequestService = new HttpRequestService(httpClient, repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            var environmentRepository = new InMemoryEnvironmentRepository();
+            await environmentRepository.SaveAsync("Development", [], accentColor: DevelopmentGreen);
+            await environmentRepository.SaveAsync("Staging", [], accentColor: StagingAmber);
+            await environmentRepository.SaveAsync("Production", [], accentColor: ProductionRed, showWarningBanner: true);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                environmentRepository,
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            await viewModel.InitializeAsync();
+
+            var productionEnvironment = viewModel.Environments.FirstOrDefault(e => e.Name == "Production");
+            if (productionEnvironment is null)
+            {
+                throw new InvalidOperationException(
+                    $"Expected '{nameof(MainWindowViewModel.Environments)}' to contain 'Production' after '{nameof(MainWindowViewModel.InitializeAsync)}'.");
+            }
+
+            viewModel.ActiveEnvironment = productionEnvironment;
+
+            var window = new MainWindow { DataContext = viewModel };
+            window.Show();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(5);
+
+            var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            screenshot?.Save(Path.Join(outputDir, "env-color-dropdown.png"));
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
     private static string ResolveOutputDir()
     {
         var dir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
