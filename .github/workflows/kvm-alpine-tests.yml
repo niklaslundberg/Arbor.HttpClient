@@ -106,6 +106,31 @@ jobs:
           path: /tmp/arbor-vms/${{ steps.alpine-ver.outputs.image }}
           key: alpine-qcow2-${{ steps.alpine-ver.outputs.version }}
 
+      - name: Restore APK package cache
+        id: cache-apk
+        uses: actions/cache@5a3ec84eff668e56bc51ca40d99671ee91efbd15
+        with:
+          path: /tmp/alpine-mirror
+          key: alpine-apk-cache-${{ steps.alpine-ver.outputs.major_minor }}-v1
+
+      - name: Restore prepared Alpine image from cache
+        id: cache-prepared
+        uses: actions/cache@5a3ec84eff668e56bc51ca40d99671ee91efbd15
+        with:
+          path: /tmp/arbor-vms/nocloud_alpine-${{ steps.alpine-ver.outputs.version }}-prepared.qcow2
+          key: alpine-prepared-${{ steps.alpine-ver.outputs.version }}-v1
+
+      - name: Build prepared image if not cached
+        if: steps.cache-prepared.outputs.cache-hit != 'true'
+        run: |
+          sudo modprobe nbd max_part=8 || true
+          sudo apt-get install -y --no-install-recommends e2fsprogs 2>/dev/null || true
+          chmod +x scripts/prepare-alpine-image.sh
+          sudo -E bash scripts/prepare-alpine-image.sh \
+            --images-dir    /tmp/arbor-vms \
+            --apk-cache-dir /tmp/alpine-mirror \
+            --output-image  /tmp/arbor-vms/nocloud_alpine-${{ steps.alpine-ver.outputs.version }}-prepared.qcow2
+
       # -----------------------------------------------------------------------
       # Check KVM availability (non-blocking diagnostic)
       # -----------------------------------------------------------------------
@@ -123,29 +148,27 @@ jobs:
           fi
 
       # -----------------------------------------------------------------------
-      # Run the Alpine KVM automation
+      # Run the Alpine KVM automation (uses prepared image — no package install)
       # -----------------------------------------------------------------------
       - name: Run Alpine KVM UI automation
         id: kvm-run
         continue-on-error: true
         env:
-          # Non-interactive mode: script uses default password 'alpine'
           CI: "true"
         run: |
           set +e
-          EXTRA_FLAGS=""
-          if [[ "${{ inputs.record_video }}" == "true" ]]; then
-            EXTRA_FLAGS="$EXTRA_FLAGS --record-video"
-          fi
-          if [[ -n "${{ inputs.alpine_version }}" ]]; then
-            EXTRA_FLAGS="$EXTRA_FLAGS --alpine-version ${{ inputs.alpine_version }}"
-          fi
+          VER="${{ steps.alpine-ver.outputs.version }}"
+          PREPARED="/tmp/arbor-vms/nocloud_alpine-${VER}-prepared.qcow2"
+
+          EXTRA_FLAGS=()
+          [[ -f "$PREPARED" ]] && EXTRA_FLAGS+=(--prepared-image "$PREPARED")
+          [[ "${{ inputs.record_video }}" == "true" ]] && EXTRA_FLAGS+=(--record-video)
 
           chmod +x scripts/start-ui-automation-kvm-alpine.sh
           bash scripts/start-ui-automation-kvm-alpine.sh \
             --images-dir /tmp/arbor-vms \
             --output-dir kvm-alpine-artifacts \
-            $EXTRA_FLAGS
+            "${EXTRA_FLAGS[@]}"
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
 
       # -----------------------------------------------------------------------

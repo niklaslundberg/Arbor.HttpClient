@@ -84,6 +84,9 @@ set -euo pipefail
 
 ALPINE_VERSION="3.21.7"
 BASE_IMAGE=""
+# When PREPARED_IMAGE is set (or the default prepared path exists), the VM is
+# started from it directly — cloud-init package installation is skipped.
+PREPARED_IMAGE=""
 VM_NAME="arbor-alpine-test"
 IMAGES_DIR="/tmp/arbor-vms"
 OUTPUT_DIR=""
@@ -107,6 +110,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --base-image)      BASE_IMAGE="$2";    shift 2 ;;
+        --prepared-image)  PREPARED_IMAGE="$2"; shift 2 ;;
         --alpine-version)  ALPINE_VERSION="$2"; shift 2 ;;
         --vm-name)         VM_NAME="$2";       shift 2 ;;
         --images-dir)      IMAGES_DIR="$2";    shift 2 ;;
@@ -146,13 +150,16 @@ ALPINE_IMAGE_URL="https://dl-cdn.alpinelinux.org/alpine/v${ALPINE_MAJOR_MINOR}/r
 # Alpine releases use SHA-512 sidecars (not SHA-256)
 ALPINE_SHA512_URL="${ALPINE_IMAGE_URL}.sha512"
 
+# Default prepared image path — created by scripts/prepare-alpine-image.sh
+DEFAULT_PREPARED="$IMAGES_DIR/nocloud_alpine-${ALPINE_VERSION}-prepared.qcow2"
+
 OVERLAY_IMAGE="$IMAGES_DIR/${VM_NAME}-run.qcow2"
 SEED_ISO="$IMAGES_DIR/${VM_NAME}-seed.iso"
 PUBLISH_DIR="/tmp/arbor-alpine-publish-$$"
 VNC_PORT=$((5900 + VNC_DISPLAY))
 GUEST_APP_DIR="/home/$GUEST_USER/automation/app"
 GUEST_SHOT_DIR="/home/$GUEST_USER/automation/screenshots"
-SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=5 -o BatchMode=no -p $SSH_PORT"
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o BatchMode=no -p $SSH_PORT"
 
 RESULTS_JSON="$OUTPUT_DIR/alpine-test-results.json"
 REPORT_MD="$OUTPUT_DIR/alpine-test-report.md"
@@ -200,12 +207,15 @@ ssh_guest() {
     sshpass -e ssh $SSH_OPTS "$GUEST_USER@localhost" "$@"
 }
 
+# scp uses -P (uppercase) for port, unlike ssh which uses -p
+SCP_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o BatchMode=no -P $SSH_PORT"
+
 scp_to_guest() {
-    sshpass -e scp $SSH_OPTS -r "$1" "$GUEST_USER@localhost:$2"
+    sshpass -e scp $SCP_OPTS -r "$1" "$GUEST_USER@localhost:$2"
 }
 
 scp_from_guest() {
-    sshpass -e scp $SSH_OPTS -r "$GUEST_USER@localhost:$1" "$2"
+    sshpass -e scp $SCP_OPTS -r "$GUEST_USER@localhost:$1" "$2"
 }
 
 wait_for_ssh() {
@@ -314,60 +324,62 @@ export SSHPASS="$GUEST_PASSWORD"
 unset GUEST_PASSWORD
 
 # ---------------------------------------------------------------------------
-# Step 1: Obtain the Alpine base image
+# Step 1: Obtain the image to boot
 # ---------------------------------------------------------------------------
+# Priority order:
+#   1. --prepared-image explicitly provided
+#   2. Default prepared image exists at $DEFAULT_PREPARED  ← fastest path
+#   3. --base-image explicitly provided
+#   4. Download the raw Alpine cloud image from CDN
 
-step "Obtaining Alpine Linux ${ALPINE_VERSION} base image"
+step "Obtaining boot image"
 
-if [[ -n "$BASE_IMAGE" ]]; then
-    if [[ ! -f "$BASE_IMAGE" ]]; then
-        echo "ERROR: --base-image not found: $BASE_IMAGE" >&2
-        exit 1
-    fi
+SKIP_PACKAGE_INSTALL=false
+
+if [[ -n "$PREPARED_IMAGE" ]]; then
+    [[ -f "$PREPARED_IMAGE" ]] || { echo "ERROR: --prepared-image not found: $PREPARED_IMAGE" >&2; exit 1; }
+    BASE_IMAGE="$PREPARED_IMAGE"
+    SKIP_PACKAGE_INSTALL=true
+    echo "    Using provided prepared image (packages pre-installed): $BASE_IMAGE"
+
+elif [[ -z "$BASE_IMAGE" ]] && [[ -f "$DEFAULT_PREPARED" ]]; then
+    BASE_IMAGE="$DEFAULT_PREPARED"
+    SKIP_PACKAGE_INSTALL=true
+    echo "    Found cached prepared image (packages pre-installed): $BASE_IMAGE"
+
+elif [[ -n "$BASE_IMAGE" ]]; then
+    [[ -f "$BASE_IMAGE" ]] || { echo "ERROR: --base-image not found: $BASE_IMAGE" >&2; exit 1; }
     echo "    Using provided base image: $BASE_IMAGE"
-else
-    BASE_IMAGE="$IMAGES_DIR/$ALPINE_IMAGE_FILE"
 
+else
+    # Download the raw Alpine cloud image
+    BASE_IMAGE="$IMAGES_DIR/$ALPINE_IMAGE_FILE"
     if [[ -f "$BASE_IMAGE" ]]; then
-        echo "    Cached image found: $BASE_IMAGE"
+        echo "    Cached raw image found: $BASE_IMAGE"
     else
         echo "    Downloading Alpine ${ALPINE_VERSION} cloud image..."
         echo "    URL: $ALPINE_IMAGE_URL"
-
-        # Download the image
         curl -fSL --progress-bar -o "$BASE_IMAGE.tmp" "$ALPINE_IMAGE_URL"
 
-        # Download and verify SHA-512 checksum (Alpine uses .sha512, not .sha256)
         echo "    Verifying checksum..."
         EXPECTED_SHA512_LINE="$(curl -fsSL "$ALPINE_SHA512_URL")"
         EXPECTED_SHA512="${EXPECTED_SHA512_LINE%% *}"
-        # Validate the checksum looks like a 128-character hex string (SHA-512)
         if [[ ! "$EXPECTED_SHA512" =~ ^[0-9a-f]{128}$ ]]; then
-            echo "ERROR: Malformed SHA-512 from $ALPINE_SHA512_URL: '$EXPECTED_SHA512'" >&2
-            rm -f "$BASE_IMAGE.tmp"
-            exit 1
+            echo "ERROR: Malformed SHA-512 from $ALPINE_SHA512_URL" >&2
+            rm -f "$BASE_IMAGE.tmp"; exit 1
         fi
         ACTUAL_SHA512="$(sha512sum "$BASE_IMAGE.tmp" | awk '{print $1}')"
-
         if [[ "$EXPECTED_SHA512" != "$ACTUAL_SHA512" ]]; then
-            echo "ERROR: SHA-512 mismatch for downloaded image." >&2
-            echo "  Expected: $EXPECTED_SHA512" >&2
-            echo "  Actual  : $ACTUAL_SHA512" >&2
-            rm -f "$BASE_IMAGE.tmp"
-            exit 1
+            echo "ERROR: SHA-512 mismatch." >&2
+            rm -f "$BASE_IMAGE.tmp"; exit 1
         fi
-
         mv "$BASE_IMAGE.tmp" "$BASE_IMAGE"
-        echo "    Image downloaded and verified: $BASE_IMAGE"
+        echo "    Downloaded and verified: $BASE_IMAGE"
     fi
+fi
 
-    # Resize the base image to provide adequate disk space (Alpine cloud images are ~300 MB sparse)
-    QCOW2_SIZE="$(qemu-img info "$BASE_IMAGE" 2>/dev/null | awk '/^virtual size:/ { gsub(/[^0-9]/, "", $NF); print $NF+0 }' || echo 0)"
-    NEEDED_BYTES=$((4 * 1024 * 1024 * 1024))  # 4 GB
-    if [[ "$QCOW2_SIZE" -lt "$NEEDED_BYTES" ]]; then
-        echo "    Resizing base image to 4G (one-time operation on cached image)..."
-        qemu-img resize "$BASE_IMAGE" 4G
-    fi
+if [[ "$SKIP_PACKAGE_INSTALL" == "true" ]]; then
+    echo "    NOTE: Package installation will be skipped (already in image)."
 fi
 
 record_step "base-image" "ok"
@@ -387,44 +399,35 @@ instance-id: arbor-kvm-alpine-$$
 local-hostname: arbor-vm
 EOF
 
-# user-data: set password, enable SSH password auth, install X11/automation packages
-# The SSHPASS variable is already set; the password in user-data must be the same.
-# We write it here as plain text in a temp file only — this file is embedded in a
-# local ISO that is deleted after the run.
+# user-data: set password and enable SSH.
+# When SKIP_PACKAGE_INSTALL=true (prepared image) we omit the package_update /
+# packages / runcmd blocks — all tooling is already in the image.
+# When using a raw image we add a runcmd to install packages.
 PLAIN_PASS="$(printenv SSHPASS)"
-cat > "$CLOUD_INIT_DIR/user-data" <<EOF
-#cloud-config
 
-# Set password for the default alpine user (no lock)
+if [[ "$SKIP_PACKAGE_INSTALL" == "true" ]]; then
+    cat > "$CLOUD_INIT_DIR/user-data" <<EOF
+#cloud-config
 password: ${PLAIN_PASS}
 chpasswd:
   expire: false
-
-# Allow SSH login with password
 ssh_pwauth: true
-
-# Disable root SSH login — the automation user has passwordless sudo
 disable_root: true
-
-# Update and install required packages on first boot
-package_update: true
-packages:
-  - xorg-server-xvfb
-  - xdotool
-  - scrot
-  - ffmpeg
-  - libx11
-  - libxrandr
-  - libxcursor
-  - libxi
-  - libice
-  - libsm
-  - fontconfig
-  - ttf-dejavu
-  - mesa-gl
-  - dbus
-
-# Enable community repo (xdotool lives there on Alpine 3.21)
+runcmd:
+  - mkdir -p /home/${GUEST_USER}/automation/app /home/${GUEST_USER}/automation/screenshots
+  - chown -R ${GUEST_USER}:${GUEST_USER} /home/${GUEST_USER}/automation
+EOF
+else
+    # Raw Alpine image: install packages via runcmd.
+    # NOTE: In agent environments the QEMU NAT may not reach the CDN.
+    # Run scripts/prepare-alpine-image.sh first to produce a prepared image.
+    cat > "$CLOUD_INIT_DIR/user-data" <<EOF
+#cloud-config
+password: ${PLAIN_PASS}
+chpasswd:
+  expire: false
+ssh_pwauth: true
+disable_root: true
 write_files:
   - path: /etc/apk/repositories
     content: |
@@ -432,13 +435,13 @@ write_files:
       https://dl-cdn.alpinelinux.org/alpine/v${ALPINE_MAJOR_MINOR}/community
     owner: root:root
     permissions: '0644'
-
 runcmd:
   - apk update --no-cache
-  - apk add --no-cache xorg-server-xvfb xdotool scrot ffmpeg libx11 libxrandr libxcursor libxi libice libsm fontconfig ttf-dejavu mesa-gl dbus
+  - apk add --no-cache xvfb xdotool scrot ffmpeg font-dejavu fontconfig libx11 libxrandr libxcursor libxi libice libsm dbus
   - mkdir -p /home/${GUEST_USER}/automation/app /home/${GUEST_USER}/automation/screenshots
   - chown -R ${GUEST_USER}:${GUEST_USER} /home/${GUEST_USER}/automation
 EOF
+fi
 
 # Create the seed ISO
 if [[ "$HAS_CLOUD_LOCALDS" == "true" ]]; then
@@ -505,8 +508,8 @@ record_step "vm-start" "ok"
 
 step "Waiting for guest SSH"
 
-# Cloud-init runs at first boot and may take 2-5 minutes depending on
-# network speed and package installation time.
+# When using the prepared image, cloud-init only sets up the user/SSH — fast.
+# When using a raw image, cloud-init also installs packages — may take minutes.
 wait_for_ssh
 record_step "ssh-ready" "ok"
 
@@ -514,16 +517,25 @@ record_step "ssh-ready" "ok"
 # Step 6: Wait for cloud-init to finish
 # ---------------------------------------------------------------------------
 
-step "Waiting for cloud-init to complete package installation"
+step "Waiting for cloud-init to complete"
 
-CLOUD_INIT_TIMEOUT=300
+if [[ "$SKIP_PACKAGE_INSTALL" == "true" ]]; then
+    CLOUD_INIT_TIMEOUT=60    # user/SSH setup only — finishes quickly
+else
+    CLOUD_INIT_TIMEOUT=300   # raw image: package installation via network
+fi
+
+# Poll for the automation directory that runcmd creates as its final step.
+# This is more reliable than `cloud-init status --wait`, which returns
+# non-zero on Alpine when the cc_reset_rmc module warning is present.
 CLOUD_INIT_ELAPSED=0
-echo "    Waiting for cloud-init final.target (up to ${CLOUD_INIT_TIMEOUT}s)..."
-while ! ssh_guest "cloud-init status --wait 2>/dev/null && echo done" 2>/dev/null | grep -q done; do
-    sleep 10
-    CLOUD_INIT_ELAPSED=$((CLOUD_INIT_ELAPSED + 10))
+echo "    Waiting for cloud-init runcmd to complete (up to ${CLOUD_INIT_TIMEOUT}s)..."
+while ! ssh_guest "test -d /home/${GUEST_USER}/automation" 2>/dev/null; do
+    sleep 5
+    CLOUD_INIT_ELAPSED=$((CLOUD_INIT_ELAPSED + 5))
     if [[ $CLOUD_INIT_ELAPSED -ge $CLOUD_INIT_TIMEOUT ]]; then
-        echo "WARN: cloud-init status check timed out — continuing anyway." >&2
+        echo "WARN: cloud-init timed out — creating directories manually." >&2
+        ssh_guest "mkdir -p /home/${GUEST_USER}/automation/app /home/${GUEST_USER}/automation/screenshots" 2>/dev/null || true
         break
     fi
     echo "    cloud-init still running... ${CLOUD_INIT_ELAPSED}s"
@@ -531,10 +543,15 @@ done
 echo "    cloud-init complete."
 record_step "cloud-init" "ok"
 
-# Verify xdotool is available (key dependency)
+# Verify xdotool is available (key dependency for automation)
 if ! ssh_guest "command -v xdotool" &>/dev/null; then
-    echo "WARN: xdotool not found in guest after cloud-init. Trying manual install..."
-    ssh_guest "sudo apk add --no-cache xdotool scrot xorg-server-xvfb ffmpeg 2>&1 | tail -5" || true
+    if [[ "$SKIP_PACKAGE_INSTALL" == "true" ]]; then
+        echo "ERROR: xdotool not found in prepared image — the image may be corrupt." >&2
+        exit 1
+    else
+        echo "WARN: xdotool not found after cloud-init. Trying manual install..."
+        ssh_guest "sudo apk add --no-cache xdotool scrot xvfb ffmpeg 2>&1 | tail -5" || true
+    fi
 fi
 
 # ---------------------------------------------------------------------------
