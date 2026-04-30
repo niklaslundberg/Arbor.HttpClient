@@ -3,6 +3,7 @@ using Microsoft.Data.Sqlite;
 using Arbor.HttpClient.Core.Collections;
 using Arbor.HttpClient.Core.Environments;
 using Arbor.HttpClient.Core.HttpRequest;
+using Arbor.HttpClient.Core.ScheduledJobs;
 
 namespace Arbor.HttpClient.Storage.Sqlite.Tests;
 
@@ -667,6 +668,322 @@ public class SqliteRepositoriesTests
             collections[0].Name.Should().Be("New Name");
             collections[0].Requests.Should().ContainSingle();
             collections[0].Requests[0].Name.Should().Be("Get Items");
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+    }
+
+    // ── SqliteScheduledJobRepository ──────────────────────────────────────────
+
+    [Fact]
+    public async Task SqliteScheduledJobRepository_GetAllAsync_ShouldReturnEmptyListWhenNoJobs()
+    {
+        var connectionString = $"Data Source={Path.Join(Path.GetTempPath(), $"test_jobs_empty_{Guid.NewGuid()}.db")}";
+        try
+        {
+            var repository = new SqliteScheduledJobRepository(connectionString);
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var jobs = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+
+            jobs.Should().BeEmpty();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            var path = new SqliteConnectionStringBuilder(connectionString).DataSource;
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteScheduledJobRepository_SaveAndGetAllAsync_ShouldPersistAndRetrieveJob()
+    {
+        var connectionString = $"Data Source={Path.Join(Path.GetTempPath(), $"test_jobs_{Guid.NewGuid()}.db")}";
+        try
+        {
+            var repository = new SqliteScheduledJobRepository(connectionString);
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var config = new ScheduledJobConfig(0, "Health Check", "GET", "http://localhost:5000/health", null, null, 30, AutoStart: true);
+
+            var id = await repository.SaveAsync(config, TestContext.Current.CancellationToken);
+
+            var jobs = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+
+            jobs.Should().ContainSingle();
+            jobs[0].Id.Should().Be(id);
+            jobs[0].Name.Should().Be("Health Check");
+            jobs[0].Method.Should().Be("GET");
+            jobs[0].Url.Should().Be("http://localhost:5000/health");
+            jobs[0].Body.Should().BeNull();
+            jobs[0].HeadersJson.Should().BeNull();
+            jobs[0].IntervalSeconds.Should().Be(30);
+            jobs[0].AutoStart.Should().BeTrue();
+            jobs[0].FollowRedirects.Should().BeNull();
+            jobs[0].UseWebView.Should().BeFalse();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            var path = new SqliteConnectionStringBuilder(connectionString).DataSource;
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteScheduledJobRepository_SaveAsync_ShouldPersistBodyHeadersAndFollowRedirects()
+    {
+        var connectionString = $"Data Source={Path.Join(Path.GetTempPath(), $"test_jobs_body_{Guid.NewGuid()}.db")}";
+        try
+        {
+            var repository = new SqliteScheduledJobRepository(connectionString);
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var config = new ScheduledJobConfig(
+                0,
+                "API Ping",
+                "POST",
+                "http://localhost:5000/ping",
+                Body: """{"alive":true}""",
+                HeadersJson: """[{"Name":"Authorization","Value":"Bearer token"}]""",
+                IntervalSeconds: 60,
+                AutoStart: false,
+                FollowRedirects: true,
+                UseWebView: true);
+
+            await repository.SaveAsync(config, TestContext.Current.CancellationToken);
+
+            var jobs = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+
+            jobs.Should().ContainSingle();
+            jobs[0].Body.Should().Be("""{"alive":true}""");
+            jobs[0].HeadersJson.Should().Be("""[{"Name":"Authorization","Value":"Bearer token"}]""");
+            jobs[0].FollowRedirects.Should().BeTrue();
+            jobs[0].UseWebView.Should().BeTrue();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            var path = new SqliteConnectionStringBuilder(connectionString).DataSource;
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteScheduledJobRepository_SaveAsync_ShouldPersistFollowRedirectsFalse()
+    {
+        var connectionString = $"Data Source={Path.Join(Path.GetTempPath(), $"test_jobs_noredirect_{Guid.NewGuid()}.db")}";
+        try
+        {
+            var repository = new SqliteScheduledJobRepository(connectionString);
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var config = new ScheduledJobConfig(0, "No Redirect", "GET", "http://localhost:5000", null, null, 10, AutoStart: false, FollowRedirects: false);
+
+            await repository.SaveAsync(config, TestContext.Current.CancellationToken);
+
+            var jobs = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+
+            jobs.Should().ContainSingle();
+            jobs[0].FollowRedirects.Should().BeFalse();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            var path = new SqliteConnectionStringBuilder(connectionString).DataSource;
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteScheduledJobRepository_UpdateAsync_ShouldModifyExistingJob()
+    {
+        var connectionString = $"Data Source={Path.Join(Path.GetTempPath(), $"test_jobs_update_{Guid.NewGuid()}.db")}";
+        try
+        {
+            var repository = new SqliteScheduledJobRepository(connectionString);
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var original = new ScheduledJobConfig(0, "Original", "GET", "http://localhost:5000/old", null, null, 30, AutoStart: false);
+            var id = await repository.SaveAsync(original, TestContext.Current.CancellationToken);
+
+            var updated = new ScheduledJobConfig(id, "Updated", "POST", "http://localhost:5000/new", """{"key":"val"}""", null, 60, AutoStart: true, FollowRedirects: true, UseWebView: false);
+            await repository.UpdateAsync(updated, TestContext.Current.CancellationToken);
+
+            var jobs = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+
+            jobs.Should().ContainSingle();
+            jobs[0].Id.Should().Be(id);
+            jobs[0].Name.Should().Be("Updated");
+            jobs[0].Method.Should().Be("POST");
+            jobs[0].Url.Should().Be("http://localhost:5000/new");
+            jobs[0].Body.Should().Be("""{"key":"val"}""");
+            jobs[0].IntervalSeconds.Should().Be(60);
+            jobs[0].AutoStart.Should().BeTrue();
+            jobs[0].FollowRedirects.Should().BeTrue();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            var path = new SqliteConnectionStringBuilder(connectionString).DataSource;
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteScheduledJobRepository_DeleteAsync_ShouldRemoveJob()
+    {
+        var connectionString = $"Data Source={Path.Join(Path.GetTempPath(), $"test_jobs_delete_{Guid.NewGuid()}.db")}";
+        try
+        {
+            var repository = new SqliteScheduledJobRepository(connectionString);
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var config = new ScheduledJobConfig(0, "Temp Job", "GET", "http://localhost:5000", null, null, 15, AutoStart: false);
+            var id = await repository.SaveAsync(config, TestContext.Current.CancellationToken);
+
+            await repository.DeleteAsync(id, TestContext.Current.CancellationToken);
+
+            var jobs = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+
+            jobs.Should().BeEmpty();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            var path = new SqliteConnectionStringBuilder(connectionString).DataSource;
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteScheduledJobRepository_SaveAsync_ShouldAssignIncrementingIds()
+    {
+        var connectionString = $"Data Source={Path.Join(Path.GetTempPath(), $"test_jobs_multi_{Guid.NewGuid()}.db")}";
+        try
+        {
+            var repository = new SqliteScheduledJobRepository(connectionString);
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var id1 = await repository.SaveAsync(new ScheduledJobConfig(0, "Job A", "GET", "http://localhost:5000/a", null, null, 10, AutoStart: false), TestContext.Current.CancellationToken);
+            var id2 = await repository.SaveAsync(new ScheduledJobConfig(0, "Job B", "GET", "http://localhost:5000/b", null, null, 20, AutoStart: false), TestContext.Current.CancellationToken);
+
+            id2.Should().BeGreaterThan(id1);
+
+            var jobs = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+            jobs.Should().HaveCount(2);
+            jobs[0].Name.Should().Be("Job A");
+            jobs[1].Name.Should().Be("Job B");
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            var path = new SqliteConnectionStringBuilder(connectionString).DataSource;
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteScheduledJobRepository_InitializeAsync_IsIdempotent()
+    {
+        var connectionString = $"Data Source={Path.Join(Path.GetTempPath(), $"test_jobs_idempotent_{Guid.NewGuid()}.db")}";
+        try
+        {
+            var repository = new SqliteScheduledJobRepository(connectionString);
+
+            // Calling InitializeAsync twice should not throw
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var jobs = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+            jobs.Should().BeEmpty();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            var path = new SqliteConnectionStringBuilder(connectionString).DataSource;
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteRequestHistoryRepository_SaveAndGetRecentAsync_ShouldPersistNullBody()
+    {
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_history_nullbody_{Guid.NewGuid()}.db");
+        try
+        {
+            var repository = new SqliteRequestHistoryRepository(dbPath);
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var request = new SavedRequest("No Body", "GET", "http://localhost:5000/api", null, DateTimeOffset.UtcNow);
+            await repository.SaveAsync(request, TestContext.Current.CancellationToken);
+
+            var recent = await repository.GetRecentAsync(10, TestContext.Current.CancellationToken);
+
+            recent.Should().ContainSingle();
+            recent[0].Body.Should().BeNull();
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteRequestHistoryRepository_GetRecentAsync_ShouldOrderByMostRecentFirst()
+    {
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_history_order_{Guid.NewGuid()}.db");
+        try
+        {
+            var repository = new SqliteRequestHistoryRepository(dbPath);
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var base_ = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            await repository.SaveAsync(new SavedRequest("First", "GET", "http://localhost/1", null, base_), TestContext.Current.CancellationToken);
+            await repository.SaveAsync(new SavedRequest("Second", "GET", "http://localhost/2", null, base_.AddMinutes(1)), TestContext.Current.CancellationToken);
+            await repository.SaveAsync(new SavedRequest("Third", "GET", "http://localhost/3", null, base_.AddMinutes(2)), TestContext.Current.CancellationToken);
+
+            var recent = await repository.GetRecentAsync(10, TestContext.Current.CancellationToken);
+
+            recent.Should().HaveCount(3);
+            recent[0].Name.Should().Be("Third");
+            recent[1].Name.Should().Be("Second");
+            recent[2].Name.Should().Be("First");
         }
         finally
         {
