@@ -204,7 +204,7 @@ public partial class App : Application
             await scheduledJobRepository.InitializeAsync();
             await viewModel.InitializeAsync();
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             exceptionCollector?.Add(exception);
             viewModel.ErrorMessage = exception.Message;
