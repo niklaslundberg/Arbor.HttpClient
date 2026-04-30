@@ -430,7 +430,7 @@ public class HttpRequestServiceTests
     }
 
     [Fact]
-    public async Task SendAsync_WithHttpsDiagnosticsDisabled_ShouldReportTlsUnavailable()
+    public async Task SendAsync_WithHttpScheme_ShouldReportTlsNotApplicable()
     {
         var handler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
