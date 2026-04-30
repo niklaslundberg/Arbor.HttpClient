@@ -165,6 +165,11 @@ public class ScreenshotCaptureTests
     [Fact]
     public async Task Capture_EnvironmentColorDropdown()
     {
+        // Preset accent colors matching EnvironmentsPreset*Brush resources defined in App.axaml.
+        const string DevelopmentGreen = "#1E7A3C";
+        const string StagingAmber = "#8B5500";
+        const string ProductionRed = "#B41E1E";
+
         var outputDir = ResolveOutputDir();
 
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
@@ -181,9 +186,9 @@ public class ScreenshotCaptureTests
             var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
             var environmentRepository = new InMemoryEnvironmentRepository();
-            await environmentRepository.SaveAsync("Development", [], accentColor: "#1E7A3C");
-            await environmentRepository.SaveAsync("Staging", [], accentColor: "#8B5500");
-            await environmentRepository.SaveAsync("Production", [], accentColor: "#B41E1E", showWarningBanner: true);
+            await environmentRepository.SaveAsync("Development", [], accentColor: DevelopmentGreen);
+            await environmentRepository.SaveAsync("Staging", [], accentColor: StagingAmber);
+            await environmentRepository.SaveAsync("Production", [], accentColor: ProductionRed, showWarningBanner: true);
 
             using var viewModel = new MainWindowViewModel(
                 httpRequestService,
