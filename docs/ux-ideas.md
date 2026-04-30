@@ -591,11 +591,12 @@ Each idea includes a description of what it means in practice, notes on how it c
 - `ApplicationOptions.Diagnostics` — new field; validated and persisted alongside other options
 - `UnhandledExceptionCollector` — thread-safe service that captures and persists exceptions to `exceptions.json` in the app data directory (capped at 50 entries)
 - Global exception handlers registered in `App.axaml.cs`: `AppDomain.CurrentDomain.UnhandledException` and `TaskScheduler.UnobservedTaskException`
+- Non-fatal caught exceptions also collected: `ScheduledJobService` job failures and startup initialization failures (via `App.InitializeAsync`) are forwarded to the collector so users can report them
 - `DiagnosticsWindow` — modal window listing collected exceptions with timestamp, type, message, and expandable stack trace; per-entry "Report on GitHub" (opens pre-filled browser issue) and "Dismiss" buttons; "Clear All" footer action
 - `DiagnosticsViewModel` / `UnhandledExceptionEntryViewModel` — VM pair driving the diagnostics UI
 - Options › Diagnostics page — checkbox to enable collection, explanatory note, and "View Collected Exceptions…" button
 - Help › Diagnostics menu item in `MainWindow.axaml`
-- 8 unit tests added to `UnhandledExceptionCollectorTests.cs`
+- 8 unit tests in `UnhandledExceptionCollectorTests.cs`, 3 integration tests in `ScheduledJobServiceTests.cs`
 
 ---
 
