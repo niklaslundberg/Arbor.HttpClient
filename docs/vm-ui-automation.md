@@ -235,21 +235,29 @@ remain valid even if the window moves or resizes.
 Install the signed MSIX package (from the release workflow) inside the VM instead of a raw
 publish directory, giving end-to-end coverage of the package + installer path.
 
-### Sub-task 7 — System tests via on-demand GitHub Actions workflow ✅ Implemented
+### Sub-task 7 — System tests via GitHub Actions workflows ✅ Implemented
 
-Two on-demand workflows have been added to the repository:
+Three workflows provide system test coverage at different levels:
 
-- **`.github/workflows/system-tests.yml`** — triggers via `workflow_dispatch`. Accepts
-  optional `base_vhdx_path` (for self-hosted runners with a prepared base VHDX) and
-  `commit_screenshots` inputs. When Hyper-V + a base VHDX are available it runs the full
-  VM-based automation; otherwise it falls back to direct runner UI automation. Captures
-  screenshots in both light and dark themes; records video in light theme.
+- **`.github/workflows/ci.yml`** — the `system-tests` job runs on every push and pull request.
+  It builds the desktop application, publishes a `win-x64` self-contained executable, then
+  launches the real application on the `windows-latest` hosted runner using
+  `scripts/Invoke-UIAutomationProbe.ps1`. Screenshots and a short video recording are
+  uploaded as artifacts for every run. All automation steps use `continue-on-error: true`
+  because hosted runners operate as a Windows service (non-interactive session); the probe
+  degrades gracefully when a real display is unavailable. This gives lightweight coverage of
+  the application startup and basic UI interaction path on every PR.
+
+- **`.github/workflows/system-tests.yml`** — triggers via `workflow_dispatch`. Accepts an
+  optional `base_vhdx_path` (for self-hosted runners with a prepared base VHDX) and a
+  `commit_screenshots` input. When Hyper-V + a base VHDX are available it runs the full
+  VM-based automation via `scripts/Start-UIAutomation.ps1`; otherwise it falls back to the
+  same direct runner automation as the CI job above. Captures screenshots in both light and
+  dark themes; records video in light theme.
+
 - **`.github/workflows/vm-probe.yml`** — on-demand diagnostics (`workflow_dispatch` only).
-  Contains the Hyper-V environment probe steps that were previously part of the standard
-  CI pipeline. Use this when further investigation of the runner environment is needed.
-
-The standard CI pipeline (`ci.yml`) no longer contains the `experimental-vm-probe` job.
-All Hyper-V/VM activity is on-demand only.
+  Contains the Hyper-V environment probe steps. Use this when further investigation of the
+  runner environment is needed.
 
 ### Sub-task 8 — Result reporting *(future)*
 Parse step results and screenshots from the VM run and post a summary comment to the pull

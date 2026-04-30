@@ -4,6 +4,7 @@ using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
+[Trait("Category", "Integration")]
 public class ApplicationOptionsStoreTests
 {
     [Fact]

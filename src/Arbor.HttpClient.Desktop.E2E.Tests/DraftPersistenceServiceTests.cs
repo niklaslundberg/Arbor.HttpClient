@@ -10,6 +10,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 /// These tests do NOT require the Avalonia headless session — all file I/O and
 /// editor-state capture/restore logic is exercised directly.
 /// </summary>
+[Trait("Category", "Integration")]
 public class DraftPersistenceServiceTests
 {
     private static RequestEditorViewModel CreateEditor() =>

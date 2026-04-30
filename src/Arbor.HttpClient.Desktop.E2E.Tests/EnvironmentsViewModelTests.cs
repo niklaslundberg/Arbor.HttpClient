@@ -120,6 +120,7 @@ public class EnvironmentsViewModelTests
 }
 
 [Collection("HeadlessAvalonia")]
+[Trait("Category", "Integration")]
 public class EnvironmentsViewModelAutoSaveTests
 {
     [Fact]
