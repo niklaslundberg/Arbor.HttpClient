@@ -610,6 +610,8 @@ public class OpenApiImportServiceTests
         create.Body.Should().NotBeNullOrEmpty();
         create.Body.Should().Contain("test");
         create.Body.Should().Contain("42");
+        create.Body.Should().Contain("true");
+        create.Body.Should().Contain("3.14");
     }
 
     [Fact]
@@ -641,5 +643,6 @@ public class OpenApiImportServiceTests
         var upload = collection.Requests.Single(r => r.Name == "upload");
         upload.ContentType.Should().Be("text/plain");
         upload.Body.Should().NotBeNullOrEmpty();
+        upload.Body.Should().Contain("hello world");
     }
 }

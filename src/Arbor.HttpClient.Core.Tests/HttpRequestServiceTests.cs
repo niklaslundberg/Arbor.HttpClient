@@ -410,20 +410,26 @@ public class HttpRequestServiceTests
     [Fact]
     public async Task SendAsync_WithHttpsDiagnosticsEnabled_ShouldInvokeTlsProbe()
     {
-        var handler = new StubHttpMessageHandler(_ =>
+        using var handler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
             {
                 ReasonPhrase = "OK",
                 Content = new StringContent("ok")
             });
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        using var httpClient = new global::System.Net.Http.HttpClient(handler);
+        var service = new HttpRequestService(httpClient, new InMemoryRequestHistoryRepository());
         HttpRequestDiagnostics? diagnostics = null;
         service.SetHttpDiagnosticsObserver(d => diagnostics = d);
         service.SetHttpDiagnosticsEnabled(true);
 
-        // Use a port guaranteed to be closed so the TLS probe fails quickly and
-        // the catch block in ProbeTlsAsync returns "TLS probe failed: ..."
-        await service.SendAsync(new HttpRequestDraft("TLSTest", "GET", "https://localhost:1/test", null), TestContext.Current.CancellationToken);
+        // Start a TcpListener on an ephemeral port so TCP connect succeeds but
+        // TLS handshake fails deterministically, exercising ProbeTlsAsync's catch block.
+        using var listener = new global::System.Net.Sockets.TcpListener(global::System.Net.IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((global::System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+
+        await service.SendAsync(new HttpRequestDraft("TLSTest", "GET", $"https://localhost:{port}/test", null), TestContext.Current.CancellationToken);
 
         diagnostics.Should().NotBeNull();
         diagnostics!.TlsNegotiation.Should().StartWith("TLS probe failed:");
@@ -432,13 +438,14 @@ public class HttpRequestServiceTests
     [Fact]
     public async Task SendAsync_WithHttpScheme_ShouldReportTlsNotApplicable()
     {
-        var handler = new StubHttpMessageHandler(_ =>
+        using var handler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
             {
                 ReasonPhrase = "OK",
                 Content = new StringContent("ok")
             });
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        using var httpClient = new global::System.Net.Http.HttpClient(handler);
+        var service = new HttpRequestService(httpClient, new InMemoryRequestHistoryRepository());
         HttpRequestDiagnostics? diagnostics = null;
         service.SetHttpDiagnosticsObserver(d => diagnostics = d);
         service.SetHttpDiagnosticsEnabled(true);
@@ -453,19 +460,22 @@ public class HttpRequestServiceTests
     [Fact]
     public async Task SendAsync_WithDiagnosticsEnabledOnUnresolvableHost_ShouldReportDnsFailure()
     {
-        var handler = new StubHttpMessageHandler(_ =>
+        using var handler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
             {
                 ReasonPhrase = "OK",
                 Content = new StringContent("ok")
             });
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        using var httpClient = new global::System.Net.Http.HttpClient(handler);
+        var service = new HttpRequestService(httpClient, new InMemoryRequestHistoryRepository());
         HttpRequestDiagnostics? diagnostics = null;
         service.SetHttpDiagnosticsObserver(d => diagnostics = d);
         service.SetHttpDiagnosticsEnabled(true);
 
-        // Use a domain guaranteed to not resolve so the DNS catch block fires
-        await service.SendAsync(new HttpRequestDraft("DnsTest", "GET", "http://host.invalid/test", null), TestContext.Current.CancellationToken);
+        // Use a randomly-generated label under .invalid (RFC 2606) so DNS resolution
+        // always fails regardless of captive-portal or DNS-hijacking environments.
+        var unreachableHost = $"{Guid.NewGuid():N}.invalid";
+        await service.SendAsync(new HttpRequestDraft("DnsTest", "GET", $"http://{unreachableHost}/test", null), TestContext.Current.CancellationToken);
 
         diagnostics.Should().NotBeNull();
         diagnostics!.DnsLookup.Should().StartWith("DNS lookup failed:");
