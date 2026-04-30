@@ -491,6 +491,9 @@ jobs:
       - name: Restore
         run: dotnet restore Arbor.HttpClient.slnx --locked-mode
 
+      - name: Audit NuGet dependencies for vulnerabilities
+        run: dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive
+
       - name: Publish win-x64 self-contained
         shell: pwsh
         run: |
