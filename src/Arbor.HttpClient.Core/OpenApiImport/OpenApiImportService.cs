@@ -194,11 +194,16 @@ public sealed class OpenApiImportService
         var mediaType = contentEntry.Value;
         var contentType = contentEntry.Key;
 
+        if (mediaType is null)
+        {
+            return (null, contentType);
+        }
+
         // Use the inline example first; fall back to the first named example
         IOpenApiAny? exampleValue = mediaType.Example;
         if (exampleValue is null && mediaType.Examples?.Count > 0)
         {
-            exampleValue = mediaType.Examples.Values.First().Value;
+            exampleValue = mediaType.Examples.Values.First()?.Value;
         }
 
         var body = exampleValue is { } ? SerializeAny(exampleValue) : null;
