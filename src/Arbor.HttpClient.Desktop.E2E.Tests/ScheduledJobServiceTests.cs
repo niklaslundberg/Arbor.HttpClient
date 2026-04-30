@@ -9,6 +9,7 @@ using Arbor.HttpClient.Core.ScheduledJobs;
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
 [Trait("Category", "Integration")]
+[Trait("Category", "Integration")]
 public class ScheduledJobServiceTests
 {
     [Fact]
