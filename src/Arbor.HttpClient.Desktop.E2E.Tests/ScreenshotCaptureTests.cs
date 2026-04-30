@@ -155,6 +155,67 @@ public class ScreenshotCaptureTests
         }, CancellationToken.None);
     }
 
+    /// <summary>
+    /// Saves a screenshot of the main window toolbar showing the environment ComboBox with
+    /// a colored (red/Production) accent background and color dots for each environment in
+    /// the selector — demonstrating the fix for the environment color visibility issue.
+    /// Output directory is controlled by the SCREENSHOT_OUTPUT_DIR environment variable
+    /// (defaults to the system temp folder).
+    /// </summary>
+    [Fact]
+    public async Task Capture_EnvironmentColorDropdown()
+    {
+        // Preset accent colors matching EnvironmentsPreset*Brush resources defined in App.axaml.
+        const string DevelopmentGreen = "#1E7A3C";
+        const string StagingAmber = "#8B5500";
+        const string ProductionRed = "#B41E1E";
+
+        var outputDir = ResolveOutputDir();
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var repository = new InMemoryRequestHistoryRepository();
+            using var httpClient = new global::System.Net.Http.HttpClient(handler);
+            var httpRequestService = new HttpRequestService(httpClient, repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            var environmentRepository = new InMemoryEnvironmentRepository();
+            await environmentRepository.SaveAsync("Development", [], accentColor: DevelopmentGreen);
+            await environmentRepository.SaveAsync("Staging", [], accentColor: StagingAmber);
+            await environmentRepository.SaveAsync("Production", [], accentColor: ProductionRed, showWarningBanner: true);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                environmentRepository,
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            await viewModel.InitializeAsync();
+
+            // Select the Production environment so the ComboBox shows the red accent color
+            viewModel.ActiveEnvironment = viewModel.Environments.FirstOrDefault(e => e.Name == "Production");
+
+            var window = new MainWindow { DataContext = viewModel };
+            window.Show();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(5);
+
+            var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            screenshot?.Save(Path.Join(outputDir, "env-color-dropdown.png"));
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
     private static string ResolveOutputDir()
     {
         var dir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
