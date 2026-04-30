@@ -404,6 +404,9 @@ Each idea includes a description of what it means in practice, notes on how it c
 - Full-width warning banner with environment name shown below the toolbar when `ShowWarningBanner = true` (Pattern B)
 - Activity-bar Environments icon shows a colored badge dot when a color is set (Pattern D)
 - WCAG 2.1 AA verified: all five presets achieve ≥ 4.5:1 contrast against white text; verified in `AccessibilityContrastTests.cs`
+- **Color dot visible in dropdown items before selection:** Each environment in the `Env:` ComboBox dropdown now shows a colored dot next to its name so users can see environment colors before making a selection (fixes UX issue where color only appeared after selection was done). Implemented in `MainWindow.axaml` `ItemTemplate`.
+- **Hover text fixed in light theme:** Added `:pointerover`, `:selected`, and `:selected:pointerover` foreground styles for `ComboBox.EnvSelector ComboBoxItem` to prevent white-on-white text in the dropdown hover state in light theme.
+- **Accent color preserved on ComboBox hover:** Added `ComboBox.EnvSelector:pointerover /template/ Border#Background` style to keep the environment's accent color visible on hover (using slight opacity) rather than switching to the Fluent default hover color.
 
 **Remaining polish items:**
 - No live contrast-ratio warning when a custom hex color is entered (only preset swatches are offered for now)
