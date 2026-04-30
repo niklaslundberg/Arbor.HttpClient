@@ -249,6 +249,42 @@ public class OpenApiImportServiceTests
         collection.Requests.Should().AllSatisfy(r => r.Body.Should().BeNull());
     }
 
+    [Fact]
+    public void Import_ShouldLeaveBodyNullWhenRequestBodyHasNoExample()
+    {
+        const string specWithNoExample = """
+            {
+              "openapi": "3.0.3",
+              "info": { "title": "Test API", "version": "1.0.0" },
+              "paths": {
+                "/items": {
+                  "post": {
+                    "operationId": "createItem",
+                    "requestBody": {
+                      "required": true,
+                      "content": {
+                        "application/json": {
+                          "schema": {
+                            "type": "object",
+                            "properties": {
+                              "name": { "type": "string" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithNoExample));
+        var collection = _service.Import(stream);
+        var createItem = collection.Requests.Single(r => r.Name == "createItem");
+        createItem.Body.Should().BeNull();
+        createItem.ContentType.Should().Be("application/json");
+    }
+
     // ── Content type ──────────────────────────────────────────────────────────
 
     [Fact]
