@@ -486,8 +486,8 @@ qemu-system-x86_64 $KVM_FLAG \
     -nic "user,model=virtio,hostfwd=tcp::${SSH_PORT}-:22" \
     -vnc ":${VNC_DISPLAY}" \
     -vga virtio \
-    -nographic \
-    -serial none \
+    -display none \
+    -serial "file:/tmp/${VM_NAME}-serial.log" \
     -daemonize \
     -pidfile "/tmp/${VM_NAME}.pid"
 
