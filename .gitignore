@@ -36,3 +36,4 @@ rec-log.txt
 **/.vscode/*
 # Allow shared Copilot Chat settings so all contributors and agents get the same instructions
 !**/.vscode/settings.json
+scripts/__pycache__/
