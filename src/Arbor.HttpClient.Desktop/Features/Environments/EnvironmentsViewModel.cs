@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -70,32 +71,65 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
     [ObservableProperty]
     private bool _editingShowWarningBanner;
 
+    /// <summary>
+    /// Reloads all environments from the repository and updates <see cref="Environments"/>
+    /// and <see cref="ActiveEnvironment"/>.
+    /// </summary>
+    /// <remarks>
+    /// The DB fetch runs on whatever thread calls this method.  The subsequent
+    /// <see cref="ObservableCollection{T}"/> and property mutations are always dispatched to the
+    /// Avalonia UI thread when an <see cref="Application"/> is running, so this method is safe to
+    /// call from any thread (including background threads after
+    /// <see cref="System.Runtime.CompilerServices.ConfigureAwaitOptions"/>
+    /// <c>.ConfigureAwait(false)</c>).  In pure unit-test contexts where no Avalonia application
+    /// is started, mutations run directly on the calling thread — the in-memory test repository
+    /// has no real UI bindings to protect.
+    /// </remarks>
     public async Task LoadEnvironmentsAsync(CancellationToken cancellationToken = default)
     {
-        var all = await _environmentRepository.GetAllAsync(cancellationToken);
+        // Fetch data off the UI thread so DB I/O does not block the compositor.
+        var all = await _environmentRepository.GetAllAsync(cancellationToken).ConfigureAwait(false);
 
-        var previousId = ActiveEnvironment?.Id;
-
-        var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
-        _suppressEnvironmentAutoSave = true;
-        try
+        void ApplyChanges()
         {
-            ActiveEnvironment = null;
+            var previousId = ActiveEnvironment?.Id;
 
-            Environments.Clear();
-            foreach (var environment in all)
+            var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
+            _suppressEnvironmentAutoSave = true;
+            try
             {
-                Environments.Add(environment);
+                ActiveEnvironment = null;
+
+                Environments.Clear();
+                foreach (var environment in all)
+                {
+                    Environments.Add(environment);
+                }
+
+                if (previousId.HasValue)
+                {
+                    ActiveEnvironment = Environments.FirstOrDefault(environment => environment.Id == previousId.Value);
+                }
             }
-
-            if (previousId.HasValue)
+            finally
             {
-                ActiveEnvironment = Environments.FirstOrDefault(environment => environment.Id == previousId.Value);
+                _suppressEnvironmentAutoSave = previousSuppressEnvironmentAutoSave;
             }
         }
-        finally
+
+        // Dispatch UI mutations to the Avalonia UI thread when an application is running.
+        // The CheckAccess() branch handles the case where the caller is already on the UI thread
+        // (e.g. startup via Task.WhenAll or RelayCommand invocations).
+        // The Application.Current is null branch handles pure unit tests that do not start an
+        // Avalonia application — in that context InvokeAsync would deadlock because there is no
+        // running dispatcher loop; the in-memory test data has no real UI bindings to protect.
+        if (Dispatcher.UIThread.CheckAccess() || Application.Current is null)
         {
-            _suppressEnvironmentAutoSave = previousSuppressEnvironmentAutoSave;
+            ApplyChanges();
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(ApplyChanges);
         }
     }
 
@@ -112,13 +146,10 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         IReadOnlyList<EnvironmentVariable> variables,
         CancellationToken cancellationToken = default)
     {
-        await _environmentRepository.SaveAsync(name, variables, cancellationToken: cancellationToken);
-        // LoadEnvironmentsAsync modifies ObservableCollection and ObservableProperty values which must
-        // happen on the UI thread.  SeedEnvironmentAsync is called during first-run demo-data seeding
-        // (MainWindowViewModel.SeedDemoDataAsync), which runs on a background thread after
-        // ConfigureAwait(false).  Dispatching to the UI thread ensures the Environments list is
-        // updated correctly regardless of the calling thread.
-        await Dispatcher.UIThread.InvokeAsync(() => LoadEnvironmentsAsync(cancellationToken));
+        await _environmentRepository.SaveAsync(name, variables, cancellationToken: cancellationToken).ConfigureAwait(false);
+        // LoadEnvironmentsAsync handles UI-thread dispatching internally, so it is safe to call
+        // from any thread including a background thread after ConfigureAwait(false).
+        await LoadEnvironmentsAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public IReadOnlyList<EnvironmentVariable> GetActiveVariablesForEditor() =>
@@ -390,6 +421,8 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         try
         {
             await Task.Delay(TimeSpan.FromMilliseconds(1000), cancellationToken).ConfigureAwait(false);
+            // Avalonia's InvokeAsync(Func<Task>) properly awaits the returned Task, so the outer
+            // await here waits for the full save (including the DB write and list reload) to finish.
             await Dispatcher.UIThread.InvokeAsync(async () => await SaveEnvironmentCoreAsync(closeEnvironmentPanel: false, cancellationToken));
         }
         catch (OperationCanceledException)

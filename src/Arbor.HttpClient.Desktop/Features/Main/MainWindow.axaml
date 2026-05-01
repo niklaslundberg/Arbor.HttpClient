@@ -100,7 +100,7 @@
                            Foreground="{DynamicResource AccentOnColorBrush}"
                            FontWeight="SemiBold"
                            VerticalAlignment="Center" />
-                <TextBlock Text="{Binding ActiveEnvironment.Name}"
+                <TextBlock Text="{Binding ActiveEnvironment.Name, FallbackValue=''}"
                            Foreground="{DynamicResource AccentOnColorBrush}"
                            FontWeight="SemiBold"
                            VerticalAlignment="Center" />
