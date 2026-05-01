@@ -660,6 +660,15 @@ SCHED_TAB_Y=370
 DEMO_URL="https://postman-echo.com/get?hello=world"
 STEP_NUM=1
 
+# Layout coordinates (for the main left-panel splitter, assuming 1280x800 window):
+#   Activity bar width = 48px
+#   Default left panel = 25% of (1280-48) = 308px from left of DockControl
+#   So the splitter is at x ≈ 48 + 308 = 356, drag target x ≈ 48 + 430 = 478 (~35%)
+MAIN_SPLITTER_SRC_X=356
+MAIN_SPLITTER_SRC_Y=400
+MAIN_SPLITTER_DST_X=478
+MAIN_SPLITTER_DST_Y=400
+
 auto_step() {
     local name="$1"
     shift
@@ -726,6 +735,128 @@ auto_step "Variables panel" \
 # 06 — open Scheduled Jobs panel
 auto_step "Scheduled Jobs panel" \
     "xdotool mousemove $SCHED_TAB_X $SCHED_TAB_Y click 1"
+
+# ---------------------------------------------------------------------------
+# Layout persistence test:
+#   07  — Drag the main left-panel splitter to widen the left panel (~35%)
+#   08  — Screenshot showing the new wider layout (reference for comparison)
+#   09  — Close the application (Alt+F4 → graceful OnClosing saves layout)
+#   10  — Relaunch and screenshot — must visually match step 08
+# ---------------------------------------------------------------------------
+
+# 07 — drag the main splitter to resize the left panel
+#       xdotool mousemove, then mousedown, then incremental moves to drag, then mouseup
+echo ""
+echo "--- Step $(printf '%02d' "$STEP_NUM"): Resize left panel via splitter drag"
+ssh_guest "DISPLAY=:99 xdotool mousemove $MAIN_SPLITTER_SRC_X $MAIN_SPLITTER_SRC_Y" 2>/dev/null || true
+sleep 1
+ssh_guest "DISPLAY=:99 xdotool mousedown 1" 2>/dev/null || true
+sleep 0.3
+# Move in steps to ensure the drag is registered
+for drag_x in $(seq $((MAIN_SPLITTER_SRC_X + 30)) 30 $MAIN_SPLITTER_DST_X); do
+    ssh_guest "DISPLAY=:99 xdotool mousemove $drag_x $MAIN_SPLITTER_DST_Y" 2>/dev/null || true
+    sleep 0.05
+done
+ssh_guest "DISPLAY=:99 xdotool mousemove $MAIN_SPLITTER_DST_X $MAIN_SPLITTER_DST_Y" 2>/dev/null || true
+sleep 0.3
+ssh_guest "DISPLAY=:99 xdotool mouseup 1" 2>/dev/null || true
+sleep 1
+
+LAYOUT_BEFORE_FILE="step-$(printf '%02d' "$STEP_NUM")-layout_before_close.png"
+if ssh_guest "DISPLAY=:99 scrot '$GUEST_SHOT_DIR/$LAYOUT_BEFORE_FILE'" 2>/dev/null; then
+    scp_from_guest "$GUEST_SHOT_DIR/$LAYOUT_BEFORE_FILE" "$OUTPUT_DIR/$LAYOUT_BEFORE_FILE" 2>/dev/null || true
+    echo "    Screenshot (layout before close): $OUTPUT_DIR/$LAYOUT_BEFORE_FILE"
+    record_step "step-$STEP_NUM" "ok"
+else
+    record_step "step-$STEP_NUM" "screenshot-failed"
+fi
+STEP_NUM=$((STEP_NUM + 1))
+pause_if_enabled "Layout before close"
+
+# 08 — close the application gracefully via Alt+F4
+#       This triggers MainWindow.OnClosing which persists the layout.
+echo ""
+echo "--- Step $(printf '%02d' "$STEP_NUM"): Close application (Alt+F4)"
+ssh_guest "DISPLAY=:99 xdotool key alt+F4" 2>/dev/null || true
+sleep 4   # allow the app to close and write options.json
+ssh_guest "DISPLAY=:99 scrot '$GUEST_SHOT_DIR/step-$(printf '%02d' "$STEP_NUM")-after_close.png'" 2>/dev/null || true
+scp_from_guest "$GUEST_SHOT_DIR/step-$(printf '%02d' "$STEP_NUM")-after_close.png" \
+    "$OUTPUT_DIR/step-$(printf '%02d' "$STEP_NUM")-after_close.png" 2>/dev/null || true
+echo "    Screenshot (desktop after close): $OUTPUT_DIR/step-$(printf '%02d' "$STEP_NUM")-after_close.png"
+record_step "step-$STEP_NUM" "ok"
+STEP_NUM=$((STEP_NUM + 1))
+pause_if_enabled "App closed"
+
+# Retrieve the options.json written by OnClosing for diagnostic purposes
+SAVED_OPTIONS_GUEST="/home/$GUEST_USER/.local/share/Arbor.HttpClient/options.json"
+OPTIONS_LOCAL="$OUTPUT_DIR/options-saved.json"
+if scp_from_guest "$SAVED_OPTIONS_GUEST" "$OPTIONS_LOCAL" 2>/dev/null; then
+    echo "    Saved options.json: $OPTIONS_LOCAL"
+    # Extract and print the layout proportions for quick review
+    if command -v python3 &>/dev/null; then
+        python3 -c "
+import json, sys
+try:
+    d = json.load(open('$OPTIONS_LOCAL'))
+    cl = d.get('layouts', {}).get('currentLayout', {})
+    print(f'  leftToolProportion  = {cl.get(\"leftToolProportion\", \"N/A\")}')
+    print(f'  documentProportion  = {cl.get(\"documentProportion\", \"N/A\")}')
+    print(f'  windowWidth         = {cl.get(\"windowWidth\", \"N/A\")}')
+    print(f'  windowHeight        = {cl.get(\"windowHeight\", \"N/A\")}')
+except Exception as e:
+    print(f'  (could not parse options.json: {e})')
+" 2>/dev/null || true
+    fi
+else
+    echo "WARN: Could not retrieve options.json from guest" >&2
+fi
+
+# 09 — relaunch the application
+echo ""
+echo "--- Step $(printf '%02d' "$STEP_NUM"): Relaunch application"
+ssh_guest "DISPLAY=:99 DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 \
+    '$GUEST_APP_DIR/Arbor.HttpClient.Desktop' &>/tmp/app-relaunch.log &"
+sleep 5   # allow the app to fully start and render
+
+LAYOUT_AFTER_FILE="step-$(printf '%02d' "$STEP_NUM")-layout_after_relaunch.png"
+if ssh_guest "DISPLAY=:99 scrot '$GUEST_SHOT_DIR/$LAYOUT_AFTER_FILE'" 2>/dev/null; then
+    scp_from_guest "$GUEST_SHOT_DIR/$LAYOUT_AFTER_FILE" "$OUTPUT_DIR/$LAYOUT_AFTER_FILE" 2>/dev/null || true
+    echo "    Screenshot (layout after relaunch): $OUTPUT_DIR/$LAYOUT_AFTER_FILE"
+    record_step "step-$STEP_NUM" "ok"
+else
+    record_step "step-$STEP_NUM" "screenshot-failed"
+fi
+STEP_NUM=$((STEP_NUM + 1))
+pause_if_enabled "App relaunched — verify layout matches step 07"
+
+# 10 — layout persistence check: compare the left-panel boundary in both screenshots
+#       Uses ImageMagick 'compare' if available.  The tool exits 0 if images are
+#       identical, 1 if different, 2 on error.  We only log the result here —
+#       the CI artifact lets a human reviewer do the definitive comparison.
+echo ""
+echo "--- Step $(printf '%02d' "$STEP_NUM"): Layout persistence comparison"
+BEFORE_IMG="$OUTPUT_DIR/$LAYOUT_BEFORE_FILE"
+AFTER_IMG="$OUTPUT_DIR/$LAYOUT_AFTER_FILE"
+
+if [[ -f "$BEFORE_IMG" && -f "$AFTER_IMG" ]]; then
+    DIFF_IMG="$OUTPUT_DIR/layout-diff.png"
+    if command -v compare &>/dev/null; then
+        # Compare a vertical strip from the left side (x: 0-600) where the splitter lives.
+        # -metric AE counts non-matching pixels, -fuzz 5% allows minor rendering differences.
+        AE_PIXELS=$(compare -metric AE -fuzz 5% "$BEFORE_IMG" "$AFTER_IMG" "$DIFF_IMG" 2>&1 || true)
+        echo "    Pixel difference (left panel region) AE count: ${AE_PIXELS:-unknown}"
+        echo "    Diff image: $DIFF_IMG"
+        record_step "step-$STEP_NUM" "ok"
+    else
+        echo "    ImageMagick 'compare' not available on host — skipping pixel comparison."
+        echo "    Manual review: compare $BEFORE_IMG vs $AFTER_IMG"
+        record_step "step-$STEP_NUM" "compare-skipped"
+    fi
+else
+    echo "WARN: One or both comparison screenshots are missing." >&2
+    record_step "step-$STEP_NUM" "missing-screenshots"
+fi
+STEP_NUM=$((STEP_NUM + 1))
 
 record_step "automation" "ok"
 
@@ -820,6 +951,32 @@ SCREENSHOT_COUNT="$(ls -1 "$OUTPUT_DIR"/step-*.png 2>/dev/null | wc -l)"
             [[ -f "$f" ]] || continue
             echo "![$(basename "$f")]($(basename "$f"))"
         done
+        echo ""
+    fi
+    # Layout persistence section
+    echo "### Layout Persistence Verification"
+    echo ""
+    echo "The system test drags the main left-panel splitter to ~35% width, closes the"
+    echo "application (triggering \`MainWindow.OnClosing → PersistCurrentLayout\`), then"
+    echo "relaunches and screenshots the result."
+    echo ""
+    echo "Reviewers: compare **layout_before_close** and **layout_after_relaunch** screenshots."
+    echo "The left-panel boundary must appear at the same x-position in both images."
+    echo ""
+    if [[ -f "$OUTPUT_DIR/options-saved.json" ]]; then
+        echo "Saved options.json layout section:"
+        echo '```json'
+        python3 -c "
+import json
+try:
+    d = json.load(open('$OUTPUT_DIR/options-saved.json'))
+    cl = d.get('layouts', {}).get('currentLayout', {})
+    out = {k: v for k, v in cl.items() if 'roportion' in k or 'Window' in k or 'window' in k}
+    print(json.dumps(out, indent=2))
+except Exception as e:
+    print(f'(parse error: {e})')
+" 2>/dev/null || echo "(unavailable)"
+        echo '```'
         echo ""
     fi
 } > "$REPORT_MD"

@@ -165,6 +165,23 @@ public partial class App : Application
                 DataContext = viewModel,
             };
 
+            // Restore saved window size and position.  Guard against zero/default values
+            // (first run), positions that would place the window fully off-screen, and
+            // implausibly small sizes.
+            if (currentOptions.Layouts?.CurrentLayout is { WindowWidth: > 0, WindowHeight: > 0 } savedGeometry)
+            {
+                window.Width = savedGeometry.WindowWidth;
+                window.Height = savedGeometry.WindowHeight;
+
+                // Only restore position when it was explicitly captured.  The HasWindowPosition
+                // flag distinguishes "saved as (0,0)" from "never saved" so a window legitimately
+                // positioned at the top-left corner of the primary monitor is correctly restored.
+                if (savedGeometry.HasWindowPosition)
+                {
+                    window.Position = new Avalonia.PixelPoint(savedGeometry.WindowX, savedGeometry.WindowY);
+                }
+            }
+
             window.Opened += async (_, _) => await InitializeAsync(historyRepository, collectionRepository, environmentRepository, scheduledJobRepository, viewModel, exceptionCollector);
             window.Closed += (_, _) => DisposeResources();
 

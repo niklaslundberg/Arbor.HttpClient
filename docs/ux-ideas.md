@@ -419,15 +419,19 @@ Each idea includes a description of what it means in practice, notes on how it c
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
 
 ### Persistent Layout and Request/Response Split View ✅ Implemented
-> Implemented in PR (this PR) — `src/Arbor.HttpClient.Desktop/Features/Layout/DockFactory.cs`, `src/Arbor.HttpClient.Desktop/Features/Layout/DockLayoutSnapshot.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/ApplicationOptionsStore.cs`
+> Implemented in PR (this PR) — `src/Arbor.HttpClient.Desktop/Features/Layout/DockFactory.cs`, `src/Arbor.HttpClient.Desktop/Features/Layout/DockLayoutSnapshot.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindow.axaml.cs`, `src/Arbor.HttpClient.Desktop/Options/ApplicationOptionsStore.cs`, `src/Arbor.HttpClient.Desktop/App.axaml.cs`
 
 **What it means:** The dock layout (panel sizes, tool panel order, floating window positions) is persisted to `options.json` when the application closes and fully restored on next launch. The response panel now appears below the request panel by default so both are visible simultaneously without switching tabs.
 
 **What shipped:**
 - `DockFactory` now creates a vertical `ProportionalDock` (`document-layout`) containing a `request-dock` (top, 60% height) and `response-dock` (bottom, 40% height) instead of a single tabbed `DocumentDock`
 - `DockLayoutSnapshot` stores `RequestDockProportion` and `ResponseDockProportion` so the user's resized split is remembered across restarts
-- `MainWindow.OnClosing` already called `PersistCurrentLayout()` before window teardown; this now correctly captures the split proportions and all dock positions
+- `DockLayoutSnapshot` now also stores `WindowWidth`, `WindowHeight`, `WindowX`, `WindowY` so the main window size and position are fully restored across restarts
+- `MainWindow.OnClosing` now calls `SyncDockProportionsFromVisuals()` (walks the visual tree, reads actual `ProportionalStackPanel.ProportionProperty` values, and writes them back to the model) before persisting — this is the reliable source of truth regardless of binding-propagation timing
+- `MainWindow.OnClosing` records the window geometry via `viewModel.SetWindowGeometry()` before `PersistCurrentLayout()` so the full window state is captured
+- `App.axaml.cs` restores window width, height, and position from the saved snapshot when creating the main window
 - Two new E2E tests: `Layout_DefaultSplitView_ShouldShowRequestAboveResponse` and `Layout_SplitViewProportions_ShouldPersistAcrossRestarts`
+- KVM/Alpine system test (`scripts/start-ui-automation-kvm-alpine.sh`) updated with layout persistence steps: drags the main splitter, closes the app, relaunches, and screenshots before/after for human comparison; also retrieves `options.json` so reviewers can verify the saved proportions
 
 **Polish items remaining:**
 - Keyboard shortcut to resize request/response split

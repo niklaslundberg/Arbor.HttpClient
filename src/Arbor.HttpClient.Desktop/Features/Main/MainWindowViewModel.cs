@@ -90,6 +90,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly DemoServer? _demoServer;
     private readonly UnhandledExceptionCollector? _unhandledExceptionCollector;
 
+    // Window geometry captured just before close — included in the next PersistCurrentLayout call.
+    private double _windowWidthAtClose;
+    private double _windowHeightAtClose;
+    private int _windowXAtClose;
+    private int _windowYAtClose;
+    private bool _windowPositionCaptured;
+
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
 
@@ -1739,6 +1746,20 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public void PersistCurrentLayout() => PersistLayoutOptions();
 
     /// <summary>
+    /// Records the main window's current size and position so they are included in the next
+    /// <see cref="PersistCurrentLayout"/> call.  Call this from <c>MainWindow.OnClosing</c>
+    /// before <see cref="PersistCurrentLayout"/>.
+    /// </summary>
+    public void SetWindowGeometry(double width, double height, int x, int y)
+    {
+        _windowWidthAtClose = width;
+        _windowHeightAtClose = height;
+        _windowXAtClose = x;
+        _windowYAtClose = y;
+        _windowPositionCaptured = true;
+    }
+
+    /// <summary>
     /// Returns a snapshot of the current layout options (including floating windows).
     /// Exposed for testing the save/restore cycle without a real ApplicationOptionsStore.
     /// </summary>
@@ -2040,7 +2061,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ResponseDockProportion = responseDock.Proportion,
             ActiveToolDockableId = leftToolDock.ActiveDockable?.Id,
             LeftToolDockableOrder = GetDockableOrder(leftToolDock.VisibleDockables),
-            FloatingWindows = floatingWindows
+            FloatingWindows = floatingWindows,
+            WindowWidth = _windowWidthAtClose > 0 ? _windowWidthAtClose : 0,
+            WindowHeight = _windowHeightAtClose > 0 ? _windowHeightAtClose : 0,
+            WindowX = _windowXAtClose,
+            WindowY = _windowYAtClose,
+            HasWindowPosition = _windowPositionCaptured
         };
     }
 
