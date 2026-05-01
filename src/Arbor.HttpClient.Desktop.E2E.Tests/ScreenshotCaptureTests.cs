@@ -158,7 +158,7 @@ public class ScreenshotCaptureTests
 
     /// <summary>
     /// Saves a screenshot of the main window toolbar showing the environment ComboBox with
-    /// the Production environment selected — demonstrating the red accent background, the
+    /// the Production environment selected — demonstrating the color-dot indicator, the
     /// warning banner, and the activity-bar badge dot.  The color dots on each dropdown item
     /// are a runtime visual inside the Avalonia popup visual root and cannot be captured by
     /// <see cref="Window.GetLastRenderedFrame"/>; they are verified by the ItemTemplate XAML

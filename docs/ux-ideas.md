@@ -392,21 +392,19 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ### 7.1 Environment color indicator ✅ Implemented
 > Implemented in PR #114 (commit `71a8e69`) — `src/Arbor.HttpClient.Core/Environments/RequestEnvironment.cs`, `src/Arbor.HttpClient.Core/Environments/IEnvironmentRepository.cs`, `src/Arbor.HttpClient.Storage.Sqlite/SqliteEnvironmentRepository.cs`, `src/Arbor.HttpClient.Desktop/Features/Environments/EnvironmentsViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Environments/EnvironmentsView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindow.axaml`
+> Updated in PR #119 — `src/Arbor.HttpClient.Desktop/Features/Main/MainWindow.axaml` (removed colored dropdown background; color dot only)
 
-**What it means:** Each environment can be assigned an optional accent color (e.g. red for Production, green for Development). When a colored environment is active the color is reflected in the `Env:` dropdown background in the top toolbar, as a small badge dot on the Environments activity-bar icon, and optionally as a full-width warning banner below the toolbar. The color is configured in the Environments panel via a small row of preset color swatches.
+**What it means:** Each environment can be assigned an optional accent color (e.g. red for Production, green for Development). When a colored environment is active the color is reflected as a small color dot in the `Env:` dropdown items, as a small badge dot on the Environments activity-bar icon, and optionally as a full-width warning banner below the toolbar. The color is configured in the Environments panel via a small row of preset color swatches.
 
 **Full design proposal:** [`docs/environment-color-report.md`](environment-color-report.md)
 
 **What shipped:**
 - `AccentColor` (nullable hex string) and `ShowWarningBanner` (bool) added to `RequestEnvironment` and wired through `IEnvironmentRepository`, `SqliteEnvironmentRepository` (with schema migration), and `InMemoryEnvironmentRepository`
 - Five preset color swatches in the Environments edit form (Red `#B41E1E`, Amber `#8B5500`, Green `#1E7A3C`, Blue `#1E50B4`, Purple `#6A1EB4`) plus a "∅ none" clear option (Pattern C)
-- Toolbar `Env:` ComboBox background/foreground tinted by the active environment's accent color — white text enforced via `HexColorToForegroundConverter` (Pattern A)
-- Full-width warning banner with environment name shown below the toolbar when `ShowWarningBanner = true` (Pattern B)
+- **Color dot in dropdown items and selected view:** Each environment in the `Env:` ComboBox shows a colored circle next to its name — visible both in the dropdown list and in the selected value display. No background tinting on the ComboBox itself. (Pattern C)
+- Full-width warning banner with environment name shown below the toolbar when `ShowWarningBanner = true` (Pattern B) — this is the primary visual warning for production-class environments
 - Activity-bar Environments icon shows a colored badge dot when a color is set (Pattern D)
 - WCAG 2.1 AA verified: all five presets achieve ≥ 4.5:1 contrast against white text; verified in `AccessibilityContrastTests.cs`
-- **Color dot visible in dropdown items before selection:** Each environment in the `Env:` ComboBox dropdown now shows a colored dot next to its name so users can see environment colors before making a selection (fixes UX issue where color only appeared after selection was done). Implemented in `MainWindow.axaml` `ItemTemplate`.
-- **Hover text fixed in light theme:** Added `:pointerover`, `:selected`, and `:selected:pointerover` foreground styles for `ComboBox.EnvSelector ComboBoxItem` to prevent white-on-white text in the dropdown hover state in light theme.
-- **Accent color preserved on ComboBox hover:** Added `ComboBox.EnvSelector:pointerover /template/ Border#Background` style to keep the environment's accent color visible on hover (using slight opacity) rather than switching to the Fluent default hover color.
 
 **Remaining polish items:**
 - No live contrast-ratio warning when a custom hex color is entered (only preset swatches are offered for now)
