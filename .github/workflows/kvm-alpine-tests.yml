@@ -101,21 +101,21 @@ jobs:
 
       - name: Restore Alpine image from cache
         id: cache-alpine
-        uses: actions/cache@5a3ec84eff668e56bc51ca40d99671ee91efbd15
+        uses: actions/cache@v4
         with:
           path: /tmp/arbor-vms/${{ steps.alpine-ver.outputs.image }}
           key: alpine-qcow2-${{ steps.alpine-ver.outputs.version }}
 
       - name: Restore APK package cache
         id: cache-apk
-        uses: actions/cache@5a3ec84eff668e56bc51ca40d99671ee91efbd15
+        uses: actions/cache@v4
         with:
           path: /tmp/alpine-mirror
           key: alpine-apk-cache-${{ steps.alpine-ver.outputs.major_minor }}-v1
 
       - name: Restore prepared Alpine image from cache
         id: cache-prepared
-        uses: actions/cache@5a3ec84eff668e56bc51ca40d99671ee91efbd15
+        uses: actions/cache@v4
         with:
           path: /tmp/arbor-vms/nocloud_alpine-${{ steps.alpine-ver.outputs.version }}-prepared.qcow2
           key: alpine-prepared-${{ steps.alpine-ver.outputs.version }}-v1
