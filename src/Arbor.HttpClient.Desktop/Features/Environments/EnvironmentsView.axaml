@@ -149,6 +149,8 @@
                                 <TextBlock Text="{x:Static loc:Strings.EnvironmentsActiveColumn}" FontWeight="SemiBold" VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="1" Text="{x:Static loc:Strings.EnvironmentsVariableKeyColumn}" FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="2" Text="{x:Static loc:Strings.EnvironmentsVariableSensitiveColumn}" FontWeight="SemiBold" />
+                                <!-- Column 3 reserved for the Remove button in each data row -->
+                                <Border Grid.Column="3" />
                             </Grid>
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                 <TextBlock Text="{x:Static loc:Strings.EnvironmentsVariableValueColumn}" FontWeight="SemiBold" />
