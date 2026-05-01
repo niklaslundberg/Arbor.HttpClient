@@ -22,7 +22,6 @@
     <Window.Resources>
         <conv:MethodToColorConverter x:Key="MethodToColorConverter" />
         <envconv:HexColorToBrushConverter x:Key="HexColorToBrushConverter" />
-        <envconv:HexColorToForegroundConverter x:Key="HexColorToForegroundConverter" />
         <shared:NotNullConverter x:Key="NotNullConverter" />
     </Window.Resources>
 
@@ -34,22 +33,6 @@
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Padding" Value="0" />
-        </Style>
-        <!-- The env ComboBox sets Foreground=white on colored backgrounds so the selected item label
-             remains readable. That white foreground is inherited by ComboBoxItem descendants inside
-             the dropdown popup, making items invisible in the light theme (white text on white/light
-             hover background). This style resets each ComboBoxItem's foreground to the Fluent default
-             in all interactive states so dropdown items always display with the correct theme foreground
-             regardless of the ComboBox-level Foreground override. -->
-        <Style Selector="ComboBox.EnvSelector ComboBoxItem, ComboBox.EnvSelector ComboBoxItem:pointerover, ComboBox.EnvSelector ComboBoxItem:selected, ComboBox.EnvSelector ComboBoxItem:selected:pointerover">
-            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
-        </Style>
-        <!-- Preserve the accent color on the ComboBox background when hovering (instead of switching
-             to the Fluent default hover color). A slight opacity change signals interactivity while
-             keeping the environment's color visible — "a variation of the same color". -->
-        <Style Selector="ComboBox.EnvSelector:pointerover /template/ Border#Background">
-            <Setter Property="Background" Value="{TemplateBinding Background}" />
-            <Setter Property="Opacity" Value="0.85" />
         </Style>
     </Window.Styles>
 
@@ -77,20 +60,17 @@
             </MenuItem>
         </Menu>
 
-        <!-- Top toolbar: title and environment selector (Pattern A: colored dropdown) -->
+        <!-- Top toolbar: title and environment selector -->
         <Border DockPanel.Dock="Top" Padding="16,10" BorderBrush="{DynamicResource TopToolbarBorderBrush}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Text="{x:Static loc:Strings.AppTitle}" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" />
 
-                <!-- Environment selector with accent color background (Pattern A) -->
+                <!-- Environment selector with color circle indicator -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <TextBlock Text="{x:Static loc:Strings.ToolbarEnvLabel}" VerticalAlignment="Center" Opacity="0.7" />
-                    <ComboBox Classes="EnvSelector"
-                              MinWidth="160"
+                    <ComboBox MinWidth="160"
                               ItemsSource="{Binding Environments}"
-                              SelectedItem="{Binding ActiveEnvironment, Mode=TwoWay}"
-                              Background="{Binding ActiveEnvironmentAccentColor, Converter={StaticResource HexColorToBrushConverter}}"
-                              Foreground="{Binding ActiveEnvironmentAccentColor, Converter={StaticResource HexColorToForegroundConverter}}">
+                              SelectedItem="{Binding ActiveEnvironment, Mode=TwoWay}">
                         <ComboBox.ItemTemplate>
                             <DataTemplate x:DataType="environments:RequestEnvironment">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -120,7 +100,7 @@
                            Foreground="{DynamicResource AccentOnColorBrush}"
                            FontWeight="SemiBold"
                            VerticalAlignment="Center" />
-                <TextBlock Text="{Binding ActiveEnvironment.Name}"
+                <TextBlock Text="{Binding ActiveEnvironment.Name, FallbackValue=''}"
                            Foreground="{DynamicResource AccentOnColorBrush}"
                            FontWeight="SemiBold"
                            VerticalAlignment="Center" />
