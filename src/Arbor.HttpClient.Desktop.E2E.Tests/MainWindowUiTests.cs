@@ -30,6 +30,7 @@ using Arbor.HttpClient.Core.ScheduledJobs;
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
 [Collection("HeadlessAvalonia")]
+[Trait("Category", "Integration")]
 public class MainWindowUiTests
 {
     [Fact]

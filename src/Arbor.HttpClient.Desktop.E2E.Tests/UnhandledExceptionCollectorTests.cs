@@ -2,6 +2,7 @@ using Arbor.HttpClient.Desktop.Features.Diagnostics;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
+[Trait("Category", "Integration")]
 public class UnhandledExceptionCollectorTests
 {
     [Fact]

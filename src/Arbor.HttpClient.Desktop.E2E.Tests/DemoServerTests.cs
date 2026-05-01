@@ -16,6 +16,7 @@ using Arbor.HttpClient.Core.HttpRequest;
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
 [Collection("HeadlessAvalonia")]
+[Trait("Category", "Integration")]
 public class DemoServerTests
 {
     // ── DemoServer start/stop ────────────────────────────────────────────────

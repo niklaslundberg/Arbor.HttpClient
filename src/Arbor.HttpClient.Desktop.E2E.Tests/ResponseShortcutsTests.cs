@@ -22,6 +22,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 /// Copy body to clipboard, Save body as file, Copy as cURL.
 /// </summary>
 [Collection("HeadlessAvalonia")]
+[Trait("Category", "Integration")]
 public class ResponseShortcutsTests
 {
     private static MainWindowViewModel CreateViewModel(HttpResponseMessage httpResponse)

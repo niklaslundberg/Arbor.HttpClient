@@ -631,11 +631,13 @@ All text-input controls must have a consistent look and feel that matches the Av
 - **`TextBox` controls that remain as plain `TextBox`** do not need additional styling; they automatically inherit font and appearance from the Fluent theme and window-level `FontFamily`/`FontSize` bindings.
 - Never mix raw `TextEditor` controls and styled `TextBox` controls in the same row or form group without ensuring they have the same effective height and padding.
 
-## 21. Hyper-V System Tests (Pre-Commit Check for Windows Developers)
+## 21. VM-Based System Tests (Pre-Commit Check)
+
+### 21a. Hyper-V (Windows developers)
 
 **`[RECOMMENDED][PROCESS]`** When working on the desktop application (`Arbor.HttpClient.Desktop`) on a Windows 11 machine with Hyper-V enabled, run the VM-based system tests before declaring a PR ready.
 
-### Quick availability probe
+#### Quick availability probe
 
 Run `scripts/Test-HyperVAvailability.ps1` first. This is a fast, non-destructive check (no VMs created). Exit code 0 means Hyper-V is available and you can proceed with full system tests.
 
@@ -667,21 +669,60 @@ scripts/Start-UIAutomation.ps1 `
     -Theme     Dark
 ```
 
-### When to run
-
-- **Always** when making changes to the application UI (`.axaml`, ViewModels, main window layout).
-- **Optional** for backend-only changes (services, HTTP logic, storage).
-
-### CI integration
+#### CI integration (Hyper-V)
 
 - Full VM system tests run on demand via `.github/workflows/system-tests.yml` (`workflow_dispatch`).
 - The Hyper-V environment probe runs on demand via `.github/workflows/vm-probe.yml` (`workflow_dispatch`).
 - Neither workflow runs automatically in the standard CI pipeline — they are on-demand only.
 
-### Artifacts persisted in the repository
-
-System test screenshots are committed to `docs/system-test-screenshots/` when the workflow is run with `commit_screenshots: true` (on a self-hosted runner with write access). Locally, commit output to `docs/system-test-screenshots/` and include them in the PR description the same way as headless screenshots from `docs/screenshots/`.
-
-### Base VHDX preparation
+#### Base VHDX preparation
 
 See `docs/vm-ui-automation.md` section 4 for step-by-step instructions on preparing a sysprepped Windows VHDX to use as the base image.
+
+---
+
+### 21b. KVM + Alpine Linux (Linux / cross-platform developers)
+
+**`[RECOMMENDED][PROCESS]`** On any Ubuntu 22.04+ machine (or in CI with a large Linux runner), use the KVM+Alpine approach. The base image is downloaded automatically — no manual image preparation required.
+
+#### Prerequisites
+
+```bash
+sudo apt-get install -y \
+    qemu-kvm qemu-utils cloud-image-utils \
+    sshpass ffmpeg dotnet-sdk-10
+```
+
+#### Run system tests
+
+```bash
+# Basic run (auto-downloads Alpine 3.21.7 image on first run)
+./scripts/start-ui-automation-kvm-alpine.sh
+
+# With video recording
+./scripts/start-ui-automation-kvm-alpine.sh --record-video
+
+# With step-by-step inspection (connect via VNC viewer at localhost:5911)
+./scripts/start-ui-automation-kvm-alpine.sh --record-video --pause
+
+# Reuse a cached image (faster subsequent runs)
+./scripts/start-ui-automation-kvm-alpine.sh \
+    --base-image /tmp/arbor-vms/nocloud_alpine-3.21.7-x86_64-bios-cloudinit-r0.qcow2
+```
+
+Artifacts are written to `docs/system-test-screenshots/alpine/` by default:
+- `step-01-*.png` … `step-06-*.png` — UI automation screenshots
+- `alpine-test-results.json` — structured step outcomes and timing
+- `alpine-test-report.md` — human-readable Markdown summary
+- `demo-alpine.mp4` (when `--record-video` is used)
+
+#### CI integration (KVM + Alpine)
+
+- On-demand tests run via `.github/workflows/kvm-alpine-tests.yml` (`workflow_dispatch`).
+- Artifacts are uploaded to the GitHub Actions run for every invocation.
+- Use `commit_artifacts: true` to commit screenshots to `docs/system-test-screenshots/alpine/`.
+
+#### When to run
+
+- **Always** when making changes to the application UI (`.axaml`, ViewModels, main window layout).
+- **Optional** for backend-only changes (services, HTTP logic, storage).

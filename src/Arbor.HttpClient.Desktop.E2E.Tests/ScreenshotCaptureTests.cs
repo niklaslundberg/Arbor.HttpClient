@@ -21,6 +21,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
 [Collection("HeadlessAvalonia")]
 [Trait("Category", "Screenshots")]
+[Trait("Category", "Integration")]
 public class ScreenshotCaptureTests
 {
     /// <summary>

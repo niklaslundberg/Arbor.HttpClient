@@ -15,6 +15,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 /// <see cref="AvaloniaEdit.Editing.TextArea"/> and <see cref="AvaloniaEdit.Editing.Caret"/>.
 /// </summary>
 [Collection("HeadlessAvalonia")]
+[Trait("Category", "Integration")]
 public class VariableCompletionDataTests
 {
     /// <summary>

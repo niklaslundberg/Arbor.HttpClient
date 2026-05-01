@@ -471,3 +471,96 @@ jobs:
               echo "| Screenshots | [${{ steps.upload-e2e-screenshots.outputs.artifact-url }}](${{ steps.upload-e2e-screenshots.outputs.artifact-url }}) |"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+  system-tests:
+    name: System Tests (Runner UI Automation)
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore Arbor.HttpClient.slnx --locked-mode
+
+      - name: Audit NuGet dependencies for vulnerabilities
+        run: dotnet list Arbor.HttpClient.slnx package --vulnerable --include-transitive
+
+      - name: Publish win-x64 self-contained
+        shell: pwsh
+        run: |
+          dotnet publish src/Arbor.HttpClient.Desktop/Arbor.HttpClient.Desktop.csproj `
+              --configuration Release `
+              -r win-x64 `
+              --self-contained true `
+              -o publish/win-x64 `
+              -v quiet
+
+      # -----------------------------------------------------------------------
+      # Launch the real application on the runner desktop, take screenshots,
+      # and record a short video. All steps use continue-on-error because GitHub
+      # hosted runners run as a service (non-interactive session) — the probe
+      # degrades gracefully when a display is unavailable.
+      # -----------------------------------------------------------------------
+      - name: Run system test — light theme (launch app, record, screenshot)
+        id: system-test-light
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path 'system-test-results/light' | Out-Null
+          scripts/Invoke-UIAutomationProbe.ps1 `
+            -ExePath 'publish/win-x64/Arbor.HttpClient.Desktop.exe' `
+            -Theme Light
+          foreach ($f in @('desktop-before.png', 'desktop-after.png', 'app-recording.mp4', 'validation-frame.png')) {
+            if (Test-Path $f) { Move-Item $f (Join-Path 'system-test-results/light' $f) -Force }
+          }
+
+      - name: Run system test — dark theme (launch app, screenshot)
+        id: system-test-dark
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path 'system-test-results/dark' | Out-Null
+          scripts/Invoke-UIAutomationProbe.ps1 `
+            -ExePath 'publish/win-x64/Arbor.HttpClient.Desktop.exe' `
+            -Theme Dark
+          foreach ($f in @('desktop-before.png', 'desktop-after.png')) {
+            if (Test-Path $f) { Move-Item $f (Join-Path 'system-test-results/dark' $f) -Force }
+          }
+
+      - name: Upload system test artifacts
+        if: always()
+        id: upload-system-artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: system-test-results-${{ github.run_number }}
+          path: system-test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Write system test summary
+        if: always()
+        shell: pwsh
+        run: |
+          $lines = @(
+            "## System Test Results (Runner UI Automation)"
+            ""
+            "| Step | Outcome |"
+            "|---|---|"
+            "| System test light theme | ${{ steps.system-test-light.outcome }} |"
+            "| System test dark theme  | ${{ steps.system-test-dark.outcome }} |"
+            ""
+          )
+          $artifactUrl = '${{ steps.upload-system-artifacts.outputs.artifact-url }}'
+          if ($artifactUrl) {
+            $lines += "Artifacts: [$artifactUrl]($artifactUrl)"
+          }
+          $lines | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
