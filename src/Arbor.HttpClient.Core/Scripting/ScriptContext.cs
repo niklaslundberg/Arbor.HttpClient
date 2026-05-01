@@ -41,7 +41,9 @@ public sealed class ScriptContext
 
     /// <summary>
     /// Active environment variables. Scripts may read existing variables or
-    /// set new values — changes are written back to the active environment after the script completes.
+    /// write new key/value pairs. The host application does not automatically
+    /// persist mutations back to the stored environment; use <see cref="Log"/>
+    /// to record values you want to inspect after execution.
     /// </summary>
     public IDictionary<string, string> Env { get; }
 

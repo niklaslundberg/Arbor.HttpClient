@@ -56,7 +56,7 @@ public partial class MainWindow : Avalonia.Controls.Window
             SyncDockProportionsFromVisuals();
 
             // Record window geometry so it can be included in the saved snapshot.
-            viewModel.SetWindowGeometry(Width, Height, (int)Position.X, (int)Position.Y);
+            viewModel.SetWindowGeometry(Width, Height, Position.X, Position.Y);
 
             viewModel.PersistCurrentLayout();
             viewModel.CloseFloatingWindows();
@@ -81,12 +81,11 @@ public partial class MainWindow : Avalonia.Controls.Window
     /// </summary>
     private void SyncDockProportionsFromVisuals()
     {
-        foreach (var visual in this.GetVisualDescendants())
+        foreach (var control in this.GetVisualDescendants()
+                     .OfType<Control>()
+                     .Where(c => c.DataContext is IDockable && c.Parent is ProportionalStackPanel))
         {
-            if (visual is not Control control) continue;
-            if (control.DataContext is not IDockable dockable) continue;
-            if (control.Parent is not ProportionalStackPanel) continue;
-
+            var dockable = (IDockable)control.DataContext!;
             var proportion = ProportionalStackPanel.GetProportion(control);
             if (double.IsNaN(proportion) || proportion <= 0) continue;
 

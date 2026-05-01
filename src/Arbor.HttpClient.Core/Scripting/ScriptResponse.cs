@@ -54,7 +54,8 @@ public sealed class ScriptResponse
 
         try
         {
-            return JsonDocument.Parse(body).RootElement.Clone();
+            using var doc = JsonDocument.Parse(body);
+            return doc.RootElement.Clone();
         }
         catch (JsonException)
         {

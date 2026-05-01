@@ -2420,11 +2420,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             var draft = _requestEditor.BuildDraft();
             _httpRequestsLogger.Information("Manual request started: {Method} {Url}", draft.Method, draft.Url);
 
-            // Build a mutable headers dict for the script context
+            // Build a mutable headers dict for the script context.
+            // Use the first value when duplicate header names exist (case-insensitive).
             var resolvedHeaders = _requestEditor.GetResolvedHeaders()
-                .ToDictionary(h => h.Name, h => h.Value, StringComparer.OrdinalIgnoreCase);
+                .GroupBy(h => h.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
             var envVars = GetActiveVariablesForEditor()
-                .ToDictionary(v => v.Name, v => v.Value, StringComparer.OrdinalIgnoreCase);
+                .GroupBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
 
             var scriptCtx = new ScriptContext(
                 draft.Method,
@@ -2437,7 +2440,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _scriptViewModel.ClearPreviousRun();
             var preResult = await _scriptRunner.RunPreRequestAsync(
                 _scriptViewModel.PreRequestScript,
-                scriptCtx).ConfigureAwait(false);
+                scriptCtx);
             _scriptViewModel.SetResult(preResult);
 
             if (!preResult.Success)
@@ -2446,15 +2449,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            // Rebuild draft with any script mutations
+            // Rebuild draft with any script mutations (Method, Url, Body, Headers).
+            var mutatedHeaders = scriptCtx.Headers
+                .Select(kvp => new RequestHeader(kvp.Key, kvp.Value))
+                .ToList();
             var mutatedDraft = draft with
             {
                 Method = scriptCtx.Method,
                 Url = scriptCtx.Url,
-                Body = scriptCtx.Body
+                Body = scriptCtx.Body,
+                Headers = mutatedHeaders.Count > 0 ? mutatedHeaders : draft.Headers
             };
 
-            var response = await _httpRequestService.SendAsync(mutatedDraft).ConfigureAwait(false);
+            var response = await _httpRequestService.SendAsync(mutatedDraft);
 
             ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
             ResponseStatusCode = response.StatusCode;
@@ -2474,22 +2481,23 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             HasTextResponse = HasResponseHeaders && !IsBinaryResponse;
             _httpRequestsLogger.Information("Manual request completed: {StatusCode} {ReasonPhrase}", response.StatusCode, response.ReasonPhrase);
 
-            // Post-response script
-            var responseHeaders = response.Headers
-                .ToDictionary(h => h.Name, h => h.Value, StringComparer.OrdinalIgnoreCase);
+            // Post-response script — build response headers dict, keeping first value for duplicates.
+            var responseHeadersDict = response.Headers
+                .GroupBy(h => h.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
             scriptCtx.Response = new ScriptResponse(
                 response.StatusCode,
                 response.ReasonPhrase,
                 response.Body,
-                responseHeaders);
+                responseHeadersDict);
 
             var postResult = await _scriptRunner.RunPostResponseAsync(
                 _scriptViewModel.PostResponseScript,
-                scriptCtx).ConfigureAwait(false);
+                scriptCtx);
             _scriptViewModel.SetResult(postResult);
 
             _cookieJarViewModel.RefreshCookies();
-            await LoadHistoryAsync().ConfigureAwait(false);
+            await LoadHistoryAsync();
         }
         catch (Exception exception)
         {

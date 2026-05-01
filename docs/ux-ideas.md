@@ -57,7 +57,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### 1.5 Pre/post scripting ✅ Implemented
-> Implemented in PR #141 — `src/Arbor.HttpClient.Core/Scripting/`, `src/Arbor.HttpClient.Desktop/Features/Scripting/`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`
+> Implemented in PR #141 (commit `ae8f8f0`) — `src/Arbor.HttpClient.Core/Scripting/`, `src/Arbor.HttpClient.Desktop/Features/Scripting/`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`
 
 **What it means:** C# script snippets that run before a request is sent (to set variables, compute signatures) and after a response is received (to extract tokens, assert conditions). Postman uses JavaScript; Bruno uses JavaScript; some tools support Tengo or Lua.
 
@@ -426,7 +426,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
 
 ### Persistent Layout and Request/Response Split View ✅ Implemented
-> Implemented in PR (this PR) — `src/Arbor.HttpClient.Desktop/Features/Layout/DockFactory.cs`, `src/Arbor.HttpClient.Desktop/Features/Layout/DockLayoutSnapshot.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindow.axaml.cs`, `src/Arbor.HttpClient.Desktop/Options/ApplicationOptionsStore.cs`, `src/Arbor.HttpClient.Desktop/App.axaml.cs`
+> Implemented in PR #141 (commit `ae8f8f0`) — `src/Arbor.HttpClient.Desktop/Features/Layout/DockFactory.cs`, `src/Arbor.HttpClient.Desktop/Features/Layout/DockLayoutSnapshot.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindow.axaml.cs`, `src/Arbor.HttpClient.Desktop/Options/ApplicationOptionsStore.cs`, `src/Arbor.HttpClient.Desktop/App.axaml.cs`
 
 **What it means:** The dock layout (panel sizes, tool panel order, floating window positions) is persisted to `options.json` when the application closes and fully restored on next launch. The response panel now appears below the request panel by default so both are visible simultaneously without switching tabs.
 
