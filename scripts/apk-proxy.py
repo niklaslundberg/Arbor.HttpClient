@@ -34,6 +34,9 @@ def main() -> None:
 
         def _serve(self, *, head: bool) -> None:
             local = os.path.join(cache_dir, self.path.lstrip("/"))
+            if os.path.isdir(local):
+                self.send_error(404, "Not a file")
+                return
             if not os.path.exists(local):
                 os.makedirs(os.path.dirname(local), exist_ok=True)
                 url = UPSTREAM + self.path

@@ -1,0 +1,12 @@
+title = "Arbor.HttpClient gitleaks configuration"
+
+[allowlist]
+description = "GitHub Actions workflow cache keys are not secrets"
+# Cache keys in workflow files such as 'alpine-qcow2-3.21.7' look like API
+# keys to the generic-api-key rule but contain no sensitive information.
+regexes = [
+    '''alpine-[\w]+-[\d.]+(-v\d+)?''',
+]
+paths = [
+    '''.github/workflows/.+\.yml''',
+]
