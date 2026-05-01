@@ -943,7 +943,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void OpenEnvironments()
     {
-        IsEnvironmentPanelVisible = true;
         if (_dockFactory?.LeftToolDock is { } dock &&
             _dockFactory.EnvironmentsViewModel is { } environmentsVm)
         {
