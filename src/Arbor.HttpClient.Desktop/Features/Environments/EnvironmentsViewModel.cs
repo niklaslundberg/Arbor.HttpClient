@@ -113,7 +113,12 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         CancellationToken cancellationToken = default)
     {
         await _environmentRepository.SaveAsync(name, variables, cancellationToken: cancellationToken);
-        await LoadEnvironmentsAsync(cancellationToken);
+        // LoadEnvironmentsAsync modifies ObservableCollection and ObservableProperty values which must
+        // happen on the UI thread.  SeedEnvironmentAsync is called during first-run demo-data seeding
+        // (MainWindowViewModel.SeedDemoDataAsync), which runs on a background thread after
+        // ConfigureAwait(false).  Dispatching to the UI thread ensures the Environments list is
+        // updated correctly regardless of the calling thread.
+        await Dispatcher.UIThread.InvokeAsync(() => LoadEnvironmentsAsync(cancellationToken));
     }
 
     public IReadOnlyList<EnvironmentVariable> GetActiveVariablesForEditor() =>

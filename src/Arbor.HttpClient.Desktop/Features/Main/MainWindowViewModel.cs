@@ -527,8 +527,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     /// The accent color of the currently active environment, or <see langword="null"/> when none is set.
-    /// Bound to the toolbar Env: ComboBox background/foreground so the active environment is visually
-    /// distinct at a glance (UX idea 7.1 — Pattern A).
+    /// Bound to the warning banner background and the activity-bar badge dot (UX idea 7.1 — Patterns B and D).
     /// </summary>
     public string? ActiveEnvironmentAccentColor => _environmentsViewModel.ActiveEnvironment?.AccentColor;
 
