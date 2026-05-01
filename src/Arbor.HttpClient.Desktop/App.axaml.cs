@@ -182,7 +182,15 @@ public partial class App : Application
                 }
             }
 
-            window.Opened += async (_, _) => await InitializeAsync(historyRepository, collectionRepository, environmentRepository, scheduledJobRepository, viewModel, exceptionCollector);
+            window.Opened += async (_, _) =>
+            {
+                // Re-apply saved dock proportions now that the visual tree and PSP bindings
+                // are established.  Without this, ProportionalStackPanel.AssignProportions
+                // may run before the TwoWay bindings are set up and overwrite the saved
+                // values with equal-distribution proportions, making them appear unrestore.
+                viewModel.ReapplyStartupLayout();
+                await InitializeAsync(historyRepository, collectionRepository, environmentRepository, scheduledJobRepository, viewModel, exceptionCollector);
+            };
             window.Closed += (_, _) => DisposeResources();
 
             async void DisposeResources()

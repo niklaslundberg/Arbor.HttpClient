@@ -97,6 +97,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private int _windowYAtClose;
     private bool _windowPositionCaptured;
 
+    // Startup layout snapshot: re-applied after the window opens so that the PSP
+    // re-measures with the saved proportions once all visual bindings are in place.
+    private DockLayoutSnapshot? _startupLayoutSnapshot;
+
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
 
@@ -487,6 +491,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var options = initialOptions ?? new ApplicationOptions();
         ApplyOptions(options);
         ApplyLayoutOptions(options.Layouts);
+        _startupLayoutSnapshot = options.Layouts?.CurrentLayout;
         _suppressLayoutRestore = false;
         _requestEditor.RefreshRequestPreview();
     }
@@ -1757,6 +1762,52 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _windowXAtClose = x;
         _windowYAtClose = y;
         _windowPositionCaptured = true;
+    }
+
+    /// <summary>
+    /// Re-applies only the proportions from the startup layout snapshot to the dock model.
+    /// Call this once from <c>window.Opened</c> so the <see cref="ProportionalStackPanel"/>
+    /// re-measures with the saved proportions after all visual bindings are established.
+    /// The snapshot is cleared after the first call (one-shot).
+    /// </summary>
+    public void ReapplyStartupLayout()
+    {
+        var snapshot = _startupLayoutSnapshot;
+        _startupLayoutSnapshot = null;
+
+        if (snapshot is null || Layout is null)
+        {
+            return;
+        }
+
+        var leftToolDock = FindDockById<ToolDock>(Layout, "left-tool-dock");
+        var documentLayout = FindDockById<ProportionalDock>(Layout, "document-layout");
+        var requestDock = FindDockById<DocumentDock>(Layout, "request-dock");
+        var responseDock = FindDockById<DocumentDock>(Layout, "response-dock");
+        if (leftToolDock is null || documentLayout is null || requestDock is null || responseDock is null)
+        {
+            return;
+        }
+
+        if (snapshot.LeftToolProportion > 0)
+        {
+            leftToolDock.Proportion = snapshot.LeftToolProportion;
+        }
+
+        if (snapshot.DocumentProportion > 0)
+        {
+            documentLayout.Proportion = snapshot.DocumentProportion;
+        }
+
+        if (snapshot.RequestDockProportion > 0)
+        {
+            requestDock.Proportion = snapshot.RequestDockProportion;
+        }
+
+        if (snapshot.ResponseDockProportion > 0)
+        {
+            responseDock.Proportion = snapshot.ResponseDockProportion;
+        }
     }
 
     /// <summary>

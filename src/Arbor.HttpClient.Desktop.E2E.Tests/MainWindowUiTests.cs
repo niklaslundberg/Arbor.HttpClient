@@ -1669,6 +1669,97 @@ public class MainWindowUiTests
     }
 
 
+    [Fact]
+    public async Task ReapplyStartupLayout_ShouldRestoreProportions_EvenAfterPspOverwroteModel()
+    {
+        // Verifies that ReapplyStartupLayout() correctly re-applies saved dock proportions
+        // to the dock model.  This is the belt-and-suspenders call made from window.Opened
+        // to handle the case where ProportionalStackPanel.AssignProportions runs before the
+        // TwoWay binding is established and propagates equal-distribution proportions back to
+        // IDockable.Proportion, overwriting the values that ApplyLayoutSnapshot set.
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(() =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            const double savedLeftProportion = 0.4;
+            const double savedDocProportion = 0.6;
+            const double savedRequestProportion = 0.35;
+            const double savedResponseProportion = 0.65;
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel,
+                initialOptions: new ApplicationOptions
+                {
+                    Layouts = new LayoutOptions
+                    {
+                        CurrentLayout = new DockLayoutSnapshot
+                        {
+                            LeftToolProportion = savedLeftProportion,
+                            DocumentProportion = savedDocProportion,
+                            RequestDockProportion = savedRequestProportion,
+                            ResponseDockProportion = savedResponseProportion,
+                        }
+                    }
+                });
+
+            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+            var documentLayout = FindDockById<ProportionalDock>(viewModel.Layout!, "document-layout");
+            var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
+            var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
+
+            leftToolDock.Should().NotBeNull();
+            documentLayout.Should().NotBeNull();
+            requestDock.Should().NotBeNull();
+            responseDock.Should().NotBeNull();
+
+            // Simulate the scenario where the Dock PSP's TwoWay binding has already overwritten
+            // the model proportions with equal-distribution values before the first visual render.
+            // (This is the root cause: PSP.AssignProportions fires before the binding is set up.)
+            leftToolDock!.Proportion = 0.5;
+            documentLayout!.Proportion = 0.5;
+            requestDock!.Proportion = 0.5;
+            responseDock!.Proportion = 0.5;
+
+            // Now call ReapplyStartupLayout — this is what window.Opened does to correct the
+            // PSP-corrupted proportions once visual bindings are established.
+            viewModel.ReapplyStartupLayout();
+
+            // The model must be restored to the saved values.
+            leftToolDock.Proportion.Should().BeApproximately(savedLeftProportion, 0.001,
+                "left tool dock proportion should be restored by ReapplyStartupLayout");
+            documentLayout.Proportion.Should().BeApproximately(savedDocProportion, 0.001,
+                "document layout proportion should be restored by ReapplyStartupLayout");
+            requestDock.Proportion.Should().BeApproximately(savedRequestProportion, 0.001,
+                "request dock proportion should be restored by ReapplyStartupLayout");
+            responseDock.Proportion.Should().BeApproximately(savedResponseProportion, 0.001,
+                "response dock proportion should be restored by ReapplyStartupLayout");
+
+            // A second call must be a no-op (snapshot cleared after first use).
+            leftToolDock.Proportion = 0.9;
+            viewModel.ReapplyStartupLayout();
+            leftToolDock.Proportion.Should().BeApproximately(0.9, 0.001,
+                "second call to ReapplyStartupLayout should be a no-op");
+
+            return Task.FromResult(true);
+        }, CancellationToken.None);
+    }
+
+
+
     private sealed class TestEntryPoint
     {
         public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
