@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Arbor.HttpClient.Desktop.Features.GraphQl;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.Main;
+using Arbor.HttpClient.Desktop.Features.Scripting;
 using Arbor.HttpClient.Desktop.Features.Variables;
 using Avalonia;
 using Avalonia.Controls;
@@ -22,9 +23,12 @@ public partial class RequestView : UserControl
     private TextEditor? _graphQlQueryEditor;
     private TextEditor? _graphQlVariablesEditor;
     private TextEditor? _graphQlSchemaEditor;
+    private TextEditor? _preRequestScriptEditor;
+    private TextEditor? _postResponseScriptEditor;
     private MainWindowViewModel? _appVm;
     private RequestEditorViewModel? _requestEditorVm;
     private GraphQlViewModel? _graphQlVm;
+    private Scripting.ScriptViewModel? _scriptVm;
     private RegistryOptions? _registryOptions;
     private TextMate.Installation? _requestTextMate;
     private EventHandler<TextMate.Installation>? _appliedThemeHandler;
@@ -84,6 +88,16 @@ public partial class RequestView : UserControl
             _graphQlVariablesEditor.Document.TextChanged -= OnGraphQlVariablesEditorTextChanged;
         }
 
+        if (_preRequestScriptEditor is not null)
+        {
+            _preRequestScriptEditor.Document.TextChanged -= OnPreRequestScriptEditorTextChanged;
+        }
+
+        if (_postResponseScriptEditor is not null)
+        {
+            _postResponseScriptEditor.Document.TextChanged -= OnPostResponseScriptEditorTextChanged;
+        }
+
         _requestUrlAutoCompleteController?.Dispose();
         _requestUrlAutoCompleteController = null;
         _requestBodyAutoCompleteController?.Dispose();
@@ -102,12 +116,15 @@ public partial class RequestView : UserControl
         _appVm = GetAppVm();
         _requestEditorVm = _appVm?.RequestEditor;
         _graphQlVm = _appVm?.GraphQlEditor;
+        _scriptVm = _appVm?.ScriptEditor;
         _requestBodyEditor = this.FindControl<TextEditor>("RequestBodyEditor");
         _requestUrlEditor = this.FindControl<TextEditor>("RequestUrlEditor");
         _requestPreviewEditor = this.FindControl<TextEditor>("RequestPreviewEditor");
         _graphQlQueryEditor = this.FindControl<TextEditor>("GraphQlQueryEditor");
         _graphQlVariablesEditor = this.FindControl<TextEditor>("GraphQlVariablesEditor");
         _graphQlSchemaEditor = this.FindControl<TextEditor>("GraphQlSchemaEditor");
+        _preRequestScriptEditor = this.FindControl<TextEditor>("PreRequestScriptEditor");
+        _postResponseScriptEditor = this.FindControl<TextEditor>("PostResponseScriptEditor");
 
         _registryOptions ??= new RegistryOptions(ThemeName.DarkPlus);
 
@@ -192,6 +209,20 @@ public partial class RequestView : UserControl
             {
                 ApplyEditorFont(_graphQlSchemaEditor, _appVm);
             }
+
+            if (_preRequestScriptEditor is not null)
+            {
+                ApplyEditorFont(_preRequestScriptEditor, _appVm);
+                _preRequestScriptEditor.Text = _scriptVm?.PreRequestScript ?? string.Empty;
+                _preRequestScriptEditor.Document.TextChanged += OnPreRequestScriptEditorTextChanged;
+            }
+
+            if (_postResponseScriptEditor is not null)
+            {
+                ApplyEditorFont(_postResponseScriptEditor, _appVm);
+                _postResponseScriptEditor.Text = _scriptVm?.PostResponseScript ?? string.Empty;
+                _postResponseScriptEditor.Document.TextChanged += OnPostResponseScriptEditorTextChanged;
+            }
         }
 
         if (_graphQlVm is not null)
@@ -205,6 +236,24 @@ public partial class RequestView : UserControl
         }
 
         ApplyVariableColorTheme();
+    }
+
+    private void OnPreRequestScriptEditorTextChanged(object? sender, EventArgs e)
+    {
+        if (_scriptVm is not null && _preRequestScriptEditor is not null
+            && _scriptVm.PreRequestScript != _preRequestScriptEditor.Text)
+        {
+            _scriptVm.PreRequestScript = _preRequestScriptEditor.Text;
+        }
+    }
+
+    private void OnPostResponseScriptEditorTextChanged(object? sender, EventArgs e)
+    {
+        if (_scriptVm is not null && _postResponseScriptEditor is not null
+            && _scriptVm.PostResponseScript != _postResponseScriptEditor.Text)
+        {
+            _scriptVm.PostResponseScript = _postResponseScriptEditor.Text;
+        }
     }
 
     private void OnGraphQlQueryEditorTextChanged(object? sender, System.EventArgs e)
@@ -341,6 +390,16 @@ public partial class RequestView : UserControl
             {
                 ApplyEditorFont(_graphQlSchemaEditor, _appVm);
             }
+
+            if (_preRequestScriptEditor is not null)
+            {
+                ApplyEditorFont(_preRequestScriptEditor, _appVm);
+            }
+
+            if (_postResponseScriptEditor is not null)
+            {
+                ApplyEditorFont(_postResponseScriptEditor, _appVm);
+            }
         }
     }
 
@@ -404,6 +463,20 @@ public partial class RequestView : UserControl
         _requestBodyAutoCompleteController = null;
 
         _requestPreviewEditor = null;
+
+        if (_preRequestScriptEditor is not null)
+        {
+            _preRequestScriptEditor.Document.TextChanged -= OnPreRequestScriptEditorTextChanged;
+            _preRequestScriptEditor = null;
+        }
+
+        if (_postResponseScriptEditor is not null)
+        {
+            _postResponseScriptEditor.Document.TextChanged -= OnPostResponseScriptEditorTextChanged;
+            _postResponseScriptEditor = null;
+        }
+
+        _scriptVm = null;
 
         if (_requestTextMate is not null)
         {

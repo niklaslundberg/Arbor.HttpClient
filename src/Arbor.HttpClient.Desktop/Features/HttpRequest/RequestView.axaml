@@ -504,6 +504,91 @@
                              MinHeight="150" />
                 </Grid>
             </TabItem>
+
+            <!-- ═══════════════════════════════ Script tab (all HTTP types) ═══════════════════ -->
+            <TabItem Header="{x:Static loc:Strings.TabScript}" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
+                <Grid Margin="0,8,0,0" RowDefinitions="*,Auto,Auto" RowSpacing="6">
+
+                    <!-- Script sub-tabs: Pre-request / Post-response -->
+                    <TabControl Grid.Row="0">
+                        <TabItem Header="{x:Static loc:Strings.ScriptPreRequestTabHeader}">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="4" Margin="0,4,0,0">
+                                <TextBlock Text="{x:Static loc:Strings.ScriptPreRequestLabel}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4" MinHeight="120">
+                                    <aedit:TextEditor x:Name="PreRequestScriptEditor"
+                                                      ShowLineNumbers="True"
+                                                      WordWrap="False"
+                                                      MinHeight="120" />
+                                </Border>
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="{x:Static loc:Strings.ScriptPostResponseTabHeader}">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="4" Margin="0,4,0,0">
+                                <TextBlock Text="{x:Static loc:Strings.ScriptPostResponseLabel}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4" MinHeight="120">
+                                    <aedit:TextEditor x:Name="PostResponseScriptEditor"
+                                                      ShowLineNumbers="True"
+                                                      WordWrap="False"
+                                                      MinHeight="120" />
+                                </Border>
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+
+                    <!-- Errors panel -->
+                    <Border Grid.Row="1"
+                            IsVisible="{Binding App.ScriptEditor.HasErrors}"
+                            BorderBrush="{DynamicResource ErrorBrush}"
+                            BorderThickness="1" CornerRadius="4" Padding="6">
+                        <Grid RowDefinitions="Auto,*" RowSpacing="4">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="{x:Static loc:Strings.ScriptErrorsLabel}" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center" />
+                                <Button Grid.Column="1" Content="{x:Static loc:Strings.ScriptClearErrors}"
+                                        Command="{Binding App.ScriptEditor.ClearErrorsCommand}" />
+                            </Grid>
+                            <ScrollViewer Grid.Row="1" MaxHeight="100">
+                                <ItemsControl ItemsSource="{Binding App.ScriptEditor.Errors}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource ErrorBrush}"
+                                                       FontFamily="Consolas,Courier New,monospace"
+                                                       FontSize="11" Margin="0,1,0,0" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+
+                    <!-- Script log panel -->
+                    <Border Grid.Row="2"
+                            IsVisible="{Binding App.ScriptEditor.HasLog}"
+                            BorderBrush="{DynamicResource PanelBorderBrush}"
+                            BorderThickness="1" CornerRadius="4" Padding="6">
+                        <Grid RowDefinitions="Auto,*" RowSpacing="4">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="{x:Static loc:Strings.ScriptLogLabel}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <Button Grid.Column="1" Content="{x:Static loc:Strings.ScriptClearLog}"
+                                        Command="{Binding App.ScriptEditor.ClearLogCommand}" />
+                            </Grid>
+                            <ScrollViewer Grid.Row="1" MaxHeight="100">
+                                <ItemsControl ItemsSource="{Binding App.ScriptEditor.Log}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" TextWrapping="Wrap"
+                                                       FontFamily="Consolas,Courier New,monospace"
+                                                       FontSize="11" Margin="0,1,0,0" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
         </TabControl>
     </Grid>
 </UserControl>

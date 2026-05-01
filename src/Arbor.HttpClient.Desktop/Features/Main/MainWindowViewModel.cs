@@ -44,7 +44,9 @@ using Arbor.HttpClient.Core.Environments;
 using Arbor.HttpClient.Core.HttpRequest;
 using Arbor.HttpClient.Core.OpenApiImport;
 using Arbor.HttpClient.Core.ScheduledJobs;
+using Arbor.HttpClient.Core.Scripting;
 using Arbor.HttpClient.Core.Variables;
+using Arbor.HttpClient.Desktop.Features.Scripting;
 
 namespace Arbor.HttpClient.Desktop.Features.Main;
 
@@ -89,6 +91,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private DraftState? _pendingDraft;
     private readonly DemoServer? _demoServer;
     private readonly UnhandledExceptionCollector? _unhandledExceptionCollector;
+    private readonly IScriptRunner _scriptRunner = new RoslynScriptRunner();
+    private readonly ScriptViewModel _scriptViewModel = new();
 
     // Window geometry captured just before close — included in the next PersistCurrentLayout call.
     private double _windowWidthAtClose;
@@ -519,6 +523,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public GraphQlViewModel GraphQlEditor => _graphQlViewModel;
     public WebSocketViewModel WebSocketSession => _webSocketViewModel;
     public SseViewModel SseSession => _sseViewModel;
+    public ScriptViewModel ScriptEditor => _scriptViewModel;
 
     /// <summary>
     /// Label for the primary action button in the request composer.
@@ -2417,7 +2422,41 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             var draft = _requestEditor.BuildDraft();
             _httpRequestsLogger.Information("Manual request started: {Method} {Url}", draft.Method, draft.Url);
 
-            var response = await _httpRequestService.SendAsync(draft);
+            // Build a mutable headers dict for the script context
+            var resolvedHeaders = _requestEditor.GetResolvedHeaders()
+                .ToDictionary(h => h.Name, h => h.Value, StringComparer.OrdinalIgnoreCase);
+            var envVars = GetActiveVariablesForEditor()
+                .ToDictionary(v => v.Name, v => v.Value, StringComparer.OrdinalIgnoreCase);
+
+            var scriptCtx = new ScriptContext(
+                draft.Method,
+                draft.Url,
+                resolvedHeaders,
+                draft.Body,
+                envVars);
+
+            // Pre-request script
+            _scriptViewModel.ClearPreviousRun();
+            var preResult = await _scriptRunner.RunPreRequestAsync(
+                _scriptViewModel.PreRequestScript,
+                scriptCtx).ConfigureAwait(false);
+            _scriptViewModel.SetResult(preResult);
+
+            if (!preResult.Success)
+            {
+                ErrorMessage = string.Join(Environment.NewLine, preResult.Errors);
+                return;
+            }
+
+            // Rebuild draft with any script mutations
+            var mutatedDraft = draft with
+            {
+                Method = scriptCtx.Method,
+                Url = scriptCtx.Url,
+                Body = scriptCtx.Body
+            };
+
+            var response = await _httpRequestService.SendAsync(mutatedDraft).ConfigureAwait(false);
 
             ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
             ResponseStatusCode = response.StatusCode;
@@ -2437,8 +2476,22 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             HasTextResponse = HasResponseHeaders && !IsBinaryResponse;
             _httpRequestsLogger.Information("Manual request completed: {StatusCode} {ReasonPhrase}", response.StatusCode, response.ReasonPhrase);
 
+            // Post-response script
+            var responseHeaders = response.Headers
+                .ToDictionary(h => h.Name, h => h.Value, StringComparer.OrdinalIgnoreCase);
+            scriptCtx.Response = new ScriptResponse(
+                response.StatusCode,
+                response.ReasonPhrase,
+                response.Body,
+                responseHeaders);
+
+            var postResult = await _scriptRunner.RunPostResponseAsync(
+                _scriptViewModel.PostResponseScript,
+                scriptCtx).ConfigureAwait(false);
+            _scriptViewModel.SetResult(postResult);
+
             _cookieJarViewModel.RefreshCookies();
-            await LoadHistoryAsync();
+            await LoadHistoryAsync().ConfigureAwait(false);
         }
         catch (Exception exception)
         {
