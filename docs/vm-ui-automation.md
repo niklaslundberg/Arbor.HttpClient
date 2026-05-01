@@ -202,7 +202,7 @@ Host (Ubuntu 22.04+, KVM enabled)
 │
 ├── start-ui-automation-kvm-alpine.sh
 │     │
-│     ├── Downloads Alpine 3.21 NoCloud QEMU image (with SHA256 check)
+│     ├── Downloads Alpine 3.21 NoCloud QEMU image (with SHA-512 check)
 │     ├── Creates cloud-init seed ISO (user/SSH/packages)
 │     ├── Creates overlay qcow2 on top of the base image
 │     ├── Starts QEMU/KVM VM (VNC :11, SSH port 52223)
@@ -240,7 +240,7 @@ If unavailable, `genisoimage` or `mkisofs` is used automatically.
 
 # With a previously downloaded image (faster repeated runs):
 ./scripts/start-ui-automation-kvm-alpine.sh \
-    --base-image /tmp/arbor-vms/nocloud_alpine-3.21.3-x86_64-bios-cloudinit-r0.qcow2
+    --base-image /tmp/arbor-vms/nocloud_alpine-3.21.7-x86_64-bios-cloudinit-r0.qcow2
 
 # With video recording and step-by-step inspection:
 ./scripts/start-ui-automation-kvm-alpine.sh \

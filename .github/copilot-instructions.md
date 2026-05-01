@@ -696,7 +696,7 @@ sudo apt-get install -y \
 #### Run system tests
 
 ```bash
-# Basic run (auto-downloads Alpine 3.21.3 image on first run)
+# Basic run (auto-downloads Alpine 3.21.7 image on first run)
 ./scripts/start-ui-automation-kvm-alpine.sh
 
 # With video recording
@@ -707,7 +707,7 @@ sudo apt-get install -y \
 
 # Reuse a cached image (faster subsequent runs)
 ./scripts/start-ui-automation-kvm-alpine.sh \
-    --base-image /tmp/arbor-vms/nocloud_alpine-3.21.3-x86_64-bios-cloudinit-r0.qcow2
+    --base-image /tmp/arbor-vms/nocloud_alpine-3.21.7-x86_64-bios-cloudinit-r0.qcow2
 ```
 
 Artifacts are written to `docs/system-test-screenshots/alpine/` by default:

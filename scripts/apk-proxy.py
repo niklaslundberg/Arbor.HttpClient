@@ -16,13 +16,13 @@ Configure apk inside the target system to use:
     http://127.0.0.1:<port>/v3.21/main
     http://127.0.0.1:<port>/v3.21/community
 """
-import http.server, urllib.request, ssl, os, sys, hashlib
+import http.server, urllib.request, urllib.error, ssl, os, sys, hashlib
 
 UPSTREAM = "https://dl-cdn.alpinelinux.org"
 
 
 def main() -> None:
-    cache_dir = sys.argv[1] if len(sys.argv) > 1 else "/tmp/alpine-mirror"
+    cache_dir = os.path.realpath(sys.argv[1] if len(sys.argv) > 1 else "/tmp/alpine-mirror")
     port = int(sys.argv[2]) if len(sys.argv) > 2 else 8099
 
     class Handler(http.server.BaseHTTPRequestHandler):
@@ -33,7 +33,11 @@ def main() -> None:
             self._serve(head=False)
 
         def _serve(self, *, head: bool) -> None:
-            local = os.path.join(cache_dir, self.path.lstrip("/"))
+            # Validate that the resolved path stays under cache_dir (prevent path traversal)
+            local = os.path.realpath(os.path.join(cache_dir, self.path.lstrip("/")))
+            if not local.startswith(cache_dir + os.sep) and local != cache_dir:
+                self.send_error(400, "Invalid path")
+                return
             if os.path.isdir(local):
                 self.send_error(404, "Not a file")
                 return
@@ -50,6 +54,16 @@ def main() -> None:
                     with open(local, "wb") as f:
                         f.write(data)
                     print(f"  FETCH  {self.path}", flush=True)
+                except urllib.error.HTTPError as exc:
+                    # Forward upstream HTTP errors (404, 403, etc.) to the client
+                    print(f"  UPSTREAM {exc.code}  {self.path}", flush=True)
+                    body = exc.read()
+                    self.send_response(exc.code)
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    if not head:
+                        self.wfile.write(body)
+                    return
                 except Exception as exc:
                     print(f"  ERROR  {self.path}: {exc}", flush=True)
                     self.send_error(502, str(exc))

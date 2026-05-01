@@ -737,7 +737,7 @@ if [[ "$RECORD_VIDEO" == "true" ]]; then
     step "Stopping video recording"
     ssh_guest "kill \$(cat '$VIDEO_PID_FILE' 2>/dev/null) 2>/dev/null || true; sleep 2"
 
-    VIDEO_LOCAL_PATH="$OUTPUT_DIR/../demo-alpine.mp4"
+    VIDEO_LOCAL_PATH="$OUTPUT_DIR/demo-alpine.mp4"
     if scp_from_guest "$VIDEO_GUEST_PATH" "$VIDEO_LOCAL_PATH" 2>/dev/null; then
         echo "    Video: $VIDEO_LOCAL_PATH"
         record_step "video" "ok"
