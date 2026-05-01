@@ -45,6 +45,21 @@ public sealed class DockFactory : Factory
     public CookieJarViewModel? CookieJarViewModel { get; private set; }
     public LayoutManagementViewModel? LayoutManagementViewModel { get; private set; }
 
+    /// <summary>
+    /// Updates <see cref="LeftToolDock"/> after a layout tree has been rebuilt from a saved
+    /// snapshot. The new reference is the ToolDock that currently owns "left-panel" (as
+    /// reported by <see cref="IDockable.Owner"/> after <see cref="Factory.InitLayout"/> has run).
+    /// Falls back to the original "left-tool-dock" reference when <see cref="LeftPanelViewModel"/>
+    /// is <see langword="null"/> or its owner is not a <see cref="ToolDock"/>.
+    /// </summary>
+    public void UpdateLeftToolDock()
+    {
+        if (LeftPanelViewModel is { Owner: ToolDock ownerDock })
+        {
+            LeftToolDock = ownerDock;
+        }
+    }
+
     public override IRootDock CreateLayout()
     {
         var leftPanel = new LeftPanelViewModel(_mainVm);
