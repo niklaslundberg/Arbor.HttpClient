@@ -840,7 +840,7 @@ echo " KVM          : ${KVM_AVAILABLE}"
 echo " Screenshots  : $OUTPUT_DIR"
 echo " Step count   : $SCREENSHOT_COUNT"
 if [[ "$RECORD_VIDEO" == "true" ]]; then
-    echo " Video        : $OUTPUT_DIR/../demo-alpine.mp4"
+    echo " Video        : $OUTPUT_DIR/demo-alpine.mp4"
 fi
 echo " JSON results : $RESULTS_JSON"
 echo " MD report    : $REPORT_MD"
