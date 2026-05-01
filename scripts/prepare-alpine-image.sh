@@ -244,7 +244,7 @@ python3 "$PROXY_SCRIPT" "$APK_CACHE_DIR" "$PROXY_PORT" 2>/tmp/apk-proxy.log &
 PROXY_PID=$!
 sleep 2
 
-if ! curl -fsI "http://127.0.0.1:$PROXY_PORT/" &>/dev/null; then
+if ! curl -sI "http://127.0.0.1:$PROXY_PORT/" -o /dev/null; then
     echo "ERROR: Proxy did not start on port $PROXY_PORT. Check /tmp/apk-proxy.log" >&2
     cat /tmp/apk-proxy.log >&2
     exit 1
