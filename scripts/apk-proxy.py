@@ -33,9 +33,10 @@ def main() -> None:
             self._serve(head=False)
 
         def _serve(self, *, head: bool) -> None:
-            # Validate that the resolved path stays under cache_dir (prevent path traversal)
+            # Validate that the resolved path stays under cache_dir (prevent path traversal).
+            # os.path.realpath resolves '..' and symlinks so the startswith check is reliable.
             local = os.path.realpath(os.path.join(cache_dir, self.path.lstrip("/")))
-            if not local.startswith(cache_dir + os.sep) and local != cache_dir:
+            if not local.startswith(cache_dir + os.sep):
                 self.send_error(400, "Invalid path")
                 return
             if os.path.isdir(local):
@@ -55,9 +56,10 @@ def main() -> None:
                         f.write(data)
                     print(f"  FETCH  {self.path}", flush=True)
                 except urllib.error.HTTPError as exc:
-                    # Forward upstream HTTP errors (404, 403, etc.) to the client
+                    # Forward upstream HTTP errors (404, 403, etc.) to the client.
+                    # Cap error body at 64 KiB to avoid resource exhaustion.
                     print(f"  UPSTREAM {exc.code}  {self.path}", flush=True)
-                    body = exc.read()
+                    body = exc.read(65536)
                     self.send_response(exc.code)
                     self.send_header("Content-Length", str(len(body)))
                     self.end_headers()
