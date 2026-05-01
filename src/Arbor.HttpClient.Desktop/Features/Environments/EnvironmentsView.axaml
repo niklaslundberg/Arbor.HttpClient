@@ -85,7 +85,8 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10">
+                <Border IsVisible="{Binding IsEnvironmentPanelVisible}"
+                        BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10">
                     <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" RowSpacing="6">
                         <TextBlock Text="{x:Static loc:Strings.EnvironmentsNameLabel}" FontWeight="SemiBold" />
                         <TextBox Grid.Row="1"
