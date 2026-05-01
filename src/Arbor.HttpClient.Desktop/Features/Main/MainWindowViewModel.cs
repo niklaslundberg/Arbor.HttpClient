@@ -1998,8 +1998,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         var leftToolDock = FindDockById<ToolDock>(root, "left-tool-dock");
-        var documentDock = FindDockById<DocumentDock>(root, "document-dock");
-        if (leftToolDock is null || documentDock is null)
+        var documentLayout = FindDockById<ProportionalDock>(root, "document-layout");
+        var requestDock = FindDockById<DocumentDock>(root, "request-dock");
+        var responseDock = FindDockById<DocumentDock>(root, "response-dock");
+        if (leftToolDock is null || documentLayout is null || requestDock is null || responseDock is null)
         {
             return null;
         }
@@ -2033,11 +2035,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         return new DockLayoutSnapshot
         {
             LeftToolProportion = leftToolDock.Proportion,
-            DocumentProportion = documentDock.Proportion,
+            DocumentProportion = documentLayout.Proportion,
+            RequestDockProportion = requestDock.Proportion,
+            ResponseDockProportion = responseDock.Proportion,
             ActiveToolDockableId = leftToolDock.ActiveDockable?.Id,
-            ActiveDocumentDockableId = documentDock.ActiveDockable?.Id,
             LeftToolDockableOrder = GetDockableOrder(leftToolDock.VisibleDockables),
-            DocumentDockableOrder = GetDockableOrder(documentDock.VisibleDockables),
             FloatingWindows = floatingWindows
         };
     }
@@ -2079,8 +2081,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         var leftToolDock = FindDockById<ToolDock>(Layout, "left-tool-dock");
-        var documentDock = FindDockById<DocumentDock>(Layout, "document-dock");
-        if (leftToolDock is null || documentDock is null)
+        var documentLayout = FindDockById<ProportionalDock>(Layout, "document-layout");
+        var requestDock = FindDockById<DocumentDock>(Layout, "request-dock");
+        var responseDock = FindDockById<DocumentDock>(Layout, "response-dock");
+        if (leftToolDock is null || documentLayout is null || requestDock is null || responseDock is null)
         {
             return;
         }
@@ -2092,13 +2096,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (snapshot.DocumentProportion > 0)
         {
-            documentDock.Proportion = snapshot.DocumentProportion;
+            documentLayout.Proportion = snapshot.DocumentProportion;
+        }
+
+        if (snapshot.RequestDockProportion > 0)
+        {
+            requestDock.Proportion = snapshot.RequestDockProportion;
+        }
+
+        if (snapshot.ResponseDockProportion > 0)
+        {
+            responseDock.Proportion = snapshot.ResponseDockProportion;
         }
 
         ApplyDockOrder(leftToolDock, snapshot.LeftToolDockableOrder);
-        ApplyDockOrder(documentDock, snapshot.DocumentDockableOrder);
         SetActiveDockable(leftToolDock, snapshot.ActiveToolDockableId);
-        SetActiveDockable(documentDock, snapshot.ActiveDocumentDockableId);
 
         // Restore floating windows
         foreach (var fw in snapshot.FloatingWindows)
@@ -2113,7 +2125,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             foreach (var id in fw.DockableIds)
             {
                 primary = FindDockById<IDockable>(leftToolDock, id)
-                       ?? FindDockById<IDockable>(documentDock, id);
+                       ?? FindDockById<IDockable>(requestDock, id)
+                       ?? FindDockById<IDockable>(responseDock, id);
                 if (primary is { })
                 {
                     break;
@@ -2146,7 +2159,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 for (var i = 1; i < fw.DockableIds.Count; i++)
                 {
                     var extra = FindDockById<IDockable>(leftToolDock, fw.DockableIds[i])
-                             ?? FindDockById<IDockable>(documentDock, fw.DockableIds[i]);
+                             ?? FindDockById<IDockable>(requestDock, fw.DockableIds[i])
+                             ?? FindDockById<IDockable>(responseDock, fw.DockableIds[i]);
                     if (extra?.Owner is IDock sourceOwner)
                     {
                         _dockFactory.MoveDockable(sourceOwner, floatDock, extra, null);

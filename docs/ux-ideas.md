@@ -418,6 +418,23 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
 
+### Persistent Layout and Request/Response Split View ✅ Implemented
+> Implemented in PR (this PR) — `src/Arbor.HttpClient.Desktop/Features/Layout/DockFactory.cs`, `src/Arbor.HttpClient.Desktop/Features/Layout/DockLayoutSnapshot.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/ApplicationOptionsStore.cs`
+
+**What it means:** The dock layout (panel sizes, tool panel order, floating window positions) is persisted to `options.json` when the application closes and fully restored on next launch. The response panel now appears below the request panel by default so both are visible simultaneously without switching tabs.
+
+**What shipped:**
+- `DockFactory` now creates a vertical `ProportionalDock` (`document-layout`) containing a `request-dock` (top, 60% height) and `response-dock` (bottom, 40% height) instead of a single tabbed `DocumentDock`
+- `DockLayoutSnapshot` stores `RequestDockProportion` and `ResponseDockProportion` so the user's resized split is remembered across restarts
+- `MainWindow.OnClosing` already called `PersistCurrentLayout()` before window teardown; this now correctly captures the split proportions and all dock positions
+- Two new E2E tests: `Layout_DefaultSplitView_ShouldShowRequestAboveResponse` and `Layout_SplitViewProportions_ShouldPersistAcrossRestarts`
+
+**Polish items remaining:**
+- Keyboard shortcut to resize request/response split
+- Per-tab layout persistence (when multi-tab is added)
+
+---
+
 ### 1.2b System environment variable support (`{{env:VAR}}`) ✅ Implemented
 > Implemented in PR #116 (commit `b1437c8`) — `src/Arbor.HttpClient.Core/Variables/ISystemEnvironmentVariableProvider.cs`, `src/Arbor.HttpClient.Core/Variables/SystemEnvironmentVariableProvider.cs`, `src/Arbor.HttpClient.Core/Variables/VariableResolver.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableTokenColorizer.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableCompletionEngine.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableAutoCompleteController.cs`, `src/Arbor.HttpClient.Desktop/App.axaml`
 

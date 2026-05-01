@@ -74,13 +74,33 @@ public sealed class DockFactory : Factory
         var request = new RequestViewModel(_mainVm);
         var response = new ResponseViewModel(_mainVm);
 
-        var documentDock = new DocumentDock
+        var requestDock = new DocumentDock
         {
-            Id = "document-dock",
-            Proportion = 0.75,
+            Id = "request-dock",
+            Proportion = 0.6,
             ActiveDockable = request,
-            VisibleDockables = CreateList<IDockable>(request, response),
+            VisibleDockables = CreateList<IDockable>(request),
             IsCollapsable = false
+        };
+
+        var responseDock = new DocumentDock
+        {
+            Id = "response-dock",
+            Proportion = 0.4,
+            ActiveDockable = response,
+            VisibleDockables = CreateList<IDockable>(response),
+            IsCollapsable = false
+        };
+
+        var documentLayout = new ProportionalDock
+        {
+            Id = "document-layout",
+            Proportion = 0.75,
+            Orientation = Orientation.Vertical,
+            VisibleDockables = CreateList<IDockable>(
+                requestDock,
+                new ProportionalDockSplitter { Id = "document-splitter" },
+                responseDock)
         };
 
         var mainLayout = new ProportionalDock
@@ -90,7 +110,7 @@ public sealed class DockFactory : Factory
             VisibleDockables = CreateList<IDockable>(
                 leftToolDock,
                 new ProportionalDockSplitter { Id = "main-splitter" },
-                documentDock)
+                documentLayout)
         };
 
         var rootDock = new RootDock
