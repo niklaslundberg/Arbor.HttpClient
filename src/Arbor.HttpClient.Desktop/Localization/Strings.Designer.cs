@@ -197,6 +197,38 @@ public static class Strings
     /// <summary>Notes</summary>
     public static string TabNotes => Get(nameof(TabNotes));
 
+    /// <summary>Script</summary>
+    public static string TabScript => Get(nameof(TabScript));
+
+    // Script tab
+
+    /// <summary>Pre-request script (C#)</summary>
+    public static string ScriptPreRequestLabel => Get(nameof(ScriptPreRequestLabel));
+
+    /// <summary>Post-response script (C#)</summary>
+    public static string ScriptPostResponseLabel => Get(nameof(ScriptPostResponseLabel));
+
+    /// <summary>Pre-request</summary>
+    public static string ScriptPreRequestTabHeader => Get(nameof(ScriptPreRequestTabHeader));
+
+    /// <summary>Post-response</summary>
+    public static string ScriptPostResponseTabHeader => Get(nameof(ScriptPostResponseTabHeader));
+
+    /// <summary>Errors</summary>
+    public static string ScriptErrorsLabel => Get(nameof(ScriptErrorsLabel));
+
+    /// <summary>Script log</summary>
+    public static string ScriptLogLabel => Get(nameof(ScriptLogLabel));
+
+    /// <summary>Clear</summary>
+    public static string ScriptClearLog => Get(nameof(ScriptClearLog));
+
+    /// <summary>Clear</summary>
+    public static string ScriptClearErrors => Get(nameof(ScriptClearErrors));
+
+    /// <summary>Context hint comment for the script editor placeholder.</summary>
+    public static string ScriptHint => Get(nameof(ScriptHint));
+
     // Query tab
 
     /// <summary>Query parameters</summary>

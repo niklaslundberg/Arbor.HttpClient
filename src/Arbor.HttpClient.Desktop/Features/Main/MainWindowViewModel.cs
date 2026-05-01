@@ -44,7 +44,9 @@ using Arbor.HttpClient.Core.Environments;
 using Arbor.HttpClient.Core.HttpRequest;
 using Arbor.HttpClient.Core.OpenApiImport;
 using Arbor.HttpClient.Core.ScheduledJobs;
+using Arbor.HttpClient.Core.Scripting;
 using Arbor.HttpClient.Core.Variables;
+using Arbor.HttpClient.Desktop.Features.Scripting;
 
 namespace Arbor.HttpClient.Desktop.Features.Main;
 
@@ -89,6 +91,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private DraftState? _pendingDraft;
     private readonly DemoServer? _demoServer;
     private readonly UnhandledExceptionCollector? _unhandledExceptionCollector;
+    private readonly IScriptRunner _scriptRunner = new RoslynScriptRunner();
+    private readonly ScriptViewModel _scriptViewModel = new();
+
+    // Window geometry captured just before close — included in the next PersistCurrentLayout call.
+    private double _windowWidthAtClose;
+    private double _windowHeightAtClose;
+    private int _windowXAtClose;
+    private int _windowYAtClose;
+    private bool _windowPositionCaptured;
+
+    // Startup layout snapshot: re-applied after the window opens so that the PSP
+    // re-measures with the saved proportions once all visual bindings are in place.
+    private DockLayoutSnapshot? _startupLayoutSnapshot;
 
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
@@ -480,6 +495,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var options = initialOptions ?? new ApplicationOptions();
         ApplyOptions(options);
         ApplyLayoutOptions(options.Layouts);
+        _startupLayoutSnapshot = options.Layouts?.CurrentLayout;
         _suppressLayoutRestore = false;
         _requestEditor.RefreshRequestPreview();
     }
@@ -507,6 +523,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public GraphQlViewModel GraphQlEditor => _graphQlViewModel;
     public WebSocketViewModel WebSocketSession => _webSocketViewModel;
     public SseViewModel SseSession => _sseViewModel;
+    public ScriptViewModel ScriptEditor => _scriptViewModel;
 
     /// <summary>
     /// Label for the primary action button in the request composer.
@@ -1737,6 +1754,66 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public void PersistCurrentLayout() => PersistLayoutOptions();
 
     /// <summary>
+    /// Records the main window's current size and position so they are included in the next
+    /// <see cref="PersistCurrentLayout"/> call.  Call this from <c>MainWindow.OnClosing</c>
+    /// before <see cref="PersistCurrentLayout"/>.
+    /// </summary>
+    public void SetWindowGeometry(double width, double height, int x, int y)
+    {
+        _windowWidthAtClose = width;
+        _windowHeightAtClose = height;
+        _windowXAtClose = x;
+        _windowYAtClose = y;
+        _windowPositionCaptured = true;
+    }
+
+    /// <summary>
+    /// Re-applies only the proportions from the startup layout snapshot to the dock model.
+    /// Call this once from <c>window.Opened</c> so the <see cref="ProportionalStackPanel"/>
+    /// re-measures with the saved proportions after all visual bindings are established.
+    /// The snapshot is cleared after the first call (one-shot).
+    /// </summary>
+    public void ReapplyStartupLayout()
+    {
+        var snapshot = _startupLayoutSnapshot;
+        _startupLayoutSnapshot = null;
+
+        if (snapshot is null || Layout is null)
+        {
+            return;
+        }
+
+        var leftToolDock = FindDockById<ToolDock>(Layout, "left-tool-dock");
+        var documentLayout = FindDockById<ProportionalDock>(Layout, "document-layout");
+        var requestDock = FindDockById<DocumentDock>(Layout, "request-dock");
+        var responseDock = FindDockById<DocumentDock>(Layout, "response-dock");
+        if (leftToolDock is null || documentLayout is null || requestDock is null || responseDock is null)
+        {
+            return;
+        }
+
+        if (snapshot.LeftToolProportion > 0)
+        {
+            leftToolDock.Proportion = snapshot.LeftToolProportion;
+        }
+
+        if (snapshot.DocumentProportion > 0)
+        {
+            documentLayout.Proportion = snapshot.DocumentProportion;
+        }
+
+        if (snapshot.RequestDockProportion > 0)
+        {
+            requestDock.Proportion = snapshot.RequestDockProportion;
+        }
+
+        if (snapshot.ResponseDockProportion > 0)
+        {
+            responseDock.Proportion = snapshot.ResponseDockProportion;
+        }
+    }
+
+    /// <summary>
     /// Returns a snapshot of the current layout options (including floating windows).
     /// Exposed for testing the save/restore cycle without a real ApplicationOptionsStore.
     /// </summary>
@@ -1996,8 +2073,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         var leftToolDock = FindDockById<ToolDock>(root, "left-tool-dock");
-        var documentDock = FindDockById<DocumentDock>(root, "document-dock");
-        if (leftToolDock is null || documentDock is null)
+        var documentLayout = FindDockById<ProportionalDock>(root, "document-layout");
+        var requestDock = FindDockById<DocumentDock>(root, "request-dock");
+        var responseDock = FindDockById<DocumentDock>(root, "response-dock");
+        if (leftToolDock is null || documentLayout is null || requestDock is null || responseDock is null)
         {
             return null;
         }
@@ -2031,12 +2110,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         return new DockLayoutSnapshot
         {
             LeftToolProportion = leftToolDock.Proportion,
-            DocumentProportion = documentDock.Proportion,
+            DocumentProportion = documentLayout.Proportion,
+            RequestDockProportion = requestDock.Proportion,
+            ResponseDockProportion = responseDock.Proportion,
             ActiveToolDockableId = leftToolDock.ActiveDockable?.Id,
-            ActiveDocumentDockableId = documentDock.ActiveDockable?.Id,
             LeftToolDockableOrder = GetDockableOrder(leftToolDock.VisibleDockables),
-            DocumentDockableOrder = GetDockableOrder(documentDock.VisibleDockables),
-            FloatingWindows = floatingWindows
+            FloatingWindows = floatingWindows,
+            WindowWidth = _windowWidthAtClose > 0 ? _windowWidthAtClose : 0,
+            WindowHeight = _windowHeightAtClose > 0 ? _windowHeightAtClose : 0,
+            WindowX = _windowXAtClose,
+            WindowY = _windowYAtClose,
+            HasWindowPosition = _windowPositionCaptured
         };
     }
 
@@ -2077,8 +2161,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         var leftToolDock = FindDockById<ToolDock>(Layout, "left-tool-dock");
-        var documentDock = FindDockById<DocumentDock>(Layout, "document-dock");
-        if (leftToolDock is null || documentDock is null)
+        var documentLayout = FindDockById<ProportionalDock>(Layout, "document-layout");
+        var requestDock = FindDockById<DocumentDock>(Layout, "request-dock");
+        var responseDock = FindDockById<DocumentDock>(Layout, "response-dock");
+        if (leftToolDock is null || documentLayout is null || requestDock is null || responseDock is null)
         {
             return;
         }
@@ -2090,13 +2176,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (snapshot.DocumentProportion > 0)
         {
-            documentDock.Proportion = snapshot.DocumentProportion;
+            documentLayout.Proportion = snapshot.DocumentProportion;
+        }
+
+        if (snapshot.RequestDockProportion > 0)
+        {
+            requestDock.Proportion = snapshot.RequestDockProportion;
+        }
+
+        if (snapshot.ResponseDockProportion > 0)
+        {
+            responseDock.Proportion = snapshot.ResponseDockProportion;
         }
 
         ApplyDockOrder(leftToolDock, snapshot.LeftToolDockableOrder);
-        ApplyDockOrder(documentDock, snapshot.DocumentDockableOrder);
         SetActiveDockable(leftToolDock, snapshot.ActiveToolDockableId);
-        SetActiveDockable(documentDock, snapshot.ActiveDocumentDockableId);
 
         // Restore floating windows
         foreach (var fw in snapshot.FloatingWindows)
@@ -2111,7 +2205,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             foreach (var id in fw.DockableIds)
             {
                 primary = FindDockById<IDockable>(leftToolDock, id)
-                       ?? FindDockById<IDockable>(documentDock, id);
+                       ?? FindDockById<IDockable>(requestDock, id)
+                       ?? FindDockById<IDockable>(responseDock, id);
                 if (primary is { })
                 {
                     break;
@@ -2144,7 +2239,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 for (var i = 1; i < fw.DockableIds.Count; i++)
                 {
                     var extra = FindDockById<IDockable>(leftToolDock, fw.DockableIds[i])
-                             ?? FindDockById<IDockable>(documentDock, fw.DockableIds[i]);
+                             ?? FindDockById<IDockable>(requestDock, fw.DockableIds[i])
+                             ?? FindDockById<IDockable>(responseDock, fw.DockableIds[i]);
                     if (extra?.Owner is IDock sourceOwner)
                     {
                         _dockFactory.MoveDockable(sourceOwner, floatDock, extra, null);
@@ -2324,7 +2420,48 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             var draft = _requestEditor.BuildDraft();
             _httpRequestsLogger.Information("Manual request started: {Method} {Url}", draft.Method, draft.Url);
 
-            var response = await _httpRequestService.SendAsync(draft);
+            // Build a mutable headers dict for the script context.
+            // Use the first value when duplicate header names exist (case-insensitive).
+            var resolvedHeaders = _requestEditor.GetResolvedHeaders()
+                .GroupBy(h => h.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
+            var envVars = GetActiveVariablesForEditor()
+                .GroupBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
+
+            var scriptCtx = new ScriptContext(
+                draft.Method,
+                draft.Url,
+                resolvedHeaders,
+                draft.Body,
+                envVars);
+
+            // Pre-request script
+            _scriptViewModel.ClearPreviousRun();
+            var preResult = await _scriptRunner.RunPreRequestAsync(
+                _scriptViewModel.PreRequestScript,
+                scriptCtx);
+            _scriptViewModel.SetResult(preResult);
+
+            if (!preResult.Success)
+            {
+                ErrorMessage = string.Join(Environment.NewLine, preResult.Errors);
+                return;
+            }
+
+            // Rebuild draft with any script mutations (Method, Url, Body, Headers).
+            var mutatedHeaders = scriptCtx.Headers
+                .Select(kvp => new RequestHeader(kvp.Key, kvp.Value))
+                .ToList();
+            var mutatedDraft = draft with
+            {
+                Method = scriptCtx.Method,
+                Url = scriptCtx.Url,
+                Body = scriptCtx.Body,
+                Headers = mutatedHeaders.Count > 0 ? mutatedHeaders : draft.Headers
+            };
+
+            var response = await _httpRequestService.SendAsync(mutatedDraft);
 
             ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
             ResponseStatusCode = response.StatusCode;
@@ -2343,6 +2480,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             UpdateResponsePresentation(response.Body, response.Headers);
             HasTextResponse = HasResponseHeaders && !IsBinaryResponse;
             _httpRequestsLogger.Information("Manual request completed: {StatusCode} {ReasonPhrase}", response.StatusCode, response.ReasonPhrase);
+
+            // Post-response script — build response headers dict, keeping first value for duplicates.
+            var responseHeadersDict = response.Headers
+                .GroupBy(h => h.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
+            scriptCtx.Response = new ScriptResponse(
+                response.StatusCode,
+                response.ReasonPhrase,
+                response.Body,
+                responseHeadersDict);
+
+            var postResult = await _scriptRunner.RunPostResponseAsync(
+                _scriptViewModel.PostResponseScript,
+                scriptCtx);
+            _scriptViewModel.SetResult(postResult);
 
             _cookieJarViewModel.RefreshCookies();
             await LoadHistoryAsync();

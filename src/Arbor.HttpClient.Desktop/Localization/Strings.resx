@@ -219,6 +219,38 @@
   <data name="TabNotes" xml:space="preserve">
     <value>Notes</value>
   </data>
+  <data name="TabScript" xml:space="preserve">
+    <value>Script</value>
+  </data>
+
+  <!-- Script tab -->
+  <data name="ScriptPreRequestLabel" xml:space="preserve">
+    <value>Pre-request script (C#)</value>
+  </data>
+  <data name="ScriptPostResponseLabel" xml:space="preserve">
+    <value>Post-response script (C#)</value>
+  </data>
+  <data name="ScriptPreRequestTabHeader" xml:space="preserve">
+    <value>Pre-request</value>
+  </data>
+  <data name="ScriptPostResponseTabHeader" xml:space="preserve">
+    <value>Post-response</value>
+  </data>
+  <data name="ScriptErrorsLabel" xml:space="preserve">
+    <value>Errors</value>
+  </data>
+  <data name="ScriptLogLabel" xml:space="preserve">
+    <value>Script log</value>
+  </data>
+  <data name="ScriptClearLog" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="ScriptClearErrors" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="ScriptHint" xml:space="preserve">
+    <value>// Available: ctx.Method, ctx.Url, ctx.Headers, ctx.Body, ctx.Env, ctx.Response (post only), ctx.Log("…"), ctx.Assert(condition, "…")</value>
+  </data>
 
   <!-- Query tab -->
   <data name="QueryParametersLabel" xml:space="preserve">

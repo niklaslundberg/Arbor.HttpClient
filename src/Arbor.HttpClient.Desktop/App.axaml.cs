@@ -165,7 +165,64 @@ public partial class App : Application
                 DataContext = viewModel,
             };
 
-            window.Opened += async (_, _) => await InitializeAsync(historyRepository, collectionRepository, environmentRepository, scheduledJobRepository, viewModel, exceptionCollector);
+            // Restore saved window size and position.  Guard against zero/default values
+            // (first run), positions that would place the window fully off-screen, and
+            // implausibly small sizes.
+            if (currentOptions.Layouts?.CurrentLayout is { WindowWidth: > 0, WindowHeight: > 0 } savedGeometry)
+            {
+                // Enforce a reasonable minimum size before applying.
+                var safeWidth = Math.Max(savedGeometry.WindowWidth, 400);
+                var safeHeight = Math.Max(savedGeometry.WindowHeight, 300);
+                window.Width = safeWidth;
+                window.Height = safeHeight;
+
+                // Only restore position when it was explicitly captured.  The HasWindowPosition
+                // flag distinguishes "saved as (0,0)" from "never saved" so a window legitimately
+                // positioned at the top-left corner of the primary monitor is correctly restored.
+                // Clamp to ensure at least the title bar (32px strip) remains on-screen so the
+                // user can always drag the window back into view.
+                if (savedGeometry.HasWindowPosition)
+                {
+                    var screens = window.Screens;
+                    const int minVisiblePx = 32;
+                    var x = savedGeometry.WindowX;
+                    var y = savedGeometry.WindowY;
+
+                    if (screens is not null)
+                    {
+                        // Find the total virtual desktop bounds (union of all screen working areas).
+                        var totalLeft = int.MaxValue;
+                        var totalTop = int.MaxValue;
+                        var totalRight = int.MinValue;
+                        var totalBottom = int.MinValue;
+
+                        foreach (var screen in screens.All)
+                        {
+                            var wa = screen.WorkingArea;
+                            if (wa.X < totalLeft) totalLeft = wa.X;
+                            if (wa.Y < totalTop) totalTop = wa.Y;
+                            if (wa.X + wa.Width > totalRight) totalRight = wa.X + wa.Width;
+                            if (wa.Y + wa.Height > totalBottom) totalBottom = wa.Y + wa.Height;
+                        }
+
+                        // Clamp so that at least minVisiblePx of the title bar is on-screen.
+                        x = Math.Clamp(x, totalLeft, totalRight - minVisiblePx);
+                        y = Math.Clamp(y, totalTop, totalBottom - minVisiblePx);
+                    }
+
+                    window.Position = new Avalonia.PixelPoint(x, y);
+                }
+            }
+
+            window.Opened += async (_, _) =>
+            {
+                // Re-apply saved dock proportions now that the visual tree and PSP bindings
+                // are established.  Without this, ProportionalStackPanel.AssignProportions
+                // may run before the TwoWay bindings are set up and overwrite the saved
+                // values with equal-distribution proportions, making them appear unrestored.
+                viewModel.ReapplyStartupLayout();
+                await InitializeAsync(historyRepository, collectionRepository, environmentRepository, scheduledJobRepository, viewModel, exceptionCollector);
+            };
             window.Closed += (_, _) => DisposeResources();
 
             async void DisposeResources()

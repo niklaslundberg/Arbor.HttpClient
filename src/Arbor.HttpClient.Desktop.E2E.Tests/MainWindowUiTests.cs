@@ -65,22 +65,19 @@ public class MainWindowUiTests
                             LeftToolProportion = 0.4,
                             DocumentProportion = 0.6,
                             ActiveToolDockableId = "options",
-                            ActiveDocumentDockableId = "response",
-                            LeftToolDockableOrder = ["options", "left-panel"],
-                            DocumentDockableOrder = ["response", "request"]
+                            LeftToolDockableOrder = ["options", "left-panel"]
                         }
                     }
                 });
 
             var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
-            var documentDock = FindDockById<DocumentDock>(viewModel.Layout!, "document-dock");
+            var documentLayout = FindDockById<ProportionalDock>(viewModel.Layout!, "document-layout");
 
             leftToolDock.Should().NotBeNull();
-            documentDock.Should().NotBeNull();
+            documentLayout.Should().NotBeNull();
             leftToolDock!.Proportion.Should().BeApproximately(0.4, 0.0001);
-            documentDock!.Proportion.Should().BeApproximately(0.6, 0.0001);
+            documentLayout!.Proportion.Should().BeApproximately(0.6, 0.0001);
             leftToolDock.ActiveDockable?.Id.Should().Be("options");
-            documentDock.ActiveDockable?.Id.Should().Be("response");
 
             return true;
         }, CancellationToken.None);
@@ -111,32 +108,29 @@ public class MainWindowUiTests
                 logWindowViewModel);
 
             var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
-            var documentDock = FindDockById<DocumentDock>(viewModel.Layout!, "document-dock");
+            var documentLayout = FindDockById<ProportionalDock>(viewModel.Layout!, "document-layout");
             leftToolDock.Should().NotBeNull();
-            documentDock.Should().NotBeNull();
+            documentLayout.Should().NotBeNull();
 
             leftToolDock!.Proportion = 0.35;
-            documentDock!.Proportion = 0.65;
+            documentLayout!.Proportion = 0.65;
             leftToolDock.ActiveDockable = leftToolDock.VisibleDockables!.First(d => d.Id == "options");
-            documentDock.ActiveDockable = documentDock.VisibleDockables!.First(d => d.Id == "response");
 
             viewModel.SaveLayoutAsNewCommand.Execute(null);
             viewModel.SavedLayoutNames.Should().ContainSingle();
             var layoutName = viewModel.SavedLayoutNames.Single();
 
             leftToolDock.Proportion = 0.2;
-            documentDock.Proportion = 0.8;
+            documentLayout.Proportion = 0.8;
             leftToolDock.ActiveDockable = leftToolDock.VisibleDockables!.First(d => d.Id == "left-panel");
-            documentDock.ActiveDockable = documentDock.VisibleDockables!.First(d => d.Id == "request");
 
             // Selection was already layoutName after save; clear it first so the re-selection triggers restore
             viewModel.SelectedLayoutName = null;
             viewModel.SelectedLayoutName = layoutName;
 
             leftToolDock.Proportion.Should().BeApproximately(0.35, 0.0001);
-            documentDock.Proportion.Should().BeApproximately(0.65, 0.0001);
+            documentLayout.Proportion.Should().BeApproximately(0.65, 0.0001);
             leftToolDock.ActiveDockable?.Id.Should().Be("options");
-            documentDock.ActiveDockable?.Id.Should().Be("response");
 
             viewModel.RemoveLayoutCommand.Execute(layoutName);
             viewModel.SavedLayoutNames.Should().BeEmpty();
@@ -144,6 +138,121 @@ public class MainWindowUiTests
             return true;
         }, CancellationToken.None);
     }
+
+    [Fact]
+    public async Task Layout_DefaultSplitView_ShouldShowRequestAboveResponse()
+    {
+        // Verifies the default layout places request-dock above response-dock in a vertical split
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            var documentLayout = FindDockById<ProportionalDock>(viewModel.Layout!, "document-layout");
+            var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
+            var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
+
+            documentLayout.Should().NotBeNull("document-layout must exist in the default dock layout");
+            requestDock.Should().NotBeNull("request-dock must exist in the default dock layout");
+            responseDock.Should().NotBeNull("response-dock must exist in the default dock layout");
+
+            // Request dock should be first (top) in the vertical split
+            var visibleDockables = documentLayout!.VisibleDockables!;
+            var requestIndex = visibleDockables.IndexOf(requestDock!);
+            var responseIndex = visibleDockables.IndexOf(responseDock!);
+            requestIndex.Should().BeLessThan(responseIndex, "request-dock must appear before response-dock (top before bottom)");
+
+            // Default proportions: request gets more space
+            requestDock!.Proportion.Should().BeGreaterThan(0, "request dock must have a positive proportion");
+            responseDock!.Proportion.Should().BeGreaterThan(0, "response dock must have a positive proportion");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Layout_SplitViewProportions_ShouldPersistAcrossRestarts()
+    {
+        // Verifies that the request/response split proportions are saved and restored
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            // ── First "application run" ──────────────────────────────────────
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
+            var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
+            requestDock.Should().NotBeNull();
+            responseDock.Should().NotBeNull();
+
+            // Simulate user resizing the split — give response more space
+            requestDock!.Proportion = 0.3;
+            responseDock!.Proportion = 0.7;
+
+            // Simulate OnClosing: persist then capture
+            var savedLayout = viewModel.CaptureCurrentLayout();
+
+            // ── Second "application run" ─────────────────────────────────────
+            var handler2 = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService2 = new HttpRequestService(new global::System.Net.Http.HttpClient(handler2), repository);
+            var inMemorySink2 = new InMemorySink();
+            var logger2 = new LoggerConfiguration().WriteTo.Sink(inMemorySink2).CreateLogger();
+            var scheduledJobService2 = new ScheduledJobService(httpRequestService2, logger2);
+            var logWindowViewModel2 = new LogWindowViewModel(inMemorySink2);
+
+            using var viewModel2 = new MainWindowViewModel(
+                httpRequestService2,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService2,
+                logWindowViewModel2,
+                initialOptions: new ApplicationOptions { Layouts = savedLayout });
+
+            var requestDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "request-dock");
+            var responseDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "response-dock");
+            requestDock2.Should().NotBeNull();
+            responseDock2.Should().NotBeNull();
+            requestDock2!.Proportion.Should().BeApproximately(0.3, 0.001, "request dock proportion should be restored");
+            responseDock2!.Proportion.Should().BeApproximately(0.7, 0.001, "response dock proportion should be restored");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
 
     [Fact]
     public async Task OpenLogWindowCommand_ShouldActivateDockableLogPanel()
@@ -1000,7 +1109,6 @@ public class MainWindowUiTests
                             LeftToolProportion = 0.25,
                             DocumentProportion = 0.75,
                             LeftToolDockableOrder = ["options"],
-                            DocumentDockableOrder = ["request", "response"],
                             FloatingWindows =
                             [
                                 new FloatingWindowSnapshot
@@ -1049,7 +1157,6 @@ public class MainWindowUiTests
                 LeftToolProportion = 0.25,
                 DocumentProportion = 0.75,
                 LeftToolDockableOrder = ["options"],
-                DocumentDockableOrder = ["request", "response"],
                 FloatingWindows =
                 [
                     new FloatingWindowSnapshot
@@ -1560,6 +1667,97 @@ public class MainWindowUiTests
             return true;
         }, CancellationToken.None);
     }
+
+
+    [Fact]
+    public async Task ReapplyStartupLayout_ShouldRestoreProportions_EvenAfterPspOverwroteModel()
+    {
+        // Verifies that ReapplyStartupLayout() correctly re-applies saved dock proportions
+        // to the dock model.  This is the belt-and-suspenders call made from window.Opened
+        // to handle the case where ProportionalStackPanel.AssignProportions runs before the
+        // TwoWay binding is established and propagates equal-distribution proportions back to
+        // IDockable.Proportion, overwriting the values that ApplyLayoutSnapshot set.
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(() =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            const double savedLeftProportion = 0.4;
+            const double savedDocProportion = 0.6;
+            const double savedRequestProportion = 0.35;
+            const double savedResponseProportion = 0.65;
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel,
+                initialOptions: new ApplicationOptions
+                {
+                    Layouts = new LayoutOptions
+                    {
+                        CurrentLayout = new DockLayoutSnapshot
+                        {
+                            LeftToolProportion = savedLeftProportion,
+                            DocumentProportion = savedDocProportion,
+                            RequestDockProportion = savedRequestProportion,
+                            ResponseDockProportion = savedResponseProportion,
+                        }
+                    }
+                });
+
+            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+            var documentLayout = FindDockById<ProportionalDock>(viewModel.Layout!, "document-layout");
+            var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
+            var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
+
+            leftToolDock.Should().NotBeNull();
+            documentLayout.Should().NotBeNull();
+            requestDock.Should().NotBeNull();
+            responseDock.Should().NotBeNull();
+
+            // Simulate the scenario where the Dock PSP's TwoWay binding has already overwritten
+            // the model proportions with equal-distribution values before the first visual render.
+            // (This is the root cause: PSP.AssignProportions fires before the binding is set up.)
+            leftToolDock!.Proportion = 0.5;
+            documentLayout!.Proportion = 0.5;
+            requestDock!.Proportion = 0.5;
+            responseDock!.Proportion = 0.5;
+
+            // Now call ReapplyStartupLayout — this is what window.Opened does to correct the
+            // PSP-corrupted proportions once visual bindings are established.
+            viewModel.ReapplyStartupLayout();
+
+            // The model must be restored to the saved values.
+            leftToolDock.Proportion.Should().BeApproximately(savedLeftProportion, 0.001,
+                "left tool dock proportion should be restored by ReapplyStartupLayout");
+            documentLayout.Proportion.Should().BeApproximately(savedDocProportion, 0.001,
+                "document layout proportion should be restored by ReapplyStartupLayout");
+            requestDock.Proportion.Should().BeApproximately(savedRequestProportion, 0.001,
+                "request dock proportion should be restored by ReapplyStartupLayout");
+            responseDock.Proportion.Should().BeApproximately(savedResponseProportion, 0.001,
+                "response dock proportion should be restored by ReapplyStartupLayout");
+
+            // A second call must be a no-op (snapshot cleared after first use).
+            leftToolDock.Proportion = 0.9;
+            viewModel.ReapplyStartupLayout();
+            leftToolDock.Proportion.Should().BeApproximately(0.9, 0.001,
+                "second call to ReapplyStartupLayout should be a no-op");
+
+            return Task.FromResult(true);
+        }, CancellationToken.None);
+    }
+
 
 
     private sealed class TestEntryPoint

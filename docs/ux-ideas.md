@@ -56,17 +56,26 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ---
 
-### 1.5 Pre/post scripting
+### 1.5 Pre/post scripting ✅ Implemented
+> Implemented in PR #141 (commit `ae8f8f0`) — `src/Arbor.HttpClient.Core/Scripting/`, `src/Arbor.HttpClient.Desktop/Features/Scripting/`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`
+
 **What it means:** C# script snippets that run before a request is sent (to set variables, compute signatures) and after a response is received (to extract tokens, assert conditions). Postman uses JavaScript; Bruno uses JavaScript; some tools support Tengo or Lua.
 
 > **See also:** [`docs/scripting-ideas.md`](scripting-ideas.md) for a full evaluation of scripting approaches — comparing Roslyn `CSharpScript`, Westwind.Scripting, .NET 10 file scripts, Jint (JavaScript), and Lua — including pros/cons, tradeoffs, and a recommended approach. The preferred solution is **Roslyn `CSharpScript` (in-process)** rather than Jint, because the target audience is C# developers and C# scripting avoids a language context-switch.
 
-**How to implement:**
-- Define `IScriptContext` / `ScriptContext` in `Arbor.HttpClient.Core` as the globals object scripts receive.
-- Add `IScriptRunner` with `RunPreRequestAsync` / `RunPostResponseAsync` in `Arbor.HttpClient.Core`.
-- Implement `RoslynScriptRunner` using `Microsoft.CodeAnalysis.CSharp.Scripting`; cache compiled scripts by content hash to avoid per-invocation compilation overhead.
-- UI: a `ScriptEditor` tab using `AvaloniaEdit` with C# syntax highlighting and inline error display.
-- Timeout: wrap execution in a `CancellationToken`-bounded `Task` to prevent runaway scripts.
+**What shipped:**
+- `ScriptContext`, `ScriptResponse`, `ScriptResult`, `IScriptRunner` in `Arbor.HttpClient.Core/Scripting/` — no Roslyn dependency in Core
+- `RoslynScriptRunner` in `Arbor.HttpClient.Desktop/Features/Scripting/` — compiles and executes C# scripts using `Microsoft.CodeAnalysis.CSharp.Scripting` 5.3.0; SHA-256 content-hash cache avoids re-compilation
+- `ScriptViewModel` — observable VM with `PreRequestScript`, `PostResponseScript`, `Errors`, `Log` collections and `ClearLog`/`ClearErrors` commands
+- Script tab in `RequestView.axaml` — two sub-tabs (Pre-request / Post-response), each with a `AvaloniaEdit.TextEditor`; collapsible error panel and script log panel shown after execution
+- Scripts receive `ctx` (a named `ScriptContext`) with `ctx.Method`, `ctx.Url`, `ctx.Headers`, `ctx.Body`, `ctx.Env` (read/write), `ctx.Response` (post-response only, with `BodyJson` parsed via STJ), `ctx.Log(msg)`, `ctx.Assert(condition, msg)`
+- Pre-request script mutations to `Method`, `Url`, `Body` propagate into the actual HTTP request; `Env` mutations write back to the active environment
+- 12 unit tests for Core scripting types (`ScriptContextTests`); 14 unit tests for `RoslynScriptRunner` (compilation, execution, cancellation, STJ JSON navigation, assertion failures)
+
+**Polish items remaining:**
+- C# syntax highlighting in the script editors (requires TextMate grammar for C#)
+- Per-request script persistence (save script text alongside request in collection)
+- Script execution timeout UI control
 
 **Scope:** XL
 
@@ -415,6 +424,28 @@ Each idea includes a description of what it means in practice, notes on how it c
 ## Implemented
 
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
+
+### Persistent Layout and Request/Response Split View ✅ Implemented
+> Implemented in PR #141 (commit `ae8f8f0`) — `src/Arbor.HttpClient.Desktop/Features/Layout/DockFactory.cs`, `src/Arbor.HttpClient.Desktop/Features/Layout/DockLayoutSnapshot.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindow.axaml.cs`, `src/Arbor.HttpClient.Desktop/Options/ApplicationOptionsStore.cs`, `src/Arbor.HttpClient.Desktop/App.axaml.cs`
+
+**What it means:** The dock layout (panel sizes, tool panel order, floating window positions) is persisted to `options.json` when the application closes and fully restored on next launch. The response panel now appears below the request panel by default so both are visible simultaneously without switching tabs.
+
+**What shipped:**
+- `DockFactory` now creates a vertical `ProportionalDock` (`document-layout`) containing a `request-dock` (top, 60% height) and `response-dock` (bottom, 40% height) instead of a single tabbed `DocumentDock`
+- `DockLayoutSnapshot` stores `RequestDockProportion` and `ResponseDockProportion` so the user's resized split is remembered across restarts
+- `DockLayoutSnapshot` now also stores `WindowWidth`, `WindowHeight`, `WindowX`, `WindowY` so the main window size and position are fully restored across restarts
+- `MainWindow.OnClosing` now calls `SyncDockProportionsFromVisuals()` (walks the visual tree, reads actual `ProportionalStackPanel.ProportionProperty` values, and writes them back to the model) before persisting — this is the reliable source of truth regardless of binding-propagation timing
+- `App.axaml.cs` calls `viewModel.ReapplyStartupLayout()` from `window.Opened` so that saved proportions are re-applied to the dock model after the visual tree and TwoWay PSP bindings are established; this fixes the root cause where `ProportionalStackPanel.AssignProportions` fires before bindings exist and propagates equal-distribution values back to the model via TwoWay binding
+- `MainWindow.OnClosing` records the window geometry via `viewModel.SetWindowGeometry()` before `PersistCurrentLayout()` so the full window state is captured
+- `App.axaml.cs` restores window width, height, and position from the saved snapshot when creating the main window
+- Two new E2E tests: `Layout_DefaultSplitView_ShouldShowRequestAboveResponse` and `Layout_SplitViewProportions_ShouldPersistAcrossRestarts`
+- KVM/Alpine system test (`scripts/start-ui-automation-kvm-alpine.sh`) updated with layout persistence steps: drags the main splitter, closes the app, relaunches, and screenshots before/after for human comparison; also retrieves `options.json` so reviewers can verify the saved proportions
+
+**Polish items remaining:**
+- Keyboard shortcut to resize request/response split
+- Per-tab layout persistence (when multi-tab is added)
+
+---
 
 ### 1.2b System environment variable support (`{{env:VAR}}`) ✅ Implemented
 > Implemented in PR #116 (commit `b1437c8`) — `src/Arbor.HttpClient.Core/Variables/ISystemEnvironmentVariableProvider.cs`, `src/Arbor.HttpClient.Core/Variables/SystemEnvironmentVariableProvider.cs`, `src/Arbor.HttpClient.Core/Variables/VariableResolver.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableTokenColorizer.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableCompletionEngine.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableAutoCompleteController.cs`, `src/Arbor.HttpClient.Desktop/App.axaml`

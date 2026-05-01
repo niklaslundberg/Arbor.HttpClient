@@ -188,15 +188,36 @@ public sealed class ApplicationOptionsStore(string optionsPath)
             throw new InvalidDataException("Layout proportions must be positive values.");
         }
 
-        if (layout.LeftToolDockableOrder is null || layout.DocumentDockableOrder is null)
+        if (layout.LeftToolDockableOrder is null)
         {
             throw new InvalidDataException("Layout dockable order collections are required.");
         }
 
-        if (layout.LeftToolDockableOrder.Any(string.IsNullOrWhiteSpace)
-            || layout.DocumentDockableOrder.Any(string.IsNullOrWhiteSpace))
+        if (layout.LeftToolDockableOrder.Any(string.IsNullOrWhiteSpace))
         {
             throw new InvalidDataException("Layout dockable order entries cannot be empty.");
+        }
+
+        // Validate dock proportions: 0 means "use default"; non-zero must be positive.
+        if (layout.RequestDockProportion < 0)
+        {
+            throw new InvalidDataException("RequestDockProportion must be zero (default) or a positive value.");
+        }
+
+        if (layout.ResponseDockProportion < 0)
+        {
+            throw new InvalidDataException("ResponseDockProportion must be zero (default) or a positive value.");
+        }
+
+        // Validate window geometry: 0 means "not saved / use default"; non-zero must be a sensible minimum.
+        if (layout.WindowWidth < 0 || (layout.WindowWidth > 0 && layout.WindowWidth < 100))
+        {
+            throw new InvalidDataException("WindowWidth must be zero (default) or at least 100 pixels.");
+        }
+
+        if (layout.WindowHeight < 0 || (layout.WindowHeight > 0 && layout.WindowHeight < 100))
+        {
+            throw new InvalidDataException("WindowHeight must be zero (default) or at least 100 pixels.");
         }
 
         if (layout.FloatingWindows is null)

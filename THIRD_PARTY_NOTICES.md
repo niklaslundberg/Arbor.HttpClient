@@ -219,3 +219,15 @@ The SIL Open Font License 1.1 permits the font to be used, studied, modified, an
 **Copyright:** Copyright © Wiesław Šoltés 2026  
 **Project URL:** https://github.com/wieslawsoltes/Dock  
 **License:** MIT
+
+---
+
+## Microsoft.CodeAnalysis.CSharp.Scripting
+
+**Package:** Microsoft.CodeAnalysis.CSharp.Scripting  
+**Version:** 5.3.0  
+**Authors:** Microsoft  
+**Copyright:** © Microsoft Corporation. All rights reserved.  
+**Project URL:** https://github.com/dotnet/roslyn  
+**License:** MIT (Apache-2.0 with MIT dual)  
+**Note:** Used for in-process C# pre/post-request scripting (Roslyn CSharpScript). Desktop project only; not redistributed in the Core library.

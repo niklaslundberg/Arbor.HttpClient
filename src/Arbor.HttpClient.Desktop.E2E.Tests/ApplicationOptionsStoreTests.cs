@@ -89,9 +89,7 @@ public class ApplicationOptionsStoreTests
                     LeftToolProportion = 0.3,
                     DocumentProportion = 0.7,
                     ActiveToolDockableId = "left-panel",
-                    ActiveDocumentDockableId = "request",
-                    LeftToolDockableOrder = ["left-panel", "options"],
-                    DocumentDockableOrder = ["request", "response"]
+                    LeftToolDockableOrder = ["left-panel", "options"]
                 },
                 SavedLayouts =
                 [
@@ -103,9 +101,7 @@ public class ApplicationOptionsStoreTests
                             LeftToolProportion = 0.4,
                             DocumentProportion = 0.6,
                             ActiveToolDockableId = "options",
-                            ActiveDocumentDockableId = "response",
-                            LeftToolDockableOrder = ["options", "left-panel"],
-                            DocumentDockableOrder = ["response", "request"]
+                            LeftToolDockableOrder = ["options", "left-panel"]
                         }
                     }
                 ]
