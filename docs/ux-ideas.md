@@ -428,6 +428,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 - `DockLayoutSnapshot` stores `RequestDockProportion` and `ResponseDockProportion` so the user's resized split is remembered across restarts
 - `DockLayoutSnapshot` now also stores `WindowWidth`, `WindowHeight`, `WindowX`, `WindowY` so the main window size and position are fully restored across restarts
 - `MainWindow.OnClosing` now calls `SyncDockProportionsFromVisuals()` (walks the visual tree, reads actual `ProportionalStackPanel.ProportionProperty` values, and writes them back to the model) before persisting — this is the reliable source of truth regardless of binding-propagation timing
+- `App.axaml.cs` calls `viewModel.ReapplyStartupLayout()` from `window.Opened` so that saved proportions are re-applied to the dock model after the visual tree and TwoWay PSP bindings are established; this fixes the root cause where `ProportionalStackPanel.AssignProportions` fires before bindings exist and propagates equal-distribution values back to the model via TwoWay binding
 - `MainWindow.OnClosing` records the window geometry via `viewModel.SetWindowGeometry()` before `PersistCurrentLayout()` so the full window state is captured
 - `App.axaml.cs` restores window width, height, and position from the saved snapshot when creating the main window
 - Two new E2E tests: `Layout_DefaultSplitView_ShouldShowRequestAboveResponse` and `Layout_SplitViewProportions_ShouldPersistAcrossRestarts`
