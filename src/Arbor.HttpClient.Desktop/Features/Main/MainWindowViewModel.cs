@@ -2510,7 +2510,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 CollectLeafDockables(defaultLayout, leafDockables);
 
                 var newRoot = BuildDockNode(treeNode, leafDockables) as RootDock;
-                if (newRoot is not null)
+                if (newRoot is { })
                 {
                     _dockFactory.InitLayout(newRoot);
                     Layout = newRoot;
@@ -2684,6 +2684,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 return true;
             }
 
+            // If a ToolDock's alignment has changed the panel now lives on a different side —
+            // that requires a full rebuild because Dock.NET ties the visual position to the
+            // Alignment value set at construction time.
+            if (node.Type is "Tool" && existing is ToolDock existingToolDock)
+            {
+                if (existingToolDock.Alignment != ParseAlignment(node.Alignment))
+                {
+                    return true;
+                }
+            }
+
             return false;
         }
 
@@ -2721,6 +2732,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 if (!string.IsNullOrWhiteSpace(node.ActiveContentId))
                 {
                     SetActiveDockable(dock, node.ActiveContentId);
+                }
+
+                // Apply non-structural properties that do not require a tree rebuild.
+                if (node.Type is "Tool" && dock is ToolDock toolDock)
+                {
+                    toolDock.GripMode = ParseGripMode(node.GripMode);
                 }
             }
         }

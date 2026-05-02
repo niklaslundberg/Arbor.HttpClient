@@ -253,6 +253,184 @@ public class MainWindowUiTests
         }, CancellationToken.None);
     }
 
+    [Fact]
+    public async Task Layout_DockTree_InPlace_ShouldRestoreProportionsFromTree()
+    {
+        // Verifies that when the saved DockTree has the same structure as the current layout
+        // the in-place update path is taken (no rebuild) and proportions are restored.
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            // ── First "application run" ──────────────────────────────────────
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
+            requestDock.Should().NotBeNull();
+            requestDock!.Proportion = 0.35;
+
+            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+            leftToolDock.Should().NotBeNull();
+            leftToolDock!.Proportion = 0.30;
+
+            // CaptureCurrentLayout refreshes _cachedDockTree so the proportions are included.
+            var savedLayout = viewModel.CaptureCurrentLayout();
+
+            // The saved DockTree must carry the updated proportions.
+            var savedTree = savedLayout.CurrentLayout?.DockTree;
+            savedTree.Should().NotBeNull("DockTree should always be populated by CaptureCurrentLayout");
+
+            // ── Second "application run" ─────────────────────────────────────
+            var handler2 = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService2 = new HttpRequestService(new global::System.Net.Http.HttpClient(handler2), repository);
+            using var viewModel2 = new MainWindowViewModel(
+                httpRequestService2,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                new ScheduledJobService(httpRequestService2, new LoggerConfiguration().CreateLogger()),
+                new LogWindowViewModel(new InMemorySink()),
+                initialOptions: new ApplicationOptions { Layouts = savedLayout });
+
+            var requestDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "request-dock");
+            var leftToolDock2 = FindDockById<ToolDock>(viewModel2.Layout!, "left-tool-dock");
+
+            requestDock2.Should().NotBeNull();
+            leftToolDock2.Should().NotBeNull();
+            requestDock2!.Proportion.Should().BeApproximately(0.35, 0.001,
+                "request dock proportion should be restored in-place from DockTree");
+            leftToolDock2!.Proportion.Should().BeApproximately(0.30, 0.001,
+                "left tool dock proportion should be restored in-place from DockTree");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Layout_DockTree_ShouldRebuildWhenToolDockIdDiffers()
+    {
+        // Verifies the full-rebuild path: when the saved DockTree contains a ToolDock whose
+        // ID is not present in the current layout (e.g. user docked a panel to a new position
+        // creating a dock with a new ID), the layout is fully rebuilt from the saved tree and
+        // all content dockables (like "log-panel") remain accessible in the result.
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+
+            // Construct a DockTree snapshot where the left-side ToolDock has a non-default ID.
+            // "custom-left-dock" is not present in the default layout, so DockTreeRequiresRebuild
+            // returns true and a full tree rebuild is performed.
+            var changedTree = new DockTreeNode
+            {
+                Type = "Root",
+                Id = "root",
+                Children =
+                [
+                    new DockTreeNode
+                    {
+                        Type = "Proportional",
+                        Id = "main-layout",
+                        Orientation = "Horizontal",
+                        Children =
+                        [
+                            new DockTreeNode
+                            {
+                                Type = "Tool",
+                                Id = "custom-left-dock",   // <-- different from default "left-tool-dock"
+                                Proportion = 0.25,
+                                Alignment = "Left",
+                                GripMode = "Visible",
+                                ContentIds = ["left-panel", "options", "environments", "log-panel", "cookie-jar", "layout-management"],
+                                ActiveContentId = "log-panel"
+                            },
+                            new DockTreeNode { Type = "Splitter", Id = "main-splitter" },
+                            new DockTreeNode
+                            {
+                                Type = "Proportional",
+                                Id = "document-layout",
+                                Proportion = 0.75,
+                                Orientation = "Vertical",
+                                Children =
+                                [
+                                    new DockTreeNode
+                                    {
+                                        Type = "Document",
+                                        Id = "request-dock",
+                                        Proportion = 0.6,
+                                        ContentIds = ["request"]
+                                    },
+                                    new DockTreeNode { Type = "Splitter", Id = "document-splitter" },
+                                    new DockTreeNode
+                                    {
+                                        Type = "Document",
+                                        Id = "response-dock",
+                                        Proportion = 0.4,
+                                        ContentIds = ["response"]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            var savedLayout = new LayoutOptions
+            {
+                CurrentLayout = new DockLayoutSnapshot
+                {
+                    LeftToolProportion = 0.25,
+                    DocumentProportion = 0.75,
+                    DockTree = changedTree
+                },
+                SavedLayouts = []
+            };
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                new ScheduledJobService(httpRequestService, new LoggerConfiguration().CreateLogger()),
+                new LogWindowViewModel(new InMemorySink()),
+                initialOptions: new ApplicationOptions { Layouts = savedLayout });
+
+            // After the rebuild, "left-tool-dock" (the default ID) should not exist because
+            // the layout was rebuilt from the custom tree that used "custom-left-dock".
+            var defaultToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+            var customToolDock = FindDockById<ToolDock>(viewModel.Layout!, "custom-left-dock");
+            var logPanel = FindDockById<IDockable>(viewModel.Layout!, "log-panel");
+
+            defaultToolDock.Should().BeNull("old 'left-tool-dock' should not exist after rebuild with custom tree");
+            customToolDock.Should().NotBeNull("rebuilt layout should contain 'custom-left-dock' from saved tree");
+            logPanel.Should().NotBeNull("log-panel content dockable must be accessible after rebuild");
+            logPanel!.Owner.Should().BeSameAs(customToolDock,
+                "log-panel should be owned by the rebuilt tool dock");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
 
     [Fact]
     public async Task OpenLogWindowCommand_ShouldActivateDockableLogPanel()
