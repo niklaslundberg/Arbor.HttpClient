@@ -94,6 +94,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IScriptRunner _scriptRunner = new RoslynScriptRunner();
     private readonly ScriptViewModel _scriptViewModel = new();
 
+    // Cached DockTree from the last explicit layout capture (set during PersistCurrentLayout,
+    // SaveLayoutAsNew, SaveLayoutToExisting, and window close).  Reused for auto-saves triggered
+    // by non-layout property changes (TLS version, font, etc.) so that CaptureDockNode is NOT
+    // called during the auto-save debounce chain and cannot reset the debounce timer.
+    private DockTreeNode? _cachedDockTree;
+
     // Window geometry captured just before close — included in the next PersistCurrentLayout call.
     private double _windowWidthAtClose;
     private double _windowHeightAtClose;
@@ -988,6 +994,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void SaveLayoutAsNew()
     {
+        RefreshDockTreeCache();
         var layoutSnapshot = CaptureLayoutSnapshot();
         if (layoutSnapshot is null)
         {
@@ -1011,6 +1018,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        RefreshDockTreeCache();
         var layoutSnapshot = CaptureLayoutSnapshot();
         if (layoutSnapshot is null)
         {
@@ -1745,7 +1753,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public void PersistCurrentLayout() => PersistLayoutOptions();
+    public void PersistCurrentLayout()
+    {
+        // Refresh the tree snapshot so that window-close persists the latest structure,
+        // including any panels the user docked to new positions during the session.
+        RefreshDockTreeCache();
+        PersistLayoutOptions();
+    }
 
     /// <summary>
     /// Records the main window's current size and position so they are included in the next
@@ -1845,7 +1859,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// Returns a snapshot of the current layout options (including floating windows).
     /// Exposed for testing the save/restore cycle without a real ApplicationOptionsStore.
     /// </summary>
-    public LayoutOptions CaptureCurrentLayout() => BuildLayoutOptions();
+    public LayoutOptions CaptureCurrentLayout()
+    {
+        RefreshDockTreeCache();
+        return BuildLayoutOptions();
+    }
 
     /// <summary>
     /// Closes all floating dock windows via the factory so they are removed from
@@ -2110,15 +2128,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return null;
         }
 
-        // Capture the full tree structure so that any structural changes the user made
-        // (docking a panel to a new position) can be fully restored on next load.
-        // Wrap in suppress-auto-save guard to prevent Dock.NET property access from
-        // triggering a second QueueOptionsAutoSave that would reset the debounce timer.
-        var previousSuppressOptionsAutoSave = _suppressOptionsAutoSave;
-        _suppressOptionsAutoSave = true;
-        var dockTree = CaptureDockNode(root);
-        _suppressOptionsAutoSave = previousSuppressOptionsAutoSave;
-
         var floatingWindows = new List<FloatingWindowSnapshot>();
         if (root.Windows is { } windows)
         {
@@ -2154,13 +2163,31 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ActiveToolDockableId = leftToolDock.ActiveDockable?.Id,
             LeftToolDockableOrder = GetDockableOrder(leftToolDock.VisibleDockables),
             FloatingWindows = floatingWindows,
-            DockTree = dockTree,
+            // Use the cached tree so that CaptureDockNode is never called inside SaveOptions,
+            // which would reset the auto-save debounce timer.  The cache is refreshed
+            // by RefreshDockTreeCache() whenever the layout structure actually changes
+            // (window close, explicit layout save, post-startup apply).
+            DockTree = _cachedDockTree,
             WindowWidth = _windowWidthAtClose > 0 ? _windowWidthAtClose : 0,
             WindowHeight = _windowHeightAtClose > 0 ? _windowHeightAtClose : 0,
             WindowX = _windowXAtClose,
             WindowY = _windowYAtClose,
             HasWindowPosition = _windowPositionCaptured
         };
+    }
+
+    /// <summary>
+    /// Rebuilds <see cref="_cachedDockTree"/> from the current <see cref="Layout"/>.
+    /// Must be called whenever the dock layout structure changes (after window open,
+    /// after applying a saved layout, or just before persisting on window close)
+    /// so that the cached tree is up-to-date.
+    /// </summary>
+    private void RefreshDockTreeCache()
+    {
+        if (Layout is { } root)
+        {
+            _cachedDockTree = CaptureDockNode(root);
+        }
     }
 
     /// <summary>
@@ -2172,18 +2199,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         if (dockable is IRootDock root)
         {
-            var children = new List<DockTreeNode>();
-            if (root.VisibleDockables is { } dockables)
-            {
-                foreach (var child in dockables)
-                {
-                    var node = CaptureDockNode(child);
-                    if (node is { })
-                    {
-                        children.Add(node);
-                    }
-                }
-            }
+            var children = (root.VisibleDockables ?? [])
+                .Select(CaptureDockNode)
+                .Where(n => n is not null)
+                .Select(n => n!)
+                .ToList();
 
             return new DockTreeNode
             {
@@ -2196,18 +2216,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (dockable is IProportionalDock proportional)
         {
-            var children = new List<DockTreeNode>();
-            if (proportional.VisibleDockables is { } dockables)
-            {
-                foreach (var child in dockables)
-                {
-                    var node = CaptureDockNode(child);
-                    if (node is { })
-                    {
-                        children.Add(node);
-                    }
-                }
-            }
+            var children = (proportional.VisibleDockables ?? [])
+                .Select(CaptureDockNode)
+                .Where(n => n is not null)
+                .Select(n => n!)
+                .ToList();
 
             return new DockTreeNode
             {
@@ -2231,17 +2244,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (dockable is IToolDock toolDock)
         {
-            var contentIds = new List<string>();
-            if (toolDock.VisibleDockables is { } dockables)
-            {
-                foreach (var content in dockables)
-                {
-                    if (!string.IsNullOrWhiteSpace(content.Id))
-                    {
-                        contentIds.Add(content.Id);
-                    }
-                }
-            }
+            var contentIds = (toolDock.VisibleDockables ?? [])
+                .Where(c => !string.IsNullOrWhiteSpace(c.Id))
+                .Select(c => c.Id!)
+                .ToList();
 
             return new DockTreeNode
             {
@@ -2258,17 +2264,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (dockable is IDocumentDock documentDock)
         {
-            var contentIds = new List<string>();
-            if (documentDock.VisibleDockables is { } dockables)
-            {
-                foreach (var content in dockables)
-                {
-                    if (!string.IsNullOrWhiteSpace(content.Id))
-                    {
-                        contentIds.Add(content.Id);
-                    }
-                }
-            }
+            var contentIds = (documentDock.VisibleDockables ?? [])
+                .Where(c => !string.IsNullOrWhiteSpace(c.Id))
+                .Select(c => c.Id!)
+                .ToList();
 
             return new DockTreeNode
             {
@@ -2326,13 +2325,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             case "Root":
             {
                 var children = _dockFactory!.CreateList<IDockable>();
-                foreach (var childNode in node.Children)
+                foreach (var child in node.Children
+                    .Select(childNode => BuildDockNode(childNode, contentDockables))
+                    .Where(c => c is not null))
                 {
-                    var child = BuildDockNode(childNode, contentDockables);
-                    if (child is { })
-                    {
-                        children.Add(child);
-                    }
+                    children.Add(child!);
                 }
 
                 var rootDock = new RootDock
@@ -2349,13 +2346,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             case "Proportional":
             {
                 var children = _dockFactory!.CreateList<IDockable>();
-                foreach (var childNode in node.Children)
+                foreach (var child in node.Children
+                    .Select(childNode => BuildDockNode(childNode, contentDockables))
+                    .Where(c => c is not null))
                 {
-                    var child = BuildDockNode(childNode, contentDockables);
-                    if (child is { })
-                    {
-                        children.Add(child);
-                    }
+                    children.Add(child!);
                 }
 
                 var propDock = new ProportionalDock
@@ -2382,12 +2377,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             case "Tool":
             {
                 var contents = _dockFactory!.CreateList<IDockable>();
-                foreach (var id in node.ContentIds)
+                foreach (var content in node.ContentIds
+                    .Where(id => contentDockables.ContainsKey(id))
+                    .Select(id => contentDockables[id]))
                 {
-                    if (contentDockables.TryGetValue(id, out var content))
-                    {
-                        contents.Add(content);
-                    }
+                    contents.Add(content);
                 }
 
                 if (contents.Count == 0)
@@ -2419,12 +2413,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             case "Document":
             {
                 var contents = _dockFactory!.CreateList<IDockable>();
-                foreach (var id in node.ContentIds)
+                foreach (var content in node.ContentIds
+                    .Where(id => contentDockables.ContainsKey(id))
+                    .Select(id => contentDockables[id]))
                 {
-                    if (contentDockables.TryGetValue(id, out var content))
-                    {
-                        contents.Add(content);
-                    }
+                    contents.Add(content);
                 }
 
                 if (contents.Count == 0)
@@ -2639,6 +2632,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 SetActiveDockable(floatDock, fw.ActiveDockableId);
             }
         }
+
+        // Refresh the cached DockTree so that subsequent auto-saves include the restored
+        // layout structure without needing to call CaptureDockNode inside SaveOptions.
+        RefreshDockTreeCache();
     }
 
     /// <summary>
@@ -2693,15 +2690,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         // For Root and Proportional nodes: recurse into children.
-        foreach (var child in node.Children)
-        {
-            if (DockTreeNodeRequiresRebuild(child, currentRoot))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return node.Children.Any(child => DockTreeNodeRequiresRebuild(child, currentRoot));
     }
 
     /// <summary>
