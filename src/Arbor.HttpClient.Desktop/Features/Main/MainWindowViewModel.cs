@@ -2201,8 +2201,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             var children = (root.VisibleDockables ?? [])
                 .Select(CaptureDockNode)
-                .Where(n => n is not null)
-                .Select(n => n!)
+                .OfType<DockTreeNode>()
                 .ToList();
 
             return new DockTreeNode
@@ -2218,8 +2217,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             var children = (proportional.VisibleDockables ?? [])
                 .Select(CaptureDockNode)
-                .Where(n => n is not null)
-                .Select(n => n!)
+                .OfType<DockTreeNode>()
                 .ToList();
 
             return new DockTreeNode
