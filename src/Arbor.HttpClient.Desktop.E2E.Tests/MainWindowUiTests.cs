@@ -293,8 +293,7 @@ public class MainWindowUiTests
             var savedLayout = viewModel.CaptureCurrentLayout();
 
             // The saved DockTree must carry the updated proportions.
-            var savedTree = savedLayout.CurrentLayout?.DockTree;
-            savedTree.Should().NotBeNull("DockTree should always be populated by CaptureCurrentLayout");
+            savedLayout.CurrentLayout?.DockTree.Should().NotBeNull("DockTree should always be populated by CaptureCurrentLayout");
 
             // ── Second "application run" ─────────────────────────────────────
             var handler2 = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));

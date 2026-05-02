@@ -2687,12 +2687,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             // If a ToolDock's alignment has changed the panel now lives on a different side —
             // that requires a full rebuild because Dock.NET ties the visual position to the
             // Alignment value set at construction time.
-            if (node.Type is "Tool" && existing is ToolDock existingToolDock)
+            if (node.Type is "Tool" && existing is ToolDock existingToolDock && existingToolDock.Alignment != ParseAlignment(node.Alignment))
             {
-                if (existingToolDock.Alignment != ParseAlignment(node.Alignment))
-                {
-                    return true;
-                }
+                return true;
             }
 
             return false;
