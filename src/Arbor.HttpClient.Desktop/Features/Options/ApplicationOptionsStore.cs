@@ -277,7 +277,7 @@ public sealed class ApplicationOptionsStore(string optionsPath)
 
         if (node.Proportion < 0)
         {
-            throw new InvalidDataException($"{path}: Proportion must be zero or a positive value.");
+            throw new InvalidDataException($"{path}: Proportion must not be negative.");
         }
 
         foreach (var child in node.Children)

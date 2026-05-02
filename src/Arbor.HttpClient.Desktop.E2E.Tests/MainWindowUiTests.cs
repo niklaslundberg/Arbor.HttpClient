@@ -265,7 +265,8 @@ public class MainWindowUiTests
             // ── First "application run" ──────────────────────────────────────
             var repository = new InMemoryRequestHistoryRepository();
             var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            using var httpClient = new global::System.Net.Http.HttpClient(handler);
+            var httpRequestService = new HttpRequestService(httpClient, repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
             var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
@@ -297,7 +298,8 @@ public class MainWindowUiTests
 
             // ── Second "application run" ─────────────────────────────────────
             var handler2 = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService2 = new HttpRequestService(new global::System.Net.Http.HttpClient(handler2), repository);
+            using var httpClient2 = new global::System.Net.Http.HttpClient(handler2);
+            var httpRequestService2 = new HttpRequestService(httpClient2, repository);
             using var viewModel2 = new MainWindowViewModel(
                 httpRequestService2,
                 repository,
@@ -335,7 +337,8 @@ public class MainWindowUiTests
         {
             var repository = new InMemoryRequestHistoryRepository();
             var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            using var httpClient = new global::System.Net.Http.HttpClient(handler);
+            var httpRequestService = new HttpRequestService(httpClient, repository);
 
             // Construct a DockTree snapshot where the left-side ToolDock has a non-default ID.
             // "custom-left-dock" is not present in the default layout, so DockTreeRequiresRebuild
