@@ -37,4 +37,13 @@ public sealed class DockLayoutSnapshot
     /// means position was never saved and should not be restored.
     /// </summary>
     public bool HasWindowPosition { get; init; }
+
+    /// <summary>
+    /// Full serialized dock tree structure. When present this supersedes the individual
+    /// proportion and order fields and is used to restore any structural layout changes the
+    /// user made (e.g. docking a panel to a new position). <see langword="null"/> for layouts
+    /// saved before this field was introduced — the individual proportion/order fields are used
+    /// as a fallback in that case.
+    /// </summary>
+    public DockTreeNode? DockTree { get; init; }
 }

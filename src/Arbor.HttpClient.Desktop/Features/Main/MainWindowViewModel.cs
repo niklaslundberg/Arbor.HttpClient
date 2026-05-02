@@ -94,6 +94,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IScriptRunner _scriptRunner = new RoslynScriptRunner();
     private readonly ScriptViewModel _scriptViewModel = new();
 
+    // Cached DockTree from the last explicit layout capture (set during PersistCurrentLayout,
+    // SaveLayoutAsNew, SaveLayoutToExisting, and window close).  Reused for auto-saves triggered
+    // by non-layout property changes (TLS version, font, etc.) so that CaptureDockNode is NOT
+    // called during the auto-save debounce chain and cannot reset the debounce timer.
+    private DockTreeNode? _cachedDockTree;
+
     // Window geometry captured just before close — included in the next PersistCurrentLayout call.
     private double _windowWidthAtClose;
     private double _windowHeightAtClose;
@@ -901,10 +907,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void ActivateLeftPanel()
     {
-        if (_dockFactory?.LeftToolDock is { } dock &&
-            _dockFactory.LeftPanelViewModel is { } leftPanelVm)
+        if (_dockFactory?.LeftPanelViewModel is { Owner: IDock ownerDock } leftPanelVm)
         {
-            dock.ActiveDockable = leftPanelVm;
+            ownerDock.ActiveDockable = leftPanelVm;
         }
     }
 
@@ -926,21 +931,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void OpenLogWindow()
     {
-        if (_dockFactory?.LeftToolDock is { } dock &&
-            _dockFactory.LogPanelViewModel is { } logPanelVm)
+        if (_dockFactory?.LogPanelViewModel is { Owner: IDock ownerDock } logPanelVm)
         {
-            dock.ActiveDockable = logPanelVm;
+            ownerDock.ActiveDockable = logPanelVm;
         }
     }
 
     [RelayCommand]
     private void OpenCookieJar()
     {
-        if (_dockFactory?.LeftToolDock is { } dock &&
-            _dockFactory.CookieJarViewModel is { } cookieJarVm)
+        if (_dockFactory?.CookieJarViewModel is { Owner: IDock ownerDock } cookieJarVm)
         {
             cookieJarVm.RefreshCookies();
-            dock.ActiveDockable = cookieJarVm;
+            ownerDock.ActiveDockable = cookieJarVm;
         }
     }
 
@@ -950,30 +953,27 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void OpenOptions()
     {
-        if (_dockFactory?.LeftToolDock is { } dock &&
-            _dockFactory.OptionsViewModel is { } optVm)
+        if (_dockFactory?.OptionsViewModel is { Owner: IDock ownerDock } optVm)
         {
-            dock.ActiveDockable = optVm;
+            ownerDock.ActiveDockable = optVm;
         }
     }
 
     [RelayCommand]
     private void OpenEnvironments()
     {
-        if (_dockFactory?.LeftToolDock is { } dock &&
-            _dockFactory.EnvironmentsViewModel is { } environmentsVm)
+        if (_dockFactory?.EnvironmentsViewModel is { Owner: IDock ownerDock } environmentsVm)
         {
-            dock.ActiveDockable = environmentsVm;
+            ownerDock.ActiveDockable = environmentsVm;
         }
     }
 
     [RelayCommand]
     private void OpenLayoutPanel()
     {
-        if (_dockFactory?.LeftToolDock is { } dock &&
-            _dockFactory.LayoutManagementViewModel is { } layoutVm)
+        if (_dockFactory?.LayoutManagementViewModel is { Owner: IDock ownerDock } layoutVm)
         {
-            dock.ActiveDockable = layoutVm;
+            ownerDock.ActiveDockable = layoutVm;
         }
     }
 
@@ -994,6 +994,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void SaveLayoutAsNew()
     {
+        RefreshDockTreeCache();
         var layoutSnapshot = CaptureLayoutSnapshot();
         if (layoutSnapshot is null)
         {
@@ -1017,6 +1018,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        RefreshDockTreeCache();
         var layoutSnapshot = CaptureLayoutSnapshot();
         if (layoutSnapshot is null)
         {
@@ -1751,7 +1753,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public void PersistCurrentLayout() => PersistLayoutOptions();
+    public void PersistCurrentLayout()
+    {
+        // Refresh the tree snapshot so that window-close persists the latest structure,
+        // including any panels the user docked to new positions during the session.
+        RefreshDockTreeCache();
+        PersistLayoutOptions();
+    }
 
     /// <summary>
     /// Records the main window's current size and position so they are included in the next
@@ -1768,10 +1776,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// Re-applies only the proportions from the startup layout snapshot to the dock model.
+    /// Re-applies the proportions from the startup layout snapshot to the dock model.
     /// Call this once from <c>window.Opened</c> so the <see cref="ProportionalStackPanel"/>
     /// re-measures with the saved proportions after all visual bindings are established.
     /// The snapshot is cleared after the first call (one-shot).
+    /// When the snapshot contains a <see cref="DockLayoutSnapshot.DockTree"/>, all
+    /// proportions in the serialized tree are reapplied by walking the tree recursively.
     /// </summary>
     public void ReapplyStartupLayout()
     {
@@ -1783,6 +1793,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        if (snapshot.DockTree is { } treeNode)
+        {
+            // Re-apply all proportions recorded in the full tree snapshot so that
+            // ProportionalStackPanel re-measures with the correct values after the
+            // visual tree and all PSP bindings are established.
+            ReapplyProportionsFromTree(Layout, treeNode);
+            return;
+        }
+
+        // Legacy path: re-apply the four well-known dock proportions.
         var leftToolDock = FindDockById<ToolDock>(Layout, "left-tool-dock");
         var documentLayout = FindDockById<ProportionalDock>(Layout, "document-layout");
         var requestDock = FindDockById<DocumentDock>(Layout, "request-dock");
@@ -1814,10 +1834,36 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
+    /// Walks the saved <see cref="DockTreeNode"/> tree and re-applies each node's
+    /// proportion to the matching dockable in the current <see cref="Layout"/> tree
+    /// (matched by ID). Nodes without an ID or with a zero proportion are skipped.
+    /// </summary>
+    private void ReapplyProportionsFromTree(IDockable currentRoot, DockTreeNode node)
+    {
+        if (!string.IsNullOrWhiteSpace(node.Id) && node.Proportion > 0)
+        {
+            var dockable = FindDockById<IDockable>(currentRoot, node.Id);
+            if (dockable is { })
+            {
+                dockable.Proportion = node.Proportion;
+            }
+        }
+
+        foreach (var child in node.Children)
+        {
+            ReapplyProportionsFromTree(currentRoot, child);
+        }
+    }
+
+    /// <summary>
     /// Returns a snapshot of the current layout options (including floating windows).
     /// Exposed for testing the save/restore cycle without a real ApplicationOptionsStore.
     /// </summary>
-    public LayoutOptions CaptureCurrentLayout() => BuildLayoutOptions();
+    public LayoutOptions CaptureCurrentLayout()
+    {
+        RefreshDockTreeCache();
+        return BuildLayoutOptions();
+    }
 
     /// <summary>
     /// Closes all floating dock windows via the factory so they are removed from
@@ -2072,6 +2118,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return null;
         }
 
+        // Also capture well-known dock values for backward-compatible restore fallback.
         var leftToolDock = FindDockById<ToolDock>(root, "left-tool-dock");
         var documentLayout = FindDockById<ProportionalDock>(root, "document-layout");
         var requestDock = FindDockById<DocumentDock>(root, "request-dock");
@@ -2116,6 +2163,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ActiveToolDockableId = leftToolDock.ActiveDockable?.Id,
             LeftToolDockableOrder = GetDockableOrder(leftToolDock.VisibleDockables),
             FloatingWindows = floatingWindows,
+            // Use the cached tree so that CaptureDockNode is never called inside SaveOptions,
+            // which would reset the auto-save debounce timer.  The cache is refreshed
+            // by RefreshDockTreeCache() whenever the layout structure actually changes
+            // (window close, explicit layout save, post-startup apply).
+            DockTree = _cachedDockTree,
             WindowWidth = _windowWidthAtClose > 0 ? _windowWidthAtClose : 0,
             WindowHeight = _windowHeightAtClose > 0 ? _windowHeightAtClose : 0,
             WindowX = _windowXAtClose,
@@ -2123,6 +2175,295 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             HasWindowPosition = _windowPositionCaptured
         };
     }
+
+    /// <summary>
+    /// Rebuilds <see cref="_cachedDockTree"/> from the current <see cref="Layout"/>.
+    /// Must be called whenever the dock layout structure changes (after window open,
+    /// after applying a saved layout, or just before persisting on window close)
+    /// so that the cached tree is up-to-date.
+    /// </summary>
+    private void RefreshDockTreeCache()
+    {
+        if (Layout is { } root)
+        {
+            _cachedDockTree = CaptureDockNode(root);
+        }
+    }
+
+    /// <summary>
+    /// Recursively captures a dock tree node and all its structural children.
+    /// Returns <see langword="null"/> for node types that are not recognized or
+    /// should not be included in the serialized tree.
+    /// </summary>
+    private static DockTreeNode? CaptureDockNode(IDockable dockable)
+    {
+        if (dockable is IRootDock root)
+        {
+            var children = (root.VisibleDockables ?? [])
+                .Select(CaptureDockNode)
+                .OfType<DockTreeNode>()
+                .ToList();
+
+            return new DockTreeNode
+            {
+                Type = "Root",
+                Id = root.Id,
+                Proportion = root.Proportion,
+                Children = children
+            };
+        }
+
+        if (dockable is IProportionalDock proportional)
+        {
+            var children = (proportional.VisibleDockables ?? [])
+                .Select(CaptureDockNode)
+                .OfType<DockTreeNode>()
+                .ToList();
+
+            return new DockTreeNode
+            {
+                Type = "Proportional",
+                Id = proportional.Id,
+                Proportion = proportional.Proportion,
+                Orientation = proportional.Orientation.ToString(),
+                Children = children
+            };
+        }
+
+        if (dockable is IProportionalDockSplitter splitter)
+        {
+            return new DockTreeNode
+            {
+                Type = "Splitter",
+                Id = splitter.Id,
+                Proportion = splitter.Proportion
+            };
+        }
+
+        if (dockable is IToolDock toolDock)
+        {
+            var contentIds = (toolDock.VisibleDockables ?? [])
+                .Where(c => !string.IsNullOrWhiteSpace(c.Id))
+                .Select(c => c.Id!)
+                .ToList();
+
+            return new DockTreeNode
+            {
+                Type = "Tool",
+                Id = toolDock.Id,
+                Proportion = toolDock.Proportion,
+                Alignment = toolDock.Alignment.ToString(),
+                GripMode = toolDock.GripMode.ToString(),
+                IsCollapsable = toolDock.IsCollapsable,
+                ContentIds = contentIds,
+                ActiveContentId = toolDock.ActiveDockable?.Id
+            };
+        }
+
+        if (dockable is IDocumentDock documentDock)
+        {
+            var contentIds = (documentDock.VisibleDockables ?? [])
+                .Where(c => !string.IsNullOrWhiteSpace(c.Id))
+                .Select(c => c.Id!)
+                .ToList();
+
+            return new DockTreeNode
+            {
+                Type = "Document",
+                Id = documentDock.Id,
+                Proportion = documentDock.Proportion,
+                IsCollapsable = documentDock.IsCollapsable,
+                ContentIds = contentIds,
+                ActiveContentId = documentDock.ActiveDockable?.Id
+            };
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Collects all leaf content dockables (tool/document view-models, NOT structural
+    /// dock containers) from the given dock tree into <paramref name="result"/>.
+    /// Structural nodes (ProportionalDock, ToolDock, DocumentDock, RootDock,
+    /// ProportionalDockSplitter) are not added to the dictionary; their children are
+    /// recursed into instead.
+    /// </summary>
+    private static void CollectLeafDockables(IDockable dockable, Dictionary<string, IDockable> result)
+    {
+        // Skip splitters – they are not re-usable content dockables.
+        if (dockable is IProportionalDockSplitter)
+        {
+            return;
+        }
+
+        if (dockable is IDock dock && dock.VisibleDockables is { } dockables)
+        {
+            foreach (var child in dockables)
+            {
+                CollectLeafDockables(child, result);
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(dockable.Id))
+        {
+            result[dockable.Id] = dockable;
+        }
+    }
+
+    /// <summary>
+    /// Recursively builds a dock tree node from a <see cref="DockTreeNode"/> snapshot,
+    /// placing content dockables (looked up by ID in <paramref name="contentDockables"/>)
+    /// in their saved positions.
+    /// Returns <see langword="null"/> when a "Tool" or "Document" node has no resolvable
+    /// content dockables (safe to skip such an empty node).
+    /// </summary>
+    private IDockable? BuildDockNode(DockTreeNode node, IReadOnlyDictionary<string, IDockable> contentDockables)
+    {
+        switch (node.Type)
+        {
+            case "Root":
+            {
+                var children = _dockFactory!.CreateList<IDockable>();
+                foreach (var child in node.Children
+                    .Select(childNode => BuildDockNode(childNode, contentDockables))
+                    .Where(c => c is not null))
+                {
+                    children.Add(child!);
+                }
+
+                var rootDock = new RootDock
+                {
+                    Id = node.Id ?? "root",
+                    IsCollapsable = false,
+                    VisibleDockables = children,
+                    Windows = _dockFactory.CreateList<IDockWindow>()
+                };
+                rootDock.ActiveDockable = rootDock.DefaultDockable = children.FirstOrDefault();
+                return rootDock;
+            }
+
+            case "Proportional":
+            {
+                var children = _dockFactory!.CreateList<IDockable>();
+                foreach (var child in node.Children
+                    .Select(childNode => BuildDockNode(childNode, contentDockables))
+                    .Where(c => c is not null))
+                {
+                    children.Add(child!);
+                }
+
+                var propDock = new ProportionalDock
+                {
+                    Id = node.Id ?? Guid.NewGuid().ToString("D"),
+                    Proportion = node.Proportion,
+                    Orientation = string.Equals(node.Orientation, "Vertical", StringComparison.OrdinalIgnoreCase)
+                        ? Orientation.Vertical
+                        : Orientation.Horizontal,
+                    VisibleDockables = children
+                };
+                // Set the first non-splitter child as the active dockable.
+                propDock.ActiveDockable = children.FirstOrDefault(d => d is not IProportionalDockSplitter);
+                return propDock;
+            }
+
+            case "Splitter":
+                return new ProportionalDockSplitter
+                {
+                    Id = node.Id ?? Guid.NewGuid().ToString("D"),
+                    Proportion = node.Proportion
+                };
+
+            case "Tool":
+            {
+                var contents = _dockFactory!.CreateList<IDockable>();
+                foreach (var content in node.ContentIds
+                    .Where(id => contentDockables.ContainsKey(id))
+                    .Select(id => contentDockables[id]))
+                {
+                    contents.Add(content);
+                }
+
+                if (contents.Count == 0)
+                {
+                    // All content dockables are unresolvable — skip this dock node.
+                    return null;
+                }
+
+                IDockable? active = null;
+                if (node.ActiveContentId is { } activeId)
+                {
+                    contentDockables.TryGetValue(activeId, out active);
+                }
+
+                active ??= contents.FirstOrDefault();
+
+                return new ToolDock
+                {
+                    Id = node.Id ?? Guid.NewGuid().ToString("D"),
+                    Proportion = node.Proportion,
+                    Alignment = ParseAlignment(node.Alignment),
+                    GripMode = ParseGripMode(node.GripMode),
+                    IsCollapsable = node.IsCollapsable,
+                    VisibleDockables = contents,
+                    ActiveDockable = active
+                };
+            }
+
+            case "Document":
+            {
+                var contents = _dockFactory!.CreateList<IDockable>();
+                foreach (var content in node.ContentIds
+                    .Where(id => contentDockables.ContainsKey(id))
+                    .Select(id => contentDockables[id]))
+                {
+                    contents.Add(content);
+                }
+
+                if (contents.Count == 0)
+                {
+                    return null;
+                }
+
+                IDockable? active = null;
+                if (node.ActiveContentId is { } activeId)
+                {
+                    contentDockables.TryGetValue(activeId, out active);
+                }
+
+                active ??= contents.FirstOrDefault();
+
+                return new DocumentDock
+                {
+                    Id = node.Id ?? Guid.NewGuid().ToString("D"),
+                    Proportion = node.Proportion,
+                    IsCollapsable = node.IsCollapsable,
+                    VisibleDockables = contents,
+                    ActiveDockable = active
+                };
+            }
+
+            default:
+                return null;
+        }
+    }
+
+    private static Alignment ParseAlignment(string? value) =>
+        value switch
+        {
+            "Left" => Alignment.Left,
+            "Right" => Alignment.Right,
+            "Top" => Alignment.Top,
+            "Bottom" => Alignment.Bottom,
+            _ => Alignment.Unset
+        };
+
+    private static GripMode ParseGripMode(string? value) =>
+        value switch
+        {
+            "Visible" => GripMode.Visible,
+            "AutoHide" => GripMode.AutoHide,
+            "Hidden" => GripMode.Hidden,
+            _ => GripMode.Visible
+        };
 
     private static void CollectDockableIds(IDockable dockable, ICollection<string> ids)
     {
@@ -2147,52 +2488,94 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        // When floating windows are present in the current session the dockables
-        // inside them have been moved OUT of leftToolDock/documentDock.  Closing
-        // those windows via CloseWindow permanently destroys the dockables, so
-        // FindDockById would never find them again for re-floating.  The safest
-        // fix is to recreate the entire dock layout so all dockables start in
-        // their known home positions before we apply the snapshot.
-        if (Layout.Windows is { Count: > 0 })
+        if (snapshot.DockTree is { } treeNode)
         {
-            Layout = _dockFactory.CreateLayout();
-            _dockFactory.InitLayout(Layout);
-            OnPropertyChanged(nameof(Layout));
+            // Determine whether a full tree rebuild is needed.
+            // A rebuild is required when:
+            //   (a) floating windows are open (dockables have been moved out of the main layout), OR
+            //   (b) the DockTree captures a different structural layout than the current one
+            //       (e.g. a panel was docked to a new position, creating new ToolDock nodes).
+            // When neither condition applies the tree structure is identical and we can apply
+            // proportions and active-dockable selections in-place, which preserves existing
+            // dock object references (important for callers that hold a reference to a dock).
+            if (Layout.Windows is { Count: > 0 } || DockTreeRequiresRebuild(treeNode))
+            {
+                // Full tree rebuild: re-instantiate the layout from the saved DockTree.
+                // We create a fresh default layout to get all view-model instances, collect
+                // the leaf dockables, then re-assemble them according to the saved tree.
+                var defaultLayout = _dockFactory.CreateLayout();
+                _dockFactory.InitLayout(defaultLayout);
+
+                var leafDockables = new Dictionary<string, IDockable>(StringComparer.OrdinalIgnoreCase);
+                CollectLeafDockables(defaultLayout, leafDockables);
+
+                var newRoot = BuildDockNode(treeNode, leafDockables) as RootDock;
+                if (newRoot is { })
+                {
+                    _dockFactory.InitLayout(newRoot);
+                    Layout = newRoot;
+                    OnPropertyChanged(nameof(Layout));
+                    // Update LeftToolDock reference so that programmatic panel activations
+                    // (OpenOptions, OpenLogWindow, etc.) continue to work after the tree
+                    // has been reconstructed with a potentially different structure.
+                    _dockFactory.UpdateLeftToolDock();
+                }
+            }
+            else
+            {
+                // In-place update: the tree structure is the same as the current layout.
+                // Just apply the saved proportions, dockable order, and active selections.
+                ApplyDockTreeInPlace(Layout, treeNode);
+            }
+
+            // Fall through to restore any floating windows saved alongside the tree.
+        }
+        else
+        {
+            // Legacy path: the snapshot does not have a full DockTree.
+            // Close any floating windows first so all dockables are back in the main
+            // layout before we re-apply proportions and order.
+            if (Layout.Windows is { Count: > 0 })
+            {
+                Layout = _dockFactory.CreateLayout();
+                _dockFactory.InitLayout(Layout);
+                OnPropertyChanged(nameof(Layout));
+            }
+
+            var leftToolDock = FindDockById<ToolDock>(Layout, "left-tool-dock");
+            var documentLayout = FindDockById<ProportionalDock>(Layout, "document-layout");
+            var requestDock = FindDockById<DocumentDock>(Layout, "request-dock");
+            var responseDock = FindDockById<DocumentDock>(Layout, "response-dock");
+            if (leftToolDock is null || documentLayout is null || requestDock is null || responseDock is null)
+            {
+                return;
+            }
+
+            if (snapshot.LeftToolProportion > 0)
+            {
+                leftToolDock.Proportion = snapshot.LeftToolProportion;
+            }
+
+            if (snapshot.DocumentProportion > 0)
+            {
+                documentLayout.Proportion = snapshot.DocumentProportion;
+            }
+
+            if (snapshot.RequestDockProportion > 0)
+            {
+                requestDock.Proportion = snapshot.RequestDockProportion;
+            }
+
+            if (snapshot.ResponseDockProportion > 0)
+            {
+                responseDock.Proportion = snapshot.ResponseDockProportion;
+            }
+
+            ApplyDockOrder(leftToolDock, snapshot.LeftToolDockableOrder);
+            SetActiveDockable(leftToolDock, snapshot.ActiveToolDockableId);
         }
 
-        var leftToolDock = FindDockById<ToolDock>(Layout, "left-tool-dock");
-        var documentLayout = FindDockById<ProportionalDock>(Layout, "document-layout");
-        var requestDock = FindDockById<DocumentDock>(Layout, "request-dock");
-        var responseDock = FindDockById<DocumentDock>(Layout, "response-dock");
-        if (leftToolDock is null || documentLayout is null || requestDock is null || responseDock is null)
-        {
-            return;
-        }
-
-        if (snapshot.LeftToolProportion > 0)
-        {
-            leftToolDock.Proportion = snapshot.LeftToolProportion;
-        }
-
-        if (snapshot.DocumentProportion > 0)
-        {
-            documentLayout.Proportion = snapshot.DocumentProportion;
-        }
-
-        if (snapshot.RequestDockProportion > 0)
-        {
-            requestDock.Proportion = snapshot.RequestDockProportion;
-        }
-
-        if (snapshot.ResponseDockProportion > 0)
-        {
-            responseDock.Proportion = snapshot.ResponseDockProportion;
-        }
-
-        ApplyDockOrder(leftToolDock, snapshot.LeftToolDockableOrder);
-        SetActiveDockable(leftToolDock, snapshot.ActiveToolDockableId);
-
-        // Restore floating windows
+        // Restore floating windows (applies to both DockTree and legacy paths).
         foreach (var fw in snapshot.FloatingWindows)
         {
             if (fw.DockableIds.Count == 0)
@@ -2200,13 +2583,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 continue;
             }
 
-            // Find the first dockable to float (it creates the floating window)
+            // Search the entire main-layout tree rather than only specific known docks
+            // so that dockables moved to new positions via DockTree are still found.
             IDockable? primary = null;
             foreach (var id in fw.DockableIds)
             {
-                primary = FindDockById<IDockable>(leftToolDock, id)
-                       ?? FindDockById<IDockable>(requestDock, id)
-                       ?? FindDockById<IDockable>(responseDock, id);
+                primary = FindDockById<IDockable>(Layout, id);
                 if (primary is { })
                 {
                     break;
@@ -2238,9 +2620,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 for (var i = 1; i < fw.DockableIds.Count; i++)
                 {
-                    var extra = FindDockById<IDockable>(leftToolDock, fw.DockableIds[i])
-                             ?? FindDockById<IDockable>(requestDock, fw.DockableIds[i])
-                             ?? FindDockById<IDockable>(responseDock, fw.DockableIds[i]);
+                    var extra = FindDockById<IDockable>(Layout, fw.DockableIds[i]);
                     if (extra?.Owner is IDock sourceOwner)
                     {
                         _dockFactory.MoveDockable(sourceOwner, floatDock, extra, null);
@@ -2249,6 +2629,119 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
                 SetActiveDockable(floatDock, fw.ActiveDockableId);
             }
+        }
+
+        // Refresh the cached DockTree so that subsequent auto-saves include the restored
+        // layout structure without needing to call CaptureDockNode inside SaveOptions.
+        RefreshDockTreeCache();
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when the <paramref name="node"/> tree contains
+    /// structural differences from the current <see cref="Layout"/> that require a full
+    /// tree rebuild rather than an in-place proportion update.
+    /// <para>
+    /// A rebuild is required when any "Tool" or "Document" node in the tree:
+    /// <list type="bullet">
+    ///   <item>has no ID (auto-generated dock from user drag-and-drop), or</item>
+    ///   <item>has an ID that is not found in the current layout, or</item>
+    ///   <item>has an ID that is found but with different content dockables (a panel was moved
+    ///         in or out of that dock).</item>
+    /// </list>
+    /// </para>
+    /// </summary>
+    private bool DockTreeRequiresRebuild(DockTreeNode node)
+    {
+        if (Layout is null)
+        {
+            return true;
+        }
+
+        return DockTreeNodeRequiresRebuild(node, Layout);
+    }
+
+    private static bool DockTreeNodeRequiresRebuild(DockTreeNode node, IDockable currentRoot)
+    {
+        if (node.Type is "Tool" or "Document")
+        {
+            // A node with no ID is an auto-generated dock created by a user drag-and-drop
+            // operation — it cannot be matched to an existing node → rebuild required.
+            if (string.IsNullOrWhiteSpace(node.Id))
+            {
+                return true;
+            }
+
+            // If the dock ID is not present in the current layout, the structure changed.
+            if (FindDockById<IDock>(currentRoot, node.Id) is not { } existing)
+            {
+                return true;
+            }
+
+            // If content dockables differ (panel moved in or out), the structure changed.
+            var currentIds = GetDockableOrder(existing.VisibleDockables);
+            if (!currentIds.SequenceEqual(node.ContentIds, StringComparer.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            // If a ToolDock's alignment has changed the panel now lives on a different side —
+            // that requires a full rebuild because Dock.NET ties the visual position to the
+            // Alignment value set at construction time.
+            if (node.Type is "Tool" && existing is ToolDock existingToolDock && existingToolDock.Alignment != ParseAlignment(node.Alignment))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        // For Root and Proportional nodes: recurse into children.
+        return node.Children.Any(child => DockTreeNodeRequiresRebuild(child, currentRoot));
+    }
+
+    /// <summary>
+    /// Applies the proportions, dockable order, and active-dockable selections from
+    /// <paramref name="node"/> to the matching docks in the current layout (found by
+    /// node ID). Does NOT create any new dock objects; the current layout structure
+    /// remains unchanged.
+    /// </summary>
+    private void ApplyDockTreeInPlace(IDockable currentRoot, DockTreeNode node)
+    {
+        if (!string.IsNullOrWhiteSpace(node.Id) && node.Proportion > 0)
+        {
+            var dockable = FindDockById<IDockable>(currentRoot, node.Id);
+            if (dockable is { })
+            {
+                dockable.Proportion = node.Proportion;
+            }
+        }
+
+        if (node.Type is "Tool" or "Document" && !string.IsNullOrWhiteSpace(node.Id))
+        {
+            var dock = FindDockById<IDock>(currentRoot, node.Id);
+            if (dock is { })
+            {
+                if (node.ContentIds.Count > 0)
+                {
+                    ApplyDockOrder(dock, node.ContentIds);
+                }
+
+                if (!string.IsNullOrWhiteSpace(node.ActiveContentId))
+                {
+                    SetActiveDockable(dock, node.ActiveContentId);
+                }
+
+                // Apply non-structural properties that do not require a tree rebuild.
+                if (node.Type is "Tool" && dock is ToolDock toolDock)
+                {
+                    toolDock.GripMode = ParseGripMode(node.GripMode);
+                }
+            }
+        }
+
+        foreach (var child in node.Children)
+        {
+            ApplyDockTreeInPlace(currentRoot, child);
         }
     }
 

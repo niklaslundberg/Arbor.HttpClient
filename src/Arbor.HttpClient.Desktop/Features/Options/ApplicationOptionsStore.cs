@@ -31,6 +31,15 @@ public sealed class ApplicationOptionsStore(string optionsPath)
         "Light"
     ];
 
+    private static readonly HashSet<string> ValidDockNodeTypes =
+    [
+        "Root",
+        "Proportional",
+        "Splitter",
+        "Tool",
+        "Document"
+    ];
+
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -241,6 +250,39 @@ public sealed class ApplicationOptionsStore(string optionsPath)
             {
                 throw new InvalidDataException("Floating window dockable IDs collection is required.");
             }
+        }
+
+        if (layout.DockTree is { } dockTree)
+        {
+            ValidateDockTreeNode(dockTree, "DockTree");
+        }
+    }
+
+    private static void ValidateDockTreeNode(DockTreeNode node, string path)
+    {
+        if (!ValidDockNodeTypes.Contains(node.Type))
+        {
+            throw new InvalidDataException($"{path}: unknown dock node type '{node.Type}'.");
+        }
+
+        if (node.Children is null)
+        {
+            throw new InvalidDataException($"{path}: Children collection is required.");
+        }
+
+        if (node.ContentIds is null)
+        {
+            throw new InvalidDataException($"{path}: ContentIds collection is required.");
+        }
+
+        if (node.Proportion < 0)
+        {
+            throw new InvalidDataException($"{path}: Proportion must not be negative.");
+        }
+
+        foreach (var child in node.Children)
+        {
+            ValidateDockTreeNode(child, $"{path} > {child.Id ?? child.Type}");
         }
     }
 
