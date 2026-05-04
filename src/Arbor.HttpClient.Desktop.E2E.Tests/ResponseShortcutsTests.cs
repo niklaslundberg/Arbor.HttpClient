@@ -240,5 +240,31 @@ public class ResponseShortcutsTests
             return true;
         }, CancellationToken.None);
     }
+
+    [Fact]
+    public async Task ResponseBody_PreservesNonAsciiCharacters_AfterJsonResponse()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        var responseBody = await session.Dispatch(async () =>
+        {
+            using var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"name\":\"åäö\"}", Encoding.UTF8, "application/json")
+            };
+            using var viewModel = CreateViewModel(response);
+
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
+            viewModel.SendRequestCommand.Execute(null);
+            await viewModel.SendRequestCommand.ExecutionTask!;
+
+            return viewModel.ResponseBody;
+        }, CancellationToken.None);
+
+        responseBody.Should().Contain("åäö");
+        responseBody.Should().NotContain("\\u00e5");
+        responseBody.Should().NotContain("\\u00e4");
+        responseBody.Should().NotContain("\\u00f6");
+    }
 }
 
