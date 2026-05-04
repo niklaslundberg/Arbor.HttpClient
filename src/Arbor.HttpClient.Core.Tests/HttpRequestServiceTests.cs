@@ -67,6 +67,27 @@ public class HttpRequestServiceTests
     }
 
     [Fact]
+    public async Task SendAsync_ShouldSetContentTypeOnOutgoingRequest_WhenContentTypeHeaderIsProvided()
+    {
+        var handler = new StubHttpMessageHandler(req =>
+        {
+            var receivedContentType = req.Content?.Headers.ContentType?.MediaType ?? "not-provided";
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent($"parsed as: {receivedContentType}")
+            };
+        });
+
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+
+        var headers = new[] { new RequestHeader("Content-Type", "application/xml") };
+        var response = await service.SendAsync(new HttpRequestDraft("Test", "POST", "http://localhost:5000", "<root/>", headers), TestContext.Current.CancellationToken);
+
+        response.Body.Should().Be("parsed as: application/xml");
+    }
+
+    [Fact]
     public async Task SendAsync_ShouldSendCustomRequestHeader()
     {
         HttpRequestMessage? capturedRequest = null;
