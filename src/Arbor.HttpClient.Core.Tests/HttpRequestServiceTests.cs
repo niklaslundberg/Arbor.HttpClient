@@ -67,7 +67,7 @@ public class HttpRequestServiceTests
     }
 
     [Fact]
-    public async Task SendAsync_ServerReceivesCorrectContentType_WhenParsingRequestBody()
+    public async Task SendAsync_ShouldSetContentTypeOnOutgoingRequest_WhenContentTypeHeaderIsProvided()
     {
         var handler = new StubHttpMessageHandler(req =>
         {
