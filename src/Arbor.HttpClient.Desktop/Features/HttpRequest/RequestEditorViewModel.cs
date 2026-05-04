@@ -476,6 +476,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         var effectiveContentType = ResolveContentType(resolvedBody);
         if (!string.IsNullOrEmpty(effectiveContentType))
         {
+            headers.RemoveAll(h => string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase));
             headers.Insert(0, new RequestHeader("Content-Type", effectiveContentType));
         }
 

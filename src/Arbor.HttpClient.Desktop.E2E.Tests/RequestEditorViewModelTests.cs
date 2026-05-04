@@ -297,6 +297,40 @@ public class RequestEditorViewModelTests
         draft.HttpVersion.Should().Be(global::System.Net.HttpVersion.Version20);
     }
 
+    [Fact]
+    public void BuildDraft_IncludesSelectedContentTypeInHeaders_WhenBodyProvided()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/xml";
+        editor.SelectedMethod = "POST";
+        editor.RequestBody = "<root/>";
+
+        var draft = editor.BuildDraft();
+
+        draft.Headers.Should().ContainSingle(h =>
+            string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase) &&
+            h.Value == "application/xml");
+    }
+
+    [Fact]
+    public void BuildDraft_DoesNotDuplicateContentTypeHeader_WhenUserAlsoAddsOneManually()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/xml";
+        editor.RequestBody = "<root/>";
+        editor.AddHeaderCommand.Execute(null);
+        editor.RequestHeaders[0].Name = "Content-Type";
+        editor.RequestHeaders[0].Value = "text/plain";
+        editor.RequestHeaders[0].IsEnabled = true;
+
+        var draft = editor.BuildDraft();
+
+        draft.Headers.Should().ContainSingle(h =>
+            string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase));
+        var contentTypeHeader = draft.Headers!.First(h => string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase));
+        contentTypeHeader.Value.Should().Be("application/xml");
+    }
+
     // ── HTTP version ─────────────────────────────────────────────────────────
 
     [Fact]
