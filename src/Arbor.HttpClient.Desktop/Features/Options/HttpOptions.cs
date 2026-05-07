@@ -15,5 +15,7 @@ public sealed class HttpOptions
 
     public string DefaultRequestUrl { get; init; } = "http://localhost:5000/echo";
 
+    public int DefaultRequestTimeoutSeconds { get; init; } = 100;
+
     public int DemoServerPort { get; init; } = DemoServer.DefaultPort;
 }

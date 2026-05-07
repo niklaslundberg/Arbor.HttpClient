@@ -256,6 +256,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _defaultContentType = "application/json";
 
+    [ObservableProperty]
+    private int _defaultRequestTimeoutSeconds = 100;
+
     public IReadOnlyList<string> FontFamilyOptions { get; } =
     [
         "Cascadia Code,Consolas,Menlo,monospace",
@@ -397,6 +400,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     partial void OnDefaultRequestUrlChanged(string value) =>
         QueueOptionsAutoSave();
 
+    partial void OnDefaultRequestTimeoutSecondsChanged(int value)
+    {
+        if (value < 1)
+        {
+            DefaultRequestTimeoutSeconds = 1;
+            return;
+        }
+
+        _httpRequestService.SetDefaultRequestTimeout(TimeSpan.FromSeconds(value));
+        QueueOptionsAutoSave();
+    }
+
     partial void OnAutoStartScheduledJobsOnLaunchChanged(bool value) =>
         QueueOptionsAutoSave();
 
@@ -504,6 +519,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ApplyLayoutOptions(options.Layouts);
         _startupLayoutSnapshot = options.Layouts?.CurrentLayout;
         _suppressLayoutRestore = false;
+        _httpRequestService.SetDefaultRequestTimeout(TimeSpan.FromSeconds(DefaultRequestTimeoutSeconds));
         _requestEditor.RefreshRequestPreview();
     }
 
@@ -647,6 +663,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 DefaultContentType = DefaultContentType,
                 FollowRedirects = FollowHttpRedirects,
                 DefaultRequestUrl = DefaultRequestUrl,
+                DefaultRequestTimeoutSeconds = DefaultRequestTimeoutSeconds,
                 DemoServerPort = DemoServerPort
             },
             Appearance = new AppearanceOptions
@@ -689,6 +706,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             FollowHttpRedirects = options.Http.FollowRedirects;
             DefaultRequestUrl = options.Http.DefaultRequestUrl;
             DefaultContentType = options.Http.DefaultContentType;
+            DefaultRequestTimeoutSeconds = options.Http.DefaultRequestTimeoutSeconds;
             _requestEditor.DefaultContentType = options.Http.DefaultContentType;
             UiFontFamily = options.Appearance.FontFamily;
             UiFontSizeText = options.Appearance.FontSize.ToString("0.##", CultureInfo.InvariantCulture);

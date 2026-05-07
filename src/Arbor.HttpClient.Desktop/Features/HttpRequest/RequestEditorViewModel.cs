@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -62,6 +63,9 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     [ObservableProperty]
     private string _requestBody = string.Empty;
+
+    [ObservableProperty]
+    private string _requestTimeoutSecondsText = string.Empty;
 
     [ObservableProperty]
     private bool _followRedirectsForRequest = true;
@@ -382,6 +386,16 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
         var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
         var headers = BuildResolvedHeaders(variables, resolvedBody);
+        int? timeoutSeconds = null;
+        if (!string.IsNullOrWhiteSpace(RequestTimeoutSecondsText))
+        {
+            if (!int.TryParse(RequestTimeoutSecondsText, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedTimeoutSeconds) || parsedTimeoutSeconds < 1)
+            {
+                throw new InvalidDataException("Request timeout must be a positive whole number of seconds.");
+            }
+
+            timeoutSeconds = parsedTimeoutSeconds;
+        }
 
         return new HttpRequestDraft(
             RequestName,
@@ -390,7 +404,8 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             resolvedBody,
             headers,
             ParseHttpVersion(SelectedHttpVersionOption),
-            FollowRedirectsForRequest);
+            FollowRedirectsForRequest,
+            timeoutSeconds);
     }
 
     /// <summary>

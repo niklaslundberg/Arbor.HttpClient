@@ -209,6 +209,40 @@ public class HttpRequestServiceTests
     }
 
     [Fact]
+    public async Task SendAsync_ShouldApplyDefaultRequestTimeout_WhenPerRequestTimeoutIsNotSet()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("never") };
+        });
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+        service.SetDefaultRequestTimeout(TimeSpan.FromMilliseconds(100));
+
+        var action = () => service.SendAsync(new HttpRequestDraft("Timeout", "GET", "http://localhost:5000/slow", null), TestContext.Current.CancellationToken);
+
+        await action.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldPreferPerRequestTimeoutOverDefaultRequestTimeout()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(300), cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("completed") };
+        });
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+        service.SetDefaultRequestTimeout(TimeSpan.FromMilliseconds(100));
+
+        var response = await service.SendAsync(new HttpRequestDraft("TimeoutOverride", "GET", "http://localhost:5000/slow", null, TimeoutSeconds: 1), TestContext.Current.CancellationToken);
+
+        response.Body.Should().Be("completed");
+    }
+
+    [Fact]
     public async Task SendAsync_ShouldPublishHttpDiagnostics_WhenEnabled()
     {
         var handler = new StubHttpMessageHandler(_ =>
@@ -500,5 +534,13 @@ public class HttpRequestServiceTests
 
         diagnostics.Should().NotBeNull();
         diagnostics!.DnsLookup.Should().StartWith("DNS lookup failed:");
+    }
+
+    private sealed class AsyncStubHttpMessageHandler(
+        Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> sendAsync)
+        : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            sendAsync(request, cancellationToken);
     }
 }

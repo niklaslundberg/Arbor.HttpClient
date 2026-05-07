@@ -18,6 +18,7 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
     private Func<bool?, global::System.Net.Http.HttpClient>? _httpClientFactoryWithRedirectOverride;
     private Action<HttpRequestDiagnostics>? _diagnosticsObserver;
     private bool _httpDiagnosticsEnabled;
+    private TimeSpan? _defaultRequestTimeout;
 
     public void SetHttpClientFactory(Func<global::System.Net.Http.HttpClient> httpClientFactory)
     {
@@ -30,6 +31,8 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
     }
 
     public void SetHttpDiagnosticsEnabled(bool enabled) => _httpDiagnosticsEnabled = enabled;
+
+    public void SetDefaultRequestTimeout(TimeSpan? timeout) => _defaultRequestTimeout = timeout;
 
     public void SetHttpDiagnosticsObserver(Action<HttpRequestDiagnostics> diagnosticsObserver)
     {
@@ -81,13 +84,27 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
 
         var totalStopwatch = Stopwatch.StartNew();
         var requestedHttpVersion = requestMessage.Version.ToString(2);
+
+        var effectiveTimeout = requestDraft.TimeoutSeconds is > 0
+            ? TimeSpan.FromSeconds(requestDraft.TimeoutSeconds.Value)
+            : _defaultRequestTimeout;
+        using var timeoutCts = effectiveTimeout is { }
+            ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)
+            : null;
+        if (timeoutCts is { } cts && effectiveTimeout is { } timeout)
+        {
+            cts.CancelAfter(timeout);
+        }
+
+        var effectiveCancellationToken = timeoutCts?.Token ?? cancellationToken;
+
         var dnsLookupStopwatch = Stopwatch.StartNew();
         var dnsLookupResult = "Skipped";
         if (_httpDiagnosticsEnabled)
         {
             try
             {
-                var addresses = await Dns.GetHostAddressesAsync(uri.DnsSafeHost, cancellationToken).ConfigureAwait(false);
+                var addresses = await Dns.GetHostAddressesAsync(uri.DnsSafeHost, effectiveCancellationToken).ConfigureAwait(false);
                 dnsLookupResult = addresses.Length > 0
                     ? string.Join(", ", addresses.Select(address => address.ToString()))
                     : "No DNS addresses found";
@@ -103,16 +120,16 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
         var tlsResult = uri.Scheme == Uri.UriSchemeHttps ? "TLS negotiation unavailable" : "Not applicable (HTTP)";
         if (_httpDiagnosticsEnabled && uri.Scheme == Uri.UriSchemeHttps)
         {
-            tlsResult = await ProbeTlsAsync(uri, cancellationToken).ConfigureAwait(false);
+            tlsResult = await ProbeTlsAsync(uri, effectiveCancellationToken).ConfigureAwait(false);
         }
         tlsStopwatch.Stop();
 
         var headersStopwatch = Stopwatch.StartNew();
-        using var response = await activeClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        using var response = await activeClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, effectiveCancellationToken).ConfigureAwait(false);
         headersStopwatch.Stop();
 
         var bodyStopwatch = Stopwatch.StartNew();
-        var responseBodyBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        var responseBodyBytes = await response.Content.ReadAsByteArrayAsync(effectiveCancellationToken).ConfigureAwait(false);
         bodyStopwatch.Stop();
         var charset = response.Content.Headers.ContentType?.CharSet;
         Encoding encoding;

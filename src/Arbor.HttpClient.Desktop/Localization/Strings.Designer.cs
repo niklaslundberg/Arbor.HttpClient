@@ -165,6 +165,12 @@ public static class Strings
     /// <summary>Follow redirects</summary>
     public static string RequestFollowRedirects => Get(nameof(RequestFollowRedirects));
 
+    /// <summary>Timeout (seconds)</summary>
+    public static string RequestTimeoutSecondsLabel => Get(nameof(RequestTimeoutSecondsLabel));
+
+    /// <summary>Default</summary>
+    public static string RequestTimeoutDefaultWatermark => Get(nameof(RequestTimeoutDefaultWatermark));
+
     // Request tabs
 
     /// <summary>Query</summary>
@@ -438,6 +444,9 @@ public static class Strings
 
     /// <summary>Default URL for new requests</summary>
     public static string OptionsDefaultUrl => Get(nameof(OptionsDefaultUrl));
+
+    /// <summary>Default request timeout (seconds)</summary>
+    public static string OptionsDefaultRequestTimeoutSeconds => Get(nameof(OptionsDefaultRequestTimeoutSeconds));
 
     /// <summary>Demo Server</summary>
     public static string OptionsDemoServerTitle => Get(nameof(OptionsDemoServerTitle));

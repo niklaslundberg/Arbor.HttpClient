@@ -1,3 +1,4 @@
+using System.IO;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Core.Environments;
 using Arbor.HttpClient.Core.Variables;
@@ -284,6 +285,39 @@ public class RequestEditorViewModelTests
         var draft = editor.BuildDraft();
 
         draft.FollowRedirects.Should().BeFalse();
+    }
+
+    [Fact]
+    public void BuildDraft_UsesPerRequestTimeoutSeconds_WhenProvided()
+    {
+        var editor = CreateEditor();
+        editor.RequestTimeoutSecondsText = "12";
+
+        var draft = editor.BuildDraft();
+
+        draft.TimeoutSeconds.Should().Be(12);
+    }
+
+    [Fact]
+    public void BuildDraft_UsesNullTimeout_WhenPerRequestTimeoutIsBlank()
+    {
+        var editor = CreateEditor();
+        editor.RequestTimeoutSecondsText = " ";
+
+        var draft = editor.BuildDraft();
+
+        draft.TimeoutSeconds.Should().BeNull();
+    }
+
+    [Fact]
+    public void BuildDraft_ThrowsInvalidDataException_WhenPerRequestTimeoutIsInvalid()
+    {
+        var editor = CreateEditor();
+        editor.RequestTimeoutSecondsText = "abc";
+
+        var action = () => editor.BuildDraft();
+
+        action.Should().Throw<InvalidDataException>().WithMessage("*positive whole number*");
     }
 
     [Fact]
