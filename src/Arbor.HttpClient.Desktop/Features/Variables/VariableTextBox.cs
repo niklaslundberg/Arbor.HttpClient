@@ -50,6 +50,8 @@ public sealed class VariableTextBox : UserControl
         set => SetValue(AppViewModelProperty, value);
     }
 
+    internal bool AcceptsTabForTests => _editor.Options.AcceptsTab;
+
     public VariableTextBox()
     {
         _editor = new AvaloniaEdit.TextEditor

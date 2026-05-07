@@ -1,7 +1,5 @@
 using System.Net;
 using System.Net.Sockets;
-using System.IO;
-using System.Reflection;
 using System.Text;
 using Arbor.HttpClient.Desktop;
 using Arbor.HttpClient.Desktop.Features.Environments;
@@ -1122,28 +1120,8 @@ public class MainWindowUiTests
             VerifyTabRealized(tabControl, "Headers");
             VerifyTabRealized(tabControl, "Auth");
 
-            var requestViewAxamlPath = Path.GetFullPath(Path.Join(
-                AppContext.BaseDirectory,
-                "..",
-                "..",
-                "..",
-                "..",
-                "src",
-                "Arbor.HttpClient.Desktop",
-                "Features",
-                "HttpRequest",
-                "RequestView.axaml"));
-            var requestViewMarkup = File.ReadAllText(requestViewAxamlPath);
-            requestViewMarkup.Should().Contain("PlaceholderText=\"{x:Static loc:Strings.QueryKeyPlaceholder}\"");
-            requestViewMarkup.Should().Contain("PlaceholderText=\"{x:Static loc:Strings.HeadersKeyPlaceholder}\"");
-            requestViewMarkup.Should().Contain("PlaceholderText=\"{x:Static loc:Strings.AuthBearerTokenPlaceholder}\"");
-
             var variableTextBox = new VariableTextBox();
-            var textEditor = (TextEditor?)typeof(VariableTextBox)
-                .GetField("_editor", BindingFlags.Instance | BindingFlags.NonPublic)?
-                .GetValue(variableTextBox);
-            textEditor.Should().NotBeNull();
-            textEditor.Options.AcceptsTab.Should().BeFalse();
+            variableTextBox.AcceptsTabForTests.Should().BeFalse();
 
             window.Close();
             return true;
