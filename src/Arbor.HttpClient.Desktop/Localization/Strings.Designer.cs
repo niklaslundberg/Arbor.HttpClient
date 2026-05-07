@@ -165,6 +165,18 @@ public static class Strings
     /// <summary>Follow redirects</summary>
     public static string RequestFollowRedirects => Get(nameof(RequestFollowRedirects));
 
+    /// <summary>Request options</summary>
+    public static string RequestAdvancedOptionsHeader => Get(nameof(RequestAdvancedOptionsHeader));
+
+    /// <summary>Timeout (seconds)</summary>
+    public static string RequestTimeoutSecondsLabel => Get(nameof(RequestTimeoutSecondsLabel));
+
+    /// <summary>Default</summary>
+    public static string RequestTimeoutDefaultWatermark => Get(nameof(RequestTimeoutDefaultWatermark));
+
+    /// <summary>Send / Connect / Cancel (Ctrl+Enter)</summary>
+    public static string RequestPrimaryActionTooltip => Get(nameof(RequestPrimaryActionTooltip));
+
     // Request tabs
 
     /// <summary>Query</summary>
@@ -438,6 +450,9 @@ public static class Strings
 
     /// <summary>Default URL for new requests</summary>
     public static string OptionsDefaultUrl => Get(nameof(OptionsDefaultUrl));
+
+    /// <summary>Default request timeout (seconds)</summary>
+    public static string OptionsDefaultRequestTimeoutSeconds => Get(nameof(OptionsDefaultRequestTimeoutSeconds));
 
     /// <summary>Demo Server</summary>
     public static string OptionsDemoServerTitle => Get(nameof(OptionsDemoServerTitle));

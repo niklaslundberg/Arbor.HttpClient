@@ -17,6 +17,7 @@ public class ApplicationOptionsStoreTests
 
         options.Http.DefaultContentType.Should().Be("application/json");
         options.Http.EnableHttpDiagnostics.Should().BeFalse();
+        options.Http.DefaultRequestTimeoutSeconds.Should().Be(100);
         options.Appearance.Theme.Should().Be("System");
         options.ScheduledJobs.AutoStartOnLaunch.Should().BeTrue();
         options.ScheduledJobs.DefaultIntervalSeconds.Should().Be(60);
@@ -69,7 +70,8 @@ public class ApplicationOptionsStoreTests
                 EnableHttpDiagnostics = true,
                 DefaultContentType = "application/json",
                 FollowRedirects = false,
-                DefaultRequestUrl = "http://localhost:5000/echo"
+                DefaultRequestUrl = "http://localhost:5000/echo",
+                DefaultRequestTimeoutSeconds = 15
             },
             Appearance = new AppearanceOptions
             {
@@ -115,6 +117,7 @@ public class ApplicationOptionsStoreTests
         imported.Http.HttpVersion.Should().Be("2.0");
         imported.Http.EnableHttpDiagnostics.Should().BeTrue();
         imported.Http.FollowRedirects.Should().BeFalse();
+        imported.Http.DefaultRequestTimeoutSeconds.Should().Be(15);
         imported.Appearance.Theme.Should().Be("Dark");
         imported.Appearance.FontSize.Should().Be(14);
         imported.ScheduledJobs.AutoStartOnLaunch.Should().BeFalse();
@@ -208,6 +211,33 @@ public class ApplicationOptionsStoreTests
         var action = () => ApplicationOptionsStore.Validate(options);
 
         action.Should().Throw<InvalidDataException>().WithMessage("*interval*");
+    }
+
+    [Fact]
+    public void Validate_ShouldRejectZeroDefaultRequestTimeout()
+    {
+        var options = new ApplicationOptions
+        {
+            Http = new HttpOptions
+            {
+                HttpVersion = "1.1",
+                TlsVersion = "SystemDefault",
+                DefaultContentType = "application/json",
+                FollowRedirects = true,
+                DefaultRequestUrl = "http://localhost:5000/echo",
+                DefaultRequestTimeoutSeconds = 0
+            },
+            Appearance = new AppearanceOptions
+            {
+                Theme = "System",
+                FontFamily = "Consolas",
+                FontSize = 13
+            }
+        };
+
+        var action = () => ApplicationOptionsStore.Validate(options);
+
+        action.Should().Throw<InvalidDataException>().WithMessage("*timeout*");
     }
 
     [Fact]

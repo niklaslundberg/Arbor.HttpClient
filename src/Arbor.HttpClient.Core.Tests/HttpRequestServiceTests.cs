@@ -209,16 +209,113 @@ public class HttpRequestServiceTests
     }
 
     [Fact]
+    public async Task SendAsync_ShouldApplyDefaultRequestTimeout_WhenPerRequestTimeoutIsNotSet()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        using var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("never") };
+        });
+        using var httpClient = new global::System.Net.Http.HttpClient(handler);
+        var service = new HttpRequestService(httpClient, repository);
+        service.SetDefaultRequestTimeout(TimeSpan.FromMilliseconds(100));
+
+        var action = () => service.SendAsync(new HttpRequestDraft("Timeout", "GET", "http://localhost:5000/slow", null), TestContext.Current.CancellationToken);
+
+        await action.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldPreferPerRequestTimeoutOverDefaultRequestTimeout()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        using var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(300), cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("completed") };
+        });
+        using var httpClient = new global::System.Net.Http.HttpClient(handler);
+        var service = new HttpRequestService(httpClient, repository);
+        service.SetDefaultRequestTimeout(TimeSpan.FromMilliseconds(100));
+
+        var response = await service.SendAsync(new HttpRequestDraft("TimeoutOverride", "GET", "http://localhost:5000/slow", null, TimeoutSeconds: 1), TestContext.Current.CancellationToken);
+
+        response.Body.Should().Be("completed");
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldDisableTimeout_WhenPerRequestTimeoutIsZero()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        using var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(300), cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("completed") };
+        });
+        using var httpClient = new global::System.Net.Http.HttpClient(handler);
+        var service = new HttpRequestService(httpClient, repository);
+        service.SetDefaultRequestTimeout(TimeSpan.FromMilliseconds(100));
+
+        var response = await service.SendAsync(new HttpRequestDraft("TimeoutDisabled", "GET", "http://localhost:5000/slow", null, TimeoutSeconds: 0), TestContext.Current.CancellationToken);
+
+        response.Body.Should().Be("completed");
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldIgnoreUnderlyingHttpClientTimeout()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        using var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(300), cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("completed") };
+        });
+        using var httpClient = new global::System.Net.Http.HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromMilliseconds(100)
+        };
+        var service = new HttpRequestService(httpClient, repository);
+
+        var response = await service.SendAsync(new HttpRequestDraft("NoClientTimeout", "GET", "http://localhost:5000/slow", null), TestContext.Current.CancellationToken);
+
+        response.Body.Should().Be("completed");
+    }
+
+    [Fact]
+    public void SetDefaultRequestTimeout_ShouldThrow_WhenTimeoutIsZero()
+    {
+        using var client = new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        var service = new HttpRequestService(client, new InMemoryRequestHistoryRepository());
+
+        var action = () => service.SetDefaultRequestTimeout(TimeSpan.Zero);
+
+        action.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void SetDefaultRequestTimeout_ShouldThrow_WhenTimeoutIsNegative()
+    {
+        using var client = new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        var service = new HttpRequestService(client, new InMemoryRequestHistoryRepository());
+
+        var action = () => service.SetDefaultRequestTimeout(TimeSpan.FromSeconds(-1));
+
+        action.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
     public async Task SendAsync_ShouldPublishHttpDiagnostics_WhenEnabled()
     {
-        var handler = new StubHttpMessageHandler(_ =>
+        using var handler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Version = global::System.Net.HttpVersion.Version20,
                 ReasonPhrase = "OK",
                 Content = new StringContent("diagnostics")
             });
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        using var httpClient = new global::System.Net.Http.HttpClient(handler);
+        var service = new HttpRequestService(httpClient, new InMemoryRequestHistoryRepository());
         HttpRequestDiagnostics? diagnostics = null;
         service.SetHttpDiagnosticsObserver(entry => diagnostics = entry);
         service.SetHttpDiagnosticsEnabled(true);
@@ -500,5 +597,13 @@ public class HttpRequestServiceTests
 
         diagnostics.Should().NotBeNull();
         diagnostics!.DnsLookup.Should().StartWith("DNS lookup failed:");
+    }
+
+    private sealed class AsyncStubHttpMessageHandler(
+        Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> sendAsync)
+        : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            sendAsync(request, cancellationToken);
     }
 }

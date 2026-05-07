@@ -15,9 +15,10 @@
     <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
 
         <Grid.KeyBindings>
-            <!-- Standard across Hoppscotch / Insomnia / Postman: Ctrl+Enter (or Cmd+Enter) sends the request -->
-            <KeyBinding Gesture="Ctrl+Return" Command="{Binding App.SendRequestCommand}" />
-            <KeyBinding Gesture="Cmd+Return" Command="{Binding App.SendRequestCommand}" />
+            <!-- Standard across Hoppscotch / Insomnia / Postman: Ctrl+Enter (or Cmd+Enter) sends the request.
+                 If a request is already in progress, the same action cancels it. -->
+            <KeyBinding Gesture="Ctrl+Return" Command="{Binding App.ExecutePrimaryActionCommand}" />
+            <KeyBinding Gesture="Cmd+Return" Command="{Binding App.ExecutePrimaryActionCommand}" />
         </Grid.KeyBindings>
 
         <!-- Row 0: Request type selector -->
@@ -104,8 +105,8 @@
                     Classes="accent"
                     HorizontalContentAlignment="Center"
                     HorizontalAlignment="Stretch"
-                    ToolTip.Tip="Send / Connect (Ctrl+Enter)"
-                    Command="{Binding App.SendRequestCommand}" />
+                    ToolTip.Tip="{x:Static loc:Strings.RequestPrimaryActionTooltip}"
+                    Command="{Binding App.ExecutePrimaryActionCommand}" />
         </Grid>
 
         <!-- Row 2: Demo server banner — shown when the current request targets the local demo server
@@ -127,11 +128,21 @@
             </Grid>
         </Border>
 
-        <!-- Row 3: HTTP-only options (follow redirects) -->
-        <CheckBox Grid.Row="3"
+        <!-- Row 3: HTTP-only options (collapsed by default to save vertical space) -->
+        <Expander Grid.Row="3"
                   IsVisible="{Binding App.RequestEditor.IsHttpRequest}"
-                  Content="{x:Static loc:Strings.RequestFollowRedirects}"
-                  IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
+                  Header="{x:Static loc:Strings.RequestAdvancedOptionsHeader}">
+            <StackPanel Margin="0,8,0,0" Spacing="8">
+                <CheckBox Content="{x:Static loc:Strings.RequestFollowRedirects}"
+                          IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{x:Static loc:Strings.RequestTimeoutSecondsLabel}" VerticalAlignment="Center" Opacity="0.7" />
+                    <TextBox Width="120"
+                             Text="{Binding App.RequestEditor.RequestTimeoutSecondsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="{x:Static loc:Strings.RequestTimeoutDefaultWatermark}" />
+                </StackPanel>
+            </StackPanel>
+        </Expander>
 
         <TextBlock Grid.Row="4" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
 

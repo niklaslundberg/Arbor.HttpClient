@@ -256,6 +256,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _defaultContentType = "application/json";
 
+    [ObservableProperty]
+    private int _defaultRequestTimeoutSeconds = 100;
+
     public IReadOnlyList<string> FontFamilyOptions { get; } =
     [
         "Cascadia Code,Consolas,Menlo,monospace",
@@ -397,6 +400,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     partial void OnDefaultRequestUrlChanged(string value) =>
         QueueOptionsAutoSave();
 
+    partial void OnDefaultRequestTimeoutSecondsChanged(int value)
+    {
+        if (value < 1)
+        {
+            DefaultRequestTimeoutSeconds = 1;
+            return;
+        }
+
+        _httpRequestService.SetDefaultRequestTimeout(TimeSpan.FromSeconds(value));
+        QueueOptionsAutoSave();
+    }
+
     partial void OnAutoStartScheduledJobsOnLaunchChanged(bool value) =>
         QueueOptionsAutoSave();
 
@@ -491,6 +506,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         SavedLayoutNames = [];
 
         SendRequestCommand = new AsyncRelayCommand(SendRequestAsync);
+        SendRequestCommand.PropertyChanged += OnSendRequestCommandPropertyChanged;
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
 
         _dockFactory = new DockFactory(this, _environmentsViewModel, _optionsViewModel, _cookieJarViewModel);
@@ -504,6 +520,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ApplyLayoutOptions(options.Layouts);
         _startupLayoutSnapshot = options.Layouts?.CurrentLayout;
         _suppressLayoutRestore = false;
+        _httpRequestService.SetDefaultRequestTimeout(TimeSpan.FromSeconds(DefaultRequestTimeoutSeconds));
         _requestEditor.RefreshRequestPreview();
     }
 
@@ -536,12 +553,23 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// Label for the primary action button in the request composer.
     /// Shows "Send" for HTTP/GraphQL, "Connect"/"Disconnect" for streaming protocols.
     /// </summary>
-    public string PrimaryActionLabel => _requestEditor.SelectedRequestType switch
+    public string PrimaryActionLabel
     {
-        RequestType.WebSocket => _webSocketViewModel.IsConnected ? "Disconnect" : "Connect",
-        RequestType.Sse => _sseViewModel.IsConnected ? "Disconnect" : "Connect",
-        _ => "Send"
-    };
+        get
+        {
+            if (SendRequestCommand.IsRunning && SendRequestCommand.CanBeCanceled)
+            {
+                return "Cancel";
+            }
+
+            return _requestEditor.SelectedRequestType switch
+            {
+                RequestType.WebSocket => _webSocketViewModel.IsConnected ? "Disconnect" : "Connect",
+                RequestType.Sse => _sseViewModel.IsConnected ? "Disconnect" : "Connect",
+                _ => "Send"
+            };
+        }
+    }
 
     public RequestEnvironment? ActiveEnvironment
     {
@@ -583,6 +611,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public IAsyncRelayCommand SendRequestCommand { get; }
     public IAsyncRelayCommand LoadHistoryCommand { get; }
 
+    [RelayCommand]
+    private void ExecutePrimaryAction()
+    {
+        if (SendRequestCommand.IsRunning && SendRequestCommand.CanBeCanceled)
+        {
+            SendRequestCommand.Cancel();
+            return;
+        }
+
+        if (SendRequestCommand.CanExecute(null))
+        {
+            SendRequestCommand.Execute(null);
+        }
+    }
+
     public IRelayCommand AddEnvironmentVariableCommand => _environmentsViewModel.AddEnvironmentVariableCommand;
     public IRelayCommand<EnvironmentVariableViewModel?> RemoveEnvironmentVariableCommand => _environmentsViewModel.RemoveEnvironmentVariableCommand;
     public IAsyncRelayCommand SaveEnvironmentCommand => _environmentsViewModel.SaveEnvironmentCommand;
@@ -595,6 +638,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         if (string.Equals(e.PropertyName, nameof(WebSocketViewModel.IsConnected), StringComparison.Ordinal)
             || string.Equals(e.PropertyName, nameof(SseViewModel.IsConnected), StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(PrimaryActionLabel));
+        }
+    }
+
+    private void OnSendRequestCommandPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (string.Equals(e.PropertyName, nameof(IAsyncRelayCommand.IsRunning), StringComparison.Ordinal)
+            || string.Equals(e.PropertyName, nameof(IAsyncRelayCommand.CanBeCanceled), StringComparison.Ordinal))
         {
             OnPropertyChanged(nameof(PrimaryActionLabel));
         }
@@ -647,6 +699,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 DefaultContentType = DefaultContentType,
                 FollowRedirects = FollowHttpRedirects,
                 DefaultRequestUrl = DefaultRequestUrl,
+                DefaultRequestTimeoutSeconds = DefaultRequestTimeoutSeconds,
                 DemoServerPort = DemoServerPort
             },
             Appearance = new AppearanceOptions
@@ -689,6 +742,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             FollowHttpRedirects = options.Http.FollowRedirects;
             DefaultRequestUrl = options.Http.DefaultRequestUrl;
             DefaultContentType = options.Http.DefaultContentType;
+            DefaultRequestTimeoutSeconds = options.Http.DefaultRequestTimeoutSeconds;
             _requestEditor.DefaultContentType = options.Http.DefaultContentType;
             UiFontFamily = options.Appearance.FontFamily;
             UiFontSizeText = options.Appearance.FontSize.ToString("0.##", CultureInfo.InvariantCulture);
@@ -1732,6 +1786,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _webSocketViewModel.PropertyChanged -= OnStreamingViewModelPropertyChanged;
         _sseViewModel.PropertyChanged -= OnStreamingViewModelPropertyChanged;
         _requestEditor.PropertyChanged -= OnRequestEditorPropertyChanged;
+        SendRequestCommand.PropertyChanged -= OnSendRequestCommandPropertyChanged;
         _environmentsViewModel.Dispose();
         _optionsAutoSaveCts?.Cancel();
         _optionsAutoSaveCts?.Dispose();
@@ -2879,14 +2934,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private async Task SendRequestAsync()
+    private async Task SendRequestAsync(CancellationToken cancellationToken)
     {
         ErrorMessage = string.Empty;
 
         switch (_requestEditor.SelectedRequestType)
         {
             case RequestType.GraphQL:
-                await SendGraphQlRequestAsync();
+                await SendGraphQlRequestAsync(cancellationToken);
                 break;
 
             case RequestType.WebSocket:
@@ -2902,12 +2957,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 break;
 
             default:
-                await SendHttpRequestAsync();
+                await SendHttpRequestAsync(cancellationToken);
                 break;
         }
     }
 
-    private async Task SendHttpRequestAsync()
+    private async Task SendHttpRequestAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -2955,7 +3010,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 Headers = mutatedHeaders.Count > 0 ? mutatedHeaders : draft.Headers
             };
 
-            var response = await _httpRequestService.SendAsync(mutatedDraft);
+            var response = await _httpRequestService.SendAsync(mutatedDraft, cancellationToken);
 
             ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
             ResponseStatusCode = response.StatusCode;
@@ -2992,6 +3047,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             _cookieJarViewModel.RefreshCookies();
             await LoadHistoryAsync();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _httpRequestsLogger.Information("Manual request cancelled by user");
+            ErrorMessage = "Request cancelled.";
+        }
+        catch (OperationCanceledException)
+        {
+            _httpRequestsLogger.Warning("Manual request timed out");
+            ErrorMessage = "Request timed out.";
         }
         catch (Exception exception)
         {

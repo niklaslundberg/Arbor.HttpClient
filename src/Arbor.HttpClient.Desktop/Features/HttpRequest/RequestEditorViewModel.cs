@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -62,6 +63,9 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     [ObservableProperty]
     private string _requestBody = string.Empty;
+
+    [ObservableProperty]
+    private string _requestTimeoutSecondsText = string.Empty;
 
     [ObservableProperty]
     private bool _followRedirectsForRequest = true;
@@ -344,6 +348,30 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     partial void OnIsRequestHeadersPreviewVisibleChanged(bool value) =>
         OnPropertyChanged(nameof(RequestHeadersPreviewLabel));
 
+    partial void OnRequestTimeoutSecondsTextChanged(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return;
+        }
+
+        var digitsOnly = new string(value.Where(char.IsDigit).ToArray());
+        if (digitsOnly.Length == 0)
+        {
+            RequestTimeoutSecondsText = string.Empty;
+            return;
+        }
+
+        var normalized = int.TryParse(digitsOnly, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed)
+            ? Math.Min(parsed, 100).ToString(CultureInfo.InvariantCulture)
+            : "100";
+
+        if (!string.Equals(value, normalized, StringComparison.Ordinal))
+        {
+            RequestTimeoutSecondsText = normalized;
+        }
+    }
+
     // ── Public methods ────────────────────────────────────────────────────────
 
     /// <summary>
@@ -382,6 +410,18 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
         var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
         var headers = BuildResolvedHeaders(variables, resolvedBody);
+        int? timeoutSeconds = null;
+        if (!string.IsNullOrWhiteSpace(RequestTimeoutSecondsText))
+        {
+            if (!int.TryParse(RequestTimeoutSecondsText, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedTimeoutSeconds)
+                || parsedTimeoutSeconds < 0
+                || parsedTimeoutSeconds > 100)
+            {
+                throw new InvalidDataException("Request timeout must be a whole number between 0 and 100 seconds.");
+            }
+
+            timeoutSeconds = parsedTimeoutSeconds;
+        }
 
         return new HttpRequestDraft(
             RequestName,
@@ -390,7 +430,8 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             resolvedBody,
             headers,
             ParseHttpVersion(SelectedHttpVersionOption),
-            FollowRedirectsForRequest);
+            FollowRedirectsForRequest,
+            timeoutSeconds);
     }
 
     /// <summary>

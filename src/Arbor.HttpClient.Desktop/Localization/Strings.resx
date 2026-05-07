@@ -187,6 +187,18 @@
   <data name="RequestFollowRedirects" xml:space="preserve">
     <value>Follow redirects</value>
   </data>
+  <data name="RequestAdvancedOptionsHeader" xml:space="preserve">
+    <value>Request options</value>
+  </data>
+  <data name="RequestTimeoutSecondsLabel" xml:space="preserve">
+    <value>Timeout (seconds)</value>
+  </data>
+  <data name="RequestTimeoutDefaultWatermark" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="RequestPrimaryActionTooltip" xml:space="preserve">
+    <value>Send / Connect / Cancel (Ctrl+Enter)</value>
+  </data>
 
   <!-- Request tabs -->
   <data name="TabQuery" xml:space="preserve">
@@ -461,6 +473,9 @@
   </data>
   <data name="OptionsDefaultUrl" xml:space="preserve">
     <value>Default URL for new requests</value>
+  </data>
+  <data name="OptionsDefaultRequestTimeoutSeconds" xml:space="preserve">
+    <value>Default request timeout (seconds)</value>
   </data>
   <data name="OptionsDemoServerTitle" xml:space="preserve">
     <value>Demo Server</value>

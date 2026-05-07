@@ -773,6 +773,102 @@ public class MainWindowUiTests
     }
 
     [Fact]
+    public async Task ExecutePrimaryAction_ShouldCancelInFlightManualRequest()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            using var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("completed")
+                };
+            });
+            using var httpClient = new global::System.Net.Http.HttpClient(handler);
+            var httpRequestService = new HttpRequestService(httpClient, repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            viewModel.RequestEditor.RequestName = "Cancel test";
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/slow";
+            viewModel.RequestEditor.SelectedMethod = "GET";
+            viewModel.PrimaryActionLabel.Should().Be("Send");
+
+            viewModel.ExecutePrimaryActionCommand.Execute(null);
+            await Task.Delay(30);
+            viewModel.SendRequestCommand.IsRunning.Should().BeTrue();
+            viewModel.PrimaryActionLabel.Should().Be("Cancel");
+
+            viewModel.ExecutePrimaryActionCommand.Execute(null);
+            await viewModel.SendRequestCommand.ExecutionTask!;
+
+            viewModel.PrimaryActionLabel.Should().Be("Send");
+            viewModel.ErrorMessage.Should().Be("Request cancelled.");
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ExecutePrimaryAction_ShouldShowTimeoutMessage_WhenManualRequestTimesOut()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            using var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("completed")
+                };
+            });
+            using var httpClient = new global::System.Net.Http.HttpClient(handler);
+            var httpRequestService = new HttpRequestService(httpClient, repository);
+            httpRequestService.SetDefaultRequestTimeout(TimeSpan.FromMilliseconds(50));
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            viewModel.RequestEditor.RequestName = "Timeout test";
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/slow";
+            viewModel.RequestEditor.SelectedMethod = "GET";
+
+            viewModel.ExecutePrimaryActionCommand.Execute(null);
+            await viewModel.SendRequestCommand.ExecutionTask!;
+
+            viewModel.ErrorMessage.Should().Be("Request timed out.");
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task RequestUrlAndQueryParameters_ShouldStayInSync_AndPreserveFragment()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
@@ -2061,5 +2157,13 @@ public class MainWindowUiTests
         }
 
         return null;
+    }
+
+    private sealed class AsyncStubHttpMessageHandler(
+        Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> sendAsync)
+        : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            sendAsync(request, cancellationToken);
     }
 }
