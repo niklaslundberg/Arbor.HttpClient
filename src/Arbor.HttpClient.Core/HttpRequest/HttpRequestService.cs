@@ -85,9 +85,12 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
         var totalStopwatch = Stopwatch.StartNew();
         var requestedHttpVersion = requestMessage.Version.ToString(2);
 
-        var effectiveTimeout = requestDraft.TimeoutSeconds is > 0
-            ? TimeSpan.FromSeconds(requestDraft.TimeoutSeconds.Value)
-            : _defaultRequestTimeout;
+        var effectiveTimeout = requestDraft.TimeoutSeconds switch
+        {
+            > 0 => TimeSpan.FromSeconds(requestDraft.TimeoutSeconds.Value),
+            0 => null,
+            _ => _defaultRequestTimeout
+        };
         using var timeoutCts = effectiveTimeout is { }
             ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)
             : null;

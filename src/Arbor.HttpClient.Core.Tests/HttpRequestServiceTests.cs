@@ -243,6 +243,23 @@ public class HttpRequestServiceTests
     }
 
     [Fact]
+    public async Task SendAsync_ShouldDisableTimeout_WhenPerRequestTimeoutIsZero()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(300), cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("completed") };
+        });
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+        service.SetDefaultRequestTimeout(TimeSpan.FromMilliseconds(100));
+
+        var response = await service.SendAsync(new HttpRequestDraft("TimeoutDisabled", "GET", "http://localhost:5000/slow", null, TimeoutSeconds: 0), TestContext.Current.CancellationToken);
+
+        response.Body.Should().Be("completed");
+    }
+
+    [Fact]
     public async Task SendAsync_ShouldPublishHttpDiagnostics_WhenEnabled()
     {
         var handler = new StubHttpMessageHandler(_ =>

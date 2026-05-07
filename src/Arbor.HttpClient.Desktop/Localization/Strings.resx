@@ -187,6 +187,9 @@
   <data name="RequestFollowRedirects" xml:space="preserve">
     <value>Follow redirects</value>
   </data>
+  <data name="RequestAdvancedOptionsHeader" xml:space="preserve">
+    <value>Request options</value>
+  </data>
   <data name="RequestTimeoutSecondsLabel" xml:space="preserve">
     <value>Timeout (seconds)</value>
   </data>

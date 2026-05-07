@@ -1,4 +1,3 @@
-using System.IO;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Core.Environments;
 using Arbor.HttpClient.Core.Variables;
@@ -299,6 +298,17 @@ public class RequestEditorViewModelTests
     }
 
     [Fact]
+    public void BuildDraft_UsesNoTimeout_WhenPerRequestTimeoutIsZero()
+    {
+        var editor = CreateEditor();
+        editor.RequestTimeoutSecondsText = "0";
+
+        var draft = editor.BuildDraft();
+
+        draft.TimeoutSeconds.Should().Be(0);
+    }
+
+    [Fact]
     public void BuildDraft_UsesNullTimeout_WhenPerRequestTimeoutIsBlank()
     {
         var editor = CreateEditor();
@@ -310,14 +320,30 @@ public class RequestEditorViewModelTests
     }
 
     [Fact]
-    public void BuildDraft_ThrowsInvalidDataException_WhenPerRequestTimeoutIsInvalid()
+    public void BuildDraft_UsesNullTimeout_WhenPerRequestTimeoutContainsNoDigits()
     {
         var editor = CreateEditor();
         editor.RequestTimeoutSecondsText = "abc";
+        var draft = editor.BuildDraft();
+        draft.TimeoutSeconds.Should().BeNull();
+    }
 
-        var action = () => editor.BuildDraft();
+    [Fact]
+    public void BuildDraft_ClampsPerRequestTimeoutToMaximum()
+    {
+        var editor = CreateEditor();
+        editor.RequestTimeoutSecondsText = "101";
+        var draft = editor.BuildDraft();
+        draft.TimeoutSeconds.Should().Be(100);
+    }
 
-        action.Should().Throw<InvalidDataException>().WithMessage("*positive whole number*");
+    [Fact]
+    public void RequestTimeoutSecondsText_ShouldKeepOnlyDigits_AndClampToMaximum()
+    {
+        var editor = CreateEditor();
+        editor.RequestTimeoutSecondsText = "a1b2c3";
+
+        editor.RequestTimeoutSecondsText.Should().Be("100");
     }
 
     [Fact]

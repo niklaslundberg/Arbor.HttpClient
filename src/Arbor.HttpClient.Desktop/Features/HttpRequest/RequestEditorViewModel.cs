@@ -348,6 +348,30 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     partial void OnIsRequestHeadersPreviewVisibleChanged(bool value) =>
         OnPropertyChanged(nameof(RequestHeadersPreviewLabel));
 
+    partial void OnRequestTimeoutSecondsTextChanged(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return;
+        }
+
+        var digitsOnly = new string(value.Where(char.IsDigit).ToArray());
+        if (digitsOnly.Length == 0)
+        {
+            RequestTimeoutSecondsText = string.Empty;
+            return;
+        }
+
+        var normalized = int.TryParse(digitsOnly, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed)
+            ? Math.Min(parsed, 100).ToString(CultureInfo.InvariantCulture)
+            : "100";
+
+        if (!string.Equals(value, normalized, StringComparison.Ordinal))
+        {
+            RequestTimeoutSecondsText = normalized;
+        }
+    }
+
     // ── Public methods ────────────────────────────────────────────────────────
 
     /// <summary>
@@ -389,9 +413,11 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         int? timeoutSeconds = null;
         if (!string.IsNullOrWhiteSpace(RequestTimeoutSecondsText))
         {
-            if (!int.TryParse(RequestTimeoutSecondsText, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedTimeoutSeconds) || parsedTimeoutSeconds < 1)
+            if (!int.TryParse(RequestTimeoutSecondsText, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedTimeoutSeconds)
+                || parsedTimeoutSeconds < 0
+                || parsedTimeoutSeconds > 100)
             {
-                throw new InvalidDataException("Request timeout must be a positive whole number of seconds.");
+                throw new InvalidDataException("Request timeout must be a whole number between 0 and 100 seconds.");
             }
 
             timeoutSeconds = parsedTimeoutSeconds;

@@ -165,6 +165,9 @@ public static class Strings
     /// <summary>Follow redirects</summary>
     public static string RequestFollowRedirects => Get(nameof(RequestFollowRedirects));
 
+    /// <summary>Request options</summary>
+    public static string RequestAdvancedOptionsHeader => Get(nameof(RequestAdvancedOptionsHeader));
+
     /// <summary>Timeout (seconds)</summary>
     public static string RequestTimeoutSecondsLabel => Get(nameof(RequestTimeoutSecondsLabel));
 

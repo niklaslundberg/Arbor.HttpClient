@@ -12,7 +12,7 @@
         <conv:MethodToColorConverter x:Key="MethodToColorConverter" />
     </UserControl.Resources>
 
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
 
         <Grid.KeyBindings>
             <!-- Standard across Hoppscotch / Insomnia / Postman: Ctrl+Enter (or Cmd+Enter) sends the request.
@@ -128,26 +128,26 @@
             </Grid>
         </Border>
 
-        <!-- Row 3: HTTP-only options (follow redirects) -->
-        <CheckBox Grid.Row="3"
+        <!-- Row 3: HTTP-only options (collapsed by default to save vertical space) -->
+        <Expander Grid.Row="3"
                   IsVisible="{Binding App.RequestEditor.IsHttpRequest}"
-                  Content="{x:Static loc:Strings.RequestFollowRedirects}"
-                  IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
+                  Header="{x:Static loc:Strings.RequestAdvancedOptionsHeader}">
+            <StackPanel Margin="0,8,0,0" Spacing="8">
+                <CheckBox Content="{x:Static loc:Strings.RequestFollowRedirects}"
+                          IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{x:Static loc:Strings.RequestTimeoutSecondsLabel}" VerticalAlignment="Center" Opacity="0.7" />
+                    <TextBox Width="120"
+                             Text="{Binding App.RequestEditor.RequestTimeoutSecondsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="{x:Static loc:Strings.RequestTimeoutDefaultWatermark}" />
+                </StackPanel>
+            </StackPanel>
+        </Expander>
 
-        <StackPanel Grid.Row="4"
-                    Orientation="Horizontal"
-                    Spacing="8"
-                    IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
-            <TextBlock Text="{x:Static loc:Strings.RequestTimeoutSecondsLabel}" VerticalAlignment="Center" Opacity="0.7" />
-            <TextBox Width="120"
-                     Text="{Binding App.RequestEditor.RequestTimeoutSecondsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                     PlaceholderText="{x:Static loc:Strings.RequestTimeoutDefaultWatermark}" />
-        </StackPanel>
+        <TextBlock Grid.Row="4" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
 
-        <TextBlock Grid.Row="5" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
-
-        <!-- Row 6: Type-specific editor tabs -->
-        <TabControl Grid.Row="6">
+        <!-- Row 5: Type-specific editor tabs -->
+        <TabControl Grid.Row="5">
 
             <!-- ═══════════════════════════════ HTTP-only tabs ═══════════════════════════════ -->
             <TabItem Header="{x:Static loc:Strings.TabQuery}" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
