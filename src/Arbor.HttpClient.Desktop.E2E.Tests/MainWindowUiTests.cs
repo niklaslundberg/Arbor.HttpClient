@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
+using System.IO;
+using System.Reflection;
 using System.Text;
 using Arbor.HttpClient.Desktop;
 using Arbor.HttpClient.Desktop.Features.Environments;
@@ -1086,10 +1088,11 @@ public class MainWindowUiTests
         await session.Dispatch(async () =>
         {
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            using var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            using var httpClient = new global::System.Net.Http.HttpClient(handler);
+            var httpRequestService = new HttpRequestService(httpClient, repository);
             var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            using var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
             var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
             var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
@@ -1101,8 +1104,7 @@ public class MainWindowUiTests
                 new InMemoryScheduledJobRepository(),
                 scheduledJobService,
                 logWindowViewModel);
-            mainViewModel.RequestEditor.AddQueryParameterCommand.Execute(null);
-            mainViewModel.RequestEditor.AddHeaderCommand.Execute(null);
+            mainViewModel.RequestEditor.SelectedRequestType = RequestType.Http;
             mainViewModel.RequestEditor.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
 
             var requestView = new RequestView
@@ -1113,18 +1115,49 @@ public class MainWindowUiTests
             window.Show();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
 
-            var variableTextBoxes = requestView.GetVisualDescendants().OfType<VariableTextBox>().ToList();
-            variableTextBoxes.Should().NotBeEmpty();
+            var tabControl = window.GetVisualDescendants()
+                .OfType<TabControl>()
+                .Single(control => control.Items.OfType<TabItem>().Any(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal)));
+            VerifyTabRealized(tabControl, "Query");
+            VerifyTabRealized(tabControl, "Headers");
+            VerifyTabRealized(tabControl, "Auth");
 
-            foreach (var variableTextBox in variableTextBoxes)
-            {
-                var textEditor = variableTextBox.GetVisualDescendants().OfType<TextEditor>().Single();
-                textEditor.Options.AcceptsTab.Should().BeFalse();
-            }
+            var requestViewAxamlPath = Path.GetFullPath(Path.Join(
+                AppContext.BaseDirectory,
+                "..",
+                "..",
+                "..",
+                "..",
+                "src",
+                "Arbor.HttpClient.Desktop",
+                "Features",
+                "HttpRequest",
+                "RequestView.axaml"));
+            var requestViewMarkup = File.ReadAllText(requestViewAxamlPath);
+            requestViewMarkup.Should().Contain("PlaceholderText=\"{x:Static loc:Strings.QueryKeyPlaceholder}\"");
+            requestViewMarkup.Should().Contain("PlaceholderText=\"{x:Static loc:Strings.HeadersKeyPlaceholder}\"");
+            requestViewMarkup.Should().Contain("PlaceholderText=\"{x:Static loc:Strings.AuthBearerTokenPlaceholder}\"");
+
+            var variableTextBox = new VariableTextBox();
+            var textEditor = (TextEditor?)typeof(VariableTextBox)
+                .GetField("_editor", BindingFlags.Instance | BindingFlags.NonPublic)?
+                .GetValue(variableTextBox);
+            textEditor.Should().NotBeNull();
+            textEditor.Options.AcceptsTab.Should().BeFalse();
 
             window.Close();
             return true;
         }, CancellationToken.None);
+    }
+
+    private static void VerifyTabRealized(TabControl tabControl, string tabHeader)
+    {
+        var tabItems = tabControl.Items.OfType<TabItem>().ToList();
+        var tabItem = tabItems.Single(item => string.Equals(item.Header?.ToString(), tabHeader, StringComparison.Ordinal));
+        tabItem.IsVisible.Should().BeTrue();
+        tabControl.SelectedIndex = tabItems.IndexOf(tabItem);
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+        tabControl.SelectedItem.Should().Be(tabItem);
     }
 
     [Fact]
