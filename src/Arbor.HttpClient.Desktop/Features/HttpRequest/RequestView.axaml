@@ -15,9 +15,10 @@
     <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
 
         <Grid.KeyBindings>
-            <!-- Standard across Hoppscotch / Insomnia / Postman: Ctrl+Enter (or Cmd+Enter) sends the request -->
-            <KeyBinding Gesture="Ctrl+Return" Command="{Binding App.SendRequestCommand}" />
-            <KeyBinding Gesture="Cmd+Return" Command="{Binding App.SendRequestCommand}" />
+            <!-- Standard across Hoppscotch / Insomnia / Postman: Ctrl+Enter (or Cmd+Enter) sends the request.
+                 If a request is already in progress, the same action cancels it. -->
+            <KeyBinding Gesture="Ctrl+Return" Command="{Binding App.ExecutePrimaryActionCommand}" />
+            <KeyBinding Gesture="Cmd+Return" Command="{Binding App.ExecutePrimaryActionCommand}" />
         </Grid.KeyBindings>
 
         <!-- Row 0: Request type selector -->
@@ -105,7 +106,7 @@
                     HorizontalContentAlignment="Center"
                     HorizontalAlignment="Stretch"
                     ToolTip.Tip="Send / Connect (Ctrl+Enter)"
-                    Command="{Binding App.SendRequestCommand}" />
+                    Command="{Binding App.ExecutePrimaryActionCommand}" />
         </Grid>
 
         <!-- Row 2: Demo server banner — shown when the current request targets the local demo server
