@@ -186,9 +186,9 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Called by <see cref="Services.ScheduledJobService"/> on the background timer thread
-    /// after each successful HTTP response when <see cref="UseWebView"/> is enabled.
-    /// Marshals the update to the UI thread via <see cref="Dispatcher.UIThread"/>.
+    /// Called by <see cref="Services.ScheduledJobService"/> after each successful HTTP response
+    /// when <see cref="UseWebView"/> is enabled.
+    /// Applies updates immediately on the UI thread, or dispatches asynchronously when invoked from a worker thread.
     /// </summary>
     internal async Task HandleResponseAsync(HttpResponseDetails response, CancellationToken cancellationToken)
     {

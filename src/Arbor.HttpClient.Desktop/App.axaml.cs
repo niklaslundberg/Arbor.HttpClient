@@ -223,7 +223,7 @@ public partial class App : Application
                 viewModel.ReapplyStartupLayout();
                 await InitializeAsync(historyRepository, collectionRepository, environmentRepository, scheduledJobRepository, viewModel, exceptionCollector);
             };
-            window.Closed += (_, _) => _ = DisposeResourcesAsync();
+            window.Closed += async (_, _) => await DisposeResourcesAsync();
 
             async Task DisposeResourcesAsync()
             {
