@@ -413,6 +413,71 @@ public class DemoServerTests
         }, CancellationToken.None);
     }
 
+    // ── HTTPS support ────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task DemoServer_IsRunning_AfterStartAsync_HttpsOnly()
+    {
+        await using var server = new DemoServer();
+
+        await server.StartAsync(enableHttp: false, enableHttps: true);
+
+        server.IsRunning.Should().BeTrue();
+        server.IsHttpEnabled.Should().BeFalse();
+        server.IsHttpsEnabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DemoServer_IsRunning_AfterStartAsync_BothProtocols()
+    {
+        await using var server = new DemoServer();
+
+        await server.StartAsync(enableHttp: true, enableHttps: true);
+
+        server.IsRunning.Should().BeTrue();
+        server.IsHttpEnabled.Should().BeTrue();
+        server.IsHttpsEnabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DemoServer_StartAsync_IsNoOp_WhenBothDisabled()
+    {
+        await using var server = new DemoServer();
+
+        await server.StartAsync(enableHttp: false, enableHttps: false);
+
+        server.IsRunning.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DemoServer_IsNotRunning_AfterStopAsync_WhenStartedHttps()
+    {
+        await using var server = new DemoServer();
+        await server.StartAsync(enableHttp: false, enableHttps: true);
+
+        await server.StopAsync();
+
+        server.IsRunning.Should().BeFalse();
+        server.IsHttpEnabled.Should().BeFalse();
+        server.IsHttpsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DemoServer_HttpsEchoEndpoint_RespondsWith200_WhenCertValidationIgnored()
+    {
+        await using var server = new DemoServer();
+        await server.StartAsync(enableHttp: false, enableHttps: true);
+
+        var handler = new System.Net.Http.HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+        };
+        using var client = new System.Net.Http.HttpClient(handler);
+        var response = await client.GetAsync($"https://localhost:{server.HttpsPort}/echo");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private static MainWindowViewModel CreateViewModel(

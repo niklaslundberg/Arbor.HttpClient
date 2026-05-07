@@ -661,3 +661,23 @@ Each idea includes a description of what it means in practice, notes on how it c
 - `LoadCollectionRequestCore` in `MainWindowViewModel` populates body, content type, and request headers from the stored `CollectionRequest` fields
 - SQLite schema: `tag`, `body`, `content_type`, `headers` columns added via non-destructive `ALTER TABLE` migrations; headers serialised as JSON
 - 13 new unit tests added to `OpenApiImportServiceTests`
+
+---
+
+### Local Demo Server HTTP/HTTPS ✅ Implemented
+> Implemented in this PR — `src/Arbor.HttpClient.Desktop/Demo/DemoServer.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/HttpOptions.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/OptionsView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Core/HttpRequest/HttpRequestDraft.cs`, `src/Arbor.HttpClient.Core/HttpRequest/HttpRequestService.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`
+
+**What it means:** The embedded demo server now supports both HTTP and HTTPS on separate configurable ports. Each protocol can be independently enabled via a checkbox in Options › HTTP › Demo Server. The HTTPS endpoint uses a runtime-generated self-signed certificate. A per-request "⚠ Ignore certificate validation" option is available in the request panel for connecting to the demo server's HTTPS endpoint (or any other server with a self-signed/untrusted certificate).
+
+**What shipped:**
+- `DemoServer`: `DefaultHttpsPort = 5998` constant; `HttpsPort`, `IsHttpEnabled`, `IsHttpsEnabled` properties; `StartAsync` now accepts `httpPort`, `httpsPort`, `enableHttp`, `enableHttps` parameters; `CreateSelfSignedCertificate()` generates an in-memory RSA-2048 cert with SAN for `localhost`
+- `HttpOptions`: `DemoServerHttpsPort`, `DemoServerHttpEnabled`, `DemoServerHttpsEnabled` fields with sensible defaults (HTTP enabled, HTTPS disabled)
+- `MainWindowViewModel`: `DemoServerHttpsPort`, `IsDemoServerHttpEnabled`, `IsDemoServerHttpsEnabled` observable properties; `StartDemoServerAsync` passes all four params; `IsDemoServerUrl` checks both HTTP and HTTPS ports
+- `OptionsView.axaml`: Demo Server section now shows two rows — HTTP (checkbox + port field) and HTTPS (checkbox + port field) — replacing the single port field
+- `HttpRequestDraft`: `bool? IgnoreCertificateValidation` optional parameter added
+- `HttpRequestService`: new `SetHttpClientFactory(Func<bool?, bool?, HttpClient>)` overload that takes both `followRedirects` and `ignoreCertificateValidation`; used in `SendAsync` with priority over the single-parameter overload
+- `App.axaml.cs`: four HttpClient variants created (normal, inverse-redirect, ignore-cert, inverse-redirect+ignore-cert); factory wired up with the new two-param overload
+- `RequestEditorViewModel`: `IgnoreCertificateValidationForRequest` observable property; included in `BuildDraft()` (sets `IgnoreCertificateValidation = true` when checked, `null` otherwise)
+- `DraftState` / `DraftPersistenceService`: `IgnoreCertificateValidation` persisted and restored
+- `RequestView.axaml`: "⚠ Ignore certificate validation" checkbox added below "Follow redirects"; warning text appears when checked
+- 7 new tests: 5 `DemoServerTests` (HTTPS start, both protocols, disabled, stop, echo over HTTPS), 2 `RequestEditorViewModelTests` (BuildDraft with ignore-cert on/off)

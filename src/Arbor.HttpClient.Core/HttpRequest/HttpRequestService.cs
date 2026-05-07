@@ -16,6 +16,7 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private Func<global::System.Net.Http.HttpClient>? _httpClientFactory;
     private Func<bool?, global::System.Net.Http.HttpClient>? _httpClientFactoryWithRedirectOverride;
+    private Func<bool?, bool?, global::System.Net.Http.HttpClient>? _httpClientFactoryWithCertOverride;
     private Action<HttpRequestDiagnostics>? _diagnosticsObserver;
     private bool _httpDiagnosticsEnabled;
 
@@ -27,6 +28,16 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
     public void SetHttpClientFactory(Func<bool?, global::System.Net.Http.HttpClient> httpClientFactoryWithRedirectOverride)
     {
         _httpClientFactoryWithRedirectOverride = httpClientFactoryWithRedirectOverride ?? throw new ArgumentNullException(nameof(httpClientFactoryWithRedirectOverride));
+    }
+
+    /// <summary>
+    /// Sets a factory that selects an <see cref="global::System.Net.Http.HttpClient"/> based on the per-request
+    /// <see cref="HttpRequestDraft.FollowRedirects"/> and <see cref="HttpRequestDraft.IgnoreCertificateValidation"/> overrides.
+    /// When set, this factory takes priority over the single-parameter overload.
+    /// </summary>
+    public void SetHttpClientFactory(Func<bool?, bool?, global::System.Net.Http.HttpClient> httpClientFactoryWithCertOverride)
+    {
+        _httpClientFactoryWithCertOverride = httpClientFactoryWithCertOverride ?? throw new ArgumentNullException(nameof(httpClientFactoryWithCertOverride));
     }
 
     public void SetHttpDiagnosticsEnabled(bool enabled) => _httpDiagnosticsEnabled = enabled;
@@ -75,7 +86,8 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
             }
         }
 
-        var activeClient = _httpClientFactoryWithRedirectOverride?.Invoke(requestDraft.FollowRedirects)
+        var activeClient = _httpClientFactoryWithCertOverride?.Invoke(requestDraft.FollowRedirects, requestDraft.IgnoreCertificateValidation)
+            ?? _httpClientFactoryWithRedirectOverride?.Invoke(requestDraft.FollowRedirects)
             ?? _httpClientFactory?.Invoke()
             ?? _httpClient;
 

@@ -287,6 +287,28 @@ public class RequestEditorViewModelTests
     }
 
     [Fact]
+    public void BuildDraft_SetsIgnoreCertificateValidation_WhenEnabled()
+    {
+        var editor = CreateEditor();
+        editor.IgnoreCertificateValidationForRequest = true;
+
+        var draft = editor.BuildDraft();
+
+        draft.IgnoreCertificateValidation.Should().BeTrue();
+    }
+
+    [Fact]
+    public void BuildDraft_LeavesIgnoreCertificateValidationNull_WhenDisabled()
+    {
+        var editor = CreateEditor();
+        editor.IgnoreCertificateValidationForRequest = false;
+
+        var draft = editor.BuildDraft();
+
+        draft.IgnoreCertificateValidation.Should().BeNull();
+    }
+
+    [Fact]
     public void BuildDraft_UsesSelectedHttpVersion()
     {
         var editor = CreateEditor();
