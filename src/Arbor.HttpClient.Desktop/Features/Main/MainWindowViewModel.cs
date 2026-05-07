@@ -3048,7 +3048,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _cookieJarViewModel.RefreshCookies();
             await LoadHistoryAsync();
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
             _httpRequestsLogger.Information("Manual request cancelled by user");
             ErrorMessage = "Request cancelled.";
