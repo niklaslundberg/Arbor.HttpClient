@@ -105,7 +105,7 @@
                     Classes="accent"
                     HorizontalContentAlignment="Center"
                     HorizontalAlignment="Stretch"
-                    ToolTip.Tip="Send / Connect (Ctrl+Enter)"
+                    ToolTip.Tip="{x:Static loc:Strings.RequestPrimaryActionTooltip}"
                     Command="{Binding App.ExecutePrimaryActionCommand}" />
         </Grid>
 

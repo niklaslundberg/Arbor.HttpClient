@@ -174,6 +174,9 @@ public static class Strings
     /// <summary>Default</summary>
     public static string RequestTimeoutDefaultWatermark => Get(nameof(RequestTimeoutDefaultWatermark));
 
+    /// <summary>Send / Connect / Cancel (Ctrl+Enter)</summary>
+    public static string RequestPrimaryActionTooltip => Get(nameof(RequestPrimaryActionTooltip));
+
     // Request tabs
 
     /// <summary>Query</summary>

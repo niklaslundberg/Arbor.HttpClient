@@ -11,7 +11,7 @@ namespace Arbor.HttpClient.Core.HttpRequest;
 
 public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpClient, IRequestHistoryRepository requestHistoryRepository, TimeProvider? timeProvider = null)
 {
-    private readonly global::System.Net.Http.HttpClient _httpClient = httpClient;
+    private readonly global::System.Net.Http.HttpClient _httpClient = EnsureHttpClientTimeoutDisabled(httpClient);
     private readonly IRequestHistoryRepository _requestHistoryRepository = requestHistoryRepository;
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private Func<global::System.Net.Http.HttpClient>? _httpClientFactory;
@@ -22,17 +22,28 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
 
     public void SetHttpClientFactory(Func<global::System.Net.Http.HttpClient> httpClientFactory)
     {
-        _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+        ArgumentNullException.ThrowIfNull(httpClientFactory);
+        _httpClientFactory = () => EnsureHttpClientTimeoutDisabled(httpClientFactory());
     }
 
     public void SetHttpClientFactory(Func<bool?, global::System.Net.Http.HttpClient> httpClientFactoryWithRedirectOverride)
     {
-        _httpClientFactoryWithRedirectOverride = httpClientFactoryWithRedirectOverride ?? throw new ArgumentNullException(nameof(httpClientFactoryWithRedirectOverride));
+        ArgumentNullException.ThrowIfNull(httpClientFactoryWithRedirectOverride);
+        _httpClientFactoryWithRedirectOverride = followRedirects =>
+            EnsureHttpClientTimeoutDisabled(httpClientFactoryWithRedirectOverride(followRedirects));
     }
 
     public void SetHttpDiagnosticsEnabled(bool enabled) => _httpDiagnosticsEnabled = enabled;
 
-    public void SetDefaultRequestTimeout(TimeSpan? timeout) => _defaultRequestTimeout = timeout;
+    public void SetDefaultRequestTimeout(TimeSpan? timeout)
+    {
+        if (timeout is { } value && value <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Default request timeout must be greater than zero.");
+        }
+
+        _defaultRequestTimeout = timeout;
+    }
 
     public void SetHttpDiagnosticsObserver(Action<HttpRequestDiagnostics> diagnosticsObserver)
     {
@@ -213,5 +224,20 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
         {
             return $"TLS probe failed: {exception.Message}";
         }
+    }
+
+    /// <summary>
+    /// Ensures the provided <see cref="global::System.Net.Http.HttpClient"/> will not apply
+    /// its own timeout so request timeouts are governed exclusively by cancellation tokens.
+    /// This mutates the supplied client instance in place and returns the same instance.
+    /// </summary>
+    private static global::System.Net.Http.HttpClient EnsureHttpClientTimeoutDisabled(global::System.Net.Http.HttpClient client)
+    {
+        if (client.Timeout != Timeout.InfiniteTimeSpan)
+        {
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        }
+
+        return client;
     }
 }

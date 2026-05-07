@@ -196,6 +196,9 @@
   <data name="RequestTimeoutDefaultWatermark" xml:space="preserve">
     <value>Default</value>
   </data>
+  <data name="RequestPrimaryActionTooltip" xml:space="preserve">
+    <value>Send / Connect / Cancel (Ctrl+Enter)</value>
+  </data>
 
   <!-- Request tabs -->
   <data name="TabQuery" xml:space="preserve">

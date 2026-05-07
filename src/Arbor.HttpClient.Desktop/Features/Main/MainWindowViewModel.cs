@@ -3048,10 +3048,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _cookieJarViewModel.RefreshCookies();
             await LoadHistoryAsync();
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             _httpRequestsLogger.Information("Manual request cancelled by user");
             ErrorMessage = "Request cancelled.";
+        }
+        catch (OperationCanceledException)
+        {
+            _httpRequestsLogger.Warning("Manual request timed out");
+            ErrorMessage = "Request timed out.";
         }
         catch (Exception exception)
         {
