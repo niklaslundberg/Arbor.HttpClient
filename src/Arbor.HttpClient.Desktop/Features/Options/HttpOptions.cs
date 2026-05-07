@@ -16,4 +16,10 @@ public sealed class HttpOptions
     public string DefaultRequestUrl { get; init; } = "http://localhost:5000/echo";
 
     public int DemoServerPort { get; init; } = DemoServer.DefaultPort;
+
+    public int DemoServerHttpsPort { get; init; } = DemoServer.DefaultHttpsPort;
+
+    public bool DemoServerHttpEnabled { get; init; } = true;
+
+    public bool DemoServerHttpsEnabled { get; init; }
 }

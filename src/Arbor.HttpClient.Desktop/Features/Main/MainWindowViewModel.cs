@@ -302,9 +302,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _draftRestoreMessage = string.Empty;
 
-    /// <summary>Gets or sets the port the demo server listens on.</summary>
+    /// <summary>Gets or sets the HTTP port the demo server listens on.</summary>
     [ObservableProperty]
     private int _demoServerPort = DemoServer.DefaultPort;
+
+    /// <summary>Gets or sets the HTTPS port the demo server listens on.</summary>
+    [ObservableProperty]
+    private int _demoServerHttpsPort = DemoServer.DefaultHttpsPort;
+
+    /// <summary>Gets or sets whether the demo server HTTP endpoint is enabled.</summary>
+    [ObservableProperty]
+    private bool _isDemoServerHttpEnabled = true;
+
+    /// <summary>Gets or sets whether the demo server HTTPS endpoint is enabled.</summary>
+    [ObservableProperty]
+    private bool _isDemoServerHttpsEnabled;
 
     /// <summary>True while the embedded demo server is running.</summary>
     [ObservableProperty]
@@ -414,6 +426,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     partial void OnDemoServerPortChanged(int value) =>
+        QueueOptionsAutoSave();
+
+    partial void OnDemoServerHttpsPortChanged(int value) =>
+        QueueOptionsAutoSave();
+
+    partial void OnIsDemoServerHttpEnabledChanged(bool value) =>
+        QueueOptionsAutoSave();
+
+    partial void OnIsDemoServerHttpsEnabledChanged(bool value) =>
         QueueOptionsAutoSave();
 
     private void OnUiFontSizeTextChangedCore()
@@ -647,7 +668,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 DefaultContentType = DefaultContentType,
                 FollowRedirects = FollowHttpRedirects,
                 DefaultRequestUrl = DefaultRequestUrl,
-                DemoServerPort = DemoServerPort
+                DemoServerPort = DemoServerPort,
+                DemoServerHttpsPort = DemoServerHttpsPort,
+                DemoServerHttpEnabled = IsDemoServerHttpEnabled,
+                DemoServerHttpsEnabled = IsDemoServerHttpsEnabled
             },
             Appearance = new AppearanceOptions
             {
@@ -695,6 +719,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             AutoStartScheduledJobsOnLaunch = options.ScheduledJobs.AutoStartOnLaunch;
             DefaultScheduledJobIntervalSeconds = options.ScheduledJobs.DefaultIntervalSeconds;
             DemoServerPort = options.Http.DemoServerPort;
+            DemoServerHttpsPort = options.Http.DemoServerHttpsPort;
+            IsDemoServerHttpEnabled = options.Http.DemoServerHttpEnabled;
+            IsDemoServerHttpsEnabled = options.Http.DemoServerHttpsEnabled;
             CollectUnhandledExceptions = options.Diagnostics.CollectUnhandledExceptions;
 
             if (_requestEditor.FollowRedirectsForRequest == previousDefaultFollowRedirects)
@@ -1163,10 +1190,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         // Show a banner if this request targets the local demo server and it is not running.
         IsDemoServerBannerVisible = _demoServer is { } server
             && !server.IsRunning
-            && IsDemoServerUrl(resolvedUrl, server.Port);
+            && (IsDemoServerUrl(resolvedUrl, server.Port) || IsDemoServerUrl(resolvedUrl, server.HttpsPort));
     }
 
-    /// <summary>Starts the embedded demo server on <see cref="DemoServerPort"/>.</summary>
+    /// <summary>Starts the embedded demo server on <see cref="DemoServerPort"/> and/or <see cref="DemoServerHttpsPort"/>.</summary>
     [RelayCommand]
     private async Task StartDemoServerAsync()
     {
@@ -1175,17 +1202,28 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        if (!IsDemoServerHttpEnabled && !IsDemoServerHttpsEnabled)
+        {
+            ErrorMessage = "Enable at least one of HTTP or HTTPS before starting the demo server.";
+            return;
+        }
+
         try
         {
-            await _demoServer.StartAsync(DemoServerPort);
+            await _demoServer.StartAsync(DemoServerPort, DemoServerHttpsPort, IsDemoServerHttpEnabled, IsDemoServerHttpsEnabled);
             IsDemoServerRunning = true;
             IsDemoServerBannerVisible = false;
-            _debugLogger.Information("Demo server started on port {Port}", DemoServerPort);
+            _debugLogger.Information(
+                "Demo server started — HTTP: {HttpEnabled} port {HttpPort}, HTTPS: {HttpsEnabled} port {HttpsPort}",
+                IsDemoServerHttpEnabled,
+                DemoServerPort,
+                IsDemoServerHttpsEnabled,
+                DemoServerHttpsPort);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or InvalidOperationException)
         {
             ErrorMessage = $"Failed to start demo server: {ex.Message}";
-            _debugLogger.Error(ex, "Failed to start demo server on port {Port}", DemoServerPort);
+            _debugLogger.Error(ex, "Failed to start demo server on port {Port}/{HttpsPort}", DemoServerPort, DemoServerHttpsPort);
         }
     }
 
@@ -1986,7 +2024,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         && (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(uri.Host, "127.0.0.1", StringComparison.Ordinal))
         && uri.Port == port;
-
     private void OnRequestBodyFileChanged(object sender, FileSystemEventArgs e)
     {
         if (Interlocked.Exchange(ref _requestBodyReadPending, 1) == 1)

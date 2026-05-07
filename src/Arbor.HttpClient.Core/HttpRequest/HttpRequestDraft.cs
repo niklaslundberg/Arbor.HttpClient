@@ -7,4 +7,5 @@ public sealed record HttpRequestDraft(
     string? Body,
     IReadOnlyList<RequestHeader>? Headers = null,
     Version? HttpVersion = null,
-    bool? FollowRedirects = null);
+    bool? FollowRedirects = null,
+    bool? IgnoreCertificateValidation = null);

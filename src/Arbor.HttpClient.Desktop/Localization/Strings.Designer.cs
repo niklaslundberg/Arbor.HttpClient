@@ -165,6 +165,12 @@ public static class Strings
     /// <summary>Follow redirects</summary>
     public static string RequestFollowRedirects => Get(nameof(RequestFollowRedirects));
 
+    /// <summary>⚠ Ignore certificate validation</summary>
+    public static string RequestIgnoreCertificateValidation => Get(nameof(RequestIgnoreCertificateValidation));
+
+    /// <summary>Certificate errors are suppressed. Only use this for trusted local servers (e.g. the demo server with its self-signed certificate).</summary>
+    public static string RequestIgnoreCertificateValidationWarning => Get(nameof(RequestIgnoreCertificateValidationWarning));
+
     // Request tabs
 
     /// <summary>Query</summary>
@@ -445,8 +451,17 @@ public static class Strings
     /// <summary>An embedded Kestrel server that provides /echo, /sse, /ws, and /status endpoints for the 'Localhost Demo' collection.</summary>
     public static string OptionsDemoServerDescription => Get(nameof(OptionsDemoServerDescription));
 
-    /// <summary>Port</summary>
+    /// <summary>HTTP port</summary>
     public static string OptionsDemoServerPort => Get(nameof(OptionsDemoServerPort));
+
+    /// <summary>Enable HTTP</summary>
+    public static string OptionsDemoServerHttpEnabled => Get(nameof(OptionsDemoServerHttpEnabled));
+
+    /// <summary>HTTPS port</summary>
+    public static string OptionsDemoServerHttpsPort => Get(nameof(OptionsDemoServerHttpsPort));
+
+    /// <summary>Enable HTTPS (self-signed certificate)</summary>
+    public static string OptionsDemoServerHttpsEnabled => Get(nameof(OptionsDemoServerHttpsEnabled));
 
     /// <summary>Start</summary>
     public static string OptionsDemoServerStart => Get(nameof(OptionsDemoServerStart));

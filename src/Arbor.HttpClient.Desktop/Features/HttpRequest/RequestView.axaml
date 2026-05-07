@@ -127,11 +127,20 @@
             </Grid>
         </Border>
 
-        <!-- Row 3: HTTP-only options (follow redirects) -->
-        <CheckBox Grid.Row="3"
-                  IsVisible="{Binding App.RequestEditor.IsHttpRequest}"
-                  Content="{x:Static loc:Strings.RequestFollowRedirects}"
-                  IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
+        <!-- Row 3: HTTP-only options (follow redirects, ignore certificate validation) -->
+        <StackPanel Grid.Row="3"
+                    IsVisible="{Binding App.RequestEditor.IsHttpRequest}"
+                    Spacing="4">
+            <CheckBox Content="{x:Static loc:Strings.RequestFollowRedirects}"
+                      IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
+            <CheckBox Content="{x:Static loc:Strings.RequestIgnoreCertificateValidation}"
+                      IsChecked="{Binding App.RequestEditor.IgnoreCertificateValidationForRequest, Mode=TwoWay}" />
+            <TextBlock Text="{x:Static loc:Strings.RequestIgnoreCertificateValidationWarning}"
+                       IsVisible="{Binding App.RequestEditor.IgnoreCertificateValidationForRequest}"
+                       Foreground="{DynamicResource WarningBrush}"
+                       TextWrapping="Wrap"
+                       FontSize="11" />
+        </StackPanel>
 
         <TextBlock Grid.Row="4" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
 

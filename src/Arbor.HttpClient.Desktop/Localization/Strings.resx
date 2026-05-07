@@ -187,6 +187,12 @@
   <data name="RequestFollowRedirects" xml:space="preserve">
     <value>Follow redirects</value>
   </data>
+  <data name="RequestIgnoreCertificateValidation" xml:space="preserve">
+    <value>⚠ Ignore certificate validation</value>
+  </data>
+  <data name="RequestIgnoreCertificateValidationWarning" xml:space="preserve">
+    <value>Certificate errors are suppressed. Only use this for trusted local servers (e.g. the demo server with its self-signed certificate).</value>
+  </data>
 
   <!-- Request tabs -->
   <data name="TabQuery" xml:space="preserve">
@@ -469,7 +475,16 @@
     <value>An embedded Kestrel server that provides /echo, /sse, /ws, and /status endpoints for the 'Localhost Demo' collection.</value>
   </data>
   <data name="OptionsDemoServerPort" xml:space="preserve">
-    <value>Port</value>
+    <value>HTTP port</value>
+  </data>
+  <data name="OptionsDemoServerHttpEnabled" xml:space="preserve">
+    <value>Enable HTTP</value>
+  </data>
+  <data name="OptionsDemoServerHttpsPort" xml:space="preserve">
+    <value>HTTPS port</value>
+  </data>
+  <data name="OptionsDemoServerHttpsEnabled" xml:space="preserve">
+    <value>Enable HTTPS (self-signed certificate)</value>
   </data>
   <data name="OptionsDemoServerStart" xml:space="preserve">
     <value>Start</value>
