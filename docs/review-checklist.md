@@ -53,6 +53,15 @@ private SomeService _service;
 private readonly SomeService _service;
 ```
 
+### Threading and async safety checks
+
+Reviewers should explicitly verify these patterns in every PR:
+
+- UI updates are dispatched via `Dispatcher.UIThread.InvokeAsync`/`Post` only when needed. Prefer `Dispatcher.UIThread.CheckAccess()` to avoid unnecessary UI-thread hops.
+- Avoid `async void` except for event handlers that cannot be `Task`-returning.
+- Async call chains pass `CancellationToken cancellationToken` through to downstream I/O.
+- Avoid sync-over-async (`.Result`, `.Wait()`, `GetAwaiter().GetResult()`) in production code.
+
 ## UI Pull Requests
 
 Before merging any PR that touches UI code or theme resources:

@@ -96,4 +96,87 @@ public class ScheduledJobServiceTests
 
         collector.GetAll().Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Start_WithResponseCallback_PassesCancelableToken()
+    {
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent("ok"),
+            ReasonPhrase = "OK"
+        });
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, new InMemoryRequestHistoryRepository());
+        var logger = new LoggerConfiguration().CreateLogger();
+
+        using var jobService = new ScheduledJobService(httpRequestService, logger);
+        var callbackTokenCanBeCanceled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var config = new ScheduledJobConfig(
+            Id: 2,
+            Name: "Token Callback Job",
+            Method: "GET",
+            Url: "http://localhost:5000/test",
+            Body: null,
+            HeadersJson: null,
+            IntervalSeconds: 1,
+            AutoStart: false);
+
+        jobService.Start(config, (_, cancellationToken) =>
+        {
+            callbackTokenCanBeCanceled.TrySetResult(cancellationToken.CanBeCanceled);
+            return Task.CompletedTask;
+        });
+
+        var result = await callbackTokenCanBeCanceled.Task.WaitAsync(TimeSpan.FromSeconds(3), CancellationToken.None);
+        result.Should().BeTrue();
+        jobService.Stop(2);
+    }
+
+    [Fact]
+    public async Task Start_WhenStopped_CancelsCallbackToken()
+    {
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent("ok"),
+            ReasonPhrase = "OK"
+        });
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, new InMemoryRequestHistoryRepository());
+        var logger = new LoggerConfiguration().CreateLogger();
+
+        using var jobService = new ScheduledJobService(httpRequestService, logger);
+        var callbackStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var callbackCancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var config = new ScheduledJobConfig(
+            Id: 3,
+            Name: "Cancelable Callback Job",
+            Method: "GET",
+            Url: "http://localhost:5000/test",
+            Body: null,
+            HeadersJson: null,
+            IntervalSeconds: 1,
+            AutoStart: false);
+
+        jobService.Start(config, async (_, cancellationToken) =>
+        {
+            callbackStarted.TrySetResult(true);
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                callbackCancelled.TrySetResult(true);
+                throw;
+            }
+        });
+
+        await callbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), CancellationToken.None);
+        jobService.Stop(3);
+
+        var wasCancelled = await callbackCancelled.Task.WaitAsync(TimeSpan.FromSeconds(3), CancellationToken.None);
+        wasCancelled.Should().BeTrue();
+    }
 }

@@ -246,6 +246,9 @@ If any step fails locally, fix it before pushing — this avoids triggering a CI
 - Every async method that performs I/O or can block must accept a `CancellationToken` parameter.
 - Pass the token through to all downstream async calls unless there is a clear, documented reason not to (e.g. a fire-and-forget cleanup path).
 - Name the parameter `cancellationToken` (not `ct` or other abbreviations) for consistency with the .NET BCL.
+- Avoid `async void` except for event handlers that cannot return `Task`.
+- Avoid sync-over-async (`.Result`, `.Wait()`, `GetAwaiter().GetResult()`) in production code.
+- In UI code, check `Dispatcher.UIThread.CheckAccess()` first and dispatch only when an operation must touch UI-bound state.
 
 ## 9a. Date and Time Parsing Conventions
 

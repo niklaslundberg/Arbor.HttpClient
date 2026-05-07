@@ -80,7 +80,7 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     /// </summary>
     public bool IsWebViewEnabled => UseWebView && IsWebViewApplicable;
 
-    /// <summary><c>true</c> when at least one response has been captured by <see cref="HandleResponse"/>.</summary>
+    /// <summary><c>true</c> when at least one response has been captured by <see cref="HandleResponseAsync"/>.</summary>
     public bool HasLastResponse => !string.IsNullOrEmpty(LastResponseStatus);
 
     public IReadOnlyList<string> Methods { get; } = ["GET", "POST", "PUT", "PATCH", "DELETE"];
@@ -125,7 +125,7 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     [RelayCommand]
     private void Start()
     {
-        _jobService.Start(ToConfig(), IsWebViewEnabled ? HandleResponse : null);
+        _jobService.Start(ToConfig(), IsWebViewEnabled ? HandleResponseAsync : null);
         IsRunning = true;
     }
 
@@ -186,19 +186,27 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Called by <see cref="Services.ScheduledJobService"/> on the background timer thread
-    /// after each successful HTTP response when <see cref="UseWebView"/> is enabled.
-    /// Marshals the update to the UI thread via <see cref="Dispatcher.UIThread"/>.
+    /// Called by <see cref="ScheduledJobService"/> after each successful HTTP response
+    /// when <see cref="UseWebView"/> is enabled.
+    /// Applies updates immediately on the UI thread, or dispatches asynchronously when invoked from a worker thread.
     /// </summary>
-    internal void HandleResponse(HttpResponseDetails response)
+    internal async Task HandleResponseAsync(HttpResponseDetails response, CancellationToken cancellationToken)
     {
-        _ = Dispatcher.UIThread.InvokeAsync(() =>
+        void ApplyResponse()
         {
             LastResponseBody = response.Body;
             LastResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}".Trim();
             LastResponseAtDisplay = DateTimeOffset.Now.ToString("HH:mm:ss");
             OnPropertyChanged(nameof(HasLastResponse));
-        });
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            ApplyResponse();
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(ApplyResponse, DispatcherPriority.Normal, cancellationToken);
     }
 
     partial void OnNameChanged(string value) => QueueAutoSave();
@@ -244,7 +252,15 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
         try
         {
             await Task.Delay(TimeSpan.FromMilliseconds(1000), cancellationToken).ConfigureAwait(false);
-            await Dispatcher.UIThread.InvokeAsync(async () => await SaveAsync());
+            cancellationToken.ThrowIfCancellationRequested();
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                await SaveAsync();
+            }
+            else
+            {
+                await Dispatcher.UIThread.InvokeAsync(SaveAsync, DispatcherPriority.Normal, cancellationToken);
+            }
         }
         catch (OperationCanceledException)
         {

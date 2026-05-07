@@ -223,21 +223,43 @@ public partial class App : Application
                 viewModel.ReapplyStartupLayout();
                 await InitializeAsync(historyRepository, collectionRepository, environmentRepository, scheduledJobRepository, viewModel, exceptionCollector);
             };
-            window.Closed += (_, _) => DisposeResources();
+            window.Closed += async (_, _) => await DisposeResourcesAsync();
 
-            async void DisposeResources()
+            async Task DisposeResourcesAsync()
             {
                 // Layout was already persisted and floating windows closed in MainWindow.OnClosing.
-                viewModel.Dispose();
-                logWindowViewModel.Dispose();
-                configuredHttpClient.Dispose();
-                foreach (var retiredHttpClient in retiredHttpClients)
+                try
                 {
-                    retiredHttpClient.Dispose();
+                    viewModel.Dispose();
+                    logWindowViewModel.Dispose();
+                    configuredHttpClient.Dispose();
+                    foreach (var retiredHttpClient in retiredHttpClients)
+                    {
+                        retiredHttpClient.Dispose();
+                    }
+                    httpClient.Dispose();
+                    await demoServer.DisposeAsync();
                 }
-                httpClient.Dispose();
-                await demoServer.DisposeAsync();
-                Log.CloseAndFlush();
+                catch (OperationCanceledException exception)
+                {
+                    exceptionCollector?.Add(exception);
+                }
+                catch (ObjectDisposedException exception)
+                {
+                    exceptionCollector?.Add(exception);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    exceptionCollector?.Add(exception);
+                }
+                catch (IOException exception)
+                {
+                    exceptionCollector?.Add(exception);
+                }
+                finally
+                {
+                    Log.CloseAndFlush();
+                }
             }
             desktop.MainWindow = window;
         }

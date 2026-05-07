@@ -13,9 +13,8 @@ namespace Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 /// Runs scheduled HTTP request jobs using <see cref="PeriodicTimer"/>.
 /// Each job fires an <see cref="HttpRequestService.SendAsync"/> call on its configured interval,
 /// logging each invocation (and any failures) through Serilog.
-/// When an optional <paramref name="onResponse"/> callback is supplied to <see cref="Start"/>,
-/// it is invoked on the background thread after each successful response so that callers can
-/// update their state (e.g. to show a web preview).
+    /// When an optional <paramref name="onResponseAsync"/> callback is supplied to <see cref="Start"/>,
+    /// it is awaited after each successful response so that callers can safely marshal UI updates.
 /// </summary>
 public sealed class ScheduledJobService : IDisposable
 {
@@ -38,11 +37,13 @@ public sealed class ScheduledJobService : IDisposable
     /// If the job is already running, this call is a no-op.
     /// </summary>
     /// <param name="config">The job configuration.</param>
-    /// <param name="onResponse">
-    /// An optional callback invoked on the background timer thread after each successful response.
-    /// Use <c>Dispatcher.UIThread.InvokeAsync</c> inside the callback to update UI-bound properties.
+    /// <param name="onResponseAsync">
+    /// An optional callback invoked after each successful response.
+    /// The callback receives the response and the job <see cref="CancellationToken"/>.
     /// </param>
-    public void Start(ScheduledJobConfig config, Action<HttpResponseDetails>? onResponse = null)
+    public void Start(
+        ScheduledJobConfig config,
+        Func<HttpResponseDetails, CancellationToken, Task>? onResponseAsync = null)
     {
         if (_handles.ContainsKey(config.Id))
         {
@@ -50,7 +51,7 @@ public sealed class ScheduledJobService : IDisposable
         }
 
         var cts = new CancellationTokenSource();
-        var task = RunAsync(config, onResponse, cts.Token);
+        var task = RunAsync(config, onResponseAsync, cts.Token);
         _handles[config.Id] = new JobHandle(cts, task);
         _logger.Information("Scheduled job {JobName} (id={JobId}) started with interval {IntervalSeconds}s",
             config.Name, config.Id, config.IntervalSeconds);
@@ -65,7 +66,10 @@ public sealed class ScheduledJobService : IDisposable
         }
     }
 
-    private async Task RunAsync(ScheduledJobConfig config, Action<HttpResponseDetails>? onResponse, CancellationToken cancellationToken)
+    private async Task RunAsync(
+        ScheduledJobConfig config,
+        Func<HttpResponseDetails, CancellationToken, Task>? onResponseAsync,
+        CancellationToken cancellationToken)
     {
         var interval = TimeSpan.FromSeconds(Math.Max(1, config.IntervalSeconds));
         using var timer = new PeriodicTimer(interval);
@@ -73,7 +77,7 @@ public sealed class ScheduledJobService : IDisposable
         {
             while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
             {
-                await ExecuteJobAsync(config, onResponse, cancellationToken).ConfigureAwait(false);
+                await ExecuteJobAsync(config, onResponseAsync, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -82,7 +86,10 @@ public sealed class ScheduledJobService : IDisposable
         }
     }
 
-    private async Task ExecuteJobAsync(ScheduledJobConfig config, Action<HttpResponseDetails>? onResponse, CancellationToken cancellationToken)
+    private async Task ExecuteJobAsync(
+        ScheduledJobConfig config,
+        Func<HttpResponseDetails, CancellationToken, Task>? onResponseAsync,
+        CancellationToken cancellationToken)
     {
         var headers = ParseHeaders(config.HeadersJson);
         var draft = new HttpRequestDraft(config.Name, config.Method, config.Url, config.Body, headers, FollowRedirects: config.FollowRedirects);
@@ -97,7 +104,10 @@ public sealed class ScheduledJobService : IDisposable
             _logger.Information(
                 "Scheduled job {JobName} completed: {StatusCode} {ReasonPhrase}",
                 config.Name, response.StatusCode, response.ReasonPhrase);
-            onResponse?.Invoke(response);
+            if (onResponseAsync is { } callback)
+            {
+                await callback(response, cancellationToken).ConfigureAwait(false);
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
