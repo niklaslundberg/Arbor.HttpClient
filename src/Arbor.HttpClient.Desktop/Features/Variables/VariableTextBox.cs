@@ -63,6 +63,7 @@ public sealed class VariableTextBox : UserControl
         };
         _editor.Options.EnableHyperlinks = false;
         _editor.Options.EnableEmailHyperlinks = false;
+        _editor.Options.AcceptsTab = false;
         _editor.TextArea.Background = Brushes.Transparent;
         _editor.TextArea.TextView.LineTransformers.Add(_colorizer);
         _editor.Document.TextChanged += OnEditorTextChanged;
@@ -203,4 +204,3 @@ public sealed class VariableTextBox : UserControl
     private static IReadOnlyList<string> GetEnvVariableNames() =>
         VariableNameHelper.GetSystemEnvironmentVariableNames();
 }
-

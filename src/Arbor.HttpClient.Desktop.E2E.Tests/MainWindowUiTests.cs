@@ -9,6 +9,7 @@ using Arbor.HttpClient.Desktop.Features.Logging;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Options;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
+using Arbor.HttpClient.Desktop.Features.Variables;
 using Arbor.HttpClient.Testing.Fakes;
 using Arbor.HttpClient.Testing.Repositories;
 using Avalonia;
@@ -1071,6 +1072,55 @@ public class MainWindowUiTests
 
             requestUrlEditor.Text.Should().Be("{{token}}");
             mainViewModel.RequestEditor.RequestUrl.Should().Be("{{token}}");
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task RequestView_VariableTextBoxes_ShouldDisableAcceptsTab()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var mainViewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+            mainViewModel.RequestEditor.AddQueryParameterCommand.Execute(null);
+            mainViewModel.RequestEditor.AddHeaderCommand.Execute(null);
+            mainViewModel.RequestEditor.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
+
+            var requestView = new RequestView
+            {
+                DataContext = new RequestViewModel(mainViewModel)
+            };
+            var window = new Window { Width = 900, Height = 500, Content = requestView };
+            window.Show();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+
+            var variableTextBoxes = requestView.GetVisualDescendants().OfType<VariableTextBox>().ToList();
+            variableTextBoxes.Should().NotBeEmpty();
+
+            foreach (var variableTextBox in variableTextBoxes)
+            {
+                var textEditor = variableTextBox.GetVisualDescendants().OfType<TextEditor>().Single();
+                textEditor.Options.AcceptsTab.Should().BeFalse();
+            }
 
             window.Close();
             return true;
