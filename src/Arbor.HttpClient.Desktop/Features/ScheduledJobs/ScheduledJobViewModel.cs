@@ -125,7 +125,7 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     [RelayCommand]
     private void Start()
     {
-        _jobService.Start(ToConfig(), IsWebViewEnabled ? HandleResponse : null);
+        _jobService.Start(ToConfig(), IsWebViewEnabled ? HandleResponseAsync : null);
         IsRunning = true;
     }
 
@@ -190,15 +190,23 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     /// after each successful HTTP response when <see cref="UseWebView"/> is enabled.
     /// Marshals the update to the UI thread via <see cref="Dispatcher.UIThread"/>.
     /// </summary>
-    internal void HandleResponse(HttpResponseDetails response)
+    internal async Task HandleResponseAsync(HttpResponseDetails response, CancellationToken cancellationToken)
     {
-        _ = Dispatcher.UIThread.InvokeAsync(() =>
+        void ApplyResponse()
         {
             LastResponseBody = response.Body;
             LastResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}".Trim();
             LastResponseAtDisplay = DateTimeOffset.Now.ToString("HH:mm:ss");
             OnPropertyChanged(nameof(HasLastResponse));
-        });
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            ApplyResponse();
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(ApplyResponse, DispatcherPriority.Normal, cancellationToken);
     }
 
     partial void OnNameChanged(string value) => QueueAutoSave();
@@ -244,7 +252,14 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
         try
         {
             await Task.Delay(TimeSpan.FromMilliseconds(1000), cancellationToken).ConfigureAwait(false);
-            await Dispatcher.UIThread.InvokeAsync(async () => await SaveAsync());
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                await SaveAsync();
+            }
+            else
+            {
+                await Dispatcher.UIThread.InvokeAsync(SaveAsync);
+            }
         }
         catch (OperationCanceledException)
         {

@@ -13,6 +13,12 @@ description: 'C#-specific coding rules for Arbor.HttpClient — async/await, exc
 
 Exception: fire-and-forget cleanup paths may omit the token, but must document why.
 
+**[REQUIRED]** Avoid `async void` methods except for event handlers that cannot return `Task`.
+
+**[REQUIRED]** Avoid sync-over-async (`.Result`, `.Wait()`, `GetAwaiter().GetResult()`) in production code.
+
+**[RECOMMENDED]** For UI code, use `Dispatcher.UIThread.CheckAccess()` before dispatching. Only marshal to the UI thread when the operation actually touches UI-bound state.
+
 ## Exception Handling
 
 **[REQUIRED]** When rethrowing an exception, use bare `throw;` — never `throw ex;`. The bare form preserves the original stack trace.
