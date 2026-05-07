@@ -473,7 +473,7 @@ public class DemoServerTests
             ServerCertificateCustomValidationCallback = (_, _, _, _) => true
         };
         using var client = new System.Net.Http.HttpClient(handler);
-        var response = await client.GetAsync($"https://localhost:{server.HttpsPort}/echo");
+        using var response = await client.GetAsync($"https://localhost:{server.HttpsPort}/echo");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }

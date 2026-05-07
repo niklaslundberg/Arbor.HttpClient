@@ -23,6 +23,7 @@ namespace Arbor.HttpClient.Desktop.Demo;
 public sealed class DemoServer : IAsyncDisposable
 {
     private WebApplication? _app;
+    private X509Certificate2? _selfSignedCert;
 
     /// <summary>Default HTTP port used when no explicit port is specified.</summary>
     public const int DefaultPort = 5999;
@@ -71,7 +72,10 @@ public sealed class DemoServer : IAsyncDisposable
         IsHttpEnabled = enableHttp;
         IsHttpsEnabled = enableHttps;
 
-        X509Certificate2? selfSignedCert = enableHttps ? CreateSelfSignedCertificate() : null;
+        if (enableHttps)
+        {
+            _selfSignedCert = CreateSelfSignedCertificate();
+        }
 
         var builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
@@ -82,7 +86,7 @@ public sealed class DemoServer : IAsyncDisposable
                 options.Listen(IPAddress.Loopback, httpPort);
             }
 
-            if (enableHttps && selfSignedCert is { } cert)
+            if (enableHttps && _selfSignedCert is { } cert)
             {
                 options.Listen(IPAddress.Loopback, httpsPort, listenOptions =>
                 {
@@ -219,6 +223,9 @@ public sealed class DemoServer : IAsyncDisposable
             await app.StopAsync(cancellationToken);
             await app.DisposeAsync();
         }
+
+        _selfSignedCert?.Dispose();
+        _selfSignedCert = null;
     }
 
     /// <inheritdoc />

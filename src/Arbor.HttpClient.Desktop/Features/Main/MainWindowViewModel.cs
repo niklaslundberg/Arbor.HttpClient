@@ -1220,7 +1220,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 IsDemoServerHttpsEnabled,
                 DemoServerHttpsPort);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or InvalidOperationException)
         {
             ErrorMessage = $"Failed to start demo server: {ex.Message}";
             _debugLogger.Error(ex, "Failed to start demo server on port {Port}/{HttpsPort}", DemoServerPort, DemoServerHttpsPort);

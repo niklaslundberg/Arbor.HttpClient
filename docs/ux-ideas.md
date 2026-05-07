@@ -665,7 +665,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### Local Demo Server HTTP/HTTPS ✅ Implemented
-> Implemented in this PR — `src/Arbor.HttpClient.Desktop/Demo/DemoServer.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/HttpOptions.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/OptionsView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Core/HttpRequest/HttpRequestDraft.cs`, `src/Arbor.HttpClient.Core/HttpRequest/HttpRequestService.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`
+> Implemented in PR #157 (commit `dee60fd`) — `src/Arbor.HttpClient.Desktop/Demo/DemoServer.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/HttpOptions.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/OptionsView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Core/HttpRequest/HttpRequestDraft.cs`, `src/Arbor.HttpClient.Core/HttpRequest/HttpRequestService.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`
 
 **What it means:** The embedded demo server now supports both HTTP and HTTPS on separate configurable ports. Each protocol can be independently enabled via a checkbox in Options › HTTP › Demo Server. The HTTPS endpoint uses a runtime-generated self-signed certificate. A per-request "⚠ Ignore certificate validation" option is available in the request panel for connecting to the demo server's HTTPS endpoint (or any other server with a self-signed/untrusted certificate).
 
