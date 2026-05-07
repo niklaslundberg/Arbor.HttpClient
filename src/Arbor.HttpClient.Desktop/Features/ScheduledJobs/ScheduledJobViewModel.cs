@@ -80,7 +80,7 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     /// </summary>
     public bool IsWebViewEnabled => UseWebView && IsWebViewApplicable;
 
-    /// <summary><c>true</c> when at least one response has been captured by <see cref="HandleResponse"/>.</summary>
+    /// <summary><c>true</c> when at least one response has been captured by <see cref="HandleResponseAsync"/>.</summary>
     public bool HasLastResponse => !string.IsNullOrEmpty(LastResponseStatus);
 
     public IReadOnlyList<string> Methods { get; } = ["GET", "POST", "PUT", "PATCH", "DELETE"];
@@ -186,7 +186,7 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Called by <see cref="Services.ScheduledJobService"/> after each successful HTTP response
+    /// Called by <see cref="ScheduledJobService"/> after each successful HTTP response
     /// when <see cref="UseWebView"/> is enabled.
     /// Applies updates immediately on the UI thread, or dispatches asynchronously when invoked from a worker thread.
     /// </summary>
@@ -252,13 +252,14 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
         try
         {
             await Task.Delay(TimeSpan.FromMilliseconds(1000), cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             if (Dispatcher.UIThread.CheckAccess())
             {
                 await SaveAsync();
             }
             else
             {
-                await Dispatcher.UIThread.InvokeAsync(SaveAsync);
+                await Dispatcher.UIThread.InvokeAsync(SaveAsync, DispatcherPriority.Normal, cancellationToken);
             }
         }
         catch (OperationCanceledException)

@@ -240,7 +240,19 @@ public partial class App : Application
                     httpClient.Dispose();
                     await demoServer.DisposeAsync();
                 }
-                catch (Exception exception)
+                catch (OperationCanceledException exception)
+                {
+                    exceptionCollector?.Add(exception);
+                }
+                catch (ObjectDisposedException exception)
+                {
+                    exceptionCollector?.Add(exception);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    exceptionCollector?.Add(exception);
+                }
+                catch (IOException exception)
                 {
                     exceptionCollector?.Add(exception);
                 }
