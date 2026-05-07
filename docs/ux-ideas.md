@@ -661,3 +661,14 @@ Each idea includes a description of what it means in practice, notes on how it c
 - `LoadCollectionRequestCore` in `MainWindowViewModel` populates body, content type, and request headers from the stored `CollectionRequest` fields
 - SQLite schema: `tag`, `body`, `content_type`, `headers` columns added via non-destructive `ALTER TABLE` migrations; headers serialised as JSON
 - 13 new unit tests added to `OpenApiImportServiceTests`
+
+---
+
+### Tab key focus navigation in parameter editors ✅ Implemented
+> Implemented in PR #TBD (commit `4f2f67f`) — `src/Arbor.HttpClient.Desktop/Features/Variables/VariableTextBox.cs`, `src/Arbor.HttpClient.Desktop.E2E.Tests/MainWindowUiTests.cs`
+
+**What it means:** Pressing <kbd>Tab</kbd> while editing query/header/auth parameter fields now moves focus to the next input instead of inserting a literal tab character in the field.
+
+**What shipped:**
+- `VariableTextBox` now configures its internal `AvaloniaEdit.TextEditor` with `Options.AcceptsTab = false`
+- Headless UI test verifies all request-editor `VariableTextBox` instances disable tab insertion
