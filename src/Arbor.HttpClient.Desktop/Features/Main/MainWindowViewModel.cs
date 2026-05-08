@@ -27,6 +27,7 @@ using Arbor.HttpClient.Desktop.Features.Options;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Desktop.Features.Sse;
 using Arbor.HttpClient.Desktop.Features.WebSocket;
+using Arbor.HttpClient.Desktop.Localization;
 using Arbor.HttpClient.Desktop.Shared;
 using Avalonia;
 using Avalonia.Input.Platform;
@@ -53,7 +54,6 @@ namespace Arbor.HttpClient.Desktop.Features.Main;
 
 public partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
-    private const string InvalidResolvedUrlMessage = "Resolved URL must be an absolute HTTP or HTTPS URL. Disable \"Validate URL before send\" in Request options to force send.";
     private readonly HttpRequestService _httpRequestService;
     private readonly IRequestHistoryRepository _requestHistoryRepository;
     private readonly ICollectionRepository _collectionRepository;
@@ -3011,7 +3011,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             var draft = _requestEditor.BuildDraft();
             if (_requestEditor.ValidateUrlBeforeSend && !IsAbsoluteHttpOrHttpsUrl(draft.Url))
             {
-                ErrorMessage = InvalidResolvedUrlMessage;
+                ErrorMessage = Strings.RequestInvalidResolvedUrlMessage;
                 return;
             }
 
@@ -3060,7 +3060,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             if (_requestEditor.ValidateUrlBeforeSend && !IsAbsoluteHttpOrHttpsUrl(mutatedDraft.Url))
             {
-                ErrorMessage = InvalidResolvedUrlMessage;
+                ErrorMessage = Strings.RequestInvalidResolvedUrlMessage;
                 return;
             }
 

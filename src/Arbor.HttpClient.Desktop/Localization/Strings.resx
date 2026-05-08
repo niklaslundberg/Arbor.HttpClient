@@ -208,6 +208,9 @@
   <data name="RequestPrimaryActionTooltip" xml:space="preserve">
     <value>Send / Connect / Cancel (Ctrl+Enter)</value>
   </data>
+  <data name="RequestInvalidResolvedUrlMessage" xml:space="preserve">
+    <value>Resolved URL must be an absolute HTTP or HTTPS URL. Disable "Validate URL before send" in Request options to force send.</value>
+  </data>
 
   <!-- Request tabs -->
   <data name="TabQuery" xml:space="preserve">
