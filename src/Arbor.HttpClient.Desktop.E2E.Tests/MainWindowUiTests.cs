@@ -9,6 +9,7 @@ using Arbor.HttpClient.Desktop.Features.Logging;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Options;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
+using Arbor.HttpClient.Desktop.Features.Variables;
 using Arbor.HttpClient.Testing.Fakes;
 using Arbor.HttpClient.Testing.Repositories;
 using Avalonia;
@@ -1075,6 +1076,66 @@ public class MainWindowUiTests
             window.Close();
             return true;
         }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task RequestView_VariableTextBoxes_ShouldDisableAcceptsTab()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            using var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            using var httpClient = new global::System.Net.Http.HttpClient(handler);
+            var httpRequestService = new HttpRequestService(httpClient, repository);
+            var inMemorySink = new InMemorySink();
+            using var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var mainViewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+            mainViewModel.RequestEditor.SelectedRequestType = RequestType.Http;
+            mainViewModel.RequestEditor.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
+
+            var requestView = new RequestView
+            {
+                DataContext = new RequestViewModel(mainViewModel)
+            };
+            var window = new Window { Width = 900, Height = 500, Content = requestView };
+            window.Show();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+
+            var tabControl = window.GetVisualDescendants()
+                .OfType<TabControl>()
+                .Single(control => control.Items.OfType<TabItem>().Any(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal)));
+            VerifyTabRealized(tabControl, "Query");
+            VerifyTabRealized(tabControl, "Headers");
+            VerifyTabRealized(tabControl, "Auth");
+
+            var variableTextBox = new VariableTextBox();
+            variableTextBox.AcceptsTabForTests.Should().BeFalse();
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
+    private static void VerifyTabRealized(TabControl tabControl, string tabHeader)
+    {
+        var tabItems = tabControl.Items.OfType<TabItem>().ToList();
+        var tabItem = tabItems.Single(item => string.Equals(item.Header?.ToString(), tabHeader, StringComparison.Ordinal));
+        tabItem.IsVisible.Should().BeTrue();
+        tabControl.SelectedIndex = tabItems.IndexOf(tabItem);
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+        tabControl.SelectedItem.Should().Be(tabItem);
     }
 
     [Fact]
