@@ -287,6 +287,14 @@ public class RequestEditorViewModelTests
     }
 
     [Fact]
+    public void ValidateUrlBeforeSend_IsEnabledByDefault()
+    {
+        var editor = CreateEditor();
+
+        editor.ValidateUrlBeforeSend.Should().BeTrue();
+    }
+
+    [Fact]
     public void BuildDraft_SetsIgnoreCertificateValidation_WhenEnabled()
     {
         var editor = CreateEditor();

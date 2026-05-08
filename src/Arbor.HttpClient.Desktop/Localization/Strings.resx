@@ -187,6 +187,9 @@
   <data name="RequestFollowRedirects" xml:space="preserve">
     <value>Follow redirects</value>
   </data>
+  <data name="RequestValidateUrlBeforeSend" xml:space="preserve">
+    <value>Validate URL before send</value>
+  </data>
   <data name="RequestIgnoreCertificateValidation" xml:space="preserve">
     <value>⚠ Ignore certificate validation</value>
   </data>

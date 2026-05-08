@@ -53,6 +53,7 @@ namespace Arbor.HttpClient.Desktop.Features.Main;
 
 public partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
+    private const string InvalidResolvedUrlMessage = "Resolved URL must be an absolute HTTP or HTTPS URL. Disable \"Validate URL before send\" in Request options to force send.";
     private readonly HttpRequestService _httpRequestService;
     private readonly IRequestHistoryRepository _requestHistoryRepository;
     private readonly ICollectionRepository _collectionRepository;
@@ -2079,6 +2080,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         && (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(uri.Host, "127.0.0.1", StringComparison.Ordinal))
         && uri.Port == port;
+
+    private static bool IsAbsoluteHttpOrHttpsUrl(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && uri.Scheme is "http" or "https";
     private void OnRequestBodyFileChanged(object sender, FileSystemEventArgs e)
     {
         if (Interlocked.Exchange(ref _requestBodyReadPending, 1) == 1)
@@ -3004,6 +3009,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         try
         {
             var draft = _requestEditor.BuildDraft();
+            if (_requestEditor.ValidateUrlBeforeSend && !IsAbsoluteHttpOrHttpsUrl(draft.Url))
+            {
+                ErrorMessage = InvalidResolvedUrlMessage;
+                return;
+            }
+
             _httpRequestsLogger.Information("Manual request started: {Method} {Url}", draft.Method, draft.Url);
 
             // Build a mutable headers dict for the script context.
@@ -3046,6 +3057,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 Body = scriptCtx.Body,
                 Headers = mutatedHeaders.Count > 0 ? mutatedHeaders : draft.Headers
             };
+
+            if (_requestEditor.ValidateUrlBeforeSend && !IsAbsoluteHttpOrHttpsUrl(mutatedDraft.Url))
+            {
+                ErrorMessage = InvalidResolvedUrlMessage;
+                return;
+            }
 
             var response = await _httpRequestService.SendAsync(mutatedDraft, cancellationToken);
 

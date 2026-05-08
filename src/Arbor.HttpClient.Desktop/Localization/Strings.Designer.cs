@@ -165,6 +165,9 @@ public static class Strings
     /// <summary>Follow redirects</summary>
     public static string RequestFollowRedirects => Get(nameof(RequestFollowRedirects));
 
+    /// <summary>Validate URL before send</summary>
+    public static string RequestValidateUrlBeforeSend => Get(nameof(RequestValidateUrlBeforeSend));
+
     /// <summary>⚠ Ignore certificate validation</summary>
     public static string RequestIgnoreCertificateValidation => Get(nameof(RequestIgnoreCertificateValidation));
 

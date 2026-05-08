@@ -61,6 +61,7 @@ public class DraftPersistenceServiceTests
             Url = "http://localhost:5000/data",
             Body = "{\"key\":\"value\"}",
             FollowRedirects = false,
+            ValidateUrlBeforeSend = false,
             HttpVersion = "2.0",
             ContentTypeOption = "application/json",
             CustomContentType = string.Empty,
@@ -85,6 +86,7 @@ public class DraftPersistenceServiceTests
         loaded.Url.Should().Be("http://localhost:5000/data");
         loaded.Body.Should().Be("{\"key\":\"value\"}");
         loaded.FollowRedirects.Should().BeFalse();
+        loaded.ValidateUrlBeforeSend.Should().BeFalse();
         loaded.HttpVersion.Should().Be("2.0");
         loaded.ContentTypeOption.Should().Be("application/json");
         loaded.AuthMode.Should().Be("Bearer Token");
@@ -136,6 +138,7 @@ public class DraftPersistenceServiceTests
         editor.SelectedHttpVersionOption = "1.1";
         editor.SelectedContentTypeOption = "(none)";
         editor.SelectedAuthModeOption = "None";
+        editor.ValidateUrlBeforeSend = false;
         editor.RequestNotes = "my note";
         editor.RequestHeaders.Add(new RequestHeaderViewModel { Name = "Accept", Value = "application/json", IsEnabled = true });
 
@@ -144,6 +147,7 @@ public class DraftPersistenceServiceTests
         draft.RequestName.Should().Be("Test");
         draft.Method.Should().Be("DELETE");
         draft.Url.Should().Be("http://localhost:5000/items/1");
+        draft.ValidateUrlBeforeSend.Should().BeFalse();
         draft.RequestNotes.Should().Be("my note");
         draft.Headers.Should().ContainSingle(h => h.Name == "Accept" && h.Value == "application/json");
         draft.SavedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
@@ -162,6 +166,7 @@ public class DraftPersistenceServiceTests
             Url = "http://localhost:5000/update",
             Body = "body-content",
             FollowRedirects = false,
+            ValidateUrlBeforeSend = false,
             HttpVersion = "2.0",
             ContentTypeOption = "application/xml",
             CustomContentType = string.Empty,
@@ -183,6 +188,7 @@ public class DraftPersistenceServiceTests
         editor.RequestUrl.Should().Be("http://localhost:5000/update");
         editor.RequestBody.Should().Be("body-content");
         editor.FollowRedirectsForRequest.Should().BeFalse();
+        editor.ValidateUrlBeforeSend.Should().BeFalse();
         editor.SelectedHttpVersionOption.Should().Be("2.0");
         editor.SelectedContentTypeOption.Should().Be("application/xml");
         editor.RequestNotes.Should().Be("restored note");

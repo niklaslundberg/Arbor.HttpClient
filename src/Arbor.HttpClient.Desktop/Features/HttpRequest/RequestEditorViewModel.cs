@@ -71,6 +71,9 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     private bool _followRedirectsForRequest = true;
 
     [ObservableProperty]
+    private bool _validateUrlBeforeSend = true;
+
+    [ObservableProperty]
     private bool _ignoreCertificateValidationForRequest;
 
     [ObservableProperty]

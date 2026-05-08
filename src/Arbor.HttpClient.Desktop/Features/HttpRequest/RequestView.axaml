@@ -135,6 +135,8 @@
             <StackPanel Margin="0,8,0,0" Spacing="8">
                 <CheckBox Content="{x:Static loc:Strings.RequestFollowRedirects}"
                           IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
+                <CheckBox Content="{x:Static loc:Strings.RequestValidateUrlBeforeSend}"
+                          IsChecked="{Binding App.RequestEditor.ValidateUrlBeforeSend, Mode=TwoWay}" />
                 <CheckBox Content="{x:Static loc:Strings.RequestIgnoreCertificateValidation}"
                           IsChecked="{Binding App.RequestEditor.IgnoreCertificateValidationForRequest, Mode=TwoWay}" />
                 <TextBlock Text="{x:Static loc:Strings.RequestIgnoreCertificateValidationWarning}"
