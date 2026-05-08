@@ -8,4 +8,5 @@ public sealed record HttpRequestDraft(
     IReadOnlyList<RequestHeader>? Headers = null,
     Version? HttpVersion = null,
     bool? FollowRedirects = null,
-    bool? IgnoreCertificateValidation = null);
+    bool? IgnoreCertificateValidation = null,
+    int? TimeoutSeconds = null);

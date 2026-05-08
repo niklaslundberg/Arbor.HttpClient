@@ -24,6 +24,22 @@ public class RequestModelsTests
     }
 
     [Fact]
+    public void HttpRequestDraft_ShouldDefaultTimeoutSecondsToNull()
+    {
+        var draft = new HttpRequestDraft("name", "GET", "http://localhost:5000", null);
+
+        draft.TimeoutSeconds.Should().BeNull();
+    }
+
+    [Fact]
+    public void HttpRequestDraft_ShouldStoreTimeoutSeconds()
+    {
+        var draft = new HttpRequestDraft("name", "GET", "http://localhost:5000", null, TimeoutSeconds: 12);
+
+        draft.TimeoutSeconds.Should().Be(12);
+    }
+
+    [Fact]
     public void ScheduledJobConfig_ShouldStoreFollowRedirectOverride()
     {
         var config = new ScheduledJobConfig(1, "job", "GET", "http://localhost:5000", null, null, 30, AutoStart: true, FollowRedirects: true);

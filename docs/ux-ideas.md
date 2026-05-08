@@ -681,3 +681,14 @@ Each idea includes a description of what it means in practice, notes on how it c
 - `DraftState` / `DraftPersistenceService`: `IgnoreCertificateValidation` persisted and restored
 - `RequestView.axaml`: "⚠ Ignore certificate validation" checkbox added below "Follow redirects"; warning text appears when checked
 - 7 new tests: 5 `DemoServerTests` (HTTPS start, both protocols, disabled, stop, echo over HTTPS), 2 `RequestEditorViewModelTests` (BuildDraft with ignore-cert on/off)
+
+---
+
+### Tab key focus navigation in parameter editors ✅ Implemented
+> Implemented in PR #159 (commit `4f2f67f`) — `src/Arbor.HttpClient.Desktop/Features/Variables/VariableTextBox.cs`, `src/Arbor.HttpClient.Desktop.E2E.Tests/MainWindowUiTests.cs`
+
+**What it means:** Pressing <kbd>Tab</kbd> while editing query/header/auth parameter fields now moves focus to the next input instead of inserting a literal tab character in the field.
+
+**What shipped:**
+- `VariableTextBox` now configures its internal `AvaloniaEdit.TextEditor` with `Options.AcceptsTab = false`
+- Headless UI test verifies all request-editor `VariableTextBox` instances disable tab insertion
