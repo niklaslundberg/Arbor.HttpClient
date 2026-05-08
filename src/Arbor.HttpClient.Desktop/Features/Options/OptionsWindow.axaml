@@ -103,6 +103,12 @@
                                 <TextBox Text="{Binding DefaultRequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
 
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{x:Static loc:Strings.OptionsDefaultRequestTimeoutSeconds}" FontWeight="SemiBold" />
+                                <TextBox Text="{Binding DefaultRequestTimeoutSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         MaxWidth="160" HorizontalAlignment="Left" />
+                            </StackPanel>
+
                         </StackPanel>
 
                         <!-- Scheduled Jobs page -->

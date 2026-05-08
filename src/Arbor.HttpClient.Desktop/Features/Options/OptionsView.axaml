@@ -105,6 +105,12 @@
                                 <TextBox Text="{Binding App.DefaultRequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
 
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{x:Static loc:Strings.OptionsDefaultRequestTimeoutSeconds}" FontWeight="SemiBold" />
+                                <TextBox Text="{Binding App.DefaultRequestTimeoutSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         MaxWidth="160" HorizontalAlignment="Left" />
+                            </StackPanel>
+
                             <!-- Demo server settings -->
                             <Border BorderBrush="{DynamicResource PanelBorderBrush}"
                                     BorderThickness="0,1,0,0" Margin="0,4,0,0" Padding="0,16,0,0">
@@ -226,4 +232,3 @@
         </Border>
     </Grid>
 </UserControl>
-

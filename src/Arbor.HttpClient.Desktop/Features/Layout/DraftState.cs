@@ -13,6 +13,7 @@ public sealed class DraftState
     public string Url { get; init; } = string.Empty;
     public string Body { get; init; } = string.Empty;
     public bool FollowRedirects { get; init; } = true;
+    public string RequestTimeoutSecondsText { get; init; } = string.Empty;
     public string HttpVersion { get; init; } = "1.1";
     public string ContentTypeOption { get; init; } = "(none)";
     public string CustomContentType { get; init; } = string.Empty;

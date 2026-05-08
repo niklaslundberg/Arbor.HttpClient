@@ -131,6 +131,11 @@ public sealed class ApplicationOptionsStore(string optionsPath)
             throw new InvalidDataException("Default request URL must be an absolute HTTP or HTTPS URL.");
         }
 
+        if (options.Http.DefaultRequestTimeoutSeconds < 1)
+        {
+            throw new InvalidDataException("Default request timeout must be at least 1 second.");
+        }
+
         if (!ValidThemes.Contains(options.Appearance.Theme))
         {
             throw new InvalidDataException($"Unsupported theme '{options.Appearance.Theme}'.");

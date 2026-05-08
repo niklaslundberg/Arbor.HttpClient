@@ -138,6 +138,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
             Url = editor.RequestUrl,
             Body = editor.RequestBody,
             FollowRedirects = editor.FollowRedirectsForRequest,
+            RequestTimeoutSecondsText = editor.RequestTimeoutSecondsText,
             HttpVersion = editor.SelectedHttpVersionOption,
             ContentTypeOption = editor.SelectedContentTypeOption,
             CustomContentType = editor.CustomContentType,
@@ -165,6 +166,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
         editor.RequestUrl = state.Url;
         editor.RequestBody = state.Body;
         editor.FollowRedirectsForRequest = state.FollowRedirects;
+        editor.RequestTimeoutSecondsText = state.RequestTimeoutSecondsText;
         editor.SelectedHttpVersionOption = state.HttpVersion;
         editor.SelectedContentTypeOption = state.ContentTypeOption;
         editor.CustomContentType = state.CustomContentType;
