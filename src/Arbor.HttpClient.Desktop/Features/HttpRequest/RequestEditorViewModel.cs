@@ -71,6 +71,9 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     private bool _followRedirectsForRequest = true;
 
     [ObservableProperty]
+    private bool _ignoreCertificateValidationForRequest;
+
+    [ObservableProperty]
     private string _selectedHttpVersionOption = "1.1";
 
     [ObservableProperty]
@@ -431,6 +434,9 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             headers,
             ParseHttpVersion(SelectedHttpVersionOption),
             FollowRedirectsForRequest,
+            // null = "use default" (validate certificates); true = bypass validation.
+            // false is never passed — disabled maps to null so the factory sees no override.
+            IgnoreCertificateValidationForRequest ? true : null,
             timeoutSeconds);
     }
 

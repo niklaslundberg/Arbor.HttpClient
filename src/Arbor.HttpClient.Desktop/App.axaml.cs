@@ -119,15 +119,18 @@ public partial class App : Application
             httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
             var configuredHttpClient = CreateHttpClient(currentOptions.Http, cookieContainer: sharedCookieContainer);
             var inverseRedirectHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects, cookieContainer: sharedCookieContainer);
+            var ignoreCertHttpClient = CreateHttpClient(currentOptions.Http, ignoreCertificateValidation: true, cookieContainer: sharedCookieContainer);
+            var inverseRedirectIgnoreCertHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects, ignoreCertificateValidation: true, cookieContainer: sharedCookieContainer);
             var retiredHttpClients = new List<global::System.Net.Http.HttpClient>();
-            httpRequestService.SetHttpClientFactory(followRedirectsOverride =>
+            httpRequestService.SetHttpClientFactory((bool? followRedirectsOverride, bool? ignoreCertValidation) =>
             {
+                var ignoreCert = ignoreCertValidation == true;
                 if (followRedirectsOverride is null || followRedirectsOverride == currentOptions.Http.FollowRedirects)
                 {
-                    return configuredHttpClient;
+                    return ignoreCert ? ignoreCertHttpClient : configuredHttpClient;
                 }
 
-                return inverseRedirectHttpClient;
+                return ignoreCert ? inverseRedirectIgnoreCertHttpClient : inverseRedirectHttpClient;
             });
             var scheduledJobService = new ScheduledJobService(httpRequestService, Log.Logger, exceptionCollector);
             var demoServer = new DemoServer();
@@ -150,8 +153,12 @@ public partial class App : Application
                     currentOptions = updatedOptions;
                     retiredHttpClients.Add(configuredHttpClient);
                     retiredHttpClients.Add(inverseRedirectHttpClient);
+                    retiredHttpClients.Add(ignoreCertHttpClient);
+                    retiredHttpClients.Add(inverseRedirectIgnoreCertHttpClient);
                     configuredHttpClient = CreateHttpClient(currentOptions.Http, cookieContainer: sharedCookieContainer);
                     inverseRedirectHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects, cookieContainer: sharedCookieContainer);
+                    ignoreCertHttpClient = CreateHttpClient(currentOptions.Http, ignoreCertificateValidation: true, cookieContainer: sharedCookieContainer);
+                    inverseRedirectIgnoreCertHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects, ignoreCertificateValidation: true, cookieContainer: sharedCookieContainer);
                     httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
                     exceptionCollector.IsCollecting = currentOptions.Diagnostics.CollectUnhandledExceptions;
                 },
@@ -233,6 +240,9 @@ public partial class App : Application
                     viewModel.Dispose();
                     logWindowViewModel.Dispose();
                     configuredHttpClient.Dispose();
+                    inverseRedirectHttpClient.Dispose();
+                    ignoreCertHttpClient.Dispose();
+                    inverseRedirectIgnoreCertHttpClient.Dispose();
                     foreach (var retiredHttpClient in retiredHttpClients)
                     {
                         retiredHttpClient.Dispose();
@@ -290,7 +300,7 @@ public partial class App : Application
         }
     }
 
-    private static global::System.Net.Http.HttpClient CreateHttpClient(HttpOptions options, bool? followRedirectsOverride = null, System.Net.CookieContainer? cookieContainer = null)
+    private static global::System.Net.Http.HttpClient CreateHttpClient(HttpOptions options, bool? followRedirectsOverride = null, bool ignoreCertificateValidation = false, System.Net.CookieContainer? cookieContainer = null)
     {
         var handler = new SocketsHttpHandler
         {
@@ -309,7 +319,13 @@ public partial class App : Application
                     "Tls12" => SslProtocols.Tls12,
                     "Tls13" => SslProtocols.Tls13,
                     _ => SslProtocols.None
-                }
+                },
+                // When the user explicitly opts in to ignoring cert errors (e.g. for the local demo
+                // server's self-signed certificate), bypass remote certificate validation.
+                // This is intentionally per-request and not the default.
+                RemoteCertificateValidationCallback = ignoreCertificateValidation
+                    ? (_, _, _, _) => true
+                    : null
             }
         };
 
