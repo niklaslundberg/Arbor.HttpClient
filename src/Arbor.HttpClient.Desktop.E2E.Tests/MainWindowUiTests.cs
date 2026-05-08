@@ -1622,13 +1622,14 @@ public class MainWindowUiTests
         {
             Uri? capturedUri = null;
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(req =>
+            using var handler = new StubHttpMessageHandler(req =>
             {
                 capturedUri = req.RequestUri;
                 return new HttpResponseMessage(HttpStatusCode.OK);
             });
 
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            using var httpClient = new global::System.Net.Http.HttpClient(handler);
+            var httpRequestService = new HttpRequestService(httpClient, repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
             var scheduledJobService = new ScheduledJobService(httpRequestService, logger);

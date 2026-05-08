@@ -209,7 +209,7 @@
     <value>Send / Connect / Cancel (Ctrl+Enter)</value>
   </data>
   <data name="RequestInvalidResolvedUrlMessage" xml:space="preserve">
-    <value>Resolved URL must be an absolute HTTP or HTTPS URL. Disable "Validate URL before send" in Request options to force send.</value>
+    <value>Resolved URL must be an absolute HTTP or HTTPS URL. Disable "Validate URL before send" in Request options to skip this pre-send check and continue to a send attempt.</value>
   </data>
 
   <!-- Request tabs -->

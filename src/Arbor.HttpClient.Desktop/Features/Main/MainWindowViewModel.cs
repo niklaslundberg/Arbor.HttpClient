@@ -2084,6 +2084,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private static bool IsAbsoluteHttpOrHttpsUrl(string url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri)
         && uri.Scheme is "http" or "https";
+
     private void OnRequestBodyFileChanged(object sender, FileSystemEventArgs e)
     {
         if (Interlocked.Exchange(ref _requestBodyReadPending, 1) == 1)
