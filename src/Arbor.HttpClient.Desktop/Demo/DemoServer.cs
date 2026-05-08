@@ -20,7 +20,7 @@ namespace Arbor.HttpClient.Desktop.Demo;
 /// An embedded Kestrel HTTP server that provides demo endpoints for the local demo collection.
 /// The server is started and stopped on demand and is never running by default.
 /// Supports both HTTP and HTTPS (with a self-signed certificate).
-/// Endpoints: <c>/echo</c>, <c>/sse</c>, <c>/ws</c>, <c>/status</c>, <c>/docs</c>, <c>/docs.html</c>.
+/// Endpoints: <c>/</c>, <c>/echo</c>, <c>/sse</c>, <c>/ws</c>, <c>/status</c>, <c>/docs</c>, <c>/docs.html</c>.
 /// </summary>
 public sealed class DemoServer : IAsyncDisposable
 {
@@ -114,9 +114,12 @@ public sealed class DemoServer : IAsyncDisposable
                 version = "1.0",
                 httpPort = enableHttp ? httpPort : (int?)null,
                 httpsPort = enableHttps ? httpsPort : (int?)null,
-                endpoints = new[] { "/echo", "/sse", "/ws", "/status", "/docs", "/docs.html" }
+                endpoints = new[] { "/", "/echo", "/sse", "/ws", "/status", "/docs", "/docs.html" }
             });
         });
+
+        // / — redirects to docs.
+        app.MapGet("/", () => Results.Redirect("/docs"));
 
         // /docs — returns demo server endpoint documentation in Markdown format.
         app.MapGet("/docs", () => Results.Text(DemoServerDocsMarkdown, "text/markdown; charset=utf-8"));

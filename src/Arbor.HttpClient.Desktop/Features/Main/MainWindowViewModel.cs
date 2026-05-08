@@ -2027,6 +2027,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             var demoRequests = new List<CollectionRequest>
             {
+                new("Documentation", "GET", "/docs",
+                    "Read endpoint docs and sample usage for the local demo server."),
                 new("Echo GET", "GET", "/echo",
                     "Simple HTTP GET — returns request info as JSON when no body is present."),
                 new("Echo POST", "POST", "/echo",

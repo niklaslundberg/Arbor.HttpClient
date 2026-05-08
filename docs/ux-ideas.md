@@ -685,7 +685,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### Demo server endpoint docs with markdown and HTML view ✅ Implemented
-> Implemented in PR (this PR) — `src/Arbor.HttpClient.Desktop/Demo/DemoServerEndpoints.md`, `src/Arbor.HttpClient.Desktop/Demo/DemoServerEndpoints.html`, `src/Arbor.HttpClient.Desktop/Demo/DemoServer.cs`
+> Implemented in PR (this PR) — `src/Arbor.HttpClient.Desktop/Demo/DemoServerEndpoints.md`, `src/Arbor.HttpClient.Desktop/Demo/DemoServerEndpoints.html`, `src/Arbor.HttpClient.Desktop/Demo/DemoServer.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`
 
 **What it means:** The embedded demo server now ships with a source-controlled Markdown document describing all demo endpoints and sample requests. The same document is available from the running demo server as Markdown (`/docs`) and as rendered HTML (`/docs.html`) for easier viewing in browsers/web views.
 
@@ -693,7 +693,9 @@ Each idea includes a description of what it means in practice, notes on how it c
 - Added `DemoServerEndpoints.md` with endpoint documentation and example requests
 - Added `DemoServerEndpoints.html` so docs render cleanly in browser/web view clients
 - Added `/docs` and `/docs.html` demo server endpoints
-- Added focused tests for the two new endpoints
+- Added `/` route redirect to `/docs`
+- Set `Documentation` (`GET /docs`) as the first default request in the seeded `Localhost Demo` sample collection
+- Added focused tests for docs endpoints, root redirect, and default seed ordering
 
 ---
 
