@@ -684,6 +684,19 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ---
 
+### Demo server endpoint docs with markdown and HTML view ✅ Implemented
+> Implemented in PR (this PR) — `src/Arbor.HttpClient.Desktop/Demo/DemoServerEndpoints.md`, `src/Arbor.HttpClient.Desktop/Demo/DemoServerEndpoints.html`, `src/Arbor.HttpClient.Desktop/Demo/DemoServer.cs`
+
+**What it means:** The embedded demo server now ships with a source-controlled Markdown document describing all demo endpoints and sample requests. The same document is available from the running demo server as Markdown (`/docs`) and as rendered HTML (`/docs.html`) for easier viewing in browsers/web views.
+
+**What shipped:**
+- Added `DemoServerEndpoints.md` with endpoint documentation and example requests
+- Added `DemoServerEndpoints.html` so docs render cleanly in browser/web view clients
+- Added `/docs` and `/docs.html` demo server endpoints
+- Added focused tests for the two new endpoints
+
+---
+
 ### Tab key focus navigation in parameter editors ✅ Implemented
 > Implemented in PR #159 (commit `4f2f67f`) — `src/Arbor.HttpClient.Desktop/Features/Variables/VariableTextBox.cs`, `src/Arbor.HttpClient.Desktop.E2E.Tests/MainWindowUiTests.cs`
 
