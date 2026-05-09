@@ -467,6 +467,28 @@ public class RequestEditorViewModelTests
     }
 
     [Fact]
+    public void BuildDraft_UsesNullTlsVersionOverride_WhenDefaultOptionSelected()
+    {
+        var editor = CreateEditor();
+        editor.SelectedTlsVersionOverrideOption = RequestEditorViewModel.DefaultTlsVersionOverrideOption;
+
+        var draft = editor.BuildDraft();
+
+        draft.TlsVersionOverride.Should().BeNull();
+    }
+
+    [Fact]
+    public void BuildDraft_UsesPerRequestTlsVersionOverride_WhenSpecified()
+    {
+        var editor = CreateEditor();
+        editor.SelectedTlsVersionOverrideOption = "Tls13";
+
+        var draft = editor.BuildDraft();
+
+        draft.TlsVersionOverride.Should().Be("Tls13");
+    }
+
+    [Fact]
     public void BuildDraft_UsesPerRequestTimeoutSeconds_WhenProvided()
     {
         var editor = CreateEditor();

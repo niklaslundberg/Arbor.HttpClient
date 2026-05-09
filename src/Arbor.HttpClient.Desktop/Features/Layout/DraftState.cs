@@ -1,3 +1,4 @@
+using Arbor.HttpClient.Desktop.Features.HttpRequest;
 
 namespace Arbor.HttpClient.Desktop.Features.Layout;
 
@@ -17,6 +18,7 @@ public sealed class DraftState
     public bool PrettyPrintRequestBody { get; init; }
     public bool PrettyPrintRequestBodyUseIndentation { get; init; } = true;
     public bool IgnoreCertificateValidation { get; init; }
+    public string TlsVersionOverrideOption { get; init; } = RequestEditorViewModel.DefaultTlsVersionOverrideOption;
     public string RequestTimeoutSecondsText { get; init; } = string.Empty;
     public string HttpVersion { get; init; } = "1.1";
     public string ContentTypeOption { get; init; } = "(none)";

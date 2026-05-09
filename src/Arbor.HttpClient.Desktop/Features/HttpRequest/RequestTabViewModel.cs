@@ -13,6 +13,7 @@ namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
 public sealed partial class RequestTabViewModel : ViewModelBase, IDisposable
 {
     private bool _disposed;
+    private CollectionRequestSource? _collectionRequestSource;
 
     public RequestTabViewModel(RequestEditorViewModel requestEditor)
     {
@@ -29,6 +30,18 @@ public sealed partial class RequestTabViewModel : ViewModelBase, IDisposable
     /// </summary>
     public string DisplayTitle =>
         string.IsNullOrWhiteSpace(RequestEditor.RequestName) ? "New" : RequestEditor.RequestName;
+
+    public void SetCollectionRequestSource(int collectionId, string method, string path, string name)
+    {
+        _collectionRequestSource = new CollectionRequestSource(collectionId, method, path, name);
+    }
+
+    public bool MatchesCollectionRequest(int collectionId, string method, string path, string name) =>
+        _collectionRequestSource is { } source
+        && source.CollectionId == collectionId
+        && string.Equals(source.Method, method, StringComparison.Ordinal)
+        && string.Equals(source.Path, path, StringComparison.Ordinal)
+        && string.Equals(source.Name, name, StringComparison.Ordinal);
 
     private void OnRequestEditorPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -48,4 +61,6 @@ public sealed partial class RequestTabViewModel : ViewModelBase, IDisposable
         _disposed = true;
         RequestEditor.PropertyChanged -= OnRequestEditorPropertyChanged;
     }
+
+    private sealed record CollectionRequestSource(int CollectionId, string Method, string Path, string Name);
 }

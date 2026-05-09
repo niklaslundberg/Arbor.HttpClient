@@ -9,4 +9,5 @@ public sealed record HttpRequestDraft(
     Version? HttpVersion = null,
     bool? FollowRedirects = null,
     bool? IgnoreCertificateValidation = null,
-    int? TimeoutSeconds = null);
+    int? TimeoutSeconds = null,
+    string? TlsVersionOverride = null);

@@ -7,19 +7,39 @@ public class ResponseSaveFileNamePatternFormatterTests
     [Fact]
     public void TryFormat_WithSupportedTokens_ReturnsNormalizedFileName()
     {
+        var timestamp = new DateTimeOffset(2026, 05, 09, 13, 45, 00, TimeSpan.FromHours(2));
         var success = ResponseSaveFileNamePatternFormatter.TryFormat(
             "{collectionName}-{requestPath}-{requestName}-{timestamp:yyyy-MM-dd HH.mm.ss}{contentTypeExtension}",
             "My/Collection",
             "api/v1/users",
             "Get:Users",
             ".json",
-            new DateTimeOffset(2026, 05, 09, 13, 45, 00, TimeSpan.Zero),
+            timestamp,
             out var fileName,
             out var error);
 
         success.Should().BeTrue();
         error.Should().BeEmpty();
-        fileName.Should().Be("My_Collection-api_v1_users-Get_Users-2026-05-09 13.45.00.json");
+        fileName.Should().Be($"My_Collection-api_v1_users-Get_Users-{timestamp.ToLocalTime():yyyy-MM-dd HH.mm.ss}.json");
+    }
+
+    [Fact]
+    public void TryFormat_WithTimestampUtcToken_FormatsUtcValue()
+    {
+        var timestamp = new DateTimeOffset(2026, 05, 09, 13, 45, 00, TimeSpan.FromHours(2));
+        var success = ResponseSaveFileNamePatternFormatter.TryFormat(
+            "{timestamp:yyyyMMddHHmmss}-{timestampUtc:yyyyMMddHHmmss}{extension}",
+            "Collection",
+            "path",
+            "request",
+            ".txt",
+            timestamp,
+            out var fileName,
+            out var error);
+
+        success.Should().BeTrue();
+        error.Should().BeEmpty();
+        fileName.Should().Be($"{timestamp.ToLocalTime():yyyyMMddHHmmss}-{timestamp.ToUniversalTime():yyyyMMddHHmmss}.txt");
     }
 
     [Fact]
