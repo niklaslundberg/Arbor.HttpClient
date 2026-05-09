@@ -1211,9 +1211,12 @@ public class MainWindowUiTests
             var tabControl = window.GetVisualDescendants()
                 .OfType<TabControl>()
                 .Single(control => control.Items.OfType<TabItem>().Any(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal)));
+            var hasRequestOptionsExpander = window.GetVisualDescendants()
+                .OfType<Expander>()
+                .Any(expander => string.Equals(expander.Header is null ? null : expander.Header.ToString(), "Request options", StringComparison.Ordinal));
 
             VerifyTabRealized(tabControl, "Request options");
-            window.GetVisualDescendants().OfType<Expander>().Should().BeEmpty();
+            hasRequestOptionsExpander.Should().BeFalse();
 
             window.Close();
             return true;
