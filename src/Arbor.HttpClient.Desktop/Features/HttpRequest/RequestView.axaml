@@ -12,7 +12,7 @@
         <conv:MethodToColorConverter x:Key="MethodToColorConverter" />
     </UserControl.Resources>
 
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
 
         <Grid.KeyBindings>
             <!-- Standard across Hoppscotch / Insomnia / Postman: Ctrl+Enter (or Cmd+Enter) sends the request.
@@ -21,16 +21,76 @@
             <KeyBinding Gesture="Cmd+Return" Command="{Binding App.ExecutePrimaryActionCommand}" />
         </Grid.KeyBindings>
 
-        <!-- Row 0: Request type selector -->
-        <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="8">
+        <!-- Row 0: Request tab bar — tab name = request name; "New" when unnamed; text is truncated at 120px;
+             full name is visible on hover via ToolTip. -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" RowSpacing="0">
+            <ListBox ItemsSource="{Binding App.RequestTabs}"
+                     SelectedItem="{Binding App.ActiveRequestTab, Mode=TwoWay}"
+                     SelectionMode="Single"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Padding="0">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="vm:RequestTabViewModel">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <!-- Tab title: truncated to 120 px; full name shown as tooltip -->
+                            <TextBlock Text="{Binding DisplayTitle}"
+                                       MaxWidth="120"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center"
+                                       ToolTip.Tip="{Binding DisplayTitle}" />
+                            <!-- Close button: only active when more than one tab is open -->
+                            <Button Content="✕"
+                                    Padding="2,0"
+                                    Width="18" Height="18"
+                                    FontSize="10"
+                                    VerticalContentAlignment="Center"
+                                    HorizontalContentAlignment="Center"
+                                    AutomationProperties.Name="Close tab"
+                                    ToolTip.Tip="Close tab"
+                                    Command="{Binding $parent[UserControl].DataContext.App.CloseRequestTabCommand}"
+                                    CommandParameter="{Binding}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="8,4" />
+                        <Setter Property="CornerRadius" Value="4,4,0,0" />
+                        <Setter Property="Margin" Value="0,0,2,0" />
+                    </Style>
+                </ListBox.Styles>
+            </ListBox>
+
+            <!-- New tab button -->
+            <Button Grid.Column="1"
+                    Content="+"
+                    Width="28" Height="28"
+                    Padding="0"
+                    FontSize="16"
+                    VerticalContentAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    AutomationProperties.Name="New request tab"
+                    ToolTip.Tip="New request tab"
+                    Command="{Binding App.NewRequestTabCommand}"
+                    Margin="4,0,0,0" />
+        </Grid>
+
+        <!-- Row 1: Request type selector -->
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto" ColumnSpacing="8">
             <TextBlock Text="{x:Static loc:Strings.RequestTypeLabel}" VerticalAlignment="Center" Opacity="0.7" />
             <ComboBox Grid.Column="1" MinWidth="160"
                       ItemsSource="{Binding App.RequestEditor.RequestTypeOptions}"
                       SelectedItem="{Binding App.RequestEditor.SelectedRequestType, Mode=TwoWay}" />
         </Grid>
 
-        <!-- Row 1: Request name + method + URL + Send -->
-        <Grid Grid.Row="1" ColumnDefinitions="120,*,120" ColumnSpacing="8">
+        <!-- Row 2: Request name + method + URL + Send -->
+        <Grid Grid.Row="2" ColumnDefinitions="120,*,120" ColumnSpacing="8">
             <TextBox Grid.Column="0" PlaceholderText="{x:Static loc:Strings.RequestNamePlaceholder}"
                      Text="{Binding App.RequestEditor.RequestName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
@@ -109,9 +169,9 @@
                     Command="{Binding App.ExecutePrimaryActionCommand}" />
         </Grid>
 
-        <!-- Row 2: Demo server banner — shown when the current request targets the local demo server
+        <!-- Row 3: Demo server banner — shown when the current request targets the local demo server
              but the demo server is not yet running. -->
-        <Border Grid.Row="2"
+        <Border Grid.Row="3"
                 IsVisible="{Binding App.IsDemoServerBannerVisible}"
                 Background="{DynamicResource PreviewPanelBackgroundBrush}"
                 BorderBrush="{DynamicResource PanelBorderBrush}"
@@ -128,8 +188,8 @@
             </Grid>
         </Border>
 
-        <!-- Row 3: HTTP-only options (collapsed by default to save vertical space) -->
-        <Expander Grid.Row="3"
+        <!-- Row 4: HTTP-only options (collapsed by default to save vertical space) -->
+        <Expander Grid.Row="4"
                   IsVisible="{Binding App.RequestEditor.IsHttpRequest}"
                   Header="{x:Static loc:Strings.RequestAdvancedOptionsHeader}">
             <StackPanel Margin="0,8,0,0" Spacing="8">
@@ -153,10 +213,10 @@
             </StackPanel>
         </Expander>
 
-        <TextBlock Grid.Row="4" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
+        <TextBlock Grid.Row="5" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
 
-        <!-- Row 5: Type-specific editor tabs -->
-        <TabControl Grid.Row="5">
+        <!-- Row 6: Type-specific editor tabs -->
+        <TabControl Grid.Row="6">
 
             <!-- ═══════════════════════════════ HTTP-only tabs ═══════════════════════════════ -->
             <TabItem Header="{x:Static loc:Strings.TabQuery}" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">

@@ -23,7 +23,7 @@ namespace Arbor.HttpClient.Desktop.Features.Environments;
 public sealed partial class EnvironmentsViewModel : Tool, IDisposable
 {
     private readonly IEnvironmentRepository _environmentRepository;
-    private readonly RequestEditorViewModel _requestEditor;
+    private readonly Func<RequestEditorViewModel> _getRequestEditor;
     private readonly Func<IStorageProvider?> _getStorageProvider;
     private readonly ILogger _logger;
     private bool _suppressEnvironmentAutoSave;
@@ -36,12 +36,12 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
 
     public EnvironmentsViewModel(
         IEnvironmentRepository environmentRepository,
-        RequestEditorViewModel requestEditor,
+        Func<RequestEditorViewModel> getRequestEditor,
         Func<IStorageProvider?> getStorageProvider,
         ILogger? logger = null)
     {
         _environmentRepository = environmentRepository;
-        _requestEditor = requestEditor;
+        _getRequestEditor = getRequestEditor;
         _getStorageProvider = getStorageProvider;
         _logger = logger ?? Log.Logger;
         Id = "environments";
@@ -186,7 +186,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
             _suppressEnvironmentAutoSave = previousSuppressEnvironmentAutoSave;
         }
 
-        _requestEditor.RefreshRequestPreview();
+        _getRequestEditor().RefreshRequestPreview();
     }
 
     [RelayCommand]
@@ -449,13 +449,13 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
             }
         }
 
-        _requestEditor.RefreshRequestPreview();
+        _getRequestEditor().RefreshRequestPreview();
         QueueEnvironmentAutoSave();
     }
 
     private void OnActiveEnvironmentVariablePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        _requestEditor.RefreshRequestPreview();
+        _getRequestEditor().RefreshRequestPreview();
         QueueEnvironmentAutoSave();
     }
 

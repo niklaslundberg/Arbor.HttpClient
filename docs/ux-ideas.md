@@ -171,16 +171,20 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ## 3. Navigation / Workflow
 
-### 3.1 Tabbed requests
+### 3.1 Tabbed requests ✅ Implemented
+> Implemented in this PR (commit pending) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestTabViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`
+
 **What it means:** Multiple open requests as tabs across the top of the main content area, so the user can switch between in-flight or draft requests without losing state — the primary UX paradigm of Postman, Insomnia, and Hoppscotch.
 
-**How to implement:**
-- Replace the single `RequestViewModel` on `MainViewModel` with an `ObservableCollection<RequestTabViewModel>` and an `ActiveTab` property.
-- The main content area becomes a `TabControl` (or a custom tab bar with underline style) bound to the collection.
-- Each tab has its own request state, response, and history reference.
-- "New tab" creates a blank `RequestTabViewModel`; "Close tab" removes it (with an unsaved-changes prompt if dirty).
+**How it was implemented:**
+- Added `RequestTabViewModel` that owns a `RequestEditorViewModel` with `DisplayTitle` (request name or "New").
+- `MainWindowViewModel` has `ObservableCollection<RequestTabViewModel> RequestTabs`, `ActiveRequestTab`, `NewRequestTabCommand`, and `CloseRequestTabCommand`.
+- `RequestView.axaml` has a `ListBox`-based tab bar at the top: each tab shows a truncated name (120 px max, `TextTrimming="CharacterEllipsis"`), full name as tooltip, and a ✕ close button; a "+" button adds new tabs.
+- Tab switching swaps the active `RequestEditorViewModel` and the code-behind re-wires the AvaloniaEdit text editors.
 
-**Scope:** L (touches most of the VM and view layer)
+**Remaining polish:**
+- Response state is currently global (shared across tabs). Per-tab response history is a future enhancement.
+- "Unsaved changes" prompt on tab close not yet implemented.
 
 ---
 
