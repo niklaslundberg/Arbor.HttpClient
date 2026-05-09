@@ -687,7 +687,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
                 header.IsEnabled = true;
             }
 
-            if (RequestHeaders.Count > 0 && ReferenceEquals(RequestHeaders[^1], header) && !string.IsNullOrEmpty(header.Name))
+            if (ReferenceEquals(RequestHeaders[^1], header) && !string.IsNullOrEmpty(header.Name))
             {
                 EnsurePlaceholderHeader();
             }
@@ -727,7 +727,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
                 param.IsEnabled = true;
             }
 
-            if (RequestQueryParameters.Count > 0 && ReferenceEquals(RequestQueryParameters[^1], param) && !string.IsNullOrEmpty(param.Key))
+            if (ReferenceEquals(RequestQueryParameters[^1], param) && !string.IsNullOrEmpty(param.Key))
             {
                 EnsurePlaceholderQueryParameter();
             }
