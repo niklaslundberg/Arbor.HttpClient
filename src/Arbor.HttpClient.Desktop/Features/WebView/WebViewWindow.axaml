@@ -12,39 +12,43 @@
     <Grid RowDefinitions="Auto,*">
 
         <!-- Navigation bar -->
-        <Border Grid.Row="0"
-                BorderBrush="{DynamicResource PanelBorderBrush}"
-                BorderThickness="0,0,0,1"
-                Padding="6,4">
-            <StackPanel Orientation="Horizontal" Spacing="4">
-                <Button x:Name="BackButton"
-                        Content="←"
-                        Width="32"
-                        AutomationProperties.Name="{x:Static loc:Strings.WebViewGoBack}"
-                        ToolTip.Tip="{x:Static loc:Strings.WebViewGoBack}"
-                        IsEnabled="False" />
-                <Button x:Name="ForwardButton"
-                        Content="→"
-                        Width="32"
-                        AutomationProperties.Name="{x:Static loc:Strings.WebViewGoForward}"
-                        ToolTip.Tip="{x:Static loc:Strings.WebViewGoForward}"
-                        IsEnabled="False" />
-                <Button x:Name="RefreshButton"
-                        Content="↺"
-                        Width="32"
-                        AutomationProperties.Name="{x:Static loc:Strings.WebViewRefreshPage}"
-                        ToolTip.Tip="{x:Static loc:Strings.WebViewRefresh}" />
-                <TextBox x:Name="UrlBox"
-                         MinWidth="360"
-                         HorizontalAlignment="Stretch"
-                         AutomationProperties.Name="{x:Static loc:Strings.WebViewUrlLabel}"
-                         ToolTip.Tip="{x:Static loc:Strings.WebViewUrlTooltip}" />
-                <Button x:Name="GoButton"
-                        Content="{x:Static loc:Strings.WebViewGo}"
-                        AutomationProperties.Name="{x:Static loc:Strings.WebViewNavigate}"
-                        ToolTip.Tip="{x:Static loc:Strings.WebViewNavigateTooltip}" />
-            </StackPanel>
-        </Border>
+        <ScrollViewer x:Name="NavigationScrollViewer"
+                      Grid.Row="0"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Disabled">
+            <Border BorderBrush="{DynamicResource PanelBorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="6,4">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Button x:Name="BackButton"
+                            Content="←"
+                            Width="32"
+                            AutomationProperties.Name="{x:Static loc:Strings.WebViewGoBack}"
+                            ToolTip.Tip="{x:Static loc:Strings.WebViewGoBack}"
+                            IsEnabled="False" />
+                    <Button x:Name="ForwardButton"
+                            Content="→"
+                            Width="32"
+                            AutomationProperties.Name="{x:Static loc:Strings.WebViewGoForward}"
+                            ToolTip.Tip="{x:Static loc:Strings.WebViewGoForward}"
+                            IsEnabled="False" />
+                    <Button x:Name="RefreshButton"
+                            Content="↺"
+                            Width="32"
+                            AutomationProperties.Name="{x:Static loc:Strings.WebViewRefreshPage}"
+                            ToolTip.Tip="{x:Static loc:Strings.WebViewRefresh}" />
+                    <TextBox x:Name="UrlBox"
+                             MinWidth="360"
+                             HorizontalAlignment="Stretch"
+                             AutomationProperties.Name="{x:Static loc:Strings.WebViewUrlLabel}"
+                             ToolTip.Tip="{x:Static loc:Strings.WebViewUrlTooltip}" />
+                    <Button x:Name="GoButton"
+                            Content="{x:Static loc:Strings.WebViewGo}"
+                            AutomationProperties.Name="{x:Static loc:Strings.WebViewNavigate}"
+                            ToolTip.Tip="{x:Static loc:Strings.WebViewNavigateTooltip}" />
+                </StackPanel>
+            </Border>
+        </ScrollViewer>
 
         <!-- Embedded native web browser -->
         <webview:NativeWebView x:Name="WebView" Grid.Row="1" />
