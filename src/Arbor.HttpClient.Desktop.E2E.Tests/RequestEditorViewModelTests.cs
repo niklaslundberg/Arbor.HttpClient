@@ -674,9 +674,6 @@ public class RequestEditorViewModelTests
         editor.SelectedContentTypeOption = "application/json";
         editor.RequestUrl = "http://localhost/test";
 
-        // Capture the preview before the bulk update.
-        var previewBeforeUpdate = editor.RequestPreview;
-
         var previewChangedCount = 0;
         editor.PropertyChanged += (_, e) =>
         {
