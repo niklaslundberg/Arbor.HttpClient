@@ -894,7 +894,7 @@ public class MainWindowUiTests
                 logWindowViewModel);
 
             viewModel.RequestEditor.RequestUrl = "http://localhost:5000/items?first=1&second=2#keep";
-            viewModel.RequestEditor.RequestQueryParameters.Should().HaveCount(2);
+            viewModel.RequestEditor.RequestQueryParameters.Should().HaveCount(3);
             viewModel.RequestEditor.RequestQueryParameters[0].Key.Should().Be("first");
             viewModel.RequestEditor.RequestQueryParameters[0].Value.Should().Be("1");
             viewModel.RequestEditor.RequestQueryParameters[1].Key.Should().Be("second");

@@ -412,6 +412,23 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
 
+### 1.3b Default-visible placeholder row for headers and query parameters ✅ Implemented
+> Implemented in PR #169 (commit `c7c001b`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Layout/DraftPersistenceService.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`
+
+**What it means:** Instead of requiring the user to click an "Add header/query" button, an empty input row is always visible at the bottom of the Headers and Query Parameters lists — just like Hoppscotch. As soon as the user types anything in the Key field of that row, the row becomes active (`IsEnabled = true`) and a new empty placeholder row appears below it for the next entry.
+
+**What shipped:**
+- `EnsurePlaceholderHeader()` and `EnsurePlaceholderQueryParameter()` private methods in `RequestEditorViewModel` always keep one empty, disabled row at the bottom of each collection. The placeholder condition checks both an empty/whitespace name and `IsEnabled = false` so enabling a row via the checkbox while the name is still blank still triggers a new placeholder.
+- `OnRequestHeaderPropertyChanged` and `OnRequestQueryParameterPropertyChanged` auto-enable a row (`IsEnabled = true`) when its Key/Name changes from blank to non-blank using `IsNullOrWhiteSpace`; if the modified row was the last (placeholder) row, a new placeholder is automatically appended. Enabling the checkbox on the last row also triggers a new placeholder.
+- The "Add Header" and "Add Query Parameter" buttons are removed from `RequestView.axaml`; the corresponding commands now call the same `EnsurePlaceholder*` logic and are idempotent.
+- `DraftPersistenceService.CaptureFromEditor` filters out placeholder rows (whitespace-name headers) before saving; `RestoreToEditor` calls `EnsurePlaceholderRows()` to re-establish placeholders after load.
+- `MainWindowViewModel` calls `EnsurePlaceholderRows()` after populating headers from a collection import.
+- Public `EnsurePlaceholderRows()` method for external callers.
+
+**Scope:** S
+
+---
+
 ### 3.1 Tabbed requests ✅ Implemented
 > Implemented in PR #168 (commit `1f87c26`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestTabViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`
 
@@ -726,3 +743,18 @@ Each idea includes a description of what it means in practice, notes on how it c
 - Validation override support: when disabled, fast-feedback validation is skipped and the request flow continues
 - `DraftState` / `DraftPersistenceService` persist and restore the new override
 - New tests for default-on behavior, persistence, and override behavior in `RequestEditorViewModelTests`, `DraftPersistenceServiceTests`, and `MainWindowUiTests`
+
+---
+
+### Request body pretty print options ✅ Implemented
+> Implemented in PR #164 (commit `363e92b`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`
+
+**What it means:** For known request content types (JSON/XML), users can enable a per-request advanced option that pretty-prints the request body for preview and for the actual outgoing send payload without mutating the source body text. A sub-option controls whether pretty-printing uses indentation or compact formatting. A one-time body-tab action also formats the source body text directly.
+
+**What shipped:**
+- New request options: **Pretty-print request body for preview and send** and **Use indentation when pretty-printing request body**
+- Pretty-print formatting now applies to the resolved body used in both `RequestPreview` and `BuildDraft()` send payload generation
+- Supported known media types: JSON (`application/json`, `+json`) and XML (`application/xml`, `text/xml`, `+xml`)
+- New body-tab action: **Pretty-print source** button, which reformats `RequestBody` once in-place
+- Draft persistence now stores and restores the two pretty-print options
+- New focused tests in `RequestEditorViewModelTests` and `DraftPersistenceServiceTests` verify formatting behavior and persistence

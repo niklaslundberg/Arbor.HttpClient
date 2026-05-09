@@ -7,6 +7,10 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Xml;
+using System.Xml.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serilog;
@@ -33,6 +37,12 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     private readonly Action? _onOptionsAffectingPropertyChanged;
     private bool _isUpdatingRequestUrlFromQueryParameters;
     private bool _isUpdatingQueryParametersFromRequestUrl;
+    // RequestEditorViewModel state is mutated on the UI thread; this cache is intentionally unsynchronized.
+    private string _cachedFormattedBody = string.Empty;
+    private string _cachedFormattingResolvedBody = string.Empty;
+    private string _cachedFormattingMediaType = string.Empty;
+    private bool _cachedFormattingUseIndentation;
+    private bool _hasCachedFormattedBody;
 
     private const string VariableTokenStart = "{{";
 
@@ -72,6 +82,12 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _validateUrlBeforeSend = true;
+
+    [ObservableProperty]
+    private bool _prettyPrintRequestBody;
+
+    [ObservableProperty]
+    private bool _prettyPrintRequestBodyUseIndentation = true;
 
     [ObservableProperty]
     private bool _ignoreCertificateValidationForRequest;
@@ -206,7 +222,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     // ── Commands ──────────────────────────────────────────────────────────────
 
     [RelayCommand]
-    private void AddHeader() => RequestHeaders.Add(new RequestHeaderViewModel());
+    private void AddHeader() => EnsurePlaceholderHeader();
 
     [RelayCommand]
     private void RemoveHeader(RequestHeaderViewModel? header)
@@ -214,11 +230,12 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         if (header is { } h)
         {
             RequestHeaders.Remove(h);
+            EnsurePlaceholderHeader();
         }
     }
 
     [RelayCommand]
-    private void AddQueryParameter() => RequestQueryParameters.Add(new RequestQueryParameterViewModel());
+    private void AddQueryParameter() => EnsurePlaceholderQueryParameter();
 
     [RelayCommand]
     private void RemoveQueryParameter(RequestQueryParameterViewModel? parameter)
@@ -226,12 +243,22 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         if (parameter is { } param)
         {
             RequestQueryParameters.Remove(param);
+            EnsurePlaceholderQueryParameter();
         }
     }
 
     [RelayCommand]
     private void ToggleRequestHeadersPreview() =>
         IsRequestHeadersPreviewVisible = !IsRequestHeadersPreviewVisible;
+
+    [RelayCommand]
+    private void PrettyPrintRequestBodySource()
+    {
+        if (TryFormatRequestBody(RequestBody, out var formattedBody))
+        {
+            RequestBody = formattedBody;
+        }
+    }
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
@@ -258,6 +285,17 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         RequestHeaders = [];
         RequestQueryParameters = [];
 
+        // Add initial placeholder rows directly, before hooking up the collection-changed
+        // event handlers. This avoids triggering the full refresh chain (which calls
+        // _getActiveVariables) while the parent ViewModel may still be initializing.
+        var headerPlaceholder = new RequestHeaderViewModel { IsEnabled = false };
+        headerPlaceholder.PropertyChanged += OnRequestHeaderPropertyChanged;
+        RequestHeaders.Add(headerPlaceholder);
+
+        var queryParamPlaceholder = new RequestQueryParameterViewModel { IsEnabled = false };
+        queryParamPlaceholder.PropertyChanged += OnRequestQueryParameterPropertyChanged;
+        RequestQueryParameters.Add(queryParamPlaceholder);
+
         RequestHeaders.CollectionChanged += OnRequestHeadersCollectionChanged;
         RequestQueryParameters.CollectionChanged += OnRequestQueryParametersCollectionChanged;
     }
@@ -274,6 +312,16 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     }
 
     partial void OnRequestBodyChanged(string value) => RefreshRequestDerivedViews();
+
+    partial void OnPrettyPrintRequestBodyChanged(bool value) => RefreshRequestDerivedViews();
+
+    partial void OnPrettyPrintRequestBodyUseIndentationChanged(bool value)
+    {
+        if (PrettyPrintRequestBody)
+        {
+            RefreshRequestDerivedViews();
+        }
+    }
 
     partial void OnRequestUrlChanged(string value)
     {
@@ -387,7 +435,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     {
         var variables = GetResolvedVariables();
         var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
-        var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
+        var resolvedBody = GetResolvedRequestBodyForPreviewAndSend(variables);
         var previewHeaders = BuildResolvedHeaders(variables, resolvedBody);
 
         var requestLine = $"{SelectedMethod} {resolvedUrl} HTTP/{SelectedHttpVersionOption}";
@@ -414,7 +462,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     {
         var variables = GetResolvedVariables();
         var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
-        var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
+        var resolvedBody = GetResolvedRequestBodyForPreviewAndSend(variables);
         var headers = BuildResolvedHeaders(variables, resolvedBody);
         int? timeoutSeconds = null;
         if (!string.IsNullOrWhiteSpace(RequestTimeoutSecondsText))
@@ -478,6 +526,69 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     {
         UpdateRequestHeadersPreview();
         RefreshRequestPreview();
+    }
+
+    private string GetResolvedRequestBodyForPreviewAndSend(IReadOnlyList<EnvironmentVariable> variables)
+    {
+        var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
+        if (!PrettyPrintRequestBody)
+        {
+            return resolvedBody;
+        }
+
+        var mediaType = HttpContentTypeHelper.NormalizeMediaType(ResolveContentType(resolvedBody));
+        if (!HttpContentTypeHelper.IsJsonMediaType(mediaType) && !HttpContentTypeHelper.IsXmlMediaType(mediaType))
+        {
+            return resolvedBody;
+        }
+
+        if (_hasCachedFormattedBody
+            && string.Equals(_cachedFormattingResolvedBody, resolvedBody, StringComparison.Ordinal)
+            && string.Equals(_cachedFormattingMediaType, mediaType, StringComparison.Ordinal)
+            && _cachedFormattingUseIndentation == PrettyPrintRequestBodyUseIndentation)
+        {
+            return _cachedFormattedBody;
+        }
+
+        if (!TryFormatRequestBodyByMediaType(resolvedBody, mediaType, PrettyPrintRequestBodyUseIndentation, out var formattedBody))
+        {
+            return resolvedBody;
+        }
+
+        _cachedFormattedBody = formattedBody;
+        _cachedFormattingResolvedBody = resolvedBody;
+        _cachedFormattingMediaType = mediaType;
+        _cachedFormattingUseIndentation = PrettyPrintRequestBodyUseIndentation;
+        _hasCachedFormattedBody = true;
+        return formattedBody;
+    }
+
+    private bool TryFormatRequestBody(string requestBody, out string formattedBody)
+    {
+        formattedBody = requestBody;
+        if (string.IsNullOrWhiteSpace(requestBody))
+        {
+            return false;
+        }
+
+        var mediaType = HttpContentTypeHelper.NormalizeMediaType(ResolveContentType(requestBody));
+        return TryFormatRequestBodyByMediaType(requestBody, mediaType, PrettyPrintRequestBodyUseIndentation, out formattedBody);
+    }
+
+    private static bool TryFormatRequestBodyByMediaType(string requestBody, string mediaType, bool useIndentation, out string formattedBody)
+    {
+        if (HttpContentTypeHelper.IsJsonMediaType(mediaType))
+        {
+            return TryFormatJsonBody(requestBody, useIndentation, out formattedBody);
+        }
+
+        if (HttpContentTypeHelper.IsXmlMediaType(mediaType))
+        {
+            return TryFormatXmlBody(requestBody, useIndentation, out formattedBody);
+        }
+
+        formattedBody = string.Empty;
+        return false;
     }
 
     private void UpdateRequestHeadersPreview()
@@ -583,29 +694,29 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             var query = ExtractQuery(url);
             RequestQueryParameters.Clear();
 
-            if (string.IsNullOrEmpty(query))
+            if (!string.IsNullOrEmpty(query))
             {
-                return;
-            }
-
-            foreach (var segment in query.Split('&', StringSplitOptions.None))
-            {
-                if (segment.Length == 0)
+                foreach (var segment in query.Split('&', StringSplitOptions.None))
                 {
-                    continue;
+                    if (segment.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    var equalsIndex = segment.IndexOf('=');
+                    var rawKey = equalsIndex >= 0 ? segment[..equalsIndex] : segment;
+                    var rawValue = equalsIndex >= 0 ? segment[(equalsIndex + 1)..] : string.Empty;
+
+                    RequestQueryParameters.Add(new RequestQueryParameterViewModel
+                    {
+                        Key = DecodeQueryComponent(rawKey),
+                        Value = DecodeQueryComponent(rawValue),
+                        IsEnabled = true
+                    });
                 }
-
-                var equalsIndex = segment.IndexOf('=');
-                var rawKey = equalsIndex >= 0 ? segment[..equalsIndex] : segment;
-                var rawValue = equalsIndex >= 0 ? segment[(equalsIndex + 1)..] : string.Empty;
-
-                RequestQueryParameters.Add(new RequestQueryParameterViewModel
-                {
-                    Key = DecodeQueryComponent(rawKey),
-                    Value = DecodeQueryComponent(rawValue),
-                    IsEnabled = true
-                });
             }
+
+            EnsurePlaceholderQueryParameter();
         }
         finally
         {
@@ -665,8 +776,37 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         RefreshRequestDerivedViews();
     }
 
-    private void OnRequestHeaderPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+    private void OnRequestHeaderPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is RequestHeaderViewModel header)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(RequestHeaderViewModel.Name):
+                    if (!header.IsEnabled && !string.IsNullOrWhiteSpace(header.Name))
+                    {
+                        header.IsEnabled = true;
+                    }
+
+                    if (ReferenceEquals(RequestHeaders[^1], header) && !string.IsNullOrWhiteSpace(header.Name))
+                    {
+                        EnsurePlaceholderHeader();
+                    }
+
+                    break;
+
+                case nameof(RequestHeaderViewModel.IsEnabled):
+                    if (ReferenceEquals(RequestHeaders[^1], header))
+                    {
+                        EnsurePlaceholderHeader();
+                    }
+
+                    break;
+            }
+        }
+
         RefreshRequestDerivedViews();
+    }
 
     private void OnRequestQueryParametersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -692,8 +832,68 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     private void OnRequestQueryParameterPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (sender is RequestQueryParameterViewModel param)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(RequestQueryParameterViewModel.Key):
+                    if (!param.IsEnabled && !string.IsNullOrWhiteSpace(param.Key))
+                    {
+                        param.IsEnabled = true;
+                    }
+
+                    if (ReferenceEquals(RequestQueryParameters[^1], param) && !string.IsNullOrWhiteSpace(param.Key))
+                    {
+                        EnsurePlaceholderQueryParameter();
+                    }
+
+                    break;
+
+                case nameof(RequestQueryParameterViewModel.IsEnabled):
+                    if (ReferenceEquals(RequestQueryParameters[^1], param))
+                    {
+                        EnsurePlaceholderQueryParameter();
+                    }
+
+                    break;
+            }
+        }
+
         SyncRequestUrlFromQueryParameters();
         RefreshRequestPreview();
+    }
+
+    // ── Placeholder row helpers ────────────────────────────────────────────────
+
+    private void EnsurePlaceholderHeader()
+    {
+        if (RequestHeaders.Count == 0
+            || !string.IsNullOrWhiteSpace(RequestHeaders[^1].Name)
+            || RequestHeaders[^1].IsEnabled)
+        {
+            RequestHeaders.Add(new RequestHeaderViewModel { IsEnabled = false });
+        }
+    }
+
+    private void EnsurePlaceholderQueryParameter()
+    {
+        if (RequestQueryParameters.Count == 0
+            || !string.IsNullOrWhiteSpace(RequestQueryParameters[^1].Key)
+            || RequestQueryParameters[^1].IsEnabled)
+        {
+            RequestQueryParameters.Add(new RequestQueryParameterViewModel { IsEnabled = false });
+        }
+    }
+
+    /// <summary>
+    /// Ensures a placeholder (empty, disabled) row exists at the end of both the headers and
+    /// query parameters collections. Call this after programmatically loading rows (e.g. from a
+    /// saved draft or collection import) to restore the always-visible new-row UX.
+    /// </summary>
+    public void EnsurePlaceholderRows()
+    {
+        EnsurePlaceholderHeader();
+        EnsurePlaceholderQueryParameter();
     }
 
     // ── Static URL helpers ────────────────────────────────────────────────────
@@ -721,6 +921,43 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     {
         var queryPart = string.IsNullOrEmpty(query) ? string.Empty : $"?{query}";
         return $"{prefix}{queryPart}{fragment}";
+    }
+
+    private static bool TryFormatJsonBody(string requestBody, bool useIndentation, out string formattedBody)
+    {
+        try
+        {
+            using var jsonDocument = JsonDocument.Parse(requestBody);
+            formattedBody = JsonSerializer.Serialize(jsonDocument.RootElement, new JsonSerializerOptions
+            {
+                WriteIndented = useIndentation,
+                // Request preview/body editors treat this as plain text; payload semantics should not be altered by escaping.
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
+            return true;
+        }
+        catch (JsonException)
+        {
+            formattedBody = string.Empty;
+            return false;
+        }
+    }
+
+    private static bool TryFormatXmlBody(string requestBody, bool useIndentation, out string formattedBody)
+    {
+        try
+        {
+            var document = XDocument.Parse(requestBody);
+            formattedBody = useIndentation
+                ? document.ToString()
+                : document.ToString(SaveOptions.DisableFormatting);
+            return true;
+        }
+        catch (XmlException)
+        {
+            formattedBody = string.Empty;
+            return false;
+        }
     }
 
     private static string DecodeQueryComponent(string value)

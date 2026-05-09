@@ -37,11 +37,13 @@ public class RequestEditorViewModelTests
         var editor = CreateEditor();
         editor.RequestUrl = "http://localhost:5000/search?q=hello&page=2";
 
-        editor.RequestQueryParameters.Should().HaveCount(2);
+        editor.RequestQueryParameters.Should().HaveCount(3);
         editor.RequestQueryParameters[0].Key.Should().Be("q");
         editor.RequestQueryParameters[0].Value.Should().Be("hello");
         editor.RequestQueryParameters[1].Key.Should().Be("page");
         editor.RequestQueryParameters[1].Value.Should().Be("2");
+        editor.RequestQueryParameters[2].Key.Should().BeEmpty();
+        editor.RequestQueryParameters[2].IsEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -51,7 +53,9 @@ public class RequestEditorViewModelTests
         editor.RequestUrl = "http://localhost:5000/search?q=hello";
         editor.RequestUrl = "http://localhost:5000/search";
 
-        editor.RequestQueryParameters.Should().BeEmpty();
+        editor.RequestQueryParameters.Should().HaveCount(1);
+        editor.RequestQueryParameters[0].Key.Should().BeEmpty();
+        editor.RequestQueryParameters[0].IsEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -96,7 +100,9 @@ public class RequestEditorViewModelTests
         var param = editor.RequestQueryParameters[0];
         editor.RemoveQueryParameterCommand.Execute(param);
 
-        editor.RequestQueryParameters.Should().BeEmpty();
+        editor.RequestQueryParameters.Should().HaveCount(1);
+        editor.RequestQueryParameters[0].Key.Should().BeEmpty();
+        editor.RequestQueryParameters[0].IsEnabled.Should().BeFalse();
     }
 
     // ── Request headers ─────────────────────────────────────────────────────
@@ -118,7 +124,67 @@ public class RequestEditorViewModelTests
         var header = editor.RequestHeaders[0];
         editor.RemoveHeaderCommand.Execute(header);
 
-        editor.RequestHeaders.Should().BeEmpty();
+        editor.RequestHeaders.Should().HaveCount(1);
+        editor.RequestHeaders[0].Name.Should().BeEmpty();
+        editor.RequestHeaders[0].IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void PlaceholderHeader_AutoEnablesAndAppendsNewPlaceholder_WhenNameIsTyped()
+    {
+        var editor = CreateEditor();
+        var placeholder = editor.RequestHeaders[0];
+        placeholder.Name.Should().BeEmpty();
+        placeholder.IsEnabled.Should().BeFalse();
+
+        placeholder.Name = "X-Custom";
+
+        placeholder.IsEnabled.Should().BeTrue();
+        editor.RequestHeaders.Should().HaveCount(2);
+        editor.RequestHeaders[^1].Name.Should().BeEmpty();
+        editor.RequestHeaders[^1].IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void PlaceholderHeader_AppendsNewPlaceholder_WhenEnabledViaCheckboxBeforeNameIsEntered()
+    {
+        var editor = CreateEditor();
+        var placeholder = editor.RequestHeaders[0];
+
+        placeholder.IsEnabled = true;
+
+        editor.RequestHeaders.Should().HaveCount(2);
+        editor.RequestHeaders[^1].Name.Should().BeEmpty();
+        editor.RequestHeaders[^1].IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void PlaceholderQueryParameter_AutoEnablesAndAppendsNewPlaceholder_WhenKeyIsTyped()
+    {
+        var editor = CreateEditor();
+        var placeholder = editor.RequestQueryParameters[0];
+        placeholder.Key.Should().BeEmpty();
+        placeholder.IsEnabled.Should().BeFalse();
+
+        placeholder.Key = "page";
+
+        placeholder.IsEnabled.Should().BeTrue();
+        editor.RequestQueryParameters.Should().HaveCount(2);
+        editor.RequestQueryParameters[^1].Key.Should().BeEmpty();
+        editor.RequestQueryParameters[^1].IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void PlaceholderQueryParameter_AppendsNewPlaceholder_WhenEnabledViaCheckboxBeforeKeyIsEntered()
+    {
+        var editor = CreateEditor();
+        var placeholder = editor.RequestQueryParameters[0];
+
+        placeholder.IsEnabled = true;
+
+        editor.RequestQueryParameters.Should().HaveCount(2);
+        editor.RequestQueryParameters[^1].Key.Should().BeEmpty();
+        editor.RequestQueryParameters[^1].IsEnabled.Should().BeFalse();
     }
 
     // ── Auth header building ─────────────────────────────────────────────────
@@ -212,6 +278,18 @@ public class RequestEditorViewModelTests
         editor.RequestPreview.Should().NotContain("Content-Type:");
     }
 
+    [Fact]
+    public void RequestPreview_PrettyPrintsResolvedBody_WhenEnabled()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/json";
+        editor.RequestBody = "{\"a\":1}";
+        editor.PrettyPrintRequestBody = true;
+        editor.PrettyPrintRequestBodyUseIndentation = true;
+
+        editor.RequestPreview.Should().Contain("{\n  \"a\": 1\n}");
+    }
+
     // ── Variable resolution in preview ───────────────────────────────────────
 
     [Fact]
@@ -273,6 +351,78 @@ public class RequestEditorViewModelTests
 
         draft.Url.Should().Be("http://localhost:5000/items");
         draft.Body.Should().Be("{\"url\":\"http://localhost:5000\"}");
+    }
+
+    [Fact]
+    public void BuildDraft_PrettyPrintsJsonBodyWithIndentation_WhenEnabled()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/json";
+        editor.RequestBody = "{\"a\":1}";
+        editor.PrettyPrintRequestBody = true;
+        editor.PrettyPrintRequestBodyUseIndentation = true;
+
+        var draft = editor.BuildDraft();
+
+        draft.Body.Should().Be("{\n  \"a\": 1\n}");
+    }
+
+    [Fact]
+    public void BuildDraft_PrettyPrintsJsonBodyWithoutIndentation_WhenEnabled()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/json";
+        editor.RequestBody = "{  \"a\" : 1  }";
+        editor.PrettyPrintRequestBody = true;
+        editor.PrettyPrintRequestBodyUseIndentation = false;
+
+        var draft = editor.BuildDraft();
+
+        draft.Body.Should().Be("{\"a\":1}");
+    }
+
+    [Fact]
+    public void BuildDraft_PrettyPrintJson_DoesNotEscapeAngleBracketsOrAmpersands()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/json";
+        editor.RequestBody = "{\"html\":\"<div>&</div>\"}";
+        editor.PrettyPrintRequestBody = true;
+        editor.PrettyPrintRequestBodyUseIndentation = false;
+
+        var draft = editor.BuildDraft();
+
+        draft.Body.Should().Be("{\"html\":\"<div>&</div>\"}");
+        draft.Body.Should().NotContain("\\u003c");
+        draft.Body.Should().NotContain("\\u003e");
+        draft.Body.Should().NotContain("\\u0026");
+    }
+
+    [Fact]
+    public void BuildDraft_PrettyPrintsXmlBodyWithoutIndentation_WhenEnabled()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/xml";
+        editor.RequestBody = "<root>\n  <item>1</item>\n</root>";
+        editor.PrettyPrintRequestBody = true;
+        editor.PrettyPrintRequestBodyUseIndentation = false;
+
+        var draft = editor.BuildDraft();
+
+        draft.Body.Should().Be("<root><item>1</item></root>");
+    }
+
+    [Fact]
+    public void PrettyPrintRequestBodySourceCommand_FormatsSourceBody()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/json";
+        editor.PrettyPrintRequestBodyUseIndentation = false;
+        editor.RequestBody = "{ \"a\" : 1 }";
+
+        editor.PrettyPrintRequestBodySourceCommand.Execute(null);
+
+        editor.RequestBody.Should().Be("{\"a\":1}");
     }
 
     [Fact]

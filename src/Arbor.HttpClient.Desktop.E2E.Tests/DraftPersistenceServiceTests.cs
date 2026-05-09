@@ -62,6 +62,8 @@ public class DraftPersistenceServiceTests
             Body = "{\"key\":\"value\"}",
             FollowRedirects = false,
             ValidateUrlBeforeSend = false,
+            PrettyPrintRequestBody = true,
+            PrettyPrintRequestBodyUseIndentation = false,
             HttpVersion = "2.0",
             ContentTypeOption = "application/json",
             CustomContentType = string.Empty,
@@ -87,6 +89,8 @@ public class DraftPersistenceServiceTests
         loaded.Body.Should().Be("{\"key\":\"value\"}");
         loaded.FollowRedirects.Should().BeFalse();
         loaded.ValidateUrlBeforeSend.Should().BeFalse();
+        loaded.PrettyPrintRequestBody.Should().BeTrue();
+        loaded.PrettyPrintRequestBodyUseIndentation.Should().BeFalse();
         loaded.HttpVersion.Should().Be("2.0");
         loaded.ContentTypeOption.Should().Be("application/json");
         loaded.AuthMode.Should().Be("Bearer Token");
@@ -139,6 +143,8 @@ public class DraftPersistenceServiceTests
         editor.SelectedContentTypeOption = "(none)";
         editor.SelectedAuthModeOption = "None";
         editor.ValidateUrlBeforeSend = false;
+        editor.PrettyPrintRequestBody = true;
+        editor.PrettyPrintRequestBodyUseIndentation = false;
         editor.RequestNotes = "my note";
         editor.RequestHeaders.Add(new RequestHeaderViewModel { Name = "Accept", Value = "application/json", IsEnabled = true });
 
@@ -148,6 +154,8 @@ public class DraftPersistenceServiceTests
         draft.Method.Should().Be("DELETE");
         draft.Url.Should().Be("http://localhost:5000/items/1");
         draft.ValidateUrlBeforeSend.Should().BeFalse();
+        draft.PrettyPrintRequestBody.Should().BeTrue();
+        draft.PrettyPrintRequestBodyUseIndentation.Should().BeFalse();
         draft.RequestNotes.Should().Be("my note");
         draft.Headers.Should().ContainSingle(h => h.Name == "Accept" && h.Value == "application/json");
         draft.SavedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
@@ -167,6 +175,8 @@ public class DraftPersistenceServiceTests
             Body = "body-content",
             FollowRedirects = false,
             ValidateUrlBeforeSend = false,
+            PrettyPrintRequestBody = true,
+            PrettyPrintRequestBodyUseIndentation = false,
             HttpVersion = "2.0",
             ContentTypeOption = "application/xml",
             CustomContentType = string.Empty,
@@ -189,11 +199,13 @@ public class DraftPersistenceServiceTests
         editor.RequestBody.Should().Be("body-content");
         editor.FollowRedirectsForRequest.Should().BeFalse();
         editor.ValidateUrlBeforeSend.Should().BeFalse();
+        editor.PrettyPrintRequestBody.Should().BeTrue();
+        editor.PrettyPrintRequestBodyUseIndentation.Should().BeFalse();
         editor.SelectedHttpVersionOption.Should().Be("2.0");
         editor.SelectedContentTypeOption.Should().Be("application/xml");
         editor.RequestNotes.Should().Be("restored note");
         editor.SelectedRequestType.Should().Be(RequestType.Http);
-        editor.RequestHeaders.Should().ContainSingle();
+        editor.RequestHeaders.Where(h => !string.IsNullOrEmpty(h.Name)).Should().ContainSingle();
         editor.RequestHeaders[0].Name.Should().Be("X-Api-Version");
         editor.RequestHeaders[0].Value.Should().Be("2");
         editor.RequestHeaders[0].IsEnabled.Should().BeFalse();
@@ -236,6 +248,8 @@ public class DraftPersistenceServiceTests
         original.SelectedMethod = "PUT";
         original.RequestUrl = "http://localhost:5000";
         original.RequestBody = "{}";
+        original.PrettyPrintRequestBody = true;
+        original.PrettyPrintRequestBodyUseIndentation = false;
         original.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
         original.AuthBearerToken = "tok123";
         original.RequestHeaders.Add(new RequestHeaderViewModel { Name = "X-Foo", Value = "bar", IsEnabled = true });
@@ -249,6 +263,8 @@ public class DraftPersistenceServiceTests
         restored.SelectedMethod.Should().Be(original.SelectedMethod);
         restored.RequestUrl.Should().Be(original.RequestUrl);
         restored.RequestBody.Should().Be(original.RequestBody);
+        restored.PrettyPrintRequestBody.Should().BeTrue();
+        restored.PrettyPrintRequestBodyUseIndentation.Should().BeFalse();
         restored.SelectedAuthModeOption.Should().Be(original.SelectedAuthModeOption);
         restored.AuthBearerToken.Should().Be(original.AuthBearerToken);
         restored.RequestHeaders.Should().ContainSingle(h => h.Name == "X-Foo" && h.Value == "bar");

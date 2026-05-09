@@ -900,10 +900,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void UpdateResponsePresentation(string responseBody, IReadOnlyList<(string Name, string Value)> headers)
     {
         ResponseContentType = GetResponseContentType(headers);
-        var mediaType = NormalizeMediaType(ResponseContentType);
-        var isJson = IsJsonMediaType(mediaType);
-        var isXml = IsXmlMediaType(mediaType);
-        var isHtml = IsHtmlMediaType(mediaType);
+        var mediaType = HttpContentTypeHelper.NormalizeMediaType(ResponseContentType);
+        var isJson = HttpContentTypeHelper.IsJsonMediaType(mediaType);
+        var isXml = HttpContentTypeHelper.IsXmlMediaType(mediaType);
+        var isHtml = HttpContentTypeHelper.IsHtmlMediaType(mediaType);
 
         IsBinaryResponse = IsBinaryMediaType(mediaType);
         ResponseBodyTabLabel = isJson ? "JSON" : isXml ? "XML" : "Body";
@@ -933,27 +933,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private static string GetResponseContentType(IReadOnlyList<(string Name, string Value)> headers) =>
         headers.FirstOrDefault(h => string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase)).Value ?? string.Empty;
 
-    private static string NormalizeMediaType(string contentType)
-    {
-        if (string.IsNullOrWhiteSpace(contentType))
-        {
-            return string.Empty;
-        }
-
-        var semicolonIndex = contentType.IndexOf(';');
-        var mediaType = semicolonIndex >= 0 ? contentType[..semicolonIndex] : contentType;
-        return mediaType.Trim().ToLowerInvariant();
-    }
-
-    private static bool IsJsonMediaType(string mediaType) =>
-        mediaType == "application/json" || mediaType.EndsWith("+json", StringComparison.Ordinal);
-
-    private static bool IsXmlMediaType(string mediaType) =>
-        mediaType is "application/xml" or "text/xml" || mediaType.EndsWith("+xml", StringComparison.Ordinal);
-
-    private static bool IsHtmlMediaType(string mediaType) =>
-        mediaType == "text/html";
-
     private static bool IsBinaryMediaType(string mediaType)
     {
         if (string.IsNullOrWhiteSpace(mediaType))
@@ -961,7 +940,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return false;
         }
 
-        if (mediaType.StartsWith("text/", StringComparison.Ordinal) || IsJsonMediaType(mediaType) || IsXmlMediaType(mediaType) || IsHtmlMediaType(mediaType))
+        if (mediaType.StartsWith("text/", StringComparison.Ordinal)
+            || HttpContentTypeHelper.IsJsonMediaType(mediaType)
+            || HttpContentTypeHelper.IsXmlMediaType(mediaType)
+            || HttpContentTypeHelper.IsHtmlMediaType(mediaType))
         {
             return false;
         }
@@ -1290,6 +1272,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 _requestEditor.RequestHeaders.Add(new RequestHeaderViewModel { Name = h.Name, Value = h.Value, IsEnabled = h.IsEnabled });
             }
         }
+
+        _requestEditor.EnsurePlaceholderRows();
 
         // Populate content type from the collection request; always reset to avoid leaking a previous request's value
         if (string.IsNullOrEmpty(item.ContentType))
