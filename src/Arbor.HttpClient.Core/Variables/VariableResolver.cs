@@ -73,11 +73,11 @@ public sealed class VariableResolver
                     dateTimeFormat = DefaultTimeStampFormat;
                 }
 
-                var timestamp = computedName switch
+                DateTimeOffset? timestamp = computedName switch
                 {
                     TimeStampLocalName => DateTimeOffset.Now,
                     TimeStampUtcName => DateTimeOffset.UtcNow,
-                    _ => default(DateTimeOffset?)
+                    _ => null
                 };
 
                 if (timestamp is null)

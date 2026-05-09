@@ -294,6 +294,13 @@ public class VariableResolverTests
     }
 
     [Fact]
+    public void Resolve_ComputedTimestampWithWhitespaceFormat_ShouldFallBackToRoundtripFormat()
+    {
+        var result = _resolver.Resolve("{{c:TimeStampLocal: }}", []);
+        DateTimeOffset.TryParse(result, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _).Should().BeTrue();
+    }
+
+    [Fact]
     public void Resolve_UnknownComputedValue_ShouldCollapseToEmptyString()
     {
         var result = _resolver.Resolve("{{c:UnknownValue}}", []);
@@ -326,10 +333,10 @@ public class VariableResolverTests
     /// A variable with no expiry set should always be substituted.
     /// </summary>
     [Fact]
-public void Resolve_VariableWithoutExpiry_ShouldBeSubstituted()
-{
-    var noExpiry = new EnvironmentVariable("host", "localhost");
-    var result = _resolver.Resolve("http://{{host}}/api", [noExpiry]);
-    result.Should().Be("http://localhost/api");
-}
+    public void Resolve_VariableWithoutExpiry_ShouldBeSubstituted()
+    {
+        var noExpiry = new EnvironmentVariable("host", "localhost");
+        var result = _resolver.Resolve("http://{{host}}/api", [noExpiry]);
+        result.Should().Be("http://localhost/api");
+    }
 }
