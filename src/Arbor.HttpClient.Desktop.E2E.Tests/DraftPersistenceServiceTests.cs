@@ -193,7 +193,7 @@ public class DraftPersistenceServiceTests
         editor.SelectedContentTypeOption.Should().Be("application/xml");
         editor.RequestNotes.Should().Be("restored note");
         editor.SelectedRequestType.Should().Be(RequestType.Http);
-        editor.RequestHeaders.Should().ContainSingle();
+        editor.RequestHeaders.Where(h => !string.IsNullOrEmpty(h.Name)).Should().ContainSingle();
         editor.RequestHeaders[0].Name.Should().Be("X-Api-Version");
         editor.RequestHeaders[0].Value.Should().Be("2");
         editor.RequestHeaders[0].IsEnabled.Should().BeFalse();

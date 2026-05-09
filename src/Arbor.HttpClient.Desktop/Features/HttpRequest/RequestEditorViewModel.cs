@@ -206,7 +206,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     // ── Commands ──────────────────────────────────────────────────────────────
 
     [RelayCommand]
-    private void AddHeader() => RequestHeaders.Add(new RequestHeaderViewModel());
+    private void AddHeader() => EnsurePlaceholderHeader();
 
     [RelayCommand]
     private void RemoveHeader(RequestHeaderViewModel? header)
@@ -214,11 +214,12 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         if (header is { } h)
         {
             RequestHeaders.Remove(h);
+            EnsurePlaceholderHeader();
         }
     }
 
     [RelayCommand]
-    private void AddQueryParameter() => RequestQueryParameters.Add(new RequestQueryParameterViewModel());
+    private void AddQueryParameter() => EnsurePlaceholderQueryParameter();
 
     [RelayCommand]
     private void RemoveQueryParameter(RequestQueryParameterViewModel? parameter)
@@ -226,6 +227,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         if (parameter is { } param)
         {
             RequestQueryParameters.Remove(param);
+            EnsurePlaceholderQueryParameter();
         }
     }
 
@@ -257,6 +259,17 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
         RequestHeaders = [];
         RequestQueryParameters = [];
+
+        // Add initial placeholder rows directly, before hooking up the collection-changed
+        // event handlers. This avoids triggering the full refresh chain (which calls
+        // _getActiveVariables) while the parent ViewModel may still be initializing.
+        var headerPlaceholder = new RequestHeaderViewModel { IsEnabled = false };
+        headerPlaceholder.PropertyChanged += OnRequestHeaderPropertyChanged;
+        RequestHeaders.Add(headerPlaceholder);
+
+        var queryParamPlaceholder = new RequestQueryParameterViewModel { IsEnabled = false };
+        queryParamPlaceholder.PropertyChanged += OnRequestQueryParameterPropertyChanged;
+        RequestQueryParameters.Add(queryParamPlaceholder);
 
         RequestHeaders.CollectionChanged += OnRequestHeadersCollectionChanged;
         RequestQueryParameters.CollectionChanged += OnRequestQueryParametersCollectionChanged;
@@ -583,29 +596,29 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             var query = ExtractQuery(url);
             RequestQueryParameters.Clear();
 
-            if (string.IsNullOrEmpty(query))
+            if (!string.IsNullOrEmpty(query))
             {
-                return;
-            }
-
-            foreach (var segment in query.Split('&', StringSplitOptions.None))
-            {
-                if (segment.Length == 0)
+                foreach (var segment in query.Split('&', StringSplitOptions.None))
                 {
-                    continue;
+                    if (segment.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    var equalsIndex = segment.IndexOf('=');
+                    var rawKey = equalsIndex >= 0 ? segment[..equalsIndex] : segment;
+                    var rawValue = equalsIndex >= 0 ? segment[(equalsIndex + 1)..] : string.Empty;
+
+                    RequestQueryParameters.Add(new RequestQueryParameterViewModel
+                    {
+                        Key = DecodeQueryComponent(rawKey),
+                        Value = DecodeQueryComponent(rawValue),
+                        IsEnabled = true
+                    });
                 }
-
-                var equalsIndex = segment.IndexOf('=');
-                var rawKey = equalsIndex >= 0 ? segment[..equalsIndex] : segment;
-                var rawValue = equalsIndex >= 0 ? segment[(equalsIndex + 1)..] : string.Empty;
-
-                RequestQueryParameters.Add(new RequestQueryParameterViewModel
-                {
-                    Key = DecodeQueryComponent(rawKey),
-                    Value = DecodeQueryComponent(rawValue),
-                    IsEnabled = true
-                });
             }
+
+            EnsurePlaceholderQueryParameter();
         }
         finally
         {
@@ -665,8 +678,23 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         RefreshRequestDerivedViews();
     }
 
-    private void OnRequestHeaderPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+    private void OnRequestHeaderPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is RequestHeaderViewModel header && e.PropertyName == nameof(RequestHeaderViewModel.Name))
+        {
+            if (!header.IsEnabled && !string.IsNullOrEmpty(header.Name))
+            {
+                header.IsEnabled = true;
+            }
+
+            if (RequestHeaders.Count > 0 && ReferenceEquals(RequestHeaders[^1], header) && !string.IsNullOrEmpty(header.Name))
+            {
+                EnsurePlaceholderHeader();
+            }
+        }
+
         RefreshRequestDerivedViews();
+    }
 
     private void OnRequestQueryParametersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -692,8 +720,50 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     private void OnRequestQueryParameterPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (sender is RequestQueryParameterViewModel param && e.PropertyName == nameof(RequestQueryParameterViewModel.Key))
+        {
+            if (!param.IsEnabled && !string.IsNullOrEmpty(param.Key))
+            {
+                param.IsEnabled = true;
+            }
+
+            if (RequestQueryParameters.Count > 0 && ReferenceEquals(RequestQueryParameters[^1], param) && !string.IsNullOrEmpty(param.Key))
+            {
+                EnsurePlaceholderQueryParameter();
+            }
+        }
+
         SyncRequestUrlFromQueryParameters();
         RefreshRequestPreview();
+    }
+
+    // ── Placeholder row helpers ────────────────────────────────────────────────
+
+    private void EnsurePlaceholderHeader()
+    {
+        if (RequestHeaders.Count == 0 || !string.IsNullOrEmpty(RequestHeaders[^1].Name))
+        {
+            RequestHeaders.Add(new RequestHeaderViewModel { IsEnabled = false });
+        }
+    }
+
+    private void EnsurePlaceholderQueryParameter()
+    {
+        if (RequestQueryParameters.Count == 0 || !string.IsNullOrEmpty(RequestQueryParameters[^1].Key))
+        {
+            RequestQueryParameters.Add(new RequestQueryParameterViewModel { IsEnabled = false });
+        }
+    }
+
+    /// <summary>
+    /// Ensures a placeholder (empty, disabled) row exists at the end of both the headers and
+    /// query parameters collections. Call this after programmatically loading rows (e.g. from a
+    /// saved draft or collection import) to restore the always-visible new-row UX.
+    /// </summary>
+    public void EnsurePlaceholderRows()
+    {
+        EnsurePlaceholderHeader();
+        EnsurePlaceholderQueryParameter();
     }
 
     // ── Static URL helpers ────────────────────────────────────────────────────

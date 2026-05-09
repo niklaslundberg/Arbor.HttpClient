@@ -44,6 +44,23 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ---
 
+### 1.3b Default-visible placeholder row for headers and query parameters ✅ Implemented
+> Implemented in PR (commit TBD) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Layout/DraftPersistenceService.cs`
+
+**What it means:** Instead of requiring the user to click an "Add header/query" button, an empty input row is always visible at the bottom of the Headers and Query Parameters lists — just like Hoppscotch. As soon as the user types anything in the Key field of that row, the row becomes active (`IsEnabled = true`) and a new empty placeholder row appears below it for the next entry.
+
+**What shipped:**
+- `EnsurePlaceholderHeader()` and `EnsurePlaceholderQueryParameter()` private methods in `RequestEditorViewModel` always keep one empty, disabled row at the bottom of each collection.
+- `OnRequestHeaderPropertyChanged` and `OnRequestQueryParameterPropertyChanged` auto-enable a row (`IsEnabled = true`) when its Key/Name changes from empty to non-empty; if the modified row was the last (placeholder) row, a new placeholder is automatically appended.
+- The "Add Header" and "Add Query Parameter" buttons are removed from `RequestView.axaml`; the corresponding commands now call the same `EnsurePlaceholder*` logic and are idempotent.
+- `DraftPersistenceService.CaptureFromEditor` filters out placeholder rows (empty-name headers) before saving; `RestoreToEditor` calls `EnsurePlaceholderRows()` to re-establish placeholders after load.
+- `MainWindowViewModel` calls `EnsurePlaceholderRows()` after populating headers from a collection import.
+- Public `EnsurePlaceholderRows()` method for external callers.
+
+**Scope:** S
+
+---
+
 ### 1.4 Auth helper tab
 **What it means:** A dedicated "Auth" tab next to Body/Headers that generates the correct `Authorization` header for common schemes — Bearer token, Basic (username/password), API Key, OAuth 2 client-credentials flow — so the user does not need to craft headers manually.
 

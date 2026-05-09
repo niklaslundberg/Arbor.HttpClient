@@ -123,6 +123,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
     public static DraftState CaptureFromEditor(RequestEditorViewModel editor)
     {
         var headers = editor.RequestHeaders
+            .Where(h => !string.IsNullOrEmpty(h.Name))
             .Select(h => new DraftHeaderDto
             {
                 Name = h.Name,
@@ -197,5 +198,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
                 IsEnabled = h.IsEnabled
             });
         }
+
+        editor.EnsurePlaceholderRows();
     }
 }

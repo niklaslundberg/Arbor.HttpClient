@@ -1291,6 +1291,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
         }
 
+        _requestEditor.EnsurePlaceholderRows();
+
         // Populate content type from the collection request; always reset to avoid leaking a previous request's value
         if (string.IsNullOrEmpty(item.ContentType))
         {
