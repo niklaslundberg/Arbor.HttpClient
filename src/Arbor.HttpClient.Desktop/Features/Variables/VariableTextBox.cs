@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Variables;
+using Arbor.HttpClient.Desktop.Shared;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -116,7 +117,12 @@ public sealed class VariableTextBox : UserControl
 
         if (change.Property == TextProperty && !_updatingText)
         {
-            var text = GetValue(TextProperty) ?? string.Empty;
+            var rawText = GetValue(TextProperty) ?? string.Empty;
+            var text = TextHelpers.StripNewlines(rawText);
+            if (text != rawText)
+            {
+                SetCurrentValue(TextProperty, text);
+            }
             if (_editor.Text != text)
             {
                 _editor.Text = text;
@@ -141,10 +147,29 @@ public sealed class VariableTextBox : UserControl
 
     private void OnEditorTextChanged(object? sender, EventArgs e)
     {
+        var text = _editor.Text;
+        var clean = TextHelpers.StripNewlines(text);
+
+        if (clean != text)
+        {
+            // AvaloniaEdit.TextEditor.set_Text calls UndoStack.ClearAll() which throws when called
+            // from inside a Document.TextChanged handler (undo group is still open at that point).
+            // Use Document.Text directly to replace the text without touching the undo stack.
+            _editor.Document.TextChanged -= OnEditorTextChanged;
+            try
+            {
+                _editor.Document.Text = clean;
+            }
+            finally
+            {
+                _editor.Document.TextChanged += OnEditorTextChanged;
+            }
+            text = clean;
+        }
+
         _updatingText = true;
         try
         {
-            var text = _editor.Text;
             SetValue(TextProperty, text);
             _placeholder.IsVisible = string.IsNullOrEmpty(text);
         }
