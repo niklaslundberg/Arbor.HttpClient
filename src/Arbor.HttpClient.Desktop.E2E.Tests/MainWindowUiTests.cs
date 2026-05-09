@@ -2150,6 +2150,102 @@ public class MainWindowUiTests
 
 
 
+    [Fact]
+    public async Task RequestUrlEditor_SetWithNewline_NewlineIsStrippedAndViewModelIsUpdated()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var mainViewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            var requestView = new RequestView
+            {
+                DataContext = new RequestViewModel(mainViewModel)
+            };
+            var window = new Window { Width = 900, Height = 500, Content = requestView };
+            window.Show();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+
+            var requestUrlEditor = requestView.FindControl<TextEditor>("RequestUrlEditor");
+            requestUrlEditor.Should().NotBeNull();
+
+            // Simulate pasting a URL that contains an embedded newline (e.g. from clipboard).
+            requestUrlEditor!.Text = "http://example.com\npath";
+
+            requestUrlEditor.Text.Should().Be("http://example.compath",
+                "the URL editor must strip newlines immediately after they are entered");
+            mainViewModel.RequestEditor.RequestUrl.Should().Be("http://example.compath",
+                "the ViewModel must receive the stripped URL, not the original with newline");
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task RequestUrl_SetOnViewModelWithNewline_NewlineIsStrippedWhenSyncedToEditor()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var mainViewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            var requestView = new RequestView
+            {
+                DataContext = new RequestViewModel(mainViewModel)
+            };
+            var window = new Window { Width = 900, Height = 500, Content = requestView };
+            window.Show();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+
+            var requestUrlEditor = requestView.FindControl<TextEditor>("RequestUrlEditor");
+            requestUrlEditor.Should().NotBeNull();
+
+            // Simulate the ViewModel receiving a URL with a newline (e.g. from persisted state).
+            mainViewModel.RequestEditor.RequestUrl = "http://example.com\r\npath";
+
+            requestUrlEditor!.Text.Should().Be("http://example.compath",
+                "the URL editor must strip newlines when syncing from ViewModel");
+            mainViewModel.RequestEditor.RequestUrl.Should().Be("http://example.compath",
+                "the ViewModel must have the stripped URL after sync");
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
     private sealed class TestEntryPoint
     {
         public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()

@@ -117,8 +117,9 @@ public sealed class VariableTextBox : UserControl
 
         if (change.Property == TextProperty && !_updatingText)
         {
-            var text = TextHelpers.StripNewlines(GetValue(TextProperty) ?? string.Empty);
-            if (text != (GetValue(TextProperty) ?? string.Empty))
+            var rawText = GetValue(TextProperty) ?? string.Empty;
+            var text = TextHelpers.StripNewlines(rawText);
+            if (text != rawText)
             {
                 SetCurrentValue(TextProperty, text);
             }
@@ -151,10 +152,13 @@ public sealed class VariableTextBox : UserControl
 
         if (clean != text)
         {
+            // AvaloniaEdit.TextEditor.set_Text calls UndoStack.ClearAll() which throws when called
+            // from inside a Document.TextChanged handler (undo group is still open at that point).
+            // Use Document.Text directly to replace the text without touching the undo stack.
             _editor.Document.TextChanged -= OnEditorTextChanged;
             try
             {
-                _editor.Text = clean;
+                _editor.Document.Text = clean;
             }
             finally
             {

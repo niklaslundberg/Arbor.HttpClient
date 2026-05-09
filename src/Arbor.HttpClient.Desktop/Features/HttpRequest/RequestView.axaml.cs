@@ -325,10 +325,13 @@ public partial class RequestView : UserControl
 
         if (clean != text)
         {
+            // AvaloniaEdit.TextEditor.set_Text calls UndoStack.ClearAll() which throws when called
+            // from inside a Document.TextChanged handler (undo group is still open at that point).
+            // Use Document.Text directly to replace the text without touching the undo stack.
             _requestUrlEditor.Document.TextChanged -= OnRequestUrlEditorTextChanged;
             try
             {
-                _requestUrlEditor.Text = clean;
+                _requestUrlEditor.Document.Text = clean;
             }
             finally
             {
@@ -356,10 +359,17 @@ public partial class RequestView : UserControl
 
         if (e.PropertyName == nameof(RequestEditorViewModel.RequestUrl)
             && _requestUrlEditor is not null
-            && _requestEditorVm is not null
-            && _requestUrlEditor.Text != _requestEditorVm.RequestUrl)
+            && _requestEditorVm is not null)
         {
-            _requestUrlEditor.Text = _requestEditorVm.RequestUrl;
+            var url = TextHelpers.StripNewlines(_requestEditorVm.RequestUrl);
+            if (_requestEditorVm.RequestUrl != url)
+            {
+                _requestEditorVm.RequestUrl = url;
+            }
+            if (_requestUrlEditor.Text != url)
+            {
+                _requestUrlEditor.Text = url;
+            }
         }
 
         if (e.PropertyName == nameof(RequestEditorViewModel.RequestPreview)

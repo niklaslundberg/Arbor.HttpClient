@@ -4,6 +4,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Skia;
+using Avalonia.VisualTree;
+using AvaloniaEdit;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
@@ -92,6 +94,33 @@ public class VariableTextBoxTests
             {
                 box.Text = "\r\n\r\n";
                 box.Text.Should().BeEmpty();
+            }
+            return true;
+        }, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// When text containing a newline is typed into (or pasted into) the inner
+    /// <c>AvaloniaEdit.TextEditor</c> directly, the <c>OnEditorTextChanged</c> handler must
+    /// strip the newline from both the editor text and the bound <see cref="VariableTextBox.Text"/>.
+    /// </summary>
+    [Fact]
+    public async Task EditorText_SetWithNewline_NewlineIsStrippedFromEditorAndBoundProperty()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(() =>
+        {
+            var (box, scope) = CreateBoxInScope();
+            using (scope)
+            {
+                var innerEditor = box.GetVisualDescendants().OfType<TextEditor>().FirstOrDefault();
+                innerEditor.Should().NotBeNull("VariableTextBox must contain a nested TextEditor");
+
+                innerEditor!.Text = "hello\nworld";
+
+                innerEditor.Text.Should().Be("helloworld", "the editor itself must have no newlines");
+                box.Text.Should().Be("helloworld", "the bound Text property must reflect the stripped value");
             }
             return true;
         }, CancellationToken.None);
