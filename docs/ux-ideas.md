@@ -730,7 +730,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### Request body pretty print options ✅ Implemented
-> Implemented in PR (this PR) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`
+> Implemented in PR #164 (commit `363e92b`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`
 
 **What it means:** For known request content types (JSON/XML), users can enable a per-request advanced option that pretty-prints the request body for preview and for the actual outgoing send payload without mutating the source body text. A sub-option controls whether pretty-printing uses indentation or compact formatting. A one-time body-tab action also formats the source body text directly.
 
