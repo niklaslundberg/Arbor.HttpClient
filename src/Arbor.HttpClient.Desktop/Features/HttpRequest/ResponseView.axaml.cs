@@ -20,13 +20,13 @@ public partial class ResponseView : UserControl
     private RegistryOptions? _registryOptions;
     private TextMate.Installation? _responseTextMate;
     private TextMate.Installation? _rawResponseTextMate;
-    private TextMate.Installation? _responseRawTextMate;
+    private TextMate.Installation? _responseRawEditorTextMate;
     private EventHandler<TextMate.Installation>? _responseAppliedThemeHandler;
     private EventHandler<TextMate.Installation>? _rawAppliedThemeHandler;
-    private EventHandler<TextMate.Installation>? _responseRawAppliedThemeHandler;
+    private EventHandler<TextMate.Installation>? _responseRawEditorAppliedThemeHandler;
     private string _responseGrammarScope = string.Empty;
     private string _rawResponseGrammarScope = string.Empty;
-    private string _responseRawGrammarScope = string.Empty;
+    private string _responseRawEditorGrammarScope = string.Empty;
     private string _lastWebViewUri = string.Empty;
 
     public ResponseView()
@@ -72,9 +72,9 @@ public partial class ResponseView : UserControl
 
         if (_responseRawEditor is not null)
         {
-            _responseRawAppliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_responseRawEditor, inst);
-            _responseRawTextMate = _responseRawEditor.InstallTextMate(_registryOptions);
-            _responseRawTextMate.AppliedTheme += _responseRawAppliedThemeHandler;
+            _responseRawEditorAppliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_responseRawEditor, inst);
+            _responseRawEditorTextMate = _responseRawEditor.InstallTextMate(_registryOptions);
+            _responseRawEditorTextMate.AppliedTheme += _responseRawEditorAppliedThemeHandler;
         }
 
         if (_appVm is not null)
@@ -138,7 +138,7 @@ public partial class ResponseView : UserControl
             ? MainWindowViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
             : MainWindowViewModel.DetectExtensionFromContent(_appVm.RawResponseBody);
         ApplyGrammarForContent(_rawResponseTextMate, _registryOptions, rawExt, ref _rawResponseGrammarScope);
-        ApplyGrammarForContent(_responseRawTextMate, _registryOptions, rawExt, ref _responseRawGrammarScope);
+        ApplyGrammarForContent(_responseRawEditorTextMate, _registryOptions, rawExt, ref _responseRawEditorGrammarScope);
 
         if (_responseWebView is null)
         {
@@ -256,16 +256,16 @@ public partial class ResponseView : UserControl
             _rawResponseTextMate = null;
         }
 
-        if (_responseRawTextMate is not null)
+        if (_responseRawEditorTextMate is not null)
         {
-            if (_responseRawAppliedThemeHandler is not null)
+            if (_responseRawEditorAppliedThemeHandler is not null)
             {
-                _responseRawTextMate.AppliedTheme -= _responseRawAppliedThemeHandler;
-                _responseRawAppliedThemeHandler = null;
+                _responseRawEditorTextMate.AppliedTheme -= _responseRawEditorAppliedThemeHandler;
+                _responseRawEditorAppliedThemeHandler = null;
             }
 
-            _responseRawTextMate.Dispose();
-            _responseRawTextMate = null;
+            _responseRawEditorTextMate.Dispose();
+            _responseRawEditorTextMate = null;
         }
     }
 
@@ -350,6 +350,6 @@ public partial class ResponseView : UserControl
 
         _responseTextMate?.SetTheme(theme);
         _rawResponseTextMate?.SetTheme(theme);
-        _responseRawTextMate?.SetTheme(theme);
+        _responseRawEditorTextMate?.SetTheme(theme);
     }
 }
