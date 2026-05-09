@@ -49,7 +49,12 @@ public sealed class StatusCodeToColorConverter : IValueConverter
         brush = Brushes.Transparent;
 
         var app = Application.Current;
-        if (app is null || !Dispatcher.UIThread.CheckAccess())
+        if (app is null)
+        {
+            return false;
+        }
+
+        if (!Dispatcher.UIThread.CheckAccess())
         {
             return false;
         }

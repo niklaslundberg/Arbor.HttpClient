@@ -116,7 +116,8 @@ jobs:
     name: Unit Tests
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Infrastructure safety net; independent from the 10-second runtime budget enforced in the test step.
+    timeout-minutes: 15
     permissions:
       contents: read
       # dotnet-trx uses this to post test result comments on pull requests.
@@ -147,6 +148,7 @@ jobs:
 
       - name: Run unit tests
         run: |
+          max_runtime_seconds=10
           start_time=$(date +%s)
           # Hang guard for each suite; strict "under 10s total" requirement is enforced below.
           timeout 60 dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj \
@@ -183,8 +185,8 @@ jobs:
 
           elapsed=$(( $(date +%s) - start_time ))
           echo "Unit test execution time: ${elapsed}s"
-          if [ "$elapsed" -ge 10 ]; then
-            echo "::error::Unit tests exceeded 10 seconds (${elapsed}s)."
+          if [ "$elapsed" -ge "$max_runtime_seconds" ]; then
+            echo "::error::Unit tests exceeded ${max_runtime_seconds} seconds (${elapsed}s)."
             exit 1
           fi
 
