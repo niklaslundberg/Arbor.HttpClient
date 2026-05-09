@@ -17,7 +17,7 @@ This is similar to what many tools call a **workspace**.
 
 ### Description
 
-Store each profile in its own SQLite file (for example `profile-{id}.db`) and switch connection string when the active profile changes.
+Store each profile in its own SQLite file (for example `profile-{guid}.db`, where `guid` is the profile UUID) and switch connection string when the active profile changes.
 
 ### Pros
 
@@ -63,7 +63,7 @@ Keep one DB file but add a `profile_id` column to profile-scoped tables. Every q
 
 - Higher risk of isolation bugs if any query misses `profile_id` filtering.
 - Requires broad schema and repository updates.
-- Existing unique constraints may need profile-aware redesign (for example unique name per profile).
+- Existing unique constraints may need profile-aware redesign (for example unique collection/environment names per profile).
 - Harder to guarantee strict isolation than separate files.
 
 ### Estimated impact on current codebase
