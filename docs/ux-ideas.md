@@ -430,7 +430,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### 1.2c Well-known HTTP header autocomplete ✅ Implemented
-> Implemented in PR (commit TBD) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableTextBox.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableAutoCompleteController.cs`
+> Implemented in PR #<ACTUAL_PR_NUMBER> (commit `<ACTUAL_SHA7>`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableTextBox.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableAutoCompleteController.cs`
 
 **What it means:** While typing in the header-name field in the Headers tab, a completion list suggests common HTTP header names so users can insert standard headers quickly without memorizing exact casing.
 
