@@ -413,7 +413,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
 
 ### 1.3b Default-visible placeholder row for headers and query parameters ✅ Implemented
-> Implemented in PR #169 (commit `c7c001b`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Layout/DraftPersistenceService.cs`
+> Implemented in PR #169 (commit `c7c001b`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Layout/DraftPersistenceService.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`
 
 **What it means:** Instead of requiring the user to click an "Add header/query" button, an empty input row is always visible at the bottom of the Headers and Query Parameters lists — just like Hoppscotch. As soon as the user types anything in the Key field of that row, the row becomes active (`IsEnabled = true`) and a new empty placeholder row appears below it for the next entry.
 
