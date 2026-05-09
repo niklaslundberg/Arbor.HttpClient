@@ -135,7 +135,8 @@ internal static partial class ResponseSaveFileNamePatternFormatter
             normalized[i] = invalid.Contains(c) || AdditionalInvalidFileNameChars.Contains(c) || c is '/' or '\\' ? '_' : c;
         }
 
-        return new string(normalized).Trim(' ', '.');
+        var trimmed = new string(normalized).Trim(' ', '.');
+        return string.IsNullOrEmpty(trimmed) ? "response" : trimmed;
     }
 
     [GeneratedRegex(@"\{(?<name>[a-zA-Z]+)(:(?<format>[^{}]+))?\}")]
