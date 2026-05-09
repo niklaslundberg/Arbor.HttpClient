@@ -26,6 +26,9 @@ public sealed class VariableTextBox : UserControl
     public static readonly StyledProperty<MainWindowViewModel?> AppViewModelProperty =
         AvaloniaProperty.Register<VariableTextBox, MainWindowViewModel?>(nameof(AppViewModel));
 
+    public static readonly StyledProperty<IReadOnlyList<string>?> AutoCompleteSourceProperty =
+        AvaloniaProperty.Register<VariableTextBox, IReadOnlyList<string>?>(nameof(AutoCompleteSource));
+
     private readonly AvaloniaEdit.TextEditor _editor;
     private readonly TextBlock _placeholder;
     private readonly VariableTokenColorizer _colorizer = new();
@@ -51,7 +54,14 @@ public sealed class VariableTextBox : UserControl
         set => SetValue(AppViewModelProperty, value);
     }
 
+    public IReadOnlyList<string>? AutoCompleteSource
+    {
+        get => GetValue(AutoCompleteSourceProperty);
+        set => SetValue(AutoCompleteSourceProperty, value);
+    }
+
     internal bool AcceptsTabForTests => _editor.Options.AcceptsTab;
+    internal VariableAutoCompleteController? AutoCompleteControllerForTests => _autoCompleteController;
 
     public VariableTextBox()
     {
@@ -99,7 +109,7 @@ public sealed class VariableTextBox : UserControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        _autoCompleteController ??= new VariableAutoCompleteController(_editor, GetVariableNames, GetEnvVariableNames);
+        _autoCompleteController ??= new VariableAutoCompleteController(_editor, GetVariableNames, GetEnvVariableNames, GetPlainSuggestions);
         ApplyFont();
         ApplyBrushes();
     }
@@ -230,4 +240,7 @@ public sealed class VariableTextBox : UserControl
 
     private static IReadOnlyList<string> GetEnvVariableNames() =>
         VariableNameHelper.GetSystemEnvironmentVariableNames();
+
+    private IReadOnlyList<string> GetPlainSuggestions() =>
+        AutoCompleteSource ?? [];
 }
