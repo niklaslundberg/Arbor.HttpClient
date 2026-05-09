@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
@@ -36,6 +37,12 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     private readonly Action? _onOptionsAffectingPropertyChanged;
     private bool _isUpdatingRequestUrlFromQueryParameters;
     private bool _isUpdatingQueryParametersFromRequestUrl;
+    // RequestEditorViewModel state is mutated on the UI thread; this cache is intentionally unsynchronized.
+    private string _cachedFormattedBody = string.Empty;
+    private string _cachedFormattingResolvedBody = string.Empty;
+    private string _cachedFormattingMediaType = string.Empty;
+    private bool _cachedFormattingUseIndentation;
+    private bool _hasCachedFormattedBody;
 
     private const string VariableTokenStart = "{{";
 
@@ -516,7 +523,31 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             return resolvedBody;
         }
 
-        return TryFormatRequestBody(resolvedBody, out var formattedBody) ? formattedBody : resolvedBody;
+        var mediaType = HttpContentTypeHelper.NormalizeMediaType(ResolveContentType(resolvedBody));
+        if (!HttpContentTypeHelper.IsJsonMediaType(mediaType) && !HttpContentTypeHelper.IsXmlMediaType(mediaType))
+        {
+            return resolvedBody;
+        }
+
+        if (_hasCachedFormattedBody
+            && string.Equals(_cachedFormattingResolvedBody, resolvedBody, StringComparison.Ordinal)
+            && string.Equals(_cachedFormattingMediaType, mediaType, StringComparison.Ordinal)
+            && _cachedFormattingUseIndentation == PrettyPrintRequestBodyUseIndentation)
+        {
+            return _cachedFormattedBody;
+        }
+
+        if (!TryFormatRequestBodyByMediaType(resolvedBody, mediaType, PrettyPrintRequestBodyUseIndentation, out var formattedBody))
+        {
+            return resolvedBody;
+        }
+
+        _cachedFormattedBody = formattedBody;
+        _cachedFormattingResolvedBody = resolvedBody;
+        _cachedFormattingMediaType = mediaType;
+        _cachedFormattingUseIndentation = PrettyPrintRequestBodyUseIndentation;
+        _hasCachedFormattedBody = true;
+        return formattedBody;
     }
 
     private bool TryFormatRequestBody(string requestBody, out string formattedBody)
@@ -527,17 +558,23 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             return false;
         }
 
-        var mediaType = NormalizeMediaType(ResolveContentType(requestBody));
-        if (IsJsonMediaType(mediaType))
+        var mediaType = HttpContentTypeHelper.NormalizeMediaType(ResolveContentType(requestBody));
+        return TryFormatRequestBodyByMediaType(requestBody, mediaType, PrettyPrintRequestBodyUseIndentation, out formattedBody);
+    }
+
+    private static bool TryFormatRequestBodyByMediaType(string requestBody, string mediaType, bool useIndentation, out string formattedBody)
+    {
+        if (HttpContentTypeHelper.IsJsonMediaType(mediaType))
         {
-            return TryFormatJsonBody(requestBody, PrettyPrintRequestBodyUseIndentation, out formattedBody);
+            return TryFormatJsonBody(requestBody, useIndentation, out formattedBody);
         }
 
-        if (IsXmlMediaType(mediaType))
+        if (HttpContentTypeHelper.IsXmlMediaType(mediaType))
         {
-            return TryFormatXmlBody(requestBody, PrettyPrintRequestBodyUseIndentation, out formattedBody);
+            return TryFormatXmlBody(requestBody, useIndentation, out formattedBody);
         }
 
+        formattedBody = string.Empty;
         return false;
     }
 
@@ -784,24 +821,6 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         return $"{prefix}{queryPart}{fragment}";
     }
 
-    private static string NormalizeMediaType(string contentType)
-    {
-        if (string.IsNullOrWhiteSpace(contentType))
-        {
-            return string.Empty;
-        }
-
-        var semicolonIndex = contentType.IndexOf(';');
-        var mediaType = semicolonIndex >= 0 ? contentType[..semicolonIndex] : contentType;
-        return mediaType.Trim().ToLowerInvariant();
-    }
-
-    private static bool IsJsonMediaType(string mediaType) =>
-        mediaType == "application/json" || mediaType.EndsWith("+json", StringComparison.Ordinal);
-
-    private static bool IsXmlMediaType(string mediaType) =>
-        mediaType is "application/xml" or "text/xml" || mediaType.EndsWith("+xml", StringComparison.Ordinal);
-
     private static bool TryFormatJsonBody(string requestBody, bool useIndentation, out string formattedBody)
     {
         try
@@ -809,7 +828,9 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             using var jsonDocument = JsonDocument.Parse(requestBody);
             formattedBody = JsonSerializer.Serialize(jsonDocument.RootElement, new JsonSerializerOptions
             {
-                WriteIndented = useIndentation
+                WriteIndented = useIndentation,
+                // Request preview/body editors treat this as plain text; payload semantics should not be altered by escaping.
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             });
             return true;
         }

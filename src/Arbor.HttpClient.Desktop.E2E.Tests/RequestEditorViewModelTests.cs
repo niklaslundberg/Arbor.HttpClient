@@ -316,6 +316,23 @@ public class RequestEditorViewModelTests
     }
 
     [Fact]
+    public void BuildDraft_PrettyPrintJson_DoesNotEscapeAngleBracketsOrAmpersands()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/json";
+        editor.RequestBody = "{\"html\":\"<div>&</div>\"}";
+        editor.PrettyPrintRequestBody = true;
+        editor.PrettyPrintRequestBodyUseIndentation = false;
+
+        var draft = editor.BuildDraft();
+
+        draft.Body.Should().Be("{\"html\":\"<div>&</div>\"}");
+        draft.Body.Should().NotContain("\\u003c");
+        draft.Body.Should().NotContain("\\u003e");
+        draft.Body.Should().NotContain("\\u0026");
+    }
+
+    [Fact]
     public void BuildDraft_PrettyPrintsXmlBodyWithoutIndentation_WhenEnabled()
     {
         var editor = CreateEditor();
