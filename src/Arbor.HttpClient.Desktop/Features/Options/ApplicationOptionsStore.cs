@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Layout;
 using Arbor.HttpClient.Desktop.Features.Options;
 
@@ -129,6 +130,17 @@ public sealed class ApplicationOptionsStore(string optionsPath)
             || string.IsNullOrWhiteSpace(uri.Host))
         {
             throw new InvalidDataException("Default request URL must be an absolute HTTP or HTTPS URL.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.Http.ResponseSaveDefaultFolder)
+            && !Path.IsPathFullyQualified(options.Http.ResponseSaveDefaultFolder))
+        {
+            throw new InvalidDataException("Response save default folder must be an absolute path.");
+        }
+
+        if (!ResponseSaveFileNamePatternFormatter.TryValidatePattern(options.Http.ResponseSaveFileNamePattern, out var patternError))
+        {
+            throw new InvalidDataException($"Invalid response save file name pattern: {patternError}");
         }
 
         if (options.Http.DefaultRequestTimeoutSeconds < 1)

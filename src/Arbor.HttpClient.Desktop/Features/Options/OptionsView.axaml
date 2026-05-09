@@ -111,6 +111,25 @@
                                          MaxWidth="160" HorizontalAlignment="Left" />
                             </StackPanel>
 
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{x:Static loc:Strings.OptionsResponseSaveDefaultFolder}" FontWeight="SemiBold" />
+                                <TextBox Text="{Binding App.ResponseSaveDefaultFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{x:Static loc:Strings.OptionsResponseSaveFileNamePattern}" FontWeight="SemiBold" />
+                                <TextBox Text="{Binding App.ResponseSaveFileNamePattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="{x:Static loc:Strings.OptionsResponseSaveFileNamePatternHelp}"
+                                           TextWrapping="Wrap"
+                                           Opacity="0.65"
+                                           FontSize="11" />
+                                <TextBlock Text="{Binding App.ResponseSaveFileNamePatternValidationError}"
+                                            TextWrapping="Wrap"
+                                            Foreground="{DynamicResource WarningBrush}"
+                                            FontSize="11"
+                                            IsVisible="{Binding App.ResponseSaveFileNamePatternValidationError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                            </StackPanel>
+
                             <!-- Demo server settings -->
                             <Border BorderBrush="{DynamicResource PanelBorderBrush}"
                                     BorderThickness="0,1,0,0" Margin="0,4,0,0" Padding="0,16,0,0">

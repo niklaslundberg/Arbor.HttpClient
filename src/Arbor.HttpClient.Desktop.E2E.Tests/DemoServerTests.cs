@@ -126,7 +126,7 @@ public class DemoServerTests
     }
 
     [Fact]
-    public async Task DemoServer_RootEndpoint_RedirectsToDocs()
+    public async Task DemoServer_RootEndpoint_RedirectsToHtmlDocs()
     {
         await using var server = new DemoServer();
         await server.StartAsync();
@@ -138,7 +138,7 @@ public class DemoServerTests
         using var response = await client.GetAsync($"http://localhost:{server.Port}/");
 
         response.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        response.Headers.Location?.ToString().Should().Be("/docs");
+        response.Headers.Location?.ToString().Should().Be("/docs.html");
     }
 
     [Fact]
@@ -436,7 +436,7 @@ public class DemoServerTests
 
             var demoCollection = viewModel.Collections.First(c => c.Name == "Localhost Demo");
             demoCollection.Requests[0].Method.Should().Be("GET");
-            demoCollection.Requests[0].Path.Should().Be("/docs");
+            demoCollection.Requests[0].Path.Should().Be("/docs.html");
 
             return true;
         }, CancellationToken.None);

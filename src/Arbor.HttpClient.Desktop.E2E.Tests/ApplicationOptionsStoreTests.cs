@@ -1,4 +1,5 @@
 using Arbor.HttpClient.Desktop.Features.Layout;
+using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Options;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 
@@ -18,6 +19,8 @@ public class ApplicationOptionsStoreTests
         options.Http.DefaultContentType.Should().Be("application/json");
         options.Http.EnableHttpDiagnostics.Should().BeFalse();
         options.Http.DefaultRequestTimeoutSeconds.Should().Be(100);
+        options.Http.ResponseSaveDefaultFolder.Should().BeEmpty();
+        options.Http.ResponseSaveFileNamePattern.Should().Be(ResponseSaveFileNamePatternFormatter.DefaultPattern);
         options.Appearance.Theme.Should().Be("System");
         options.ScheduledJobs.AutoStartOnLaunch.Should().BeTrue();
         options.ScheduledJobs.DefaultIntervalSeconds.Should().Be(60);
@@ -71,6 +74,8 @@ public class ApplicationOptionsStoreTests
                 DefaultContentType = "application/json",
                 FollowRedirects = false,
                 DefaultRequestUrl = "http://localhost:5000/echo",
+                ResponseSaveDefaultFolder = "/tmp",
+                ResponseSaveFileNamePattern = "{requestName}-{timestamp:yyyyMMddHHmmss}{contentTypeExtension}",
                 DefaultRequestTimeoutSeconds = 15
             },
             Appearance = new AppearanceOptions
@@ -118,6 +123,8 @@ public class ApplicationOptionsStoreTests
         imported.Http.EnableHttpDiagnostics.Should().BeTrue();
         imported.Http.FollowRedirects.Should().BeFalse();
         imported.Http.DefaultRequestTimeoutSeconds.Should().Be(15);
+        imported.Http.ResponseSaveDefaultFolder.Should().Be("/tmp");
+        imported.Http.ResponseSaveFileNamePattern.Should().Be("{requestName}-{timestamp:yyyyMMddHHmmss}{contentTypeExtension}");
         imported.Appearance.Theme.Should().Be("Dark");
         imported.Appearance.FontSize.Should().Be(14);
         imported.ScheduledJobs.AutoStartOnLaunch.Should().BeFalse();
@@ -238,6 +245,33 @@ public class ApplicationOptionsStoreTests
         var action = () => ApplicationOptionsStore.Validate(options);
 
         action.Should().Throw<InvalidDataException>().WithMessage("*timeout*");
+    }
+
+    [Fact]
+    public void Validate_ShouldRejectInvalidResponseSavePattern()
+    {
+        var options = new ApplicationOptions
+        {
+            Http = new HttpOptions
+            {
+                HttpVersion = "1.1",
+                TlsVersion = "SystemDefault",
+                DefaultContentType = "application/json",
+                FollowRedirects = true,
+                DefaultRequestUrl = "http://localhost:5000/echo",
+                ResponseSaveFileNamePattern = "{requestName}-{timestamp:yyyy-MM-dd HH.mm.ss"
+            },
+            Appearance = new AppearanceOptions
+            {
+                Theme = "System",
+                FontFamily = "Consolas",
+                FontSize = 13
+            }
+        };
+
+        var action = () => ApplicationOptionsStore.Validate(options);
+
+        action.Should().Throw<InvalidDataException>().WithMessage("*file name pattern*");
     }
 
     [Fact]

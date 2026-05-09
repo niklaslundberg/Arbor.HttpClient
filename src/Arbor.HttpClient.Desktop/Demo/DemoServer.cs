@@ -118,8 +118,8 @@ public sealed class DemoServer : IAsyncDisposable
             });
         });
 
-        // / — redirects to docs.
-        app.MapGet("/", () => Results.Redirect("/docs"));
+        // / — redirects to the HTML docs view.
+        app.MapGet("/", () => Results.Redirect("/docs.html"));
 
         // /docs — returns demo server endpoint documentation in Markdown format.
         app.MapGet("/docs", () => Results.Text(DemoServerDocsMarkdown, "text/markdown; charset=utf-8"));

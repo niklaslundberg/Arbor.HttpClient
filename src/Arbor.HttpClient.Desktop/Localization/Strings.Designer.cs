@@ -180,7 +180,7 @@ public static class Strings
     /// <summary>Certificate errors are suppressed. Only use this for trusted local servers (e.g. the demo server with its self-signed certificate).</summary>
     public static string RequestIgnoreCertificateValidationWarning => Get(nameof(RequestIgnoreCertificateValidationWarning));
 
-    /// <summary>Request options</summary>
+    /// <summary>Options</summary>
     public static string RequestAdvancedOptionsHeader => Get(nameof(RequestAdvancedOptionsHeader));
 
     /// <summary>Timeout (seconds)</summary>
@@ -192,7 +192,7 @@ public static class Strings
     /// <summary>Send / Connect / Cancel (Ctrl+Enter)</summary>
     public static string RequestPrimaryActionTooltip => Get(nameof(RequestPrimaryActionTooltip));
 
-    /// <summary>Resolved URL must be an absolute HTTP or HTTPS URL. Disable "Validate URL before send" in Request options to skip this pre-send check and continue to a send attempt.</summary>
+    /// <summary>Resolved URL must be an absolute HTTP or HTTPS URL. Disable "Validate URL before send" in Options to skip this pre-send check and continue to a send attempt.</summary>
     public static string RequestInvalidResolvedUrlMessage => Get(nameof(RequestInvalidResolvedUrlMessage));
 
     // Request tabs
@@ -416,7 +416,7 @@ public static class Strings
 
     // ═══════════════════════════════ Response View ═══════════════════════════════
 
-    /// <summary>Response headers</summary>
+    /// <summary>Headers</summary>
     public static string ResponseHeadersLabel => Get(nameof(ResponseHeadersLabel));
 
     /// <summary>📋 Copy body</summary>
@@ -434,8 +434,17 @@ public static class Strings
     /// <summary>Save and Open</summary>
     public static string ResponseSaveAndOpen => Get(nameof(ResponseSaveAndOpen));
 
-    /// <summary>Raw</summary>
-    public static string ResponseTabRaw => Get(nameof(ResponseTabRaw));
+    /// <summary>Body raw</summary>
+    public static string ResponseTabBodyRaw => Get(nameof(ResponseTabBodyRaw));
+
+    /// <summary>Response raw</summary>
+    public static string ResponseTabResponseRaw => Get(nameof(ResponseTabResponseRaw));
+
+    /// <summary>Web view</summary>
+    public static string ResponseTabWebView => Get(nameof(ResponseTabWebView));
+
+    /// <summary>Web view rendering is available for HTML responses.</summary>
+    public static string ResponseWebViewUnavailable => Get(nameof(ResponseWebViewUnavailable));
 
     // ═══════════════════════════════ Options ═══════════════════════════════
 
@@ -474,6 +483,15 @@ public static class Strings
 
     /// <summary>Default request timeout (seconds)</summary>
     public static string OptionsDefaultRequestTimeoutSeconds => Get(nameof(OptionsDefaultRequestTimeoutSeconds));
+
+    /// <summary>Default folder for response files</summary>
+    public static string OptionsResponseSaveDefaultFolder => Get(nameof(OptionsResponseSaveDefaultFolder));
+
+    /// <summary>Response file name pattern</summary>
+    public static string OptionsResponseSaveFileNamePattern => Get(nameof(OptionsResponseSaveFileNamePattern));
+
+    /// <summary>Supported tokens: {collectionName}, {requestPath}, {requestName}, {contentTypeExtension}, {timestamp:format}. Invalid file-name characters are normalized automatically.</summary>
+    public static string OptionsResponseSaveFileNamePatternHelp => Get(nameof(OptionsResponseSaveFileNamePatternHelp));
 
     /// <summary>Demo Server</summary>
     public static string OptionsDemoServerTitle => Get(nameof(OptionsDemoServerTitle));

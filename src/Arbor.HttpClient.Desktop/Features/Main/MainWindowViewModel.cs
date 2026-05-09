@@ -95,6 +95,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly UnhandledExceptionCollector? _unhandledExceptionCollector;
     private readonly IScriptRunner _scriptRunner = new RoslynScriptRunner();
     private readonly ScriptViewModel _scriptViewModel = new();
+    private const int ResponseBodyTabIndex = 0;
+    private const int ResponseBodyRawTabIndex = 1;
+    private const int ResponseHeadersTabIndex = 2;
+    private const int ResponseRawTabIndex = 3;
+    private const int ResponseWebViewTabIndex = 4;
 
     [ObservableProperty]
     private RequestTabViewModel? _activeRequestTab;
@@ -167,6 +172,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private string _responseContentType = string.Empty;
+
+    [ObservableProperty]
+    private string _responseRawText = string.Empty;
+
+    [ObservableProperty]
+    private int _selectedResponseTabIndex;
+
+    [ObservableProperty]
+    private bool _isResponseWebViewAvailable;
+
+    [ObservableProperty]
+    private string _responseWebViewUri = "about:blank";
 
     [ObservableProperty]
     private bool _isBinaryResponse;
@@ -261,6 +278,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private string _defaultContentType = "application/json";
 
     [ObservableProperty]
+    private string _responseSaveDefaultFolder = string.Empty;
+
+    [ObservableProperty]
+    private string _responseSaveFileNamePattern = ResponseSaveFileNamePatternFormatter.DefaultPattern;
+
+    [ObservableProperty]
+    private string _responseSaveFileNamePatternValidationError = string.Empty;
+
+    [ObservableProperty]
     private int _defaultRequestTimeoutSeconds = 100;
 
     public IReadOnlyList<string> FontFamilyOptions { get; } =
@@ -353,6 +379,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _debugLogger.Information("Default content type changed to {ContentType}", value);
         _requestEditor.DefaultContentType = value;
         QueueOptionsAutoSave();
+    }
+
+    partial void OnResponseSaveDefaultFolderChanged(string value) =>
+        QueueOptionsAutoSave();
+
+    partial void OnResponseSaveFileNamePatternChanged(string value)
+    {
+        if (ResponseSaveFileNamePatternFormatter.TryValidatePattern(value, out var error))
+        {
+            ResponseSaveFileNamePatternValidationError = string.Empty;
+            QueueOptionsAutoSave();
+            return;
+        }
+
+        ResponseSaveFileNamePatternValidationError = error;
     }
 
     partial void OnUiFontSizeTextChanged(string value) =>
@@ -801,6 +842,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 DefaultContentType = DefaultContentType,
                 FollowRedirects = FollowHttpRedirects,
                 DefaultRequestUrl = DefaultRequestUrl,
+                ResponseSaveDefaultFolder = ResponseSaveDefaultFolder,
+                ResponseSaveFileNamePattern = ResponseSaveFileNamePattern,
                 DemoServerPort = DemoServerPort,
                 DemoServerHttpsPort = DemoServerHttpsPort,
                 DemoServerHttpEnabled = IsDemoServerHttpEnabled,
@@ -848,6 +891,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             DefaultRequestUrl = options.Http.DefaultRequestUrl;
             DefaultContentType = options.Http.DefaultContentType;
             DefaultRequestTimeoutSeconds = options.Http.DefaultRequestTimeoutSeconds;
+            ResponseSaveDefaultFolder = options.Http.ResponseSaveDefaultFolder;
+            ResponseSaveFileNamePattern = options.Http.ResponseSaveFileNamePattern;
             _requestEditor.DefaultContentType = options.Http.DefaultContentType;
             UiFontFamily = options.Appearance.FontFamily;
             UiFontSizeText = options.Appearance.FontSize.ToString("0.##", CultureInfo.InvariantCulture);
@@ -907,6 +952,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         IsBinaryResponse = IsBinaryMediaType(mediaType);
         ResponseBodyTabLabel = isJson ? "JSON" : isXml ? "XML" : "Body";
+        IsResponseWebViewAvailable = false;
+        ResponseWebViewUri = "about:blank";
 
         if (IsBinaryResponse)
         {
@@ -924,10 +971,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if ((isXml || isHtml) && TryFormatXml(responseBody, out var formattedXml))
         {
             ResponseBody = formattedXml;
+            if (isHtml && TryBuildResponseWebViewUri(responseBody, out var webViewUri))
+            {
+                IsResponseWebViewAvailable = true;
+                ResponseWebViewUri = webViewUri;
+            }
+
             return;
         }
 
         ResponseBody = responseBody;
+        if (isHtml && TryBuildResponseWebViewUri(responseBody, out var fallbackWebViewUri))
+        {
+            IsResponseWebViewAvailable = true;
+            ResponseWebViewUri = fallbackWebViewUri;
+        }
     }
 
     private static string GetResponseContentType(IReadOnlyList<(string Name, string Value)> headers) =>
@@ -997,6 +1055,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             formatted = string.Empty;
             return false;
         }
+    }
+
+    private static bool TryBuildResponseWebViewUri(string htmlResponseBody, out string uri)
+    {
+        if (string.IsNullOrWhiteSpace(htmlResponseBody))
+        {
+            uri = string.Empty;
+            return false;
+        }
+
+        uri = $"data:text/html;charset=utf-8,{Uri.EscapeDataString(htmlResponseBody)}";
+        return true;
     }
     [RelayCommand]
     private void AddScheduledJob()
@@ -1763,7 +1833,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private async Task SaveBinaryResponseAndOpenAsync()
+    private async Task SaveBinaryResponseAndOpenAsync(CancellationToken cancellationToken)
     {
         if (!IsBinaryResponse || _lastResponseBodyBytes.Length == 0 || StorageProvider is null)
         {
@@ -1772,10 +1842,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         var extension = ExtensionFromContentType(ResponseContentType);
 
+        var suggestedStartLocation = await GetResponseSaveSuggestedStartLocationAsync();
         var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Save Response",
-            SuggestedFileName = $"response{extension}",
+            SuggestedFileName = BuildResponseSaveFileName(extension),
+            SuggestedStartLocation = suggestedStartLocation,
             FileTypeChoices =
             [
                 new FilePickerFileType("Response file")
@@ -1790,7 +1862,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        await File.WriteAllBytesAsync(file.Path.LocalPath, _lastResponseBodyBytes);
+        await File.WriteAllBytesAsync(file.Path.LocalPath, _lastResponseBodyBytes, cancellationToken);
         OpenWithShell(file.Path.LocalPath);
     }
 
@@ -1828,26 +1900,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// Opens a save-file dialog and writes the raw response body to the chosen path.
-    /// The suggested file extension is derived from the response <c>Content-Type</c>.
-    /// No-op when the storage provider is unavailable or the response body is empty.
+    /// Opens a save-file dialog and writes the currently selected response tab content to the chosen path.
+    /// The suggested file extension is derived from the response <c>Content-Type</c> when applicable.
+    /// No-op when the storage provider is unavailable or the selected tab has no saveable text content.
     /// </summary>
     [RelayCommand]
-    private async Task SaveResponseBodyAsFileAsync()
+    private async Task SaveResponseBodyAsFileAsync(CancellationToken cancellationToken)
     {
-        if (StorageProvider is null || string.IsNullOrEmpty(RawResponseBody))
+        if (StorageProvider is null || !TryGetSaveableResponseContent(out var contentToSave, out var extension))
         {
             return;
         }
 
-        var extension = !string.IsNullOrWhiteSpace(ResponseContentType)
-            ? ExtensionFromContentType(ResponseContentType)
-            : DetectExtensionFromContent(RawResponseBody);
-
+        var suggestedStartLocation = await GetResponseSaveSuggestedStartLocationAsync();
         var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Save Response Body",
-            SuggestedFileName = $"response{extension}",
+            Title = "Save Response",
+            SuggestedFileName = BuildResponseSaveFileName(extension),
+            SuggestedStartLocation = suggestedStartLocation,
             FileTypeChoices =
             [
                 new FilePickerFileType("Response file")
@@ -1862,7 +1932,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        await File.WriteAllTextAsync(file.Path.LocalPath, RawResponseBody, Encoding.UTF8);
+        await File.WriteAllTextAsync(file.Path.LocalPath, contentToSave, Encoding.UTF8, cancellationToken);
     }
 
     /// <summary>
@@ -2097,7 +2167,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             var demoRequests = new List<CollectionRequest>
             {
-                new("Documentation", "GET", "/docs",
+                new("Documentation", "GET", "/docs.html",
                     "Read endpoint docs and sample usage for the local demo server."),
                 new("Echo GET", "GET", "/echo",
                     "Simple HTTP GET — returns request info as JSON when no body is present."),
@@ -2188,6 +2258,139 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         await File.WriteAllTextAsync(path, content, cancellationToken).ConfigureAwait(false);
         _tempFiles.Add(path);
         return path;
+    }
+
+    private async Task<IStorageFolder?> GetResponseSaveSuggestedStartLocationAsync()
+    {
+        if (StorageProvider is null || string.IsNullOrWhiteSpace(ResponseSaveDefaultFolder))
+        {
+            return null;
+        }
+
+        return await StorageProvider.TryGetFolderFromPathAsync(ResponseSaveDefaultFolder);
+    }
+
+    private string BuildResponseSaveFileName(string extension)
+    {
+        var requestPath = "root";
+
+        var resolvedUrl = _requestEditor.GetResolvedUrl();
+        if (Uri.TryCreate(resolvedUrl, UriKind.Absolute, out var uri))
+        {
+            var absolutePath = uri.AbsolutePath.Trim('/');
+            requestPath = string.IsNullOrWhiteSpace(absolutePath) ? "root" : absolutePath.Replace('/', '-');
+        }
+
+        var collectionName = SelectedCollection?.Name ?? "NoCollection";
+        var requestName = string.IsNullOrWhiteSpace(_requestEditor.RequestName) ? "request" : _requestEditor.RequestName;
+        var pattern = string.IsNullOrWhiteSpace(ResponseSaveFileNamePattern)
+            ? ResponseSaveFileNamePatternFormatter.DefaultPattern
+            : ResponseSaveFileNamePattern;
+
+        if (ResponseSaveFileNamePatternFormatter.TryFormat(
+                pattern,
+                collectionName,
+                requestPath,
+                requestName,
+                extension,
+                DateTimeOffset.UtcNow,
+                out var fileName,
+                out var validationError))
+        {
+            ResponseSaveFileNamePatternValidationError = string.Empty;
+            return fileName;
+        }
+
+        ResponseSaveFileNamePatternValidationError = validationError;
+
+        _ = ResponseSaveFileNamePatternFormatter.TryFormat(
+            ResponseSaveFileNamePatternFormatter.DefaultPattern,
+            collectionName,
+            requestPath,
+            requestName,
+            extension,
+            DateTimeOffset.UtcNow,
+            out var defaultFileName,
+            out _);
+
+        return defaultFileName;
+    }
+
+    internal bool TryGetSaveableResponseContent(out string content, out string extension)
+    {
+        content = string.Empty;
+        extension = ".txt";
+
+        if (SelectedResponseTabIndex == ResponseWebViewTabIndex)
+        {
+            return false;
+        }
+
+        if (SelectedResponseTabIndex == ResponseHeadersTabIndex)
+        {
+            if (ResponseHeaders.Count == 0)
+            {
+                return false;
+            }
+
+            content = string.Join(Environment.NewLine, ResponseHeaders);
+            extension = ".txt";
+            return true;
+        }
+
+        if (SelectedResponseTabIndex == ResponseRawTabIndex)
+        {
+            if (string.IsNullOrEmpty(ResponseRawText))
+            {
+                return false;
+            }
+
+            content = ResponseRawText;
+            extension = ".txt";
+            return true;
+        }
+
+        if (SelectedResponseTabIndex == ResponseBodyTabIndex && !string.IsNullOrEmpty(ResponseBody))
+        {
+            content = ResponseBody;
+            extension = !string.IsNullOrWhiteSpace(ResponseContentType)
+                ? ExtensionFromContentType(ResponseContentType)
+                : DetectExtensionFromContent(ResponseBody);
+            return true;
+        }
+
+        if (SelectedResponseTabIndex == ResponseBodyRawTabIndex && string.IsNullOrEmpty(RawResponseBody))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(RawResponseBody))
+        {
+            content = RawResponseBody;
+            extension = !string.IsNullOrWhiteSpace(ResponseContentType)
+                ? ExtensionFromContentType(ResponseContentType)
+                : DetectExtensionFromContent(RawResponseBody);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void UpdateResponseRawText()
+    {
+        if (string.IsNullOrEmpty(RawResponseBody))
+        {
+            ResponseRawText = string.Empty;
+            return;
+        }
+
+        if (ResponseHeaders.Count == 0)
+        {
+            ResponseRawText = RawResponseBody;
+            return;
+        }
+
+        ResponseRawText = $"{string.Join(Environment.NewLine, ResponseHeaders)}{Environment.NewLine}{Environment.NewLine}{RawResponseBody}";
     }
 
     internal static string ExtensionFromContentType(string contentType)
@@ -3153,6 +3356,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             HasResponseHeaders = ResponseHeaders.Count > 0;
             UpdateResponsePresentation(response.Body, response.Headers);
+            UpdateResponseRawText();
             HasTextResponse = HasResponseHeaders && !IsBinaryResponse;
             _httpRequestsLogger.Information("Manual request completed: {StatusCode} {ReasonPhrase}", response.StatusCode, response.ReasonPhrase);
 
@@ -3220,6 +3424,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             HasResponseHeaders = ResponseHeaders.Count > 0;
             UpdateResponsePresentation(response.Body, response.Headers);
+            UpdateResponseRawText();
             HasTextResponse = HasResponseHeaders && !IsBinaryResponse;
             _httpRequestsLogger.Information("GraphQL request completed: {StatusCode}", response.StatusCode);
 
