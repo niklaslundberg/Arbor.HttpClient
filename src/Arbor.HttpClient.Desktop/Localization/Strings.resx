@@ -514,7 +514,7 @@
     <value>Response file name pattern</value>
   </data>
   <data name="OptionsResponseSaveFileNamePatternHelp" xml:space="preserve">
-    <value>Supported tokens: {collectionName}, {requestPath}, {requestName}, {contentTypeExtension}, {timestamp:format}. Invalid file-name characters are normalized automatically.</value>
+    <value>Supported tokens: {collectionName}, {requestPath}, {requestName}, {contentTypeExtension}, {extension}, {timestamp:format}. Invalid file-name characters are normalized automatically.</value>
   </data>
   <data name="OptionsDemoServerTitle" xml:space="preserve">
     <value>Demo Server</value>
