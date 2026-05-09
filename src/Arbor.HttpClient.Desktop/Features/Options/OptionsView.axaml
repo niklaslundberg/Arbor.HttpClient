@@ -126,7 +126,21 @@
                                 <TextBlock Text="{Binding App.ResponseSaveFileNamePatternValidationError}"
                                            TextWrapping="Wrap"
                                            Foreground="{DynamicResource WarningBrush}"
-                                           FontSize="11" />
+                                           FontSize="11">
+                                    <TextBlock.Styles>
+                                        <Style Selector="TextBlock">
+                                            <Setter Property="IsVisible" Value="True" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding App.ResponseSaveFileNamePatternValidationError}" Value="{x:Null}">
+                                                    <Setter Property="IsVisible" Value="False" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding App.ResponseSaveFileNamePatternValidationError}" Value="">
+                                                    <Setter Property="IsVisible" Value="False" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Styles>
+                                </TextBlock>
                             </StackPanel>
 
                             <!-- Demo server settings -->
