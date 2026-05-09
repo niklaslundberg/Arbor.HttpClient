@@ -1,9 +1,6 @@
 using System;
 using System.ComponentModel;
-using CommunityToolkit.Mvvm.ComponentModel;
-using Arbor.HttpClient.Core.Variables;
 using Arbor.HttpClient.Desktop.Shared;
-using Serilog;
 
 namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
 

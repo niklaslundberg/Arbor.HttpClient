@@ -21,7 +21,7 @@ public class RequestTabViewModelTests
     {
         var editor = CreateEditor();
         editor.RequestName = string.Empty;
-        var tab = new RequestTabViewModel(editor);
+        using var tab = new RequestTabViewModel(editor);
 
         tab.DisplayTitle.Should().Be("New");
     }
@@ -31,7 +31,7 @@ public class RequestTabViewModelTests
     {
         var editor = CreateEditor();
         editor.RequestName = "   ";
-        var tab = new RequestTabViewModel(editor);
+        using var tab = new RequestTabViewModel(editor);
 
         tab.DisplayTitle.Should().Be("New");
     }
@@ -41,7 +41,7 @@ public class RequestTabViewModelTests
     {
         var editor = CreateEditor();
         editor.RequestName = "Get Users";
-        var tab = new RequestTabViewModel(editor);
+        using var tab = new RequestTabViewModel(editor);
 
         tab.DisplayTitle.Should().Be("Get Users");
     }
@@ -51,7 +51,7 @@ public class RequestTabViewModelTests
     {
         var editor = CreateEditor();
         editor.RequestName = string.Empty;
-        var tab = new RequestTabViewModel(editor);
+        using var tab = new RequestTabViewModel(editor);
 
         tab.DisplayTitle.Should().Be("New");
 
@@ -65,7 +65,7 @@ public class RequestTabViewModelTests
     {
         var editor = CreateEditor();
         editor.RequestName = "Original";
-        var tab = new RequestTabViewModel(editor);
+        using var tab = new RequestTabViewModel(editor);
 
         var changedProperties = new List<string?>();
         tab.PropertyChanged += (_, e) => changedProperties.Add(e.PropertyName);
@@ -79,7 +79,7 @@ public class RequestTabViewModelTests
     public void DisplayTitle_DoesNotRaisePropertyChanged_WhenUnrelatedPropertyChanges()
     {
         var editor = CreateEditor();
-        var tab = new RequestTabViewModel(editor);
+        using var tab = new RequestTabViewModel(editor);
 
         var changedProperties = new List<string?>();
         tab.PropertyChanged += (_, e) => changedProperties.Add(e.PropertyName);
@@ -94,7 +94,7 @@ public class RequestTabViewModelTests
     {
         var editor = CreateEditor();
         editor.RequestName = "My Request";
-        var tab = new RequestTabViewModel(editor);
+        using var tab = new RequestTabViewModel(editor);
 
         editor.RequestName = string.Empty;
 

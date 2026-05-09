@@ -44,7 +44,7 @@
                                        TextTrimming="CharacterEllipsis"
                                        VerticalAlignment="Center"
                                        ToolTip.Tip="{Binding DisplayTitle}" />
-                            <!-- Close button: only active when more than one tab is open -->
+                            <!-- Close button: always rendered; command is a no-op when only one tab remains -->
                             <Button Content="✕"
                                     Padding="2,0"
                                     Width="18" Height="18"
