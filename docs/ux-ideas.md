@@ -685,7 +685,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### Demo server endpoint docs with markdown and HTML view ✅ Implemented
-> Implemented in PR (this PR) — `src/Arbor.HttpClient.Desktop/Demo/DemoServerEndpoints.md`, `src/Arbor.HttpClient.Desktop/Demo/DemoServerEndpoints.html`, `src/Arbor.HttpClient.Desktop/Demo/DemoServer.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`
+> Implemented in PR #161 (commit `8f01fce`) — `src/Arbor.HttpClient.Desktop/Demo/DemoServerEndpoints.md`, `src/Arbor.HttpClient.Desktop/Demo/DemoServerEndpoints.html`, `src/Arbor.HttpClient.Desktop/Demo/DemoServer.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`
 
 **What it means:** The embedded demo server now ships with a source-controlled Markdown document describing all demo endpoints and sample requests. The same document is available from the running demo server as Markdown (`/docs`) and as rendered HTML (`/docs.html`) for easier viewing in browsers/web views.
 

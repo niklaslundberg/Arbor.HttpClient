@@ -12,7 +12,7 @@ This local demo server is embedded in the desktop app and is intended for testin
 ### `GET /status`
 Returns JSON metadata about the demo server version, active ports, and available endpoints.
 
-### `GET|POST|PUT|DELETE /echo`
+### `ANY /echo`
 Echo endpoint for regular HTTP requests.
 
 - If a request body is sent, the body is echoed back with the same content type.
