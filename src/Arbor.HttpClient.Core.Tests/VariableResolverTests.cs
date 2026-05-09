@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using Arbor.HttpClient.Core.Environments;
 using Arbor.HttpClient.Core.Variables;
 using Arbor.HttpClient.Testing.Fakes;
@@ -255,6 +257,49 @@ public class VariableResolverTests
         result.Should().Be("/home/alice");
     }
 
+    [Fact]
+    public void Resolve_ComputedTimestampLocalWithoutFormat_ShouldUseRoundtripFormat()
+    {
+        var result = _resolver.Resolve("{{c:TimeStampLocal}}", []);
+        DateTimeOffset.TryParse(result, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Resolve_ComputedTimestampUtcWithoutFormat_ShouldUseRoundtripUtcFormat()
+    {
+        var result = _resolver.Resolve("{{c:TimeStampUtc}}", []);
+        DateTimeOffset.TryParse(result, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed).Should().BeTrue();
+        parsed.Offset.Should().Be(TimeSpan.Zero);
+    }
+
+    [Fact]
+    public void Resolve_ComputedTimestampLocalWithCustomFormat_ShouldApplyFormat()
+    {
+        var result = _resolver.Resolve("{{c:TimeStampLocal:yyyyMMdd}}", []);
+        Regex.IsMatch(result, @"^\d{8}$").Should().BeTrue();
+    }
+
+    [Fact]
+    public void Resolve_ComputedTimestampUtcWithCustomFormat_ShouldApplyFormat()
+    {
+        var result = _resolver.Resolve("{{c:TimeStampUtc:yyyyMMddHHmmss}}", []);
+        Regex.IsMatch(result, @"^\d{14}$").Should().BeTrue();
+    }
+
+    [Fact]
+    public void Resolve_ComputedTimestampWithInvalidFormat_ShouldReturnInvalidTimestampFormatText()
+    {
+        var result = _resolver.Resolve("{{c:TimeStampLocal:Q}}", []);
+        result.Should().Be("invalidTimeStampFormat");
+    }
+
+    [Fact]
+    public void Resolve_UnknownComputedValue_ShouldCollapseToEmptyString()
+    {
+        var result = _resolver.Resolve("{{c:UnknownValue}}", []);
+        result.Should().BeEmpty();
+    }
+
     /// <summary>
     /// An expired variable should not be substituted — the token collapses to an empty string.
     /// </summary>
@@ -281,11 +326,10 @@ public class VariableResolverTests
     /// A variable with no expiry set should always be substituted.
     /// </summary>
     [Fact]
-    public void Resolve_VariableWithoutExpiry_ShouldBeSubstituted()
-    {
-        var noExpiry = new EnvironmentVariable("host", "localhost");
-        var result = _resolver.Resolve("http://{{host}}/api", [noExpiry]);
-        result.Should().Be("http://localhost/api");
-    }
+public void Resolve_VariableWithoutExpiry_ShouldBeSubstituted()
+{
+    var noExpiry = new EnvironmentVariable("host", "localhost");
+    var result = _resolver.Resolve("http://{{host}}/api", [noExpiry]);
+    result.Should().Be("http://localhost/api");
 }
-
+}

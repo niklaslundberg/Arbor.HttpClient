@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Arbor.HttpClient.Core.Environments;
 
@@ -7,6 +8,13 @@ public sealed class VariableResolver
 {
     /// <summary>The prefix used to reference system environment variables, e.g. <c>{{env:PATH}}</c>.</summary>
     public const string EnvPrefix = "env:";
+    /// <summary>The prefix used to reference computed values, e.g. <c>{{c:TimeStampUtc:yyyyMMdd}}</c>.</summary>
+    public const string ComputedPrefix = "c:";
+
+    private const string TimeStampLocalName = "TimeStampLocal";
+    private const string TimeStampUtcName = "TimeStampUtc";
+    private const string DefaultTimeStampFormat = "o";
+    private const string InvalidTimeStampFormatText = "invalidTimeStampFormat";
 
     private static readonly Regex TokenPattern = new(@"\{\{([^}]+)\}\}", RegexOptions.Compiled);
 
@@ -47,6 +55,44 @@ public sealed class VariableResolver
                 var envKey = key[EnvPrefix.Length..].Trim();
                 envLookup ??= _environmentVariableProvider.GetAll();
                 return envLookup.TryGetValue(envKey, out var envValue) ? envValue : string.Empty;
+            }
+
+            if (key.StartsWith(ComputedPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var computedValue = key[ComputedPrefix.Length..].Trim();
+                var formatSeparator = computedValue.IndexOf(':');
+                var computedName = formatSeparator >= 0
+                    ? computedValue[..formatSeparator].Trim()
+                    : computedValue;
+                var dateTimeFormat = formatSeparator >= 0
+                    ? computedValue[(formatSeparator + 1)..].Trim()
+                    : DefaultTimeStampFormat;
+
+                if (string.IsNullOrWhiteSpace(dateTimeFormat))
+                {
+                    dateTimeFormat = DefaultTimeStampFormat;
+                }
+
+                var timestamp = computedName switch
+                {
+                    TimeStampLocalName => DateTimeOffset.Now,
+                    TimeStampUtcName => DateTimeOffset.UtcNow,
+                    _ => default(DateTimeOffset?)
+                };
+
+                if (timestamp is null)
+                {
+                    return string.Empty;
+                }
+
+                try
+                {
+                    return timestamp.Value.ToString(dateTimeFormat, CultureInfo.InvariantCulture);
+                }
+                catch (FormatException)
+                {
+                    return InvalidTimeStampFormatText;
+                }
             }
 
             return lookup.TryGetValue(key, out var value) ? value : string.Empty;
