@@ -5,6 +5,7 @@ using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Scripting;
 using Arbor.HttpClient.Desktop.Features.Variables;
+using Arbor.HttpClient.Desktop.Shared;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -314,10 +315,34 @@ public partial class RequestView : UserControl
 
     private void OnRequestUrlEditorTextChanged(object? sender, EventArgs e)
     {
-        if (_requestEditorVm is not null && _requestUrlEditor is not null
-            && _requestEditorVm.RequestUrl != _requestUrlEditor.Text)
+        if (_requestEditorVm is null || _requestUrlEditor is null)
         {
-            _requestEditorVm.RequestUrl = _requestUrlEditor.Text;
+            return;
+        }
+
+        var text = _requestUrlEditor.Text;
+        var clean = TextHelpers.StripNewlines(text);
+
+        if (clean != text)
+        {
+            // AvaloniaEdit.TextEditor.set_Text calls UndoStack.ClearAll() which throws when called
+            // from inside a Document.TextChanged handler (undo group is still open at that point).
+            // Use Document.Text directly to replace the text without touching the undo stack.
+            _requestUrlEditor.Document.TextChanged -= OnRequestUrlEditorTextChanged;
+            try
+            {
+                _requestUrlEditor.Document.Text = clean;
+            }
+            finally
+            {
+                _requestUrlEditor.Document.TextChanged += OnRequestUrlEditorTextChanged;
+            }
+            text = clean;
+        }
+
+        if (_requestEditorVm.RequestUrl != text)
+        {
+            _requestEditorVm.RequestUrl = text;
         }
     }
 
@@ -334,10 +359,17 @@ public partial class RequestView : UserControl
 
         if (e.PropertyName == nameof(RequestEditorViewModel.RequestUrl)
             && _requestUrlEditor is not null
-            && _requestEditorVm is not null
-            && _requestUrlEditor.Text != _requestEditorVm.RequestUrl)
+            && _requestEditorVm is not null)
         {
-            _requestUrlEditor.Text = _requestEditorVm.RequestUrl;
+            var url = TextHelpers.StripNewlines(_requestEditorVm.RequestUrl);
+            if (_requestEditorVm.RequestUrl != url)
+            {
+                _requestEditorVm.RequestUrl = url;
+            }
+            if (_requestUrlEditor.Text != url)
+            {
+                _requestUrlEditor.Text = url;
+            }
         }
 
         if (e.PropertyName == nameof(RequestEditorViewModel.RequestPreview)
@@ -357,6 +389,48 @@ public partial class RequestView : UserControl
 
     private void OnAppVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(MainWindowViewModel.RequestEditor) && _appVm is not null)
+        {
+            // Active tab switched — detach old editor wiring and attach to the new one.
+            if (_requestEditorVm is not null)
+            {
+                _requestEditorVm.PropertyChanged -= OnRequestEditorVmPropertyChanged;
+            }
+            if (_requestBodyEditor is not null)
+            {
+                _requestBodyEditor.Document.TextChanged -= OnRequestEditorTextChanged;
+            }
+            if (_requestUrlEditor is not null)
+            {
+                _requestUrlEditor.Document.TextChanged -= OnRequestUrlEditorTextChanged;
+            }
+
+            _requestEditorVm = _appVm.RequestEditor;
+
+            if (_requestBodyEditor is not null)
+            {
+                _requestBodyEditor.Text = _requestEditorVm?.RequestBody ?? string.Empty;
+                ApplyGrammarForContent(_requestTextMate, _requestEditorVm?.RequestBody ?? string.Empty, ref _requestGrammarScope);
+                _requestBodyEditor.Document.TextChanged += OnRequestEditorTextChanged;
+            }
+            if (_requestUrlEditor is not null)
+            {
+                _requestUrlEditor.Text = _requestEditorVm?.RequestUrl ?? string.Empty;
+                _requestUrlEditor.Document.TextChanged += OnRequestUrlEditorTextChanged;
+            }
+            if (_requestPreviewEditor is not null)
+            {
+                _requestPreviewEditor.Text = _requestEditorVm?.RequestPreview ?? string.Empty;
+            }
+
+            if (_requestEditorVm is not null)
+            {
+                _requestEditorVm.PropertyChanged += OnRequestEditorVmPropertyChanged;
+            }
+
+            return;
+        }
+
         if ((e.PropertyName == nameof(MainWindowViewModel.UiFontFamily)
              || e.PropertyName == nameof(MainWindowViewModel.UiFontSize))
             && _appVm is not null)
