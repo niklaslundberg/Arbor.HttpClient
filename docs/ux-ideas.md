@@ -743,3 +743,18 @@ Each idea includes a description of what it means in practice, notes on how it c
 - Validation override support: when disabled, fast-feedback validation is skipped and the request flow continues
 - `DraftState` / `DraftPersistenceService` persist and restore the new override
 - New tests for default-on behavior, persistence, and override behavior in `RequestEditorViewModelTests`, `DraftPersistenceServiceTests`, and `MainWindowUiTests`
+
+---
+
+### Request body pretty print options ✅ Implemented
+> Implemented in PR #164 (commit `363e92b`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`
+
+**What it means:** For known request content types (JSON/XML), users can enable a per-request advanced option that pretty-prints the request body for preview and for the actual outgoing send payload without mutating the source body text. A sub-option controls whether pretty-printing uses indentation or compact formatting. A one-time body-tab action also formats the source body text directly.
+
+**What shipped:**
+- New request options: **Pretty-print request body for preview and send** and **Use indentation when pretty-printing request body**
+- Pretty-print formatting now applies to the resolved body used in both `RequestPreview` and `BuildDraft()` send payload generation
+- Supported known media types: JSON (`application/json`, `+json`) and XML (`application/xml`, `text/xml`, `+xml`)
+- New body-tab action: **Pretty-print source** button, which reformats `RequestBody` once in-place
+- Draft persistence now stores and restores the two pretty-print options
+- New focused tests in `RequestEditorViewModelTests` and `DraftPersistenceServiceTests` verify formatting behavior and persistence

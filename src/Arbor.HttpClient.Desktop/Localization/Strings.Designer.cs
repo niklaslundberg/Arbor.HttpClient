@@ -168,6 +168,12 @@ public static class Strings
     /// <summary>Validate URL before send</summary>
     public static string RequestValidateUrlBeforeSend => Get(nameof(RequestValidateUrlBeforeSend));
 
+    /// <summary>Pretty-print request body for preview and send</summary>
+    public static string RequestPrettyPrintBody => Get(nameof(RequestPrettyPrintBody));
+
+    /// <summary>Use indentation when pretty-printing request body</summary>
+    public static string RequestPrettyPrintBodyUseIndentation => Get(nameof(RequestPrettyPrintBodyUseIndentation));
+
     /// <summary>⚠ Ignore certificate validation</summary>
     public static string RequestIgnoreCertificateValidation => Get(nameof(RequestIgnoreCertificateValidation));
 
@@ -277,6 +283,9 @@ public static class Strings
 
     /// <summary>Open in editor</summary>
     public static string RequestBodyOpenInEditor => Get(nameof(RequestBodyOpenInEditor));
+
+    /// <summary>Pretty-print source</summary>
+    public static string RequestBodyPrettyPrintSource => Get(nameof(RequestBodyPrettyPrintSource));
 
     // GraphQL tab
 

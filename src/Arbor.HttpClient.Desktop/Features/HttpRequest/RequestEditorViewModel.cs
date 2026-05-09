@@ -7,6 +7,10 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Xml;
+using System.Xml.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serilog;
@@ -33,6 +37,12 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     private readonly Action? _onOptionsAffectingPropertyChanged;
     private bool _isUpdatingRequestUrlFromQueryParameters;
     private bool _isUpdatingQueryParametersFromRequestUrl;
+    // RequestEditorViewModel state is mutated on the UI thread; this cache is intentionally unsynchronized.
+    private string _cachedFormattedBody = string.Empty;
+    private string _cachedFormattingResolvedBody = string.Empty;
+    private string _cachedFormattingMediaType = string.Empty;
+    private bool _cachedFormattingUseIndentation;
+    private bool _hasCachedFormattedBody;
 
     private const string VariableTokenStart = "{{";
 
@@ -72,6 +82,12 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _validateUrlBeforeSend = true;
+
+    [ObservableProperty]
+    private bool _prettyPrintRequestBody;
+
+    [ObservableProperty]
+    private bool _prettyPrintRequestBodyUseIndentation = true;
 
     [ObservableProperty]
     private bool _ignoreCertificateValidationForRequest;
@@ -235,6 +251,15 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     private void ToggleRequestHeadersPreview() =>
         IsRequestHeadersPreviewVisible = !IsRequestHeadersPreviewVisible;
 
+    [RelayCommand]
+    private void PrettyPrintRequestBodySource()
+    {
+        if (TryFormatRequestBody(RequestBody, out var formattedBody))
+        {
+            RequestBody = formattedBody;
+        }
+    }
+
     // ── Constructor ───────────────────────────────────────────────────────────
 
     /// <param name="variableResolver">Resolves <c>{{variable}}</c> tokens in URL/body/headers.</param>
@@ -287,6 +312,16 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     }
 
     partial void OnRequestBodyChanged(string value) => RefreshRequestDerivedViews();
+
+    partial void OnPrettyPrintRequestBodyChanged(bool value) => RefreshRequestDerivedViews();
+
+    partial void OnPrettyPrintRequestBodyUseIndentationChanged(bool value)
+    {
+        if (PrettyPrintRequestBody)
+        {
+            RefreshRequestDerivedViews();
+        }
+    }
 
     partial void OnRequestUrlChanged(string value)
     {
@@ -400,7 +435,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     {
         var variables = GetResolvedVariables();
         var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
-        var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
+        var resolvedBody = GetResolvedRequestBodyForPreviewAndSend(variables);
         var previewHeaders = BuildResolvedHeaders(variables, resolvedBody);
 
         var requestLine = $"{SelectedMethod} {resolvedUrl} HTTP/{SelectedHttpVersionOption}";
@@ -427,7 +462,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     {
         var variables = GetResolvedVariables();
         var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
-        var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
+        var resolvedBody = GetResolvedRequestBodyForPreviewAndSend(variables);
         var headers = BuildResolvedHeaders(variables, resolvedBody);
         int? timeoutSeconds = null;
         if (!string.IsNullOrWhiteSpace(RequestTimeoutSecondsText))
@@ -491,6 +526,69 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     {
         UpdateRequestHeadersPreview();
         RefreshRequestPreview();
+    }
+
+    private string GetResolvedRequestBodyForPreviewAndSend(IReadOnlyList<EnvironmentVariable> variables)
+    {
+        var resolvedBody = _variableResolver.Resolve(RequestBody, variables);
+        if (!PrettyPrintRequestBody)
+        {
+            return resolvedBody;
+        }
+
+        var mediaType = HttpContentTypeHelper.NormalizeMediaType(ResolveContentType(resolvedBody));
+        if (!HttpContentTypeHelper.IsJsonMediaType(mediaType) && !HttpContentTypeHelper.IsXmlMediaType(mediaType))
+        {
+            return resolvedBody;
+        }
+
+        if (_hasCachedFormattedBody
+            && string.Equals(_cachedFormattingResolvedBody, resolvedBody, StringComparison.Ordinal)
+            && string.Equals(_cachedFormattingMediaType, mediaType, StringComparison.Ordinal)
+            && _cachedFormattingUseIndentation == PrettyPrintRequestBodyUseIndentation)
+        {
+            return _cachedFormattedBody;
+        }
+
+        if (!TryFormatRequestBodyByMediaType(resolvedBody, mediaType, PrettyPrintRequestBodyUseIndentation, out var formattedBody))
+        {
+            return resolvedBody;
+        }
+
+        _cachedFormattedBody = formattedBody;
+        _cachedFormattingResolvedBody = resolvedBody;
+        _cachedFormattingMediaType = mediaType;
+        _cachedFormattingUseIndentation = PrettyPrintRequestBodyUseIndentation;
+        _hasCachedFormattedBody = true;
+        return formattedBody;
+    }
+
+    private bool TryFormatRequestBody(string requestBody, out string formattedBody)
+    {
+        formattedBody = requestBody;
+        if (string.IsNullOrWhiteSpace(requestBody))
+        {
+            return false;
+        }
+
+        var mediaType = HttpContentTypeHelper.NormalizeMediaType(ResolveContentType(requestBody));
+        return TryFormatRequestBodyByMediaType(requestBody, mediaType, PrettyPrintRequestBodyUseIndentation, out formattedBody);
+    }
+
+    private static bool TryFormatRequestBodyByMediaType(string requestBody, string mediaType, bool useIndentation, out string formattedBody)
+    {
+        if (HttpContentTypeHelper.IsJsonMediaType(mediaType))
+        {
+            return TryFormatJsonBody(requestBody, useIndentation, out formattedBody);
+        }
+
+        if (HttpContentTypeHelper.IsXmlMediaType(mediaType))
+        {
+            return TryFormatXmlBody(requestBody, useIndentation, out formattedBody);
+        }
+
+        formattedBody = string.Empty;
+        return false;
     }
 
     private void UpdateRequestHeadersPreview()
@@ -823,6 +921,43 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     {
         var queryPart = string.IsNullOrEmpty(query) ? string.Empty : $"?{query}";
         return $"{prefix}{queryPart}{fragment}";
+    }
+
+    private static bool TryFormatJsonBody(string requestBody, bool useIndentation, out string formattedBody)
+    {
+        try
+        {
+            using var jsonDocument = JsonDocument.Parse(requestBody);
+            formattedBody = JsonSerializer.Serialize(jsonDocument.RootElement, new JsonSerializerOptions
+            {
+                WriteIndented = useIndentation,
+                // Request preview/body editors treat this as plain text; payload semantics should not be altered by escaping.
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
+            return true;
+        }
+        catch (JsonException)
+        {
+            formattedBody = string.Empty;
+            return false;
+        }
+    }
+
+    private static bool TryFormatXmlBody(string requestBody, bool useIndentation, out string formattedBody)
+    {
+        try
+        {
+            var document = XDocument.Parse(requestBody);
+            formattedBody = useIndentation
+                ? document.ToString()
+                : document.ToString(SaveOptions.DisableFormatting);
+            return true;
+        }
+        catch (XmlException)
+        {
+            formattedBody = string.Empty;
+            return false;
+        }
     }
 
     private static string DecodeQueryComponent(string value)
