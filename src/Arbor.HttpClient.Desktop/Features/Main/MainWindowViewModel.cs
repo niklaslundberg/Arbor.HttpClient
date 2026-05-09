@@ -480,7 +480,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         if (Application.Current is { } currentApp)
         {
-            currentApp.Resources["AppFontFamily"] = new FontFamily(value);
+            // Split on ',' with count=2 to avoid allocating a large array for long CSS font
+            // stacks (e.g. "Cascadia Code,Consolas,Menlo,monospace") — only [0] is used.
+            var firstFamily = value.Split(',', 2, StringSplitOptions.TrimEntries)[0];
+            var fontFamily = string.IsNullOrEmpty(firstFamily)
+                ? FontFamily.Default
+                : new FontFamily(firstFamily);
+            currentApp.Resources["AppFontFamily"] = fontFamily;
         }
 
         QueueOptionsAutoSave();
@@ -714,9 +720,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (newValue is not null)
         {
             _requestEditor = newValue.RequestEditor;
-            _requestEditor.PropertyChanged += OnRequestEditorPropertyChanged;
+            // Capture the editor in a local so the dispatcher callback always targets
+            // the same instance even if ActiveRequestTab changes again before it runs.
+            var editorForThisTab = _requestEditor;
+            // Suppress refreshes while Avalonia's TwoWay bindings re-subscribe to the new
+            // editor and fire current ComboBox/TextBox values back as if they changed.
+            // Avalonia processes PropertyChanged notifications synchronously within the
+            // current dispatcher frame, so a Post at default priority is guaranteed to run
+            // after all binding subscriptions have settled for the current frame.
+            editorForThisTab.BeginBulkUpdate();
+            editorForThisTab.PropertyChanged += OnRequestEditorPropertyChanged;
             OnPropertyChanged(nameof(RequestEditor));
             OnPropertyChanged(nameof(PrimaryActionLabel));
+            Dispatcher.UIThread.Post(() => editorForThisTab.EndBulkUpdate());
         }
     }
 
@@ -1381,96 +1397,101 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         NewRequestTab();
 
-        // Detect special protocol methods used in demo collections.
-        _requestEditor.SelectedRequestType = item.Method switch
+        // Suppress intermediate refreshes while populating the new editor; a single
+        // refresh fires when the handle is disposed at the end of this block.
+        using (_requestEditor.BeginBulkUpdate())
         {
-            "WS" or "WSS" => RequestType.WebSocket,
-            "SSE" => RequestType.Sse,
-            _ => RequestType.Http
-        };
-
-        if (_requestEditor.SelectedRequestType == RequestType.Http)
-        {
-            _requestEditor.SelectedMethod = item.Method;
-        }
-
-        var collectionBaseUrl = SelectedCollection?.BaseUrl;
-        var activeEnv = ActiveEnvironment;
-
-        var baseUrl = activeEnv is { }
-            ? _variableResolver.Resolve(collectionBaseUrl ?? string.Empty, _requestEditor.GetResolvedVariables())
-            : (collectionBaseUrl ?? string.Empty);
-
-        // If item.Path is already an absolute web URL (http/https/ws/wss), use it directly; otherwise prefix
-        // with the collection base URL.  We check the scheme explicitly rather than relying on UriKind.Absolute
-        // because Uri.TryCreate("/ws", UriKind.Absolute, …) returns true on Linux (the path is resolved as a
-        // file:// URI), which would silently strip the base URL.
-        var resolvedUrl = Uri.TryCreate(item.Path, UriKind.Absolute, out var parsedUri) && parsedUri is { }
-                          && parsedUri.Scheme is "http" or "https" or "ws" or "wss"
-            ? item.Path
-            : baseUrl.TrimEnd('/') + item.Path;
-
-        // For WebSocket requests, rewrite http:// → ws:// and https:// → wss://.
-        if (_requestEditor.SelectedRequestType == RequestType.WebSocket)
-        {
-            resolvedUrl = resolvedUrl
-                .Replace("https://", "wss://", StringComparison.OrdinalIgnoreCase)
-                .Replace("http://", "ws://", StringComparison.OrdinalIgnoreCase);
-        }
-
-        _requestEditor.RequestUrl = resolvedUrl;
-        _requestEditor.RequestName = item.Name;
-        _requestEditor.RequestNotes = item.Notes ?? string.Empty;
-
-        // Populate headers from the collection request (header parameters + auth from import)
-        _requestEditor.RequestHeaders.Clear();
-        if (item.Headers is { } importedHeaders)
-        {
-            foreach (var h in importedHeaders)
+            // Detect special protocol methods used in demo collections.
+            _requestEditor.SelectedRequestType = item.Method switch
             {
-                _requestEditor.RequestHeaders.Add(new RequestHeaderViewModel { Name = h.Name, Value = h.Value, IsEnabled = h.IsEnabled });
+                "WS" or "WSS" => RequestType.WebSocket,
+                "SSE" => RequestType.Sse,
+                _ => RequestType.Http
+            };
+
+            if (_requestEditor.SelectedRequestType == RequestType.Http)
+            {
+                _requestEditor.SelectedMethod = item.Method;
             }
-        }
 
-        _requestEditor.EnsurePlaceholderRows();
+            var collectionBaseUrl = SelectedCollection?.BaseUrl;
+            var activeEnv = ActiveEnvironment;
 
-        // Populate content type from the collection request; always reset to avoid leaking a previous request's value
-        if (string.IsNullOrEmpty(item.ContentType))
-        {
-            _requestEditor.SelectedContentTypeOption = RequestEditorViewModel.NoneContentTypeOption;
-            _requestEditor.CustomContentType = string.Empty;
-        }
-        else if (_requestEditor.ContentTypeOptions.Contains(item.ContentType))
-        {
-            _requestEditor.SelectedContentTypeOption = item.ContentType;
-            _requestEditor.CustomContentType = string.Empty;
-        }
-        else
-        {
-            _requestEditor.SelectedContentTypeOption = RequestEditorViewModel.CustomContentTypeOption;
-            _requestEditor.CustomContentType = item.ContentType;
-        }
+            var baseUrl = activeEnv is { }
+                ? _variableResolver.Resolve(collectionBaseUrl ?? string.Empty, _requestEditor.GetResolvedVariables())
+                : (collectionBaseUrl ?? string.Empty);
 
-        // Populate body: prefer stored body over the generic "{}" placeholder
-        if (!string.IsNullOrEmpty(item.Body))
-        {
-            _requestEditor.RequestBody = item.Body;
-        }
-        else if (item.Method is "POST" or "PUT" or "PATCH")
-        {
-            _requestEditor.RequestBody = "{}";
-        }
-        else
-        {
-            _requestEditor.RequestBody = string.Empty;
-        }
+            // If item.Path is already an absolute web URL (http/https/ws/wss), use it directly; otherwise prefix
+            // with the collection base URL.  We check the scheme explicitly rather than relying on UriKind.Absolute
+            // because Uri.TryCreate("/ws", UriKind.Absolute, …) returns true on Linux (the path is resolved as a
+            // file:// URI), which would silently strip the base URL.
+            var resolvedUrl = Uri.TryCreate(item.Path, UriKind.Absolute, out var parsedUri) && parsedUri is { }
+                              && parsedUri.Scheme is "http" or "https" or "ws" or "wss"
+                ? item.Path
+                : baseUrl.TrimEnd('/') + item.Path;
 
-        // Show a banner if this request targets the local demo server and it is not running.
-        IsDemoServerBannerVisible = _demoServer is { } server
-            && !server.IsRunning
-            && (IsDemoServerUrl(resolvedUrl, server.Port) || IsDemoServerUrl(resolvedUrl, server.HttpsPort));
+            // For WebSocket requests, rewrite http:// → ws:// and https:// → wss://.
+            if (_requestEditor.SelectedRequestType == RequestType.WebSocket)
+            {
+                resolvedUrl = resolvedUrl
+                    .Replace("https://", "wss://", StringComparison.OrdinalIgnoreCase)
+                    .Replace("http://", "ws://", StringComparison.OrdinalIgnoreCase);
+            }
 
-        ActiveRequestTab?.SetCollectionRequestSource(collectionId, item.Method, item.Path, item.Name);
+            _requestEditor.RequestUrl = resolvedUrl;
+            _requestEditor.RequestName = item.Name;
+            _requestEditor.RequestNotes = item.Notes ?? string.Empty;
+
+            // Populate headers from the collection request (header parameters + auth from import)
+            _requestEditor.RequestHeaders.Clear();
+            if (item.Headers is { } importedHeaders)
+            {
+                foreach (var h in importedHeaders)
+                {
+                    _requestEditor.RequestHeaders.Add(new RequestHeaderViewModel { Name = h.Name, Value = h.Value, IsEnabled = h.IsEnabled });
+                }
+            }
+
+            _requestEditor.EnsurePlaceholderRows();
+
+            // Populate content type from the collection request; always reset to avoid leaking a previous request's value
+            if (string.IsNullOrEmpty(item.ContentType))
+            {
+                _requestEditor.SelectedContentTypeOption = RequestEditorViewModel.NoneContentTypeOption;
+                _requestEditor.CustomContentType = string.Empty;
+            }
+            else if (_requestEditor.ContentTypeOptions.Contains(item.ContentType))
+            {
+                _requestEditor.SelectedContentTypeOption = item.ContentType;
+                _requestEditor.CustomContentType = string.Empty;
+            }
+            else
+            {
+                _requestEditor.SelectedContentTypeOption = RequestEditorViewModel.CustomContentTypeOption;
+                _requestEditor.CustomContentType = item.ContentType;
+            }
+
+            // Populate body: prefer stored body over the generic "{}" placeholder
+            if (!string.IsNullOrEmpty(item.Body))
+            {
+                _requestEditor.RequestBody = item.Body;
+            }
+            else if (item.Method is "POST" or "PUT" or "PATCH")
+            {
+                _requestEditor.RequestBody = "{}";
+            }
+            else
+            {
+                _requestEditor.RequestBody = string.Empty;
+            }
+
+            // Show a banner if this request targets the local demo server and it is not running.
+            IsDemoServerBannerVisible = _demoServer is { } server
+                && !server.IsRunning
+                && (IsDemoServerUrl(resolvedUrl, server.Port) || IsDemoServerUrl(resolvedUrl, server.HttpsPort));
+
+            ActiveRequestTab?.SetCollectionRequestSource(collectionId, item.Method, item.Path, item.Name);
+        } // end BulkUpdateHandle — fires exactly one RefreshRequestDerivedViews
     }
 
     /// <summary>Starts the embedded demo server on <see cref="DemoServerPort"/> and/or <see cref="DemoServerHttpsPort"/>.</summary>
@@ -2638,10 +2659,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         return new DockLayoutSnapshot
         {
-            LeftToolProportion = leftToolDock.Proportion,
-            DocumentProportion = documentLayout.Proportion,
-            RequestDockProportion = requestDock.Proportion,
-            ResponseDockProportion = responseDock.Proportion,
+            LeftToolProportion = SanitizeProportion(leftToolDock.Proportion, 0.25),
+            DocumentProportion = SanitizeProportion(documentLayout.Proportion, 0.75),
+            RequestDockProportion = SanitizeOptionalProportion(requestDock.Proportion),
+            ResponseDockProportion = SanitizeOptionalProportion(responseDock.Proportion),
             ActiveToolDockableId = leftToolDock.ActiveDockable?.Id,
             LeftToolDockableOrder = GetDockableOrder(leftToolDock.VisibleDockables),
             FloatingWindows = floatingWindows,
@@ -2673,6 +2694,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
+    /// Returns <paramref name="value"/> when it is a finite, strictly-positive number;
+    /// otherwise returns <paramref name="fallback"/>. Zero is treated as "not set" and
+    /// triggers the fallback because the layout proportions that use this helper
+    /// (<see cref="DockLayoutSnapshot.LeftToolProportion"/> and
+    /// <see cref="DockLayoutSnapshot.DocumentProportion"/>) must be positive.
+    /// </summary>
+    private static double SanitizeProportion(double value, double fallback) =>
+        double.IsFinite(value) && value > 0 ? value : fallback;
+
+    /// <summary>
+    /// Returns <paramref name="value"/> when it is a finite, non-negative number;
+    /// otherwise returns 0 (meaning "use default"). Used for optional dock
+    /// proportions where 0 is a valid sentinel for "not set".
+    /// </summary>
+    private static double SanitizeOptionalProportion(double value) =>
+        double.IsFinite(value) && value >= 0 ? value : 0;
+
+    /// <summary>
     /// Recursively captures a dock tree node and all its structural children.
     /// Returns <see langword="null"/> for node types that are not recognized or
     /// should not be included in the serialized tree.
@@ -2690,7 +2729,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 Type = "Root",
                 Id = root.Id,
-                Proportion = root.Proportion,
+                Proportion = SanitizeOptionalProportion(root.Proportion),
                 Children = children
             };
         }
@@ -2706,7 +2745,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 Type = "Proportional",
                 Id = proportional.Id,
-                Proportion = proportional.Proportion,
+                Proportion = SanitizeOptionalProportion(proportional.Proportion),
                 Orientation = proportional.Orientation.ToString(),
                 Children = children
             };
@@ -2718,7 +2757,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 Type = "Splitter",
                 Id = splitter.Id,
-                Proportion = splitter.Proportion
+                Proportion = SanitizeOptionalProportion(splitter.Proportion)
             };
         }
 
@@ -2733,7 +2772,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 Type = "Tool",
                 Id = toolDock.Id,
-                Proportion = toolDock.Proportion,
+                Proportion = SanitizeOptionalProportion(toolDock.Proportion),
                 Alignment = toolDock.Alignment.ToString(),
                 GripMode = toolDock.GripMode.ToString(),
                 IsCollapsable = toolDock.IsCollapsable,
@@ -2753,7 +2792,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 Type = "Document",
                 Id = documentDock.Id,
-                Proportion = documentDock.Proportion,
+                Proportion = SanitizeOptionalProportion(documentDock.Proportion),
                 IsCollapsable = documentDock.IsCollapsable,
                 ContentIds = contentIds,
                 ActiveContentId = documentDock.ActiveDockable?.Id
