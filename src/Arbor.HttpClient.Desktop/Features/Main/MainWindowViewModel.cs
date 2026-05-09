@@ -96,6 +96,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IScriptRunner _scriptRunner = new RoslynScriptRunner();
     private readonly ScriptViewModel _scriptViewModel = new();
 
+    [ObservableProperty]
+    private RequestTabViewModel? _activeRequestTab;
+
     // Cached DockTree from the last explicit layout capture (set during PersistCurrentLayout,
     // SaveLayoutAsNew, SaveLayoutToExisting, and window close).  Reused for auto-saves triggered
     // by non-layout property changes (TLS version, font, etc.) so that CaptureDockNode is NOT
@@ -504,9 +507,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             GetActiveVariablesForEditor,
             _debugLogger,
             QueueOptionsAutoSave);
+        RequestTabs = [];
+        // NOTE: CreateRequestEditor() cannot be used here because it reads _applicationOptions
+        // which is populated by ApplyOptions (called later in the constructor). The initial
+        // tab is created with bare defaults; ApplyOptions then sets URL/content-type/etc.
+        var firstTab = new RequestTabViewModel(_requestEditor);
+        RequestTabs.Add(firstTab);
+        _activeRequestTab = firstTab;
         _environmentsViewModel = new EnvironmentsViewModel(
             environmentRepository,
-            _requestEditor,
+            () => _requestEditor,
             () => StorageProvider,
             _debugLogger);
         _optionsViewModel = new OptionsViewModel(this);
@@ -570,6 +580,76 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public WebSocketViewModel WebSocketSession => _webSocketViewModel;
     public SseViewModel SseSession => _sseViewModel;
     public ScriptViewModel ScriptEditor => _scriptViewModel;
+
+    /// <summary>
+    /// The collection of open request tabs. There is always at least one tab.
+    /// </summary>
+    public ObservableCollection<RequestTabViewModel> RequestTabs { get; }
+
+    partial void OnActiveRequestTabChanged(RequestTabViewModel? oldValue, RequestTabViewModel? newValue)
+    {
+        if (oldValue is not null)
+        {
+            oldValue.RequestEditor.PropertyChanged -= OnRequestEditorPropertyChanged;
+        }
+
+        if (newValue is not null)
+        {
+            _requestEditor = newValue.RequestEditor;
+            _requestEditor.PropertyChanged += OnRequestEditorPropertyChanged;
+            OnPropertyChanged(nameof(RequestEditor));
+            OnPropertyChanged(nameof(PrimaryActionLabel));
+        }
+    }
+
+    [RelayCommand]
+    private void NewRequestTab()
+    {
+        var tab = new RequestTabViewModel(CreateRequestEditor());
+        RequestTabs.Add(tab);
+        ActiveRequestTab = tab;
+    }
+
+    [RelayCommand]
+    private void CloseRequestTab(RequestTabViewModel? tab)
+    {
+        if (tab is null || RequestTabs.Count <= 1)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(ActiveRequestTab, tab))
+        {
+            var index = RequestTabs.IndexOf(tab);
+            RequestTabs.Remove(tab);
+            var newIndex = Math.Max(0, Math.Min(index, RequestTabs.Count - 1));
+            ActiveRequestTab = RequestTabs[newIndex];
+        }
+        else
+        {
+            RequestTabs.Remove(tab);
+        }
+
+        tab.Dispose();
+    }
+
+    /// <summary>
+    /// Creates a new <see cref="RequestEditorViewModel"/> pre-configured with the current
+    /// application defaults. Used both for the initial tab and for each new tab created via
+    /// <see cref="NewRequestTabCommand"/>.
+    /// </summary>
+    private RequestEditorViewModel CreateRequestEditor() =>
+        new(
+            _variableResolver,
+            GetActiveVariablesForEditor,
+            _debugLogger,
+            QueueOptionsAutoSave)
+        {
+            RequestUrl = _applicationOptions.Http.DefaultRequestUrl,
+            DefaultContentType = _applicationOptions.Http.DefaultContentType,
+            FollowRedirectsForRequest = _applicationOptions.Http.FollowRedirects,
+            SelectedHttpVersionOption = _applicationOptions.Http.HttpVersion
+        };
 
     /// <summary>
     /// Label for the primary action button in the request composer.
@@ -1840,6 +1920,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _webSocketViewModel.Dispose();
         _sseViewModel.Dispose();
         _protocolHttpClient.Dispose();
+
+        foreach (var tab in RequestTabs)
+        {
+            tab.Dispose();
+        }
 
         foreach (var file in _tempFiles)
         {

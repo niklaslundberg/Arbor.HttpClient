@@ -171,19 +171,6 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ## 3. Navigation / Workflow
 
-### 3.1 Tabbed requests
-**What it means:** Multiple open requests as tabs across the top of the main content area, so the user can switch between in-flight or draft requests without losing state — the primary UX paradigm of Postman, Insomnia, and Hoppscotch.
-
-**How to implement:**
-- Replace the single `RequestViewModel` on `MainViewModel` with an `ObservableCollection<RequestTabViewModel>` and an `ActiveTab` property.
-- The main content area becomes a `TabControl` (or a custom tab bar with underline style) bound to the collection.
-- Each tab has its own request state, response, and history reference.
-- "New tab" creates a blank `RequestTabViewModel`; "Close tab" removes it (with an unsaved-changes prompt if dirty).
-
-**Scope:** L (touches most of the VM and view layer)
-
----
-
 ### 3.2 Ctrl+K command palette
 **What it means:** A fuzzy-search overlay (like VS Code's Ctrl+K / Ctrl+P) listing all saved requests, environment variables, and commands (Send, New Request, Open Options…). Lets power users navigate entirely by keyboard.
 
@@ -424,6 +411,23 @@ Each idea includes a description of what it means in practice, notes on how it c
 ## Implemented
 
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
+
+### 3.1 Tabbed requests ✅ Implemented
+> Implemented in PR #168 (commit `1f87c26`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestTabViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`
+
+**What it means:** Multiple open requests as tabs across the top of the main content area, so the user can switch between in-flight or draft requests without losing state — the primary UX paradigm of Postman, Insomnia, and Hoppscotch.
+
+**What shipped:**
+- Added `RequestTabViewModel` that owns a `RequestEditorViewModel` with `DisplayTitle` (request name or "New").
+- `MainWindowViewModel` has `ObservableCollection<RequestTabViewModel> RequestTabs`, `ActiveRequestTab`, `NewRequestTabCommand`, and `CloseRequestTabCommand`.
+- `RequestView.axaml` has a `ListBox`-based tab bar at the top: each tab shows a truncated name (120 px max, `TextTrimming="CharacterEllipsis"`), full name as tooltip, and a ✕ close button; a "+" button adds new tabs.
+- Tab switching swaps the active `RequestEditorViewModel` and the code-behind re-wires the AvaloniaEdit text editors.
+
+**Remaining polish:**
+- Response state is currently global (shared across tabs). Per-tab response history is a future enhancement.
+- "Unsaved changes" prompt on tab close not yet implemented.
+
+---
 
 ### Persistent Layout and Request/Response Split View ✅ Implemented
 > Implemented in PR #141 (commit `ae8f8f0`) — `src/Arbor.HttpClient.Desktop/Features/Layout/DockFactory.cs`, `src/Arbor.HttpClient.Desktop/Features/Layout/DockLayoutSnapshot.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindow.axaml.cs`, `src/Arbor.HttpClient.Desktop/Options/ApplicationOptionsStore.cs`, `src/Arbor.HttpClient.Desktop/App.axaml.cs`
