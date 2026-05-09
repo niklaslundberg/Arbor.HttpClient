@@ -287,6 +287,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private string _responseSaveFileNamePatternValidationError = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RequestTimeoutDefaultWatermark))]
     private int _defaultRequestTimeoutSeconds = 100;
 
     public IReadOnlyList<string> FontFamilyOptions { get; } =
@@ -315,6 +316,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         double.TryParse(UiFontSizeText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
             ? parsed
             : 13d;
+
+    public string RequestTimeoutDefaultWatermark =>
+        $"{Strings.RequestTimeoutDefaultWatermark} ({DefaultRequestTimeoutSeconds})";
 
     // Response headers panel (populated after each successful request)
     public ObservableCollection<string> ResponseHeaders { get; } = [];
@@ -1065,7 +1069,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return false;
         }
 
-        uri = $"data:text/html;charset=utf-8,{Uri.EscapeDataString(htmlResponseBody)}";
+        var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(htmlResponseBody));
+        uri = $"data:text/html;charset=utf-8;base64,{encoded}";
         return true;
     }
     [RelayCommand]
@@ -2346,7 +2351,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
 
             content = ResponseRawText;
-            extension = ".txt";
+            extension = !string.IsNullOrWhiteSpace(ResponseContentType)
+                ? ExtensionFromContentType(ResponseContentType)
+                : DetectExtensionFromContent(RawResponseBody);
             return true;
         }
 
@@ -2400,17 +2407,20 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return ".txt";
         }
 
-        var mediaType = contentType.Split(';')[0].Trim().ToLowerInvariant();
+        var mediaType = HttpContentTypeHelper.NormalizeMediaType(contentType);
         return mediaType switch
         {
             "application/json" => ".json",
             "application/xml" or "text/xml" => ".xml",
             "text/html" => ".html",
+            "text/markdown" => ".md",
             "application/pdf" => ".pdf",
             "application/zip" => ".zip",
             "image/png" => ".png",
             "image/jpeg" => ".jpg",
             "image/gif" => ".gif",
+            _ when HttpContentTypeHelper.IsJsonMediaType(mediaType) => ".json",
+            _ when HttpContentTypeHelper.IsXmlMediaType(mediaType) => ".xml",
             _ => ".txt"
         };
     }

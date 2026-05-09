@@ -434,14 +434,13 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             return;
         }
 
-        var digitsOnly = new string(value.Where(char.IsDigit).ToArray());
-        if (digitsOnly.Length == 0)
+        if (!value.All(char.IsDigit))
         {
             RequestTimeoutSecondsText = string.Empty;
             return;
         }
 
-        var normalized = int.TryParse(digitsOnly, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed)
+        var normalized = int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed)
             ? Math.Min(parsed, 100).ToString(CultureInfo.InvariantCulture)
             : "100";
 
@@ -713,10 +712,19 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             return;
         }
 
+        var query = ExtractQuery(url);
+        if (string.IsNullOrEmpty(query)
+            && RequestQueryParameters.Count == 1
+            && string.IsNullOrWhiteSpace(RequestQueryParameters[0].Key)
+            && string.IsNullOrWhiteSpace(RequestQueryParameters[0].Value)
+            && !RequestQueryParameters[0].IsEnabled)
+        {
+            return;
+        }
+
         _isUpdatingQueryParametersFromRequestUrl = true;
         try
         {
-            var query = ExtractQuery(url);
             RequestQueryParameters.Clear();
 
             if (!string.IsNullOrEmpty(query))
@@ -808,6 +816,12 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             switch (e.PropertyName)
             {
                 case nameof(RequestHeaderViewModel.Name):
+                    if (header.IsEnabled && string.IsNullOrWhiteSpace(header.Name))
+                    {
+                        header.IsEnabled = false;
+                        return;
+                    }
+
                     if (!header.IsEnabled && !string.IsNullOrWhiteSpace(header.Name))
                     {
                         header.IsEnabled = true;
@@ -821,6 +835,12 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
                     break;
 
                 case nameof(RequestHeaderViewModel.IsEnabled):
+                    if (header.IsEnabled && string.IsNullOrWhiteSpace(header.Name))
+                    {
+                        header.IsEnabled = false;
+                        return;
+                    }
+
                     if (ReferenceEquals(RequestHeaders[^1], header))
                     {
                         EnsurePlaceholderHeader();
@@ -862,6 +882,12 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             switch (e.PropertyName)
             {
                 case nameof(RequestQueryParameterViewModel.Key):
+                    if (param.IsEnabled && string.IsNullOrWhiteSpace(param.Key))
+                    {
+                        param.IsEnabled = false;
+                        return;
+                    }
+
                     if (!param.IsEnabled && !string.IsNullOrWhiteSpace(param.Key))
                     {
                         param.IsEnabled = true;
@@ -875,6 +901,12 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
                     break;
 
                 case nameof(RequestQueryParameterViewModel.IsEnabled):
+                    if (param.IsEnabled && string.IsNullOrWhiteSpace(param.Key))
+                    {
+                        param.IsEnabled = false;
+                        return;
+                    }
+
                     if (ReferenceEquals(RequestQueryParameters[^1], param))
                     {
                         EnsurePlaceholderQueryParameter();
