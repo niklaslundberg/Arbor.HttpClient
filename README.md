@@ -156,6 +156,9 @@ Use the `c:` prefix for computed timestamp values:
 - The date/time format part is optional and defaults to `o` (ISO 8601 round-trip format).
 - If the format is invalid, the token resolves to `invalidTimeStampFormat`.
 
+> `env:` and `c:` are reserved token prefixes. Tokens like `{{env:...}}` and `{{c:...}}` are always treated as system/computed tokens (not user-defined environment-variable names).  
+> If you define a variable named `c:TimeStampUtc` or `env:HOME`, `{{c:TimeStampUtc}}` / `{{env:HOME}}` still resolve using computed/system logic, not that user-defined value.
+
 ## Scheduled Jobs
 
 Any request can be scheduled to run automatically in the background:

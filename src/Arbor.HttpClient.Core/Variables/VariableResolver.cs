@@ -73,10 +73,10 @@ public sealed class VariableResolver
                     dateTimeFormat = DefaultTimeStampFormat;
                 }
 
-                DateTimeOffset? timestamp = computedName switch
+                DateTimeOffset? timestamp = computedName.ToUpperInvariant() switch
                 {
-                    TimeStampLocalName => DateTimeOffset.Now,
-                    TimeStampUtcName => DateTimeOffset.UtcNow,
+                    "TIMESTAMPLOCAL" => DateTimeOffset.Now,
+                    "TIMESTAMPUTC" => DateTimeOffset.UtcNow,
                     _ => null
                 };
 

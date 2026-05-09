@@ -273,6 +273,14 @@ public class VariableResolverTests
     }
 
     [Fact]
+    public void Resolve_ComputedTimestampName_ShouldBeCaseInsensitive()
+    {
+        var result = _resolver.Resolve("{{c:tImEsTaMpUtC}}", []);
+        DateTimeOffset.TryParse(result, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed).Should().BeTrue();
+        parsed.Offset.Should().Be(TimeSpan.Zero);
+    }
+
+    [Fact]
     public void Resolve_ComputedTimestampLocalWithCustomFormat_ShouldApplyFormat()
     {
         var result = _resolver.Resolve("{{c:TimeStampLocal:yyyyMMdd}}", []);
