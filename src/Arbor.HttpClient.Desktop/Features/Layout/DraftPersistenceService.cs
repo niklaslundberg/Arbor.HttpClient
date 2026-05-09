@@ -45,7 +45,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
             var json = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
             return JsonSerializer.Deserialize<DraftState>(json, SerializerOptions);
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or ArgumentException)
         {
             return null;
         }

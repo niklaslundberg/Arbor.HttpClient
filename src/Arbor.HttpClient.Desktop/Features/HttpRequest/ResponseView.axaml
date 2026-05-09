@@ -84,8 +84,8 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding}"
-                                                   FontFamily="{Binding App.UiFontFamily}"
-                                                   FontSize="{Binding App.UiFontSize}" Opacity="0.9"
+                                                   FontFamily="{Binding $parent[ItemsControl].DataContext.App.UiFontFamily}"
+                                                   FontSize="{Binding $parent[ItemsControl].DataContext.App.UiFontSize}" Opacity="0.9"
                                                    TextWrapping="Wrap" Margin="0,1,0,0" />
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>

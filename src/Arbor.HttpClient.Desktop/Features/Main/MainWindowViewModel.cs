@@ -480,7 +480,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         if (Application.Current is { } currentApp)
         {
-            currentApp.Resources["AppFontFamily"] = new FontFamily(value);
+            // Avalonia FontFamily does not support CSS-style comma-separated font stacks.
+            // Split on commas and use only the first entry; fall back to the system default if empty.
+            var firstFamily = value.Split(',', 2, StringSplitOptions.TrimEntries)[0];
+            var fontFamily = string.IsNullOrEmpty(firstFamily)
+                ? FontFamily.Default
+                : new FontFamily(firstFamily);
+            currentApp.Resources["AppFontFamily"] = fontFamily;
         }
 
         QueueOptionsAutoSave();
@@ -2638,10 +2644,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         return new DockLayoutSnapshot
         {
-            LeftToolProportion = leftToolDock.Proportion,
-            DocumentProportion = documentLayout.Proportion,
-            RequestDockProportion = requestDock.Proportion,
-            ResponseDockProportion = responseDock.Proportion,
+            LeftToolProportion = SanitizeProportion(leftToolDock.Proportion, 0.25),
+            DocumentProportion = SanitizeProportion(documentLayout.Proportion, 0.75),
+            RequestDockProportion = SanitizeOptionalProportion(requestDock.Proportion),
+            ResponseDockProportion = SanitizeOptionalProportion(responseDock.Proportion),
             ActiveToolDockableId = leftToolDock.ActiveDockable?.Id,
             LeftToolDockableOrder = GetDockableOrder(leftToolDock.VisibleDockables),
             FloatingWindows = floatingWindows,
@@ -2673,6 +2679,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
+    /// Returns <paramref name="value"/> when it is a finite, strictly-positive number;
+    /// otherwise returns <paramref name="fallback"/>. Zero is treated as "not set" and
+    /// triggers the fallback because the layout proportions that use this helper
+    /// (<see cref="DockLayoutSnapshot.LeftToolProportion"/> and
+    /// <see cref="DockLayoutSnapshot.DocumentProportion"/>) must be positive.
+    /// </summary>
+    private static double SanitizeProportion(double value, double fallback) =>
+        double.IsFinite(value) && value > 0 ? value : fallback;
+
+    /// <summary>
+    /// Returns <paramref name="value"/> when it is a finite, non-negative number;
+    /// otherwise returns 0 (meaning "use default"). Used for optional dock
+    /// proportions where 0 is a valid sentinel for "not set".
+    /// </summary>
+    private static double SanitizeOptionalProportion(double value) =>
+        double.IsFinite(value) && value >= 0 ? value : 0;
+
+    /// <summary>
     /// Recursively captures a dock tree node and all its structural children.
     /// Returns <see langword="null"/> for node types that are not recognized or
     /// should not be included in the serialized tree.
@@ -2690,7 +2714,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 Type = "Root",
                 Id = root.Id,
-                Proportion = root.Proportion,
+                Proportion = SanitizeOptionalProportion(root.Proportion),
                 Children = children
             };
         }
@@ -2706,7 +2730,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 Type = "Proportional",
                 Id = proportional.Id,
-                Proportion = proportional.Proportion,
+                Proportion = SanitizeOptionalProportion(proportional.Proportion),
                 Orientation = proportional.Orientation.ToString(),
                 Children = children
             };
@@ -2718,7 +2742,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 Type = "Splitter",
                 Id = splitter.Id,
-                Proportion = splitter.Proportion
+                Proportion = SanitizeOptionalProportion(splitter.Proportion)
             };
         }
 
@@ -2733,7 +2757,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 Type = "Tool",
                 Id = toolDock.Id,
-                Proportion = toolDock.Proportion,
+                Proportion = SanitizeOptionalProportion(toolDock.Proportion),
                 Alignment = toolDock.Alignment.ToString(),
                 GripMode = toolDock.GripMode.ToString(),
                 IsCollapsable = toolDock.IsCollapsable,
@@ -2753,7 +2777,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 Type = "Document",
                 Id = documentDock.Id,
-                Proportion = documentDock.Proportion,
+                Proportion = SanitizeOptionalProportion(documentDock.Proportion),
                 IsCollapsable = documentDock.IsCollapsable,
                 ContentIds = contentIds,
                 ActiveContentId = documentDock.ActiveDockable?.Id
