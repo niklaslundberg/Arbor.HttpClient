@@ -954,7 +954,50 @@ public class MainWindowUiTests
             viewModel.ResponseBodyTabLabel.Should().Be("JSON");
             viewModel.ResponseBody.Should().Contain("\n");
             viewModel.RawResponseBody.Should().Be("{\"message\":\"hello\"}");
+            viewModel.ResponseRawText.Should().Contain("Content-Type:");
+            viewModel.ResponseRawText.Should().Contain("{\"message\":\"hello\"}");
             viewModel.IsBinaryResponse.Should().BeFalse();
+            viewModel.IsResponseWebViewAvailable.Should().BeFalse();
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task SendRequest_WithHtmlResponse_ShouldEnableResponseWebView()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(_ =>
+                new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("<html><body><h1>docs</h1></body></html>", Encoding.UTF8, "text/html")
+                });
+
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/docs.html";
+            viewModel.SendRequestCommand.Execute(null);
+            await viewModel.SendRequestCommand.ExecutionTask!;
+
+            viewModel.IsResponseWebViewAvailable.Should().BeTrue();
+            viewModel.ResponseWebViewUri.Should().StartWith("data:text/html");
 
             return true;
         }, CancellationToken.None);

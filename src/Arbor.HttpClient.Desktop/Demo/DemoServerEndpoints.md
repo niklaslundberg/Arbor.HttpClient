@@ -37,7 +37,7 @@ Returns this documentation as Markdown (`text/markdown`).
 Returns this documentation rendered as HTML for easier reading in web views.
 
 ### `GET /`
-Redirects to `/docs`.
+Redirects to `/docs.html`.
 
 ## Example requests
 

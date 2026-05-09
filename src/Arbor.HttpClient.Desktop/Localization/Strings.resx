@@ -457,8 +457,17 @@
   <data name="ResponseSaveAndOpen" xml:space="preserve">
     <value>Save and Open</value>
   </data>
-  <data name="ResponseTabRaw" xml:space="preserve">
-    <value>Raw</value>
+  <data name="ResponseTabBodyRaw" xml:space="preserve">
+    <value>Body raw</value>
+  </data>
+  <data name="ResponseTabResponseRaw" xml:space="preserve">
+    <value>Response raw</value>
+  </data>
+  <data name="ResponseTabWebView" xml:space="preserve">
+    <value>Web view</value>
+  </data>
+  <data name="ResponseWebViewUnavailable" xml:space="preserve">
+    <value>Web view rendering is available for HTML responses.</value>
   </data>
 
   <!-- ═══════════════════════════════ Options ═══════════════════════════════ -->
@@ -497,6 +506,15 @@
   </data>
   <data name="OptionsDefaultRequestTimeoutSeconds" xml:space="preserve">
     <value>Default request timeout (seconds)</value>
+  </data>
+  <data name="OptionsResponseSaveDefaultFolder" xml:space="preserve">
+    <value>Default folder for response files</value>
+  </data>
+  <data name="OptionsResponseSaveFileNamePattern" xml:space="preserve">
+    <value>Response file name pattern</value>
+  </data>
+  <data name="OptionsResponseSaveFileNamePatternHelp" xml:space="preserve">
+    <value>Supported tokens: {collectionName}, {requestPath}, {requestName}, {contentTypeExtension}, {timestamp:format}. Invalid file-name characters are normalized automatically.</value>
   </data>
   <data name="OptionsDemoServerTitle" xml:space="preserve">
     <value>Demo Server</value>

@@ -434,8 +434,17 @@ public static class Strings
     /// <summary>Save and Open</summary>
     public static string ResponseSaveAndOpen => Get(nameof(ResponseSaveAndOpen));
 
-    /// <summary>Raw</summary>
-    public static string ResponseTabRaw => Get(nameof(ResponseTabRaw));
+    /// <summary>Body raw</summary>
+    public static string ResponseTabBodyRaw => Get(nameof(ResponseTabBodyRaw));
+
+    /// <summary>Response raw</summary>
+    public static string ResponseTabResponseRaw => Get(nameof(ResponseTabResponseRaw));
+
+    /// <summary>Web view</summary>
+    public static string ResponseTabWebView => Get(nameof(ResponseTabWebView));
+
+    /// <summary>Web view rendering is available for HTML responses.</summary>
+    public static string ResponseWebViewUnavailable => Get(nameof(ResponseWebViewUnavailable));
 
     // ═══════════════════════════════ Options ═══════════════════════════════
 
@@ -474,6 +483,15 @@ public static class Strings
 
     /// <summary>Default request timeout (seconds)</summary>
     public static string OptionsDefaultRequestTimeoutSeconds => Get(nameof(OptionsDefaultRequestTimeoutSeconds));
+
+    /// <summary>Default folder for response files</summary>
+    public static string OptionsResponseSaveDefaultFolder => Get(nameof(OptionsResponseSaveDefaultFolder));
+
+    /// <summary>Response file name pattern</summary>
+    public static string OptionsResponseSaveFileNamePattern => Get(nameof(OptionsResponseSaveFileNamePattern));
+
+    /// <summary>Supported tokens: {collectionName}, {requestPath}, {requestName}, {contentTypeExtension}, {timestamp:format}. Invalid file-name characters are normalized automatically.</summary>
+    public static string OptionsResponseSaveFileNamePatternHelp => Get(nameof(OptionsResponseSaveFileNamePatternHelp));
 
     /// <summary>Demo Server</summary>
     public static string OptionsDemoServerTitle => Get(nameof(OptionsDemoServerTitle));

@@ -134,18 +134,6 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ---
 
-### 2.4 Image / PDF / HTML response previewers
-**What it means:** When the `Content-Type` is `image/*`, `application/pdf`, or `text/html`, show a rendered preview instead of (or alongside) the raw bytes/text.
-
-**How to implement:**
-- Image: Avalonia's built-in `Image` control with `new Bitmap(stream)`.
-- HTML: embed a `WebView` via the `Avalonia.WebView` community package or spawn a local browser window.
-- PDF: use a native PDF library (`PdfiumViewer` port or `Docnet.Core`) or simply offer "Open in default app".
-
-**Scope:** M (image S, HTML M, PDF L)
-
----
-
 ### 2.5 Cookie jar editor
 **What it means:** A panel that shows all cookies set by responses, lets the user inspect their values, manually add/edit/delete cookies, and toggle whether they are sent with future requests.
 
@@ -729,9 +717,30 @@ Each idea includes a description of what it means in practice, notes on how it c
 - Added `DemoServerEndpoints.md` with endpoint documentation and example requests
 - Added `DemoServerEndpoints.html` so docs render cleanly in browser/web view clients
 - Added `/docs` and `/docs.html` demo server endpoints
-- Added `/` route redirect to `/docs`
-- Set `Documentation` (`GET /docs`) as the first default request in the seeded `Localhost Demo` sample collection
+- Added `/` route redirect to `/docs.html`
+- Set `Documentation` (`GET /docs.html`) as the first default request in the seeded `Localhost Demo` sample collection
 - Added focused tests for docs endpoints, root redirect, and default seed ordering
+
+---
+
+### 2.4 Image / PDF / HTML response previewers ✅ Implemented
+> Implemented in PR #<ACTUAL_PR_NUMBER> (commit `<ACTUAL_SHA7>`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/ResponseView.axaml`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/ResponseView.axaml.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/OptionsView.axaml`
+
+**What it means:** When the `Content-Type` is `image/*`, `application/pdf`, or `text/html`, show a rendered preview instead of (or alongside) the raw bytes/text.
+
+**What shipped:**
+- Added a new **Web view** response tab that renders HTML responses with `NativeWebView`
+- Moved response headers into a dedicated **Headers** tab next to body/raw tabs
+- Added **Response raw** tab showing full headers + body in a single view
+- Renamed existing raw body tab to **Body raw**
+- Save-as-file now uses the selected response tab content when applicable
+- Added global options for default response-save folder and filename pattern with token validation/normalization
+
+**Polish items remaining:**
+- Image (`image/*`) inline preview is still pending
+- PDF inline preview is still pending
+
+**Scope:** M (image S, HTML M, PDF L)
 
 ---
 
