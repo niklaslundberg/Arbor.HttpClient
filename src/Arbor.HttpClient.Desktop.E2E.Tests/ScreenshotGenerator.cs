@@ -705,6 +705,51 @@ public class ScreenshotGenerator
         return (viewModel, new MainWindow { DataContext = viewModel });
     }
 
+    [Fact]
+    public async Task GenerateRequestTabsScreenshot()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var (viewModel, window) = CreateWindow(
+                BuildHandler("{}"),
+                requestName: "Get Users",
+                method: "GET",
+                url: "http://localhost:5000/users");
+
+            // Add two more request tabs to demonstrate multi-tab support
+            viewModel.NewRequestTabCommand.Execute(null);
+            viewModel.RequestEditor.RequestName = "Create Order";
+            viewModel.RequestEditor.SelectedMethod = "POST";
+            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/orders";
+
+            viewModel.NewRequestTabCommand.Execute(null);
+            viewModel.RequestEditor.RequestName = string.Empty; // shows "New" fallback
+
+            // Assert tab state is truly isolated — switching away from tab 0 must not
+            // mutate its request name or URL.
+            viewModel.RequestTabs[0].RequestEditor.RequestName.Should().Be("Get Users");
+            viewModel.RequestTabs[0].RequestEditor.RequestUrl.Should().Be("http://localhost:5000/users");
+            viewModel.RequestTabs[1].RequestEditor.RequestName.Should().Be("Create Order");
+            viewModel.RequestTabs[1].RequestEditor.RequestUrl.Should().Be("http://localhost:5000/orders");
+            viewModel.RequestTabs[2].RequestEditor.RequestName.Should().BeEmpty();
+            viewModel.RequestTabs[2].DisplayTitle.Should().Be("New");
+
+            window.Show();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+            frame?.Save(Path.Join(outputDir, "request-tabs.png"));
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
     // -------------------------------------------------------------------------
     // Stubs
     // -------------------------------------------------------------------------

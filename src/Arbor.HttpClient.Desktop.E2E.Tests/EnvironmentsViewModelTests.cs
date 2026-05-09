@@ -14,7 +14,7 @@ public class EnvironmentsViewModelTests
     private static EnvironmentsViewModel CreateViewModel(InMemoryEnvironmentRepository repository)
     {
         var requestEditor = new RequestEditorViewModel(new VariableResolver(), () => []);
-        return new EnvironmentsViewModel(repository, requestEditor, () => null);
+        return new EnvironmentsViewModel(repository, () => requestEditor, () => null);
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public class EnvironmentsViewModelAutoSaveTests
         {
             var repository = new InMemoryEnvironmentRepository();
             var requestEditor = new RequestEditorViewModel(new VariableResolver(), () => []);
-            var viewModel = new EnvironmentsViewModel(repository, requestEditor, () => null);
+            var viewModel = new EnvironmentsViewModel(repository, () => requestEditor, () => null);
 
             viewModel.NewEnvironmentCommand.Execute(null);
             viewModel.NewEnvironmentName = "myenv";

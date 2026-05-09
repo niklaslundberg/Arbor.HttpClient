@@ -389,6 +389,48 @@ public partial class RequestView : UserControl
 
     private void OnAppVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(MainWindowViewModel.RequestEditor) && _appVm is not null)
+        {
+            // Active tab switched — detach old editor wiring and attach to the new one.
+            if (_requestEditorVm is not null)
+            {
+                _requestEditorVm.PropertyChanged -= OnRequestEditorVmPropertyChanged;
+            }
+            if (_requestBodyEditor is not null)
+            {
+                _requestBodyEditor.Document.TextChanged -= OnRequestEditorTextChanged;
+            }
+            if (_requestUrlEditor is not null)
+            {
+                _requestUrlEditor.Document.TextChanged -= OnRequestUrlEditorTextChanged;
+            }
+
+            _requestEditorVm = _appVm.RequestEditor;
+
+            if (_requestBodyEditor is not null)
+            {
+                _requestBodyEditor.Text = _requestEditorVm?.RequestBody ?? string.Empty;
+                ApplyGrammarForContent(_requestTextMate, _requestEditorVm?.RequestBody ?? string.Empty, ref _requestGrammarScope);
+                _requestBodyEditor.Document.TextChanged += OnRequestEditorTextChanged;
+            }
+            if (_requestUrlEditor is not null)
+            {
+                _requestUrlEditor.Text = _requestEditorVm?.RequestUrl ?? string.Empty;
+                _requestUrlEditor.Document.TextChanged += OnRequestUrlEditorTextChanged;
+            }
+            if (_requestPreviewEditor is not null)
+            {
+                _requestPreviewEditor.Text = _requestEditorVm?.RequestPreview ?? string.Empty;
+            }
+
+            if (_requestEditorVm is not null)
+            {
+                _requestEditorVm.PropertyChanged += OnRequestEditorVmPropertyChanged;
+            }
+
+            return;
+        }
+
         if ((e.PropertyName == nameof(MainWindowViewModel.UiFontFamily)
              || e.PropertyName == nameof(MainWindowViewModel.UiFontSize))
             && _appVm is not null)
