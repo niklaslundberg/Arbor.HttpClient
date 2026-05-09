@@ -165,6 +165,9 @@ public static class Strings
     /// <summary>Follow redirects</summary>
     public static string RequestFollowRedirects => Get(nameof(RequestFollowRedirects));
 
+    /// <summary>Validate URL before send</summary>
+    public static string RequestValidateUrlBeforeSend => Get(nameof(RequestValidateUrlBeforeSend));
+
     /// <summary>⚠ Ignore certificate validation</summary>
     public static string RequestIgnoreCertificateValidation => Get(nameof(RequestIgnoreCertificateValidation));
 
@@ -182,6 +185,9 @@ public static class Strings
 
     /// <summary>Send / Connect / Cancel (Ctrl+Enter)</summary>
     public static string RequestPrimaryActionTooltip => Get(nameof(RequestPrimaryActionTooltip));
+
+    /// <summary>Resolved URL must be an absolute HTTP or HTTPS URL. Disable "Validate URL before send" in Request options to skip this pre-send check and continue to a send attempt.</summary>
+    public static string RequestInvalidResolvedUrlMessage => Get(nameof(RequestInvalidResolvedUrlMessage));
 
     // Request tabs
 
