@@ -5,6 +5,7 @@ using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Scripting;
 using Arbor.HttpClient.Desktop.Features.Variables;
+using Arbor.HttpClient.Desktop.Shared;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -314,10 +315,31 @@ public partial class RequestView : UserControl
 
     private void OnRequestUrlEditorTextChanged(object? sender, EventArgs e)
     {
-        if (_requestEditorVm is not null && _requestUrlEditor is not null
-            && _requestEditorVm.RequestUrl != _requestUrlEditor.Text)
+        if (_requestEditorVm is null || _requestUrlEditor is null)
         {
-            _requestEditorVm.RequestUrl = _requestUrlEditor.Text;
+            return;
+        }
+
+        var text = _requestUrlEditor.Text;
+        var clean = TextHelpers.StripNewlines(text);
+
+        if (clean != text)
+        {
+            _requestUrlEditor.Document.TextChanged -= OnRequestUrlEditorTextChanged;
+            try
+            {
+                _requestUrlEditor.Text = clean;
+            }
+            finally
+            {
+                _requestUrlEditor.Document.TextChanged += OnRequestUrlEditorTextChanged;
+            }
+            text = clean;
+        }
+
+        if (_requestEditorVm.RequestUrl != text)
+        {
+            _requestEditorVm.RequestUrl = text;
         }
     }
 

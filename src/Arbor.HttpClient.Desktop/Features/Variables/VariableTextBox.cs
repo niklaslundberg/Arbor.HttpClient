@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Variables;
+using Arbor.HttpClient.Desktop.Shared;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -116,7 +117,11 @@ public sealed class VariableTextBox : UserControl
 
         if (change.Property == TextProperty && !_updatingText)
         {
-            var text = GetValue(TextProperty) ?? string.Empty;
+            var text = TextHelpers.StripNewlines(GetValue(TextProperty) ?? string.Empty);
+            if (text != (GetValue(TextProperty) ?? string.Empty))
+            {
+                SetCurrentValue(TextProperty, text);
+            }
             if (_editor.Text != text)
             {
                 _editor.Text = text;
@@ -141,10 +146,26 @@ public sealed class VariableTextBox : UserControl
 
     private void OnEditorTextChanged(object? sender, EventArgs e)
     {
+        var text = _editor.Text;
+        var clean = TextHelpers.StripNewlines(text);
+
+        if (clean != text)
+        {
+            _editor.Document.TextChanged -= OnEditorTextChanged;
+            try
+            {
+                _editor.Text = clean;
+            }
+            finally
+            {
+                _editor.Document.TextChanged += OnEditorTextChanged;
+            }
+            text = clean;
+        }
+
         _updatingText = true;
         try
         {
-            var text = _editor.Text;
             SetValue(TextProperty, text);
             _placeholder.IsVisible = string.IsNullOrEmpty(text);
         }
