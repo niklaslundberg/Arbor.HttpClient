@@ -724,7 +724,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### 2.4 Image / PDF / HTML response previewers ✅ Implemented
-> Implemented in PR #<ACTUAL_PR_NUMBER> (commit `<ACTUAL_SHA7>`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/ResponseView.axaml`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/ResponseView.axaml.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/OptionsView.axaml`
+> Implemented in PR #177 (commit `abcc034`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/ResponseView.axaml`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/ResponseView.axaml.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/OptionsView.axaml`
 
 **What it means:** When the `Content-Type` is `image/*`, `application/pdf`, or `text/html`, show a rendered preview instead of (or alongside) the raw bytes/text.
 

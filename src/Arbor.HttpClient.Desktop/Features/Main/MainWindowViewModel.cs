@@ -95,6 +95,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly UnhandledExceptionCollector? _unhandledExceptionCollector;
     private readonly IScriptRunner _scriptRunner = new RoslynScriptRunner();
     private readonly ScriptViewModel _scriptViewModel = new();
+    private const int ResponseBodyTabIndex = 0;
+    private const int ResponseBodyRawTabIndex = 1;
+    private const int ResponseHeadersTabIndex = 2;
+    private const int ResponseRawTabIndex = 3;
+    private const int ResponseWebViewTabIndex = 4;
 
     [ObservableProperty]
     private RequestTabViewModel? _activeRequestTab;
@@ -2288,7 +2293,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 requestPath,
                 requestName,
                 extension,
-                DateTimeOffset.Now,
+                DateTimeOffset.UtcNow,
                 out var fileName,
                 out var validationError))
         {
@@ -2304,7 +2309,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             requestPath,
             requestName,
             extension,
-            DateTimeOffset.Now,
+            DateTimeOffset.UtcNow,
             out var defaultFileName,
             out _);
 
@@ -2316,12 +2321,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         content = string.Empty;
         extension = ".txt";
 
-        if (SelectedResponseTabIndex == 4)
+        if (SelectedResponseTabIndex == ResponseWebViewTabIndex)
         {
             return false;
         }
 
-        if (SelectedResponseTabIndex == 2)
+        if (SelectedResponseTabIndex == ResponseHeadersTabIndex)
         {
             if (ResponseHeaders.Count == 0)
             {
@@ -2333,7 +2338,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return true;
         }
 
-        if (SelectedResponseTabIndex == 3)
+        if (SelectedResponseTabIndex == ResponseRawTabIndex)
         {
             if (string.IsNullOrEmpty(ResponseRawText))
             {
@@ -2345,13 +2350,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return true;
         }
 
-        if (SelectedResponseTabIndex == 0 && !string.IsNullOrEmpty(ResponseBody))
+        if (SelectedResponseTabIndex == ResponseBodyTabIndex && !string.IsNullOrEmpty(ResponseBody))
         {
             content = ResponseBody;
             extension = !string.IsNullOrWhiteSpace(ResponseContentType)
                 ? ExtensionFromContentType(ResponseContentType)
                 : DetectExtensionFromContent(ResponseBody);
             return true;
+        }
+
+        if (SelectedResponseTabIndex == ResponseBodyRawTabIndex && string.IsNullOrEmpty(RawResponseBody))
+        {
+            return false;
         }
 
         if (!string.IsNullOrEmpty(RawResponseBody))
