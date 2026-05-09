@@ -192,6 +192,31 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     public IReadOnlyList<string> HttpVersionOptions { get; } = ["1.0", "1.1", "2.0", "3.0"];
 
+    public IReadOnlyList<string> WellKnownHeaderNames { get; } =
+    [
+        "Accept",
+        "Accept-Charset",
+        "Accept-Encoding",
+        "Accept-Language",
+        "Authorization",
+        "Cache-Control",
+        "Connection",
+        "Content-Disposition",
+        "Content-Encoding",
+        "Content-Length",
+        "Content-Type",
+        "Cookie",
+        "Host",
+        "If-Match",
+        "If-Modified-Since",
+        "If-None-Match",
+        "Origin",
+        "Pragma",
+        "Range",
+        "Referer",
+        "User-Agent"
+    ];
+
     public IReadOnlyList<string> AuthModeOptions { get; } =
     [
         AuthNoneOption,

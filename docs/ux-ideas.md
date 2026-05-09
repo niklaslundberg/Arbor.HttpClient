@@ -429,6 +429,21 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ---
 
+### 1.2c Well-known HTTP header autocomplete ✅ Implemented
+> Implemented in PR (commit TBD) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableTextBox.cs`, `src/Arbor.HttpClient.Desktop/Features/Variables/VariableAutoCompleteController.cs`
+
+**What it means:** While typing in the header-name field in the Headers tab, a completion list suggests common HTTP header names so users can insert standard headers quickly without memorizing exact casing.
+
+**What shipped:**
+- Added `WellKnownHeaderNames` to `RequestEditorViewModel` (e.g. `Accept`, `Authorization`, `Content-Type`, `If-None-Match`, `User-Agent`)
+- Bound the header-name `VariableTextBox` in `RequestView.axaml` to the well-known header suggestion list
+- Extended `VariableAutoCompleteController`/`VariableCompletionData` to support plain-text completion items in addition to existing `{{variable}}` token completion
+- Added focused integration coverage in `VariableAutoCompleteControllerTests`
+
+**Scope:** S
+
+---
+
 ### 3.1 Tabbed requests ✅ Implemented
 > Implemented in PR #168 (commit `1f87c26`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestTabViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`
 

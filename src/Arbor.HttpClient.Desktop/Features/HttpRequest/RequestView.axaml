@@ -486,8 +486,9 @@
                                                   IsChecked="{Binding IsEnabled, Mode=TwoWay}"
                                                   VerticalAlignment="Center" />
                                         <views:VariableTextBox Grid.Column="1" PlaceholderText="{x:Static loc:Strings.HeadersKeyPlaceholder}"
-                                                 AppViewModel="{Binding $parent[UserControl].DataContext.App}"
-                                                 Text="{Binding Name, Mode=TwoWay}" />
+                                                  AppViewModel="{Binding $parent[UserControl].DataContext.App}"
+                                                  AutoCompleteSource="{Binding $parent[UserControl].DataContext.App.RequestEditor.WellKnownHeaderNames}"
+                                                  Text="{Binding Name, Mode=TwoWay}" />
                                         <views:VariableTextBox Grid.Column="2" PlaceholderText="{x:Static loc:Strings.HeadersValuePlaceholder}"
                                                  AppViewModel="{Binding $parent[UserControl].DataContext.App}"
                                                  Text="{Binding Value, Mode=TwoWay}" />

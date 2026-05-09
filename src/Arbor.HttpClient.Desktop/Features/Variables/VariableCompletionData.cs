@@ -7,9 +7,16 @@ namespace Arbor.HttpClient.Desktop.Features.Variables;
 
 internal sealed class VariableCompletionData(string variableName) : ICompletionData
 {
+    private readonly bool _isVariableToken = true;
+
+    internal VariableCompletionData(string completionText, bool isVariableToken) : this(completionText)
+    {
+        _isVariableToken = isVariableToken;
+    }
+
     public string Text => variableName;
     public object Content => variableName;
-    public object Description => $"Insert {{{{{variableName}}}}}";
+    public object Description => _isVariableToken ? $"Insert {{{{{variableName}}}}}" : $"Insert {variableName}";
     public double Priority => 0d;
     public Avalonia.Media.IImage? Image => null;
 
@@ -17,7 +24,9 @@ internal sealed class VariableCompletionData(string variableName) : ICompletionD
     {
         var document = textArea.Document;
         var insertionOffset = completionSegment.Offset;
-        var insertionText = VariableCompletionEngine.BuildInsertionText(document.Text, completionSegment.EndOffset, variableName);
+        var insertionText = _isVariableToken
+            ? VariableCompletionEngine.BuildInsertionText(document.Text, completionSegment.EndOffset, variableName)
+            : variableName;
         document.Replace(insertionOffset, completionSegment.Length, insertionText);
         textArea.Caret.Offset = insertionOffset + insertionText.Length;
     }
