@@ -3,6 +3,7 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using Avalonia.Threading;
 
 namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
 
@@ -46,7 +47,14 @@ public sealed class StatusCodeToColorConverter : IValueConverter
     private static bool TryGetBrush(string key, out IBrush brush)
     {
         brush = Brushes.Transparent;
-        if (Application.Current?.TryGetResource(key, Application.Current.ActualThemeVariant, out var resource) != true)
+
+        var app = Application.Current;
+        if (app is null || !Dispatcher.UIThread.CheckAccess())
+        {
+            return false;
+        }
+
+        if (app.TryGetResource(key, app.ActualThemeVariant, out var resource) != true)
         {
             return false;
         }
