@@ -1915,7 +1915,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var suggestedStartLocation = await GetResponseSaveSuggestedStartLocationAsync();
         var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Save Response Body",
+            Title = "Save Response",
             SuggestedFileName = BuildResponseSaveFileName(extension),
             SuggestedStartLocation = suggestedStartLocation,
             FileTypeChoices =
