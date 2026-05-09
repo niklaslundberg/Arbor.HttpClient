@@ -37,11 +37,13 @@ public class RequestEditorViewModelTests
         var editor = CreateEditor();
         editor.RequestUrl = "http://localhost:5000/search?q=hello&page=2";
 
-        editor.RequestQueryParameters.Should().HaveCount(2);
+        editor.RequestQueryParameters.Should().HaveCount(3);
         editor.RequestQueryParameters[0].Key.Should().Be("q");
         editor.RequestQueryParameters[0].Value.Should().Be("hello");
         editor.RequestQueryParameters[1].Key.Should().Be("page");
         editor.RequestQueryParameters[1].Value.Should().Be("2");
+        editor.RequestQueryParameters[2].Key.Should().BeEmpty();
+        editor.RequestQueryParameters[2].IsEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -51,7 +53,9 @@ public class RequestEditorViewModelTests
         editor.RequestUrl = "http://localhost:5000/search?q=hello";
         editor.RequestUrl = "http://localhost:5000/search";
 
-        editor.RequestQueryParameters.Should().BeEmpty();
+        editor.RequestQueryParameters.Should().HaveCount(1);
+        editor.RequestQueryParameters[0].Key.Should().BeEmpty();
+        editor.RequestQueryParameters[0].IsEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -96,7 +100,9 @@ public class RequestEditorViewModelTests
         var param = editor.RequestQueryParameters[0];
         editor.RemoveQueryParameterCommand.Execute(param);
 
-        editor.RequestQueryParameters.Should().BeEmpty();
+        editor.RequestQueryParameters.Should().HaveCount(1);
+        editor.RequestQueryParameters[0].Key.Should().BeEmpty();
+        editor.RequestQueryParameters[0].IsEnabled.Should().BeFalse();
     }
 
     // ── Request headers ─────────────────────────────────────────────────────
@@ -118,7 +124,67 @@ public class RequestEditorViewModelTests
         var header = editor.RequestHeaders[0];
         editor.RemoveHeaderCommand.Execute(header);
 
-        editor.RequestHeaders.Should().BeEmpty();
+        editor.RequestHeaders.Should().HaveCount(1);
+        editor.RequestHeaders[0].Name.Should().BeEmpty();
+        editor.RequestHeaders[0].IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void PlaceholderHeader_AutoEnablesAndAppendsNewPlaceholder_WhenNameIsTyped()
+    {
+        var editor = CreateEditor();
+        var placeholder = editor.RequestHeaders[0];
+        placeholder.Name.Should().BeEmpty();
+        placeholder.IsEnabled.Should().BeFalse();
+
+        placeholder.Name = "X-Custom";
+
+        placeholder.IsEnabled.Should().BeTrue();
+        editor.RequestHeaders.Should().HaveCount(2);
+        editor.RequestHeaders[^1].Name.Should().BeEmpty();
+        editor.RequestHeaders[^1].IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void PlaceholderHeader_AppendsNewPlaceholder_WhenEnabledViaCheckboxBeforeNameIsEntered()
+    {
+        var editor = CreateEditor();
+        var placeholder = editor.RequestHeaders[0];
+
+        placeholder.IsEnabled = true;
+
+        editor.RequestHeaders.Should().HaveCount(2);
+        editor.RequestHeaders[^1].Name.Should().BeEmpty();
+        editor.RequestHeaders[^1].IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void PlaceholderQueryParameter_AutoEnablesAndAppendsNewPlaceholder_WhenKeyIsTyped()
+    {
+        var editor = CreateEditor();
+        var placeholder = editor.RequestQueryParameters[0];
+        placeholder.Key.Should().BeEmpty();
+        placeholder.IsEnabled.Should().BeFalse();
+
+        placeholder.Key = "page";
+
+        placeholder.IsEnabled.Should().BeTrue();
+        editor.RequestQueryParameters.Should().HaveCount(2);
+        editor.RequestQueryParameters[^1].Key.Should().BeEmpty();
+        editor.RequestQueryParameters[^1].IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void PlaceholderQueryParameter_AppendsNewPlaceholder_WhenEnabledViaCheckboxBeforeKeyIsEntered()
+    {
+        var editor = CreateEditor();
+        var placeholder = editor.RequestQueryParameters[0];
+
+        placeholder.IsEnabled = true;
+
+        editor.RequestQueryParameters.Should().HaveCount(2);
+        editor.RequestQueryParameters[^1].Key.Should().BeEmpty();
+        editor.RequestQueryParameters[^1].IsEnabled.Should().BeFalse();
     }
 
     // ── Auth header building ─────────────────────────────────────────────────

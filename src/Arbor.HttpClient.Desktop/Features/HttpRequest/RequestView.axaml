@@ -227,11 +227,7 @@
             <!-- ═══════════════════════════════ HTTP-only tabs ═══════════════════════════════ -->
             <TabItem Header="{x:Static loc:Strings.TabQuery}" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
                 <Grid Margin="0,8,0,0" RowDefinitions="Auto,*" RowSpacing="6">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="{x:Static loc:Strings.QueryParametersLabel}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                        <Button Grid.Column="1" Content="{x:Static loc:Strings.QueryParametersAddButton}"
-                                Command="{Binding App.RequestEditor.AddQueryParameterCommand}" />
-                    </Grid>
+                    <TextBlock Text="{x:Static loc:Strings.QueryParametersLabel}" FontWeight="SemiBold" VerticalAlignment="Center" />
 
                     <ScrollViewer Grid.Row="1">
                         <ItemsControl ItemsSource="{Binding App.RequestEditor.RequestQueryParameters}">
@@ -468,11 +464,7 @@
             <!-- ═══════════════════════════════ Shared: Headers tab ════════════════════════════ -->
             <TabItem Header="{x:Static loc:Strings.TabHeaders}">
                 <Grid Margin="0,8,0,0" RowDefinitions="Auto,Auto,*" RowSpacing="6">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="{x:Static loc:Strings.HeadersLabel}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                        <Button Grid.Column="1" Content="{x:Static loc:Strings.HeadersAddButton}"
-                                Command="{Binding App.RequestEditor.AddHeaderCommand}" />
-                    </Grid>
+                    <TextBlock Text="{x:Static loc:Strings.HeadersLabel}" FontWeight="SemiBold" VerticalAlignment="Center" />
 
                     <Grid Grid.Row="1" ColumnDefinitions="110,*,*" ColumnSpacing="6"
                           IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
