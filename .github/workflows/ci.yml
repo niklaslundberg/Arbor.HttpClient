@@ -148,6 +148,7 @@ jobs:
       - name: Run unit tests
         run: |
           start_time=$(date +%s)
+          # Hang guard for each suite; strict "under 10s total" requirement is enforced below.
           timeout 60 dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj \
             --no-restore \
             --no-build \
@@ -417,6 +418,8 @@ jobs:
         env:
           SCREENSHOT_OUTPUT_DIR: TestResults/screenshots
         run: |
+          # 130s gives a small safety margin around the 2-minute target while still failing fast on hangs.
+          # This E2E job runs only integration-tagged tests; screenshot tests run in ux-screenshots.
           timeout 130 dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
             --no-restore \
             --configuration Release \
