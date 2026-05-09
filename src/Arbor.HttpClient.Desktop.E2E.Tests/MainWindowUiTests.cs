@@ -1622,13 +1622,14 @@ public class MainWindowUiTests
         {
             Uri? capturedUri = null;
             var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(req =>
+            using var handler = new StubHttpMessageHandler(req =>
             {
                 capturedUri = req.RequestUri;
                 return new HttpResponseMessage(HttpStatusCode.OK);
             });
 
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            using var httpClient = new global::System.Net.Http.HttpClient(handler);
+            var httpRequestService = new HttpRequestService(httpClient, repository);
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
             var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
@@ -1658,6 +1659,58 @@ public class MainWindowUiTests
             await viewModel.SendRequestCommand.ExecutionTask!;
 
             capturedUri.Should().BeNull("request should not be sent when a disabled variable leaves an invalid URL");
+            viewModel.ErrorMessage.Should().Contain("Resolved URL must be an absolute HTTP or HTTPS URL");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DisabledUrlValidation_ShouldBypassFastFeedbackValidation()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            Uri? capturedUri = null;
+            var repository = new InMemoryRequestHistoryRepository();
+            var handler = new StubHttpMessageHandler(req =>
+            {
+                capturedUri = req.RequestUri;
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            });
+
+            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+            var inMemorySink = new InMemorySink();
+            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var viewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+
+            viewModel.RequestEditor.RequestUrl = "http://{{host}}/api";
+            viewModel.RequestEditor.SelectedMethod = "GET";
+            viewModel.RequestEditor.ValidateUrlBeforeSend = false;
+
+            viewModel.NewEnvironmentCommand.Execute(null);
+            viewModel.NewEnvironmentName = "myenv";
+            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost:5000", false));
+
+            await viewModel.SaveEnvironmentCommand.ExecuteAsync(null);
+
+            viewModel.SendRequestCommand.Execute(null);
+            await viewModel.SendRequestCommand.ExecutionTask!;
+
+            capturedUri.Should().BeNull("HttpRequestService still rejects invalid URLs, but RequestViewModel fast validation should be bypassed");
+            viewModel.ErrorMessage.Should().Contain("URL must be an absolute HTTP or HTTPS URL");
+            viewModel.ErrorMessage.Should().NotContain("Resolved URL must be an absolute HTTP or HTTPS URL");
 
             return true;
         }, CancellationToken.None);

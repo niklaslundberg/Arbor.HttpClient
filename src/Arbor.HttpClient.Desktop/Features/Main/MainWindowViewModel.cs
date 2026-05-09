@@ -27,6 +27,7 @@ using Arbor.HttpClient.Desktop.Features.Options;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Desktop.Features.Sse;
 using Arbor.HttpClient.Desktop.Features.WebSocket;
+using Arbor.HttpClient.Desktop.Localization;
 using Arbor.HttpClient.Desktop.Shared;
 using Avalonia;
 using Avalonia.Input.Platform;
@@ -2081,6 +2082,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         && (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(uri.Host, "127.0.0.1", StringComparison.Ordinal))
         && uri.Port == port;
+
+    private static bool IsAbsoluteHttpOrHttpsUrl(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && uri.Scheme is "http" or "https";
+
     private void OnRequestBodyFileChanged(object sender, FileSystemEventArgs e)
     {
         if (Interlocked.Exchange(ref _requestBodyReadPending, 1) == 1)
@@ -3006,6 +3012,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         try
         {
             var draft = _requestEditor.BuildDraft();
+            if (_requestEditor.ValidateUrlBeforeSend && !IsAbsoluteHttpOrHttpsUrl(draft.Url))
+            {
+                ErrorMessage = Strings.RequestInvalidResolvedUrlMessage;
+                return;
+            }
+
             _httpRequestsLogger.Information("Manual request started: {Method} {Url}", draft.Method, draft.Url);
 
             // Build a mutable headers dict for the script context.
@@ -3048,6 +3060,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 Body = scriptCtx.Body,
                 Headers = mutatedHeaders.Count > 0 ? mutatedHeaders : draft.Headers
             };
+
+            if (_requestEditor.ValidateUrlBeforeSend && !IsAbsoluteHttpOrHttpsUrl(mutatedDraft.Url))
+            {
+                ErrorMessage = Strings.RequestInvalidResolvedUrlMessage;
+                return;
+            }
 
             var response = await _httpRequestService.SendAsync(mutatedDraft, cancellationToken);
 

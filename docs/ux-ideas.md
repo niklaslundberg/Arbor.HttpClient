@@ -707,3 +707,18 @@ Each idea includes a description of what it means in practice, notes on how it c
 **What shipped:**
 - `VariableTextBox` now configures its internal `AvaloniaEdit.TextEditor` with `Options.AcceptsTab = false`
 - Headless UI test verifies all request-editor `VariableTextBox` instances disable tab insertion
+
+---
+
+### Request URL validation with override ✅ Implemented
+> Implemented in PR #160 (commit `6c1b517`) — `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`
+
+**What it means:** HTTP requests now perform fast URL validation after variable resolution before sending. This guard is enabled by default and stops send attempts early when the resolved URL is invalid. Users can opt out per request by disabling validation in the collapsed **Request options** panel.
+
+**What shipped:**
+- New `RequestEditorViewModel.ValidateUrlBeforeSend` option (default: `true`)
+- New **Validate URL before send** checkbox in `RequestView.axaml` advanced options (`Expander`)
+- `MainWindowViewModel.SendHttpRequestAsync` now blocks send early with a clear validation message when enabled and the resolved URL is invalid
+- Validation override support: when disabled, fast-feedback validation is skipped and the request flow continues
+- `DraftState` / `DraftPersistenceService` persist and restore the new override
+- New tests for default-on behavior, persistence, and override behavior in `RequestEditorViewModelTests`, `DraftPersistenceServiceTests`, and `MainWindowUiTests`
