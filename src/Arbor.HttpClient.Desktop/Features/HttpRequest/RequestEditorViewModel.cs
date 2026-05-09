@@ -37,7 +37,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     private readonly Action? _onOptionsAffectingPropertyChanged;
     private bool _isUpdatingRequestUrlFromQueryParameters;
     private bool _isUpdatingQueryParametersFromRequestUrl;
-    private bool _suppressRefresh;
+    private int _suppressRefreshDepth;
     // RequestEditorViewModel state is mutated on the UI thread; this cache is intentionally unsynchronized.
     private string _cachedFormattedBody = string.Empty;
     private string _cachedFormattingResolvedBody = string.Empty;
@@ -480,32 +480,37 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     /// </summary>
     public BulkUpdateHandle BeginBulkUpdate()
     {
-        _suppressRefresh = true;
+        _suppressRefreshDepth++;
         return new BulkUpdateHandle(this);
     }
 
     /// <summary>
     /// Ends the suppression window started by <see cref="BeginBulkUpdate"/> and fires one
-    /// deferred refresh. Safe to call if suppression was already lifted.
+    /// deferred refresh when the depth reaches zero. Handles nested suppression windows:
+    /// if <see cref="BeginBulkUpdate"/> was called N times, the refresh fires only after
+    /// the N-th matching <see cref="EndBulkUpdate"/> call.
     /// Must be called on the UI thread.
     /// </summary>
     public void EndBulkUpdate()
     {
-        _suppressRefresh = false;
-        RefreshRequestDerivedViews();
+        if (--_suppressRefreshDepth <= 0)
+        {
+            _suppressRefreshDepth = 0;
+            RefreshRequestDerivedViews();
+        }
     }
 
     /// <summary>
     /// Opaque handle returned by <see cref="BeginBulkUpdate"/>. Dispose to call
     /// <see cref="EndBulkUpdate"/> automatically via a <c>using</c> statement.
-    /// The <paramref name="vm"/> argument is always <c>this</c> and is never null.
+    /// Safe to dispose in its default state (no-op when <c>_vm</c> is null).
     /// </summary>
     public readonly struct BulkUpdateHandle : IDisposable
     {
-        private readonly RequestEditorViewModel _vm;
+        private readonly RequestEditorViewModel? _vm;
         internal BulkUpdateHandle(RequestEditorViewModel vm) => _vm = vm;
 
-        public void Dispose() => _vm.EndBulkUpdate();
+        public void Dispose() => _vm?.EndBulkUpdate();
     }
 
     /// <summary>
@@ -513,7 +518,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     /// </summary>
     public void RefreshRequestPreview()
     {
-        if (_suppressRefresh)
+        if (_suppressRefreshDepth > 0)
         {
             return;
         }
@@ -612,7 +617,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     private void RefreshRequestDerivedViews()
     {
-        if (_suppressRefresh)
+        if (_suppressRefreshDepth > 0)
         {
             return;
         }
