@@ -101,3 +101,13 @@ trim_trailing_whitespace = false
 
 [Makefile]
 indent_style = tab
+
+# xUnit v3 analyzers — xUnit1051 fires on every async call that accepts a CancellationToken,
+# suggesting TestContext.Current.CancellationToken. The test projects intentionally use the
+# default token; suppress entirely to keep the VS Error List clean.
+[*.cs]
+dotnet_diagnostic.xUnit1051.severity = none
+
+# RCS1261 — HeadlessUnitTestSession implements IDisposable but not IAsyncDisposable;
+# async dispose is not available for this type.
+dotnet_diagnostic.RCS1261.severity = none

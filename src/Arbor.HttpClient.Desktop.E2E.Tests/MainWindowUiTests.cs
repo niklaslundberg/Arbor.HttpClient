@@ -758,8 +758,7 @@ public class MainWindowUiTests
             // the button during headless tests. Execute the command via the ViewModel directly,
             // which is what the button's Command binding ultimately calls.
             viewModel.Layout.Should().NotBeNull("dock layout should be initialized");
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+            await viewModel.SendRequestCommand.ExecuteAsync(null);
 
             viewModel.ResponseStatus.Should().Be("202 Accepted");
             viewModel.ResponseBody.Should().Contain("ok");
@@ -904,7 +903,7 @@ public class MainWindowUiTests
             viewModel.RequestEditor.RequestUrl.Should().Be("http://localhost:5000/items?second=2#keep");
 
             viewModel.RequestEditor.AddQueryParameterCommand.Execute(null);
-            var added = viewModel.RequestEditor.RequestQueryParameters.Last();
+            var added = viewModel.RequestEditor.RequestQueryParameters[viewModel.RequestEditor.RequestQueryParameters.Count - 1];
             added.Key = "third";
             added.Value = "3";
 
@@ -948,8 +947,7 @@ public class MainWindowUiTests
             viewModel.RequestEditor.RequestUrl = "http://localhost:5000/data";
             viewModel.RequestEditor.SelectedMethod = "GET";
 
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+            await viewModel.SendRequestCommand.ExecuteAsync(null);
 
             viewModel.ResponseBodyTabLabel.Should().Be("JSON");
             viewModel.ResponseBody.Should().Contain("\n");
@@ -993,8 +991,7 @@ public class MainWindowUiTests
                 logWindowViewModel);
 
             viewModel.RequestEditor.RequestUrl = "http://localhost:5000/docs.html";
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+            await viewModel.SendRequestCommand.ExecuteAsync(null);
 
             viewModel.IsResponseWebViewAvailable.Should().BeTrue();
             viewModel.ResponseWebViewUri.Should().StartWith("data:text/html");
@@ -1073,8 +1070,7 @@ public class MainWindowUiTests
             viewModel.RequestEditor.RequestPreview.Should().Contain("\"token\":\"abc123\"");
             viewModel.RequestEditor.RequestPreview.Should().Contain("\"env\":\"dev\"");
 
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+            await viewModel.SendRequestCommand.ExecuteAsync(null);
 
             capturedUri.Should().NotBeNull();
             capturedUri!.AbsoluteUri.Should().Be("http://localhost:5000/api?search=term");
@@ -1140,8 +1136,7 @@ public class MainWindowUiTests
             viewModel.RequestEditor.RequestPreview.Should().Contain("Authorization: Bearer abc123");
             viewModel.RequestEditor.RequestPreview.Should().NotContain("Bearer old-token");
 
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+            await viewModel.SendRequestCommand.ExecuteAsync(null);
 
             capturedAuthorization.Should().Be("Bearer abc123");
             return true;
@@ -1256,10 +1251,11 @@ public class MainWindowUiTests
                 .Single(control => control.Items.OfType<TabItem>().Any(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal)));
             var hasRequestOptionsExpander = window.GetVisualDescendants()
                 .OfType<Expander>()
-                .Any(expander => string.Equals(expander.Header is null ? null : expander.Header.ToString(), "Options", StringComparison.Ordinal));
+                .Any(expander => string.Equals(expander.Header?.ToString(), "Options", StringComparison.Ordinal));
 
             VerifyTabRealized(tabControl, "Options");
-            tabControl.Items.OfType<TabItem>().Last().Header?.ToString().Should().Be("Options");
+            var tabItems = tabControl.Items.OfType<TabItem>().ToList();
+            tabItems[tabItems.Count - 1].Header?.ToString().Should().Be("Options");
             hasRequestOptionsExpander.Should().BeFalse();
 
             window.Close();
@@ -1352,8 +1348,7 @@ public class MainWindowUiTests
                 logWindowViewModel);
 
             var optionsVm = new OptionsViewModel(viewModel);
-            var window = new Window { Width = 820, Height = 560, DataContext = optionsVm };
-            window.Content = new OptionsView();
+            var window = new Window { Width = 820, Height = 560, DataContext = optionsVm, Content = new OptionsView() };
             window.Show();
 
             // Navigate to the Scheduled Jobs page via the ViewModel
@@ -1695,8 +1690,7 @@ public class MainWindowUiTests
                 "{{host}} should be resolved to 'localhost:5000' in the preview");
 
             // And the actual request should also resolve variables
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+            await viewModel.SendRequestCommand.ExecuteAsync(null);
 
             capturedUri.Should().NotBeNull();
             capturedUri!.AbsoluteUri.Should().Be("http://localhost:5000/api",
@@ -1748,8 +1742,7 @@ public class MainWindowUiTests
 
             viewModel.RequestEditor.RequestPreview.Should().NotContain("localhost:5000");
 
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+            await viewModel.SendRequestCommand.ExecuteAsync(null);
 
             capturedUri.Should().BeNull("request should not be sent when a disabled variable leaves an invalid URL");
             viewModel.ErrorMessage.Should().Contain("Resolved URL must be an absolute HTTP or HTTPS URL");
@@ -1798,8 +1791,7 @@ public class MainWindowUiTests
 
             await viewModel.SaveEnvironmentCommand.ExecuteAsync(null);
 
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+            await viewModel.SendRequestCommand.ExecuteAsync(null);
 
             capturedUri.Should().BeNull("HttpRequestService still rejects invalid URLs, but RequestViewModel fast validation should be bypassed");
             viewModel.ErrorMessage.Should().Contain("URL must be an absolute HTTP or HTTPS URL");
@@ -1851,7 +1843,7 @@ public class MainWindowUiTests
 
             viewModel.ActiveEnvironmentVariables.Should().HaveCount(2,
                 "a new blank variable row should remain visible while the user is still editing it");
-            viewModel.ActiveEnvironmentVariables.Last().Name.Should().BeEmpty();
+            viewModel.ActiveEnvironmentVariables[viewModel.ActiveEnvironmentVariables.Count - 1].Name.Should().BeEmpty();
 
             return true;
         }, CancellationToken.None);
@@ -2081,13 +2073,11 @@ public class MainWindowUiTests
             viewModel.RequestEditor.RequestUrl = server.RedirectUrl;
 
             viewModel.RequestEditor.FollowRedirectsForRequest = false;
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+            await viewModel.SendRequestCommand.ExecuteAsync(null);
             viewModel.ResponseStatus.Should().StartWith("302");
 
             viewModel.RequestEditor.FollowRedirectsForRequest = true;
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+            await viewModel.SendRequestCommand.ExecuteAsync(null);
             viewModel.ResponseStatus.Should().Be("200 OK");
             viewModel.RawResponseBody.Should().Contain("redirect-complete");
 
@@ -2115,7 +2105,7 @@ public class MainWindowUiTests
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
             using var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
 
-            var noFollowId = 1;
+            const int noFollowId = 1;
             scheduledJobService.Start(new ScheduledJobConfig(
                 noFollowId,
                 "redirect-off",
@@ -2131,7 +2121,7 @@ public class MainWindowUiTests
             scheduledJobService.Stop(noFollowId);
             server.FinalRequestCount.Should().Be(0);
 
-            var followId = 2;
+            const int followId = 2;
             scheduledJobService.Start(new ScheduledJobConfig(
                 followId,
                 "redirect-on",
@@ -2339,7 +2329,7 @@ public class MainWindowUiTests
         }, CancellationToken.None);
     }
 
-    private sealed class TestEntryPoint
+    private static class TestEntryPoint
     {
         public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
             .UseSkia()

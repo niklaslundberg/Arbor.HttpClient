@@ -177,7 +177,9 @@ public partial class RequestView : UserControl
             {
                 ApplyEditorFont(_requestBodyEditor, _appVm);
                 _requestBodyEditor.Text = _requestEditorVm?.RequestBody ?? string.Empty;
-                ApplyGrammarForContent(_requestTextMate, _requestEditorVm?.RequestBody ?? string.Empty, ref _requestGrammarScope);
+                var bodyForGrammar = _requestEditorVm?.RequestBody ?? string.Empty;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    ApplyGrammarForContent(_requestTextMate, bodyForGrammar, ref _requestGrammarScope));
             }
 
             if (_requestUrlEditor is not null)
@@ -310,7 +312,17 @@ public partial class RequestView : UserControl
             _requestEditorVm.RequestBody = _requestBodyEditor.Text;
         }
 
-        ApplyGrammarForContent(_requestTextMate, _requestBodyEditor?.Text ?? string.Empty, ref _requestGrammarScope);
+        // ApplyGrammarForContent calls SetGrammar on the TextMate installation, which internally
+        // acquires the TMModel listeners lock. Calling it synchronously here — while we are still
+        // inside the AvaloniaEdit document modification that triggered TextChanged — creates a
+        // lock-ordering inversion with the TextMate tokenizer thread, causing a deadlock:
+        //   Main thread:   holds document lock → waits for listeners lock (via SetGrammar)
+        //   Worker thread: holds listeners lock → waits for document lock (via ModelTokensChanged)
+        // Posting defers the call until after the current document operation has fully completed
+        // and the document lock has been released, breaking the cycle.
+        var textSnapshot = _requestBodyEditor?.Text ?? string.Empty;
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            ApplyGrammarForContent(_requestTextMate, textSnapshot, ref _requestGrammarScope));
     }
 
     private void OnRequestUrlEditorTextChanged(object? sender, EventArgs e)
@@ -348,13 +360,26 @@ public partial class RequestView : UserControl
 
     private void OnRequestEditorVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => OnRequestEditorVmPropertyChanged(sender, e));
+            return;
+        }
+
         if (e.PropertyName == nameof(RequestEditorViewModel.RequestBody)
             && _requestBodyEditor is not null
             && _requestEditorVm is not null
             && _requestBodyEditor.Text != _requestEditorVm.RequestBody)
         {
             _requestBodyEditor.Text = _requestEditorVm.RequestBody;
-            ApplyGrammarForContent(_requestTextMate, _requestEditorVm.RequestBody, ref _requestGrammarScope);
+            // Defer SetGrammar (via ApplyGrammarForContent) out of the property-changed
+            // callback for the same reason as OnRequestEditorTextChanged: SetGrammar calls
+            // TMModel.AddListener which acquires the listeners lock, creating the same
+            // circular dependency with the tokenizer thread that holds listeners and needs
+            // TextMateColoringTransformer._lock.
+            var bodySnapshot = _requestEditorVm.RequestBody;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                ApplyGrammarForContent(_requestTextMate, bodySnapshot, ref _requestGrammarScope));
         }
 
         if (e.PropertyName == nameof(RequestEditorViewModel.RequestUrl)
@@ -383,12 +408,23 @@ public partial class RequestView : UserControl
         if (e.PropertyName == nameof(RequestEditorViewModel.ContentType))
         {
             _requestGrammarScope = string.Empty;
-            ApplyGrammarForContent(_requestTextMate, _requestBodyEditor?.Text ?? string.Empty, ref _requestGrammarScope);
+            var bodySnapshot = _requestBodyEditor?.Text ?? string.Empty;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                ApplyGrammarForContent(_requestTextMate, bodySnapshot, ref _requestGrammarScope));
         }
     }
 
     private void OnAppVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        // PropertyChanged may be raised from a background thread. All editor mutations must
+        // happen on the UI thread to avoid lock-ordering inversions with the TextMateSharp
+        // tokenizer thread (see ResponseView.axaml.cs for the full explanation).
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => OnAppVmPropertyChanged(sender, e));
+            return;
+        }
+
         if (e.PropertyName == nameof(MainWindowViewModel.RequestEditor) && _appVm is not null)
         {
             // Active tab switched — detach old editor wiring and attach to the new one.
@@ -410,7 +446,9 @@ public partial class RequestView : UserControl
             if (_requestBodyEditor is not null)
             {
                 _requestBodyEditor.Text = _requestEditorVm?.RequestBody ?? string.Empty;
-                ApplyGrammarForContent(_requestTextMate, _requestEditorVm?.RequestBody ?? string.Empty, ref _requestGrammarScope);
+                var bodyForGrammar = _requestEditorVm?.RequestBody ?? string.Empty;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    ApplyGrammarForContent(_requestTextMate, bodyForGrammar, ref _requestGrammarScope));
                 _requestBodyEditor.Document.TextChanged += OnRequestEditorTextChanged;
             }
             if (_requestUrlEditor is not null)

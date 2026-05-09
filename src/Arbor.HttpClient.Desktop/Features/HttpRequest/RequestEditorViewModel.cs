@@ -1062,6 +1062,8 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             formattedBody = JsonSerializer.Serialize(jsonDocument.RootElement, new JsonSerializerOptions
             {
                 WriteIndented = useIndentation,
+                // Always use LF so output is consistent across platforms (Windows JsonSerializer defaults to CRLF).
+                NewLine = "\n",
                 // Request preview/body editors treat this as plain text; payload semantics should not be altered by escaping.
                 Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             });
