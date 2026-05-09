@@ -1070,7 +1070,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(htmlResponseBody));
-        uri = $"data:text/html;base64,{encoded}";
+        uri = $"data:text/html;charset=utf-8;base64,{encoded}";
         return true;
     }
     [RelayCommand]

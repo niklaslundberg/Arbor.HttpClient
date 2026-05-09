@@ -819,7 +819,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
                     if (header.IsEnabled && string.IsNullOrWhiteSpace(header.Name))
                     {
                         header.IsEnabled = false;
-                        break;
+                        return;
                     }
 
                     if (!header.IsEnabled && !string.IsNullOrWhiteSpace(header.Name))
@@ -838,7 +838,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
                     if (header.IsEnabled && string.IsNullOrWhiteSpace(header.Name))
                     {
                         header.IsEnabled = false;
-                        break;
+                        return;
                     }
 
                     if (ReferenceEquals(RequestHeaders[^1], header))
@@ -885,7 +885,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
                     if (param.IsEnabled && string.IsNullOrWhiteSpace(param.Key))
                     {
                         param.IsEnabled = false;
-                        break;
+                        return;
                     }
 
                     if (!param.IsEnabled && !string.IsNullOrWhiteSpace(param.Key))
@@ -904,7 +904,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
                     if (param.IsEnabled && string.IsNullOrWhiteSpace(param.Key))
                     {
                         param.IsEnabled = false;
-                        break;
+                        return;
                     }
 
                     if (ReferenceEquals(RequestQueryParameters[^1], param))
