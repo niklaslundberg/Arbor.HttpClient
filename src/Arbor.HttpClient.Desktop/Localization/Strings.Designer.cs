@@ -180,7 +180,7 @@ public static class Strings
     /// <summary>Certificate errors are suppressed. Only use this for trusted local servers (e.g. the demo server with its self-signed certificate).</summary>
     public static string RequestIgnoreCertificateValidationWarning => Get(nameof(RequestIgnoreCertificateValidationWarning));
 
-    /// <summary>Request options</summary>
+    /// <summary>Options</summary>
     public static string RequestAdvancedOptionsHeader => Get(nameof(RequestAdvancedOptionsHeader));
 
     /// <summary>Timeout (seconds)</summary>
@@ -192,7 +192,7 @@ public static class Strings
     /// <summary>Send / Connect / Cancel (Ctrl+Enter)</summary>
     public static string RequestPrimaryActionTooltip => Get(nameof(RequestPrimaryActionTooltip));
 
-    /// <summary>Resolved URL must be an absolute HTTP or HTTPS URL. Disable "Validate URL before send" in Request options to skip this pre-send check and continue to a send attempt.</summary>
+    /// <summary>Resolved URL must be an absolute HTTP or HTTPS URL. Disable "Validate URL before send" in Options to skip this pre-send check and continue to a send attempt.</summary>
     public static string RequestInvalidResolvedUrlMessage => Get(nameof(RequestInvalidResolvedUrlMessage));
 
     // Request tabs
@@ -416,7 +416,7 @@ public static class Strings
 
     // ═══════════════════════════════ Response View ═══════════════════════════════
 
-    /// <summary>Response headers</summary>
+    /// <summary>Headers</summary>
     public static string ResponseHeadersLabel => Get(nameof(ResponseHeadersLabel));
 
     /// <summary>📋 Copy body</summary>

@@ -244,35 +244,6 @@
                 </Grid>
             </TabItem>
 
-            <!-- ─────────────────────── Request options (HTTP) ───────────────────────────────── -->
-            <TabItem Header="{x:Static loc:Strings.RequestAdvancedOptionsHeader}" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
-                <StackPanel Margin="0,8,0,0" Spacing="8">
-                    <CheckBox Content="{x:Static loc:Strings.RequestFollowRedirects}"
-                              IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
-                    <CheckBox Content="{x:Static loc:Strings.RequestValidateUrlBeforeSend}"
-                              IsChecked="{Binding App.RequestEditor.ValidateUrlBeforeSend, Mode=TwoWay}" />
-                    <CheckBox Content="{x:Static loc:Strings.RequestPrettyPrintBody}"
-                              IsChecked="{Binding App.RequestEditor.PrettyPrintRequestBody, Mode=TwoWay}" />
-                    <CheckBox Content="{x:Static loc:Strings.RequestPrettyPrintBodyUseIndentation}"
-                              Margin="16,0,0,0"
-                              IsEnabled="{Binding App.RequestEditor.PrettyPrintRequestBody}"
-                              IsChecked="{Binding App.RequestEditor.PrettyPrintRequestBodyUseIndentation, Mode=TwoWay}" />
-                    <CheckBox Content="{x:Static loc:Strings.RequestIgnoreCertificateValidation}"
-                              IsChecked="{Binding App.RequestEditor.IgnoreCertificateValidationForRequest, Mode=TwoWay}" />
-                    <TextBlock Text="{x:Static loc:Strings.RequestIgnoreCertificateValidationWarning}"
-                               IsVisible="{Binding App.RequestEditor.IgnoreCertificateValidationForRequest}"
-                               Foreground="{DynamicResource WarningBrush}"
-                               TextWrapping="Wrap"
-                               FontSize="11" />
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="{x:Static loc:Strings.RequestTimeoutSecondsLabel}" VerticalAlignment="Center" Opacity="0.7" />
-                        <TextBox Width="120"
-                                 Text="{Binding App.RequestEditor.RequestTimeoutSecondsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 PlaceholderText="{x:Static loc:Strings.RequestTimeoutDefaultWatermark}" />
-                    </StackPanel>
-                </StackPanel>
-            </TabItem>
-
             <!-- ═══════════════════════════════ GraphQL tab ══════════════════════════════════ -->
             <TabItem Header="{x:Static loc:Strings.TabGraphQL}" IsVisible="{Binding App.RequestEditor.IsGraphQlRequest}">
                 <Grid Margin="0,8,0,0" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="8">
@@ -667,6 +638,35 @@
                         </Grid>
                     </Border>
                 </Grid>
+            </TabItem>
+
+            <!-- ─────────────────────── Options (HTTP) ───────────────────────────────────────── -->
+            <TabItem Header="{x:Static loc:Strings.RequestAdvancedOptionsHeader}" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
+                <StackPanel Margin="0,8,0,0" Spacing="8">
+                    <CheckBox Content="{x:Static loc:Strings.RequestFollowRedirects}"
+                              IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
+                    <CheckBox Content="{x:Static loc:Strings.RequestValidateUrlBeforeSend}"
+                              IsChecked="{Binding App.RequestEditor.ValidateUrlBeforeSend, Mode=TwoWay}" />
+                    <CheckBox Content="{x:Static loc:Strings.RequestPrettyPrintBody}"
+                              IsChecked="{Binding App.RequestEditor.PrettyPrintRequestBody, Mode=TwoWay}" />
+                    <CheckBox Content="{x:Static loc:Strings.RequestPrettyPrintBodyUseIndentation}"
+                              Margin="16,0,0,0"
+                              IsEnabled="{Binding App.RequestEditor.PrettyPrintRequestBody}"
+                              IsChecked="{Binding App.RequestEditor.PrettyPrintRequestBodyUseIndentation, Mode=TwoWay}" />
+                    <CheckBox Content="{x:Static loc:Strings.RequestIgnoreCertificateValidation}"
+                              IsChecked="{Binding App.RequestEditor.IgnoreCertificateValidationForRequest, Mode=TwoWay}" />
+                    <TextBlock Text="{x:Static loc:Strings.RequestIgnoreCertificateValidationWarning}"
+                               IsVisible="{Binding App.RequestEditor.IgnoreCertificateValidationForRequest}"
+                               Foreground="{DynamicResource WarningBrush}"
+                               TextWrapping="Wrap"
+                               FontSize="11" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{x:Static loc:Strings.RequestTimeoutSecondsLabel}" VerticalAlignment="Center" Opacity="0.7" />
+                        <TextBox Width="120"
+                                 Text="{Binding App.RequestEditor.RequestTimeoutSecondsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 PlaceholderText="{x:Static loc:Strings.RequestTimeoutDefaultWatermark}" />
+                    </StackPanel>
+                </StackPanel>
             </TabItem>
         </TabControl>
     </Grid>
