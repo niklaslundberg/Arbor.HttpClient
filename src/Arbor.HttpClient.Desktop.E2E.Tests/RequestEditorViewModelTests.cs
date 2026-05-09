@@ -146,16 +146,16 @@ public class RequestEditorViewModelTests
     }
 
     [Fact]
-    public void PlaceholderHeader_AppendsNewPlaceholder_WhenEnabledViaCheckboxBeforeNameIsEntered()
+    public void PlaceholderHeader_CannotBeEnabled_WhenNameIsBlank()
     {
         var editor = CreateEditor();
         var placeholder = editor.RequestHeaders[0];
 
         placeholder.IsEnabled = true;
 
-        editor.RequestHeaders.Should().HaveCount(2);
-        editor.RequestHeaders[^1].Name.Should().BeEmpty();
-        editor.RequestHeaders[^1].IsEnabled.Should().BeFalse();
+        editor.RequestHeaders.Should().HaveCount(1);
+        editor.RequestHeaders[0].Name.Should().BeEmpty();
+        editor.RequestHeaders[0].IsEnabled.Should().BeFalse();
     }
 
     [Fact]
@@ -175,16 +175,16 @@ public class RequestEditorViewModelTests
     }
 
     [Fact]
-    public void PlaceholderQueryParameter_AppendsNewPlaceholder_WhenEnabledViaCheckboxBeforeKeyIsEntered()
+    public void PlaceholderQueryParameter_CannotBeEnabled_WhenKeyIsBlank()
     {
         var editor = CreateEditor();
         var placeholder = editor.RequestQueryParameters[0];
 
         placeholder.IsEnabled = true;
 
-        editor.RequestQueryParameters.Should().HaveCount(2);
-        editor.RequestQueryParameters[^1].Key.Should().BeEmpty();
-        editor.RequestQueryParameters[^1].IsEnabled.Should().BeFalse();
+        editor.RequestQueryParameters.Should().HaveCount(1);
+        editor.RequestQueryParameters[0].Key.Should().BeEmpty();
+        editor.RequestQueryParameters[0].IsEnabled.Should().BeFalse();
     }
 
     // ── Auth header building ─────────────────────────────────────────────────
@@ -518,10 +518,19 @@ public class RequestEditorViewModelTests
     }
 
     [Fact]
-    public void RequestTimeoutSecondsText_ShouldKeepOnlyDigits_AndClampToMaximum()
+    public void RequestTimeoutSecondsText_ShouldClear_WhenInputContainsNonDigits()
     {
         var editor = CreateEditor();
         editor.RequestTimeoutSecondsText = "a1b2c3";
+
+        editor.RequestTimeoutSecondsText.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RequestTimeoutSecondsText_ShouldClampToMaximum_WhenInputIsNumeric()
+    {
+        var editor = CreateEditor();
+        editor.RequestTimeoutSecondsText = "123";
 
         editor.RequestTimeoutSecondsText.Should().Be("100");
     }

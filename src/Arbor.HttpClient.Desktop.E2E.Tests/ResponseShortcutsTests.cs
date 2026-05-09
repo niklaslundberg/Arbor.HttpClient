@@ -326,12 +326,13 @@ public class ResponseShortcutsTests
 
         viewModel.SelectedResponseTabIndex = 3;
         viewModel.ResponseRawText = "HTTP/1.1 200 OK";
+        viewModel.ResponseContentType = "application/json";
 
         var result = viewModel.TryGetSaveableResponseContent(out var content, out var extension);
 
         result.Should().BeTrue();
         content.Should().Be("HTTP/1.1 200 OK");
-        extension.Should().Be(".txt");
+        extension.Should().Be(".json");
     }
 
     [Fact]
@@ -348,5 +349,28 @@ public class ResponseShortcutsTests
         result.Should().BeFalse();
         content.Should().BeEmpty();
         extension.Should().Be(".txt");
+    }
+
+    [Theory]
+    [InlineData("text/markdown", ".md")]
+    [InlineData("application/json", ".json")]
+    [InlineData("application/problem+json", ".json")]
+    [InlineData("application/xml", ".xml")]
+    [InlineData("application/atom+xml", ".xml")]
+    public void ExtensionFromContentType_ShouldReturnExpectedExtension(string contentType, string expectedExtension)
+    {
+        var extension = MainWindowViewModel.ExtensionFromContentType(contentType);
+
+        extension.Should().Be(expectedExtension);
+    }
+
+    [Fact]
+    public void RequestTimeoutDefaultWatermark_ShouldIncludeConfiguredDefaultTimeoutValue()
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.OK);
+        using var viewModel = CreateViewModel(response);
+        viewModel.DefaultRequestTimeoutSeconds = 42;
+
+        viewModel.RequestTimeoutDefaultWatermark.Should().Be("Default (42)");
     }
 }

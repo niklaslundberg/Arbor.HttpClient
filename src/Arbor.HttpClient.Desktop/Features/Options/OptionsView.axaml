@@ -18,19 +18,22 @@
             <Border Background="{DynamicResource OptionsNavBackgroundBrush}"
                     BorderBrush="{DynamicResource PanelBorderBrush}"
                     BorderThickness="0,0,1,0">
-                <TreeView x:Name="CategoryTree"
-                          Background="Transparent"
-                          BorderThickness="0"
-                          Margin="0,8,0,8">
-                    <TreeViewItem Header="{x:Static loc:Strings.OptionsNavHttp}" Tag="HTTP" IsSelected="True"
-                                  Padding="16,6,8,6" />
-                    <TreeViewItem Header="{x:Static loc:Strings.OptionsNavScheduledJobs}" Tag="ScheduledJobs"
-                                  Padding="16,6,8,6" />
-                    <TreeViewItem Header="{x:Static loc:Strings.OptionsNavLookAndFeel}" Tag="LookAndFeel"
-                                  Padding="16,6,8,6" />
-                    <TreeViewItem Header="{x:Static loc:Strings.OptionsNavDiagnostics}" Tag="Diagnostics"
-                                  Padding="16,6,8,6" />
-                </TreeView>
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <TreeView x:Name="CategoryTree"
+                              Background="Transparent"
+                              BorderThickness="0"
+                              Margin="0,8,0,8">
+                        <TreeViewItem Header="{x:Static loc:Strings.OptionsNavHttp}" Tag="HTTP" IsSelected="True"
+                                      Padding="16,6,8,6" />
+                        <TreeViewItem Header="{x:Static loc:Strings.OptionsNavScheduledJobs}" Tag="ScheduledJobs"
+                                      Padding="16,6,8,6" />
+                        <TreeViewItem Header="{x:Static loc:Strings.OptionsNavLookAndFeel}" Tag="LookAndFeel"
+                                      Padding="16,6,8,6" />
+                        <TreeViewItem Header="{x:Static loc:Strings.OptionsNavDiagnostics}" Tag="Diagnostics"
+                                      Padding="16,6,8,6" />
+                    </TreeView>
+                </ScrollViewer>
             </Border>
 
             <!-- 1 px vertical separator -->
