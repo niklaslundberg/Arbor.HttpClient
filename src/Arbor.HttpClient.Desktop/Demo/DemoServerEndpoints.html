@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Arbor.HttpClient Demo Server Docs</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 20px; line-height: 1.5; }
+    h1, h2, h3 { margin-top: 1.2em; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 12px; overflow: auto; }
+    ul { margin-top: 0.25em; }
+  </style>
+</head>
+<body>
+<h1>Arbor.HttpClient Demo Server</h1>
+<p>This local demo server is embedded in the desktop app and is intended for testing requests without external dependencies.</p>
+
+<h2>Base URLs</h2>
+<ul>
+  <li>HTTP: <code>http://localhost:5999</code></li>
+  <li>HTTPS: <code>https://localhost:5998</code> (if HTTPS is enabled in Options &gt; HTTP &gt; Demo Server)</li>
+</ul>
+
+<h2>Endpoints</h2>
+
+<h3><code>GET /status</code></h3>
+<p>Returns JSON metadata about the demo server version, active ports, and available endpoints.</p>
+
+<h3><code>ANY /echo</code></h3>
+<p>Echo endpoint for regular HTTP requests.</p>
+<ul>
+  <li>If a request body is sent, the body is echoed back with the same content type.</li>
+  <li>If no body is sent, the response contains a JSON object with method, path, query, and timestamp.</li>
+</ul>
+
+<h3><code>GET /sse</code></h3>
+<p>Server-Sent Events endpoint.</p>
+<ul>
+  <li>Streams 5 events, one every 500ms.</li>
+  <li>Response content type: <code>text/event-stream</code>.</li>
+</ul>
+
+<h3><code>GET /ws</code> (WebSocket upgrade)</h3>
+<p>WebSocket echo endpoint.</p>
+<ul>
+  <li>Connect with request type <strong>WS</strong>.</li>
+  <li>Each text frame sent by the client is echoed back.</li>
+</ul>
+
+<h3><code>GET /docs</code></h3>
+<p>Returns this documentation as Markdown (<code>text/markdown</code>).</p>
+
+<h3><code>GET /docs.html</code></h3>
+<p>Returns this documentation as rendered HTML for easier reading in web views.</p>
+
+<h3><code>GET /</code></h3>
+<p>Redirects to <code>/docs</code>.</p>
+
+<h2>Example requests</h2>
+<pre><code>GET {{baseUrl}}/status</code></pre>
+
+<pre><code>POST {{baseUrl}}/echo
+Content-Type: application/json
+
+{"hello":"world"}</code></pre>
+
+<pre><code>GET {{baseUrl}}/sse</code></pre>
+
+<pre><code>GET {{baseUrl}}/docs</code></pre>
+
+<pre><code>GET {{baseUrl}}/docs.html</code></pre>
+</body>
+</html>

@@ -94,6 +94,54 @@ public class DemoServerTests
     }
 
     [Fact]
+    public async Task DemoServer_DocsEndpoint_ReturnsMarkdownDocumentation()
+    {
+        await using var server = new DemoServer();
+        await server.StartAsync();
+
+        using var client = new System.Net.Http.HttpClient();
+        using var response = await client.GetAsync($"http://localhost:{server.Port}/docs");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("text/markdown");
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("# Arbor.HttpClient Demo Server");
+        body.Should().Contain("GET /status");
+    }
+
+    [Fact]
+    public async Task DemoServer_DocsHtmlEndpoint_ReturnsHtmlDocumentation()
+    {
+        await using var server = new DemoServer();
+        await server.StartAsync();
+
+        using var client = new System.Net.Http.HttpClient();
+        using var response = await client.GetAsync($"http://localhost:{server.Port}/docs.html");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("text/html");
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("<!doctype html>");
+        body.Should().Contain("<h1>Arbor.HttpClient Demo Server</h1>");
+    }
+
+    [Fact]
+    public async Task DemoServer_RootEndpoint_RedirectsToDocs()
+    {
+        await using var server = new DemoServer();
+        await server.StartAsync();
+
+        using var client = new System.Net.Http.HttpClient(new System.Net.Http.HttpClientHandler
+        {
+            AllowAutoRedirect = false
+        });
+        using var response = await client.GetAsync($"http://localhost:{server.Port}/");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.Headers.Location?.ToString().Should().Be("/docs");
+    }
+
+    [Fact]
     public async Task DemoServer_StartAsync_IsNoOp_WhenAlreadyRunning()
     {
         await using var server = new DemoServer();
@@ -368,6 +416,27 @@ public class DemoServerTests
 
             var demoCollection = viewModel.Collections.First(c => c.Name == "Localhost Demo");
             demoCollection.Requests.Should().Contain(r => r.Method == "GET" && r.Path == "/echo");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DemoCollection_DefaultStartSampleRequest_IsDocs()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var collectionRepo = new InMemoryCollectionRepository();
+            var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+            using var _ = viewModel;
+
+            await viewModel.InitializeAsync();
+
+            var demoCollection = viewModel.Collections.First(c => c.Name == "Localhost Demo");
+            demoCollection.Requests[0].Method.Should().Be("GET");
+            demoCollection.Requests[0].Path.Should().Be("/docs");
 
             return true;
         }, CancellationToken.None);

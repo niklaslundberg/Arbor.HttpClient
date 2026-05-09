@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using System.Net;
 using System.Net.WebSockets;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
@@ -18,10 +20,14 @@ namespace Arbor.HttpClient.Desktop.Demo;
 /// An embedded Kestrel HTTP server that provides demo endpoints for the local demo collection.
 /// The server is started and stopped on demand and is never running by default.
 /// Supports both HTTP and HTTPS (with a self-signed certificate).
-/// Endpoints: <c>/echo</c>, <c>/sse</c>, <c>/ws</c>, <c>/status</c>.
+/// Endpoints: <c>/</c>, <c>/echo</c>, <c>/sse</c>, <c>/ws</c>, <c>/status</c>, <c>/docs</c>, <c>/docs.html</c>.
 /// </summary>
 public sealed class DemoServer : IAsyncDisposable
 {
+    private const string DemoServerDocsResourceName = "Arbor.HttpClient.Desktop.Demo.DemoServerEndpoints.md";
+    private const string DemoServerDocsHtmlResourceName = "Arbor.HttpClient.Desktop.Demo.DemoServerEndpoints.html";
+    private static readonly string DemoServerDocsMarkdown = ReadEmbeddedText(DemoServerDocsResourceName);
+    private static readonly string DemoServerDocsHtml = ReadEmbeddedText(DemoServerDocsHtmlResourceName);
     private WebApplication? _app;
     private X509Certificate2? _selfSignedCert;
 
@@ -108,9 +114,18 @@ public sealed class DemoServer : IAsyncDisposable
                 version = "1.0",
                 httpPort = enableHttp ? httpPort : (int?)null,
                 httpsPort = enableHttps ? httpsPort : (int?)null,
-                endpoints = new[] { "/echo", "/sse", "/ws", "/status" }
+                endpoints = new[] { "/", "/echo", "/sse", "/ws", "/status", "/docs", "/docs.html" }
             });
         });
+
+        // / — redirects to docs.
+        app.MapGet("/", () => Results.Redirect("/docs"));
+
+        // /docs — returns demo server endpoint documentation in Markdown format.
+        app.MapGet("/docs", () => Results.Text(DemoServerDocsMarkdown, "text/markdown; charset=utf-8"));
+
+        // /docs.html — returns demo server endpoint documentation rendered as HTML.
+        app.MapGet("/docs.html", () => Results.Content(DemoServerDocsHtml, "text/html; charset=utf-8"));
 
         // /echo — HTTP echo: reflects the request body back as the response body.
         // Returns 200 OK. When there is no body, returns a JSON summary of the
@@ -270,5 +285,17 @@ public sealed class DemoServer : IAsyncDisposable
         return X509CertificateLoader.LoadPkcs12(tempCert.Export(X509ContentType.Pfx), null);
         // rsa is disposed here (end of using var scope) — safe because the independent
         // copy embedded in the returned certificate no longer references this RSA object.
+    }
+
+    private static string ReadEmbeddedText(string resourceName)
+    {
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
+        if (stream is null)
+        {
+            throw new InvalidOperationException($"Embedded resource '{resourceName}' was not found.");
+        }
+
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
     }
 }
