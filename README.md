@@ -140,6 +140,25 @@ resolves to `/home/alice/config`.
 
 If a system environment variable is not set, the token is replaced with an empty string.
 
+### 5 – Reference computed timestamp values
+
+Use the `c:` prefix for computed timestamp values:
+
+```
+{{c:TimeStampLocal}}
+{{c:TimeStampUtc}}
+{{c:TimeStampLocal:yyyyMMdd}}
+{{c:TimeStampUtc:yyyyMMddHHmmss}}
+```
+
+- `TimeStampLocal` uses the current local timestamp.
+- `TimeStampUtc` uses the current UTC timestamp.
+- The date/time format part is optional and defaults to `o` (ISO 8601 round-trip format).
+- If the format is invalid, the token resolves to `invalidTimeStampFormat`.
+
+> `env:` and `c:` are reserved token prefixes. Tokens like `{{env:...}}` and `{{c:...}}` are always treated as system/computed tokens (not user-defined environment-variable names).  
+> If you define a variable named `c:TimeStampUtc` or `env:HOME`, `{{c:TimeStampUtc}}` / `{{env:HOME}}` still resolve using computed/system logic, not that user-defined value.
+
 ## Scheduled Jobs
 
 Any request can be scheduled to run automatically in the background:
@@ -202,4 +221,3 @@ To regenerate the demo video from the latest headless screenshots (no display re
 
 The script requires `ffmpeg` and `python3` in addition to the .NET 10 SDK.
 It regenerates the screenshots, assembles video segments with animated text overlays, and writes `docs/demo.mp4`.
-
