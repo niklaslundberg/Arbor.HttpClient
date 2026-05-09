@@ -1218,7 +1218,7 @@ public class MainWindowUiTests
     }
 
     [Fact]
-    public async Task RequestView_HttpRequest_ShouldShowRequestOptionsAsTabInsteadOfExpander()
+    public async Task RequestView_HttpRequest_ShouldShowOptionsAsLastTabInsteadOfExpander()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
@@ -1256,9 +1256,10 @@ public class MainWindowUiTests
                 .Single(control => control.Items.OfType<TabItem>().Any(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal)));
             var hasRequestOptionsExpander = window.GetVisualDescendants()
                 .OfType<Expander>()
-                .Any(expander => string.Equals(expander.Header is null ? null : expander.Header.ToString(), "Request options", StringComparison.Ordinal));
+                .Any(expander => string.Equals(expander.Header is null ? null : expander.Header.ToString(), "Options", StringComparison.Ordinal));
 
-            VerifyTabRealized(tabControl, "Request options");
+            VerifyTabRealized(tabControl, "Options");
+            tabControl.Items.OfType<TabItem>().Last().Header?.ToString().Should().Be("Options");
             hasRequestOptionsExpander.Should().BeFalse();
 
             window.Close();

@@ -1833,7 +1833,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private async Task SaveBinaryResponseAndOpenAsync()
+    private async Task SaveBinaryResponseAndOpenAsync(CancellationToken cancellationToken)
     {
         if (!IsBinaryResponse || _lastResponseBodyBytes.Length == 0 || StorageProvider is null)
         {
@@ -1862,7 +1862,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        await File.WriteAllBytesAsync(file.Path.LocalPath, _lastResponseBodyBytes);
+        await File.WriteAllBytesAsync(file.Path.LocalPath, _lastResponseBodyBytes, cancellationToken);
         OpenWithShell(file.Path.LocalPath);
     }
 
@@ -1905,7 +1905,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// No-op when the storage provider is unavailable or the selected tab has no saveable text content.
     /// </summary>
     [RelayCommand]
-    private async Task SaveResponseBodyAsFileAsync()
+    private async Task SaveResponseBodyAsFileAsync(CancellationToken cancellationToken)
     {
         if (StorageProvider is null || !TryGetSaveableResponseContent(out var contentToSave, out var extension))
         {
@@ -1932,7 +1932,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        await File.WriteAllTextAsync(file.Path.LocalPath, contentToSave, Encoding.UTF8);
+        await File.WriteAllTextAsync(file.Path.LocalPath, contentToSave, Encoding.UTF8, cancellationToken);
     }
 
     /// <summary>
@@ -2316,7 +2316,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         return defaultFileName;
     }
 
-    private bool TryGetSaveableResponseContent(out string content, out string extension)
+    internal bool TryGetSaveableResponseContent(out string content, out string extension)
     {
         content = string.Empty;
         extension = ".txt";

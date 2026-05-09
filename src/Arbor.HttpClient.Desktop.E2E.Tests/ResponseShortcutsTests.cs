@@ -266,5 +266,87 @@ public class ResponseShortcutsTests
         responseBody.Should().NotContain("\\u00e4");
         responseBody.Should().NotContain("\\u00f6");
     }
-}
 
+    [Fact]
+    public void TryGetSaveableResponseContent_WhenSelectedTabIsBody_ReturnsBodyAndDetectedExtension()
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.OK);
+        using var viewModel = CreateViewModel(response);
+
+        viewModel.SelectedResponseTabIndex = 0;
+        viewModel.ResponseBody = "{\"ok\":true}";
+        viewModel.ResponseContentType = "application/json";
+
+        var result = viewModel.TryGetSaveableResponseContent(out var content, out var extension);
+
+        result.Should().BeTrue();
+        content.Should().Be("{\"ok\":true}");
+        extension.Should().Be(".json");
+    }
+
+    [Fact]
+    public void TryGetSaveableResponseContent_WhenSelectedTabIsBodyRaw_ReturnsRawBodyAndExtension()
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.OK);
+        using var viewModel = CreateViewModel(response);
+
+        viewModel.SelectedResponseTabIndex = 1;
+        viewModel.RawResponseBody = "<raw>";
+        viewModel.ResponseContentType = "text/plain";
+
+        var result = viewModel.TryGetSaveableResponseContent(out var content, out var extension);
+
+        result.Should().BeTrue();
+        content.Should().Be("<raw>");
+        extension.Should().Be(".txt");
+    }
+
+    [Fact]
+    public void TryGetSaveableResponseContent_WhenSelectedTabIsHeaders_ReturnsJoinedHeaders()
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.OK);
+        using var viewModel = CreateViewModel(response);
+
+        viewModel.SelectedResponseTabIndex = 2;
+        viewModel.ResponseHeaders.Add("Content-Type: application/json");
+        viewModel.ResponseHeaders.Add("X-Test: value");
+
+        var result = viewModel.TryGetSaveableResponseContent(out var content, out var extension);
+
+        result.Should().BeTrue();
+        content.Should().Be($"Content-Type: application/json{Environment.NewLine}X-Test: value");
+        extension.Should().Be(".txt");
+    }
+
+    [Fact]
+    public void TryGetSaveableResponseContent_WhenSelectedTabIsResponseRaw_ReturnsResponseRawText()
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.OK);
+        using var viewModel = CreateViewModel(response);
+
+        viewModel.SelectedResponseTabIndex = 3;
+        viewModel.ResponseRawText = "HTTP/1.1 200 OK";
+
+        var result = viewModel.TryGetSaveableResponseContent(out var content, out var extension);
+
+        result.Should().BeTrue();
+        content.Should().Be("HTTP/1.1 200 OK");
+        extension.Should().Be(".txt");
+    }
+
+    [Fact]
+    public void TryGetSaveableResponseContent_WhenSelectedTabIsWebView_ReturnsFalse()
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.OK);
+        using var viewModel = CreateViewModel(response);
+
+        viewModel.SelectedResponseTabIndex = 4;
+        viewModel.ResponseBody = "<html></html>";
+
+        var result = viewModel.TryGetSaveableResponseContent(out var content, out var extension);
+
+        result.Should().BeFalse();
+        content.Should().BeEmpty();
+        extension.Should().Be(".txt");
+    }
+}
