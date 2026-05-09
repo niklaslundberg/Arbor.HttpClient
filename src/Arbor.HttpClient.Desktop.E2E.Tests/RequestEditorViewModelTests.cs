@@ -212,6 +212,18 @@ public class RequestEditorViewModelTests
         editor.RequestPreview.Should().NotContain("Content-Type:");
     }
 
+    [Fact]
+    public void RequestPreview_PrettyPrintsResolvedBody_WhenEnabled()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/json";
+        editor.RequestBody = "{\"a\":1}";
+        editor.PrettyPrintRequestBody = true;
+        editor.PrettyPrintRequestBodyUseIndentation = true;
+
+        editor.RequestPreview.Should().Contain("{\n  \"a\": 1\n}");
+    }
+
     // ── Variable resolution in preview ───────────────────────────────────────
 
     [Fact]
@@ -273,6 +285,61 @@ public class RequestEditorViewModelTests
 
         draft.Url.Should().Be("http://localhost:5000/items");
         draft.Body.Should().Be("{\"url\":\"http://localhost:5000\"}");
+    }
+
+    [Fact]
+    public void BuildDraft_PrettyPrintsJsonBodyWithIndentation_WhenEnabled()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/json";
+        editor.RequestBody = "{\"a\":1}";
+        editor.PrettyPrintRequestBody = true;
+        editor.PrettyPrintRequestBodyUseIndentation = true;
+
+        var draft = editor.BuildDraft();
+
+        draft.Body.Should().Be("{\n  \"a\": 1\n}");
+    }
+
+    [Fact]
+    public void BuildDraft_PrettyPrintsJsonBodyWithoutIndentation_WhenEnabled()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/json";
+        editor.RequestBody = "{  \"a\" : 1  }";
+        editor.PrettyPrintRequestBody = true;
+        editor.PrettyPrintRequestBodyUseIndentation = false;
+
+        var draft = editor.BuildDraft();
+
+        draft.Body.Should().Be("{\"a\":1}");
+    }
+
+    [Fact]
+    public void BuildDraft_PrettyPrintsXmlBodyWithoutIndentation_WhenEnabled()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/xml";
+        editor.RequestBody = "<root>\n  <item>1</item>\n</root>";
+        editor.PrettyPrintRequestBody = true;
+        editor.PrettyPrintRequestBodyUseIndentation = false;
+
+        var draft = editor.BuildDraft();
+
+        draft.Body.Should().Be("<root><item>1</item></root>");
+    }
+
+    [Fact]
+    public void PrettyPrintRequestBodySourceCommand_FormatsSourceBody()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/json";
+        editor.PrettyPrintRequestBodyUseIndentation = false;
+        editor.RequestBody = "{ \"a\" : 1 }";
+
+        editor.PrettyPrintRequestBodySourceCommand.Execute(null);
+
+        editor.RequestBody.Should().Be("{\"a\":1}");
     }
 
     [Fact]

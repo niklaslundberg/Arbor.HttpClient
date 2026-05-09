@@ -197,6 +197,12 @@
                           IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
                 <CheckBox Content="{x:Static loc:Strings.RequestValidateUrlBeforeSend}"
                           IsChecked="{Binding App.RequestEditor.ValidateUrlBeforeSend, Mode=TwoWay}" />
+                <CheckBox Content="{x:Static loc:Strings.RequestPrettyPrintBody}"
+                          IsChecked="{Binding App.RequestEditor.PrettyPrintRequestBody, Mode=TwoWay}" />
+                <CheckBox Content="{x:Static loc:Strings.RequestPrettyPrintBodyUseIndentation}"
+                          Margin="16,0,0,0"
+                          IsEnabled="{Binding App.RequestEditor.PrettyPrintRequestBody}"
+                          IsChecked="{Binding App.RequestEditor.PrettyPrintRequestBodyUseIndentation, Mode=TwoWay}" />
                 <CheckBox Content="{x:Static loc:Strings.RequestIgnoreCertificateValidation}"
                           IsChecked="{Binding App.RequestEditor.IgnoreCertificateValidationForRequest, Mode=TwoWay}" />
                 <TextBlock Text="{x:Static loc:Strings.RequestIgnoreCertificateValidationWarning}"
@@ -257,9 +263,11 @@
             <!-- ─────────────────────── Body (HTTP) ─────────────────────────────────────────── -->
             <TabItem Header="{x:Static loc:Strings.TabBody}" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
                 <Grid Margin="0,8,0,0" RowDefinitions="Auto,*">
-                    <Grid ColumnDefinitions="*,Auto">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                         <TextBlock Text="{x:Static loc:Strings.RequestBodyLabel}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                        <Button Grid.Column="1" Content="{x:Static loc:Strings.RequestBodyOpenInEditor}"
+                        <Button Grid.Column="1" Content="{x:Static loc:Strings.RequestBodyPrettyPrintSource}"
+                                Command="{Binding App.RequestEditor.PrettyPrintRequestBodySourceCommand}" />
+                        <Button Grid.Column="2" Content="{x:Static loc:Strings.RequestBodyOpenInEditor}"
                                 Command="{Binding App.OpenRequestBodyInExternalEditorCommand}" />
                     </Grid>
                     <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
