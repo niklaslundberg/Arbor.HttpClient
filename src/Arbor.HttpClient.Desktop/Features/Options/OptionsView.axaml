@@ -99,8 +99,15 @@
                                 <TextBlock Text="{x:Static loc:Strings.OptionsDefaultContentType}"
                                            FontWeight="SemiBold"
                                            TextWrapping="Wrap" />
-                                <TextBox Text="{Binding App.DefaultContentType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         MaxWidth="400" HorizontalAlignment="Left" />
+                                <Grid ColumnDefinitions="260,*" ColumnSpacing="8" MaxWidth="560">
+                                    <ComboBox Grid.Column="0"
+                                              ItemsSource="{Binding App.DefaultContentTypeOptions}"
+                                              SelectedItem="{Binding App.SelectedDefaultContentTypeOption, Mode=TwoWay}" />
+                                    <TextBox Grid.Column="1"
+                                             PlaceholderText="{x:Static loc:Strings.HeadersContentTypePlaceholder}"
+                                             Text="{Binding App.CustomDefaultContentType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             IsVisible="{Binding App.IsCustomDefaultContentType}" />
+                                </Grid>
                             </StackPanel>
 
                             <StackPanel Spacing="4">
@@ -116,7 +123,13 @@
 
                             <StackPanel Spacing="4">
                                 <TextBlock Text="{x:Static loc:Strings.OptionsResponseSaveDefaultFolder}" FontWeight="SemiBold" />
-                                <TextBox Text="{Binding App.ResponseSaveDefaultFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBox Grid.Column="0"
+                                             Text="{Binding App.ResponseSaveDefaultFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Button Grid.Column="1"
+                                            Content="{x:Static loc:Strings.OptionsBrowse}"
+                                            Command="{Binding App.SelectResponseSaveDefaultFolderCommand}" />
+                                </Grid>
                             </StackPanel>
 
                             <StackPanel Spacing="4">

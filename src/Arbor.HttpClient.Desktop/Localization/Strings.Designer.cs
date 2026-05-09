@@ -189,6 +189,9 @@ public static class Strings
     /// <summary>Default</summary>
     public static string RequestTimeoutDefaultWatermark => Get(nameof(RequestTimeoutDefaultWatermark));
 
+    /// <summary>TLS version override</summary>
+    public static string RequestTlsVersionOverrideLabel => Get(nameof(RequestTlsVersionOverrideLabel));
+
     /// <summary>Send / Connect / Cancel (Ctrl+Enter)</summary>
     public static string RequestPrimaryActionTooltip => Get(nameof(RequestPrimaryActionTooltip));
 
@@ -490,8 +493,11 @@ public static class Strings
     /// <summary>Response file name pattern</summary>
     public static string OptionsResponseSaveFileNamePattern => Get(nameof(OptionsResponseSaveFileNamePattern));
 
-    /// <summary>Supported tokens: {collectionName}, {requestPath}, {requestName}, {contentTypeExtension}, {timestamp:format}. Invalid file-name characters are normalized automatically.</summary>
+    /// <summary>Supported tokens: {collectionName}, {requestPath}, {requestName}, {contentTypeExtension}, {extension}, {timestamp:format} (local), {timestampUtc:format} (UTC). Invalid file-name characters are normalized automatically.</summary>
     public static string OptionsResponseSaveFileNamePatternHelp => Get(nameof(OptionsResponseSaveFileNamePatternHelp));
+
+    /// <summary>Browse…</summary>
+    public static string OptionsBrowse => Get(nameof(OptionsBrowse));
 
     /// <summary>Demo Server</summary>
     public static string OptionsDemoServerTitle => Get(nameof(OptionsDemoServerTitle));

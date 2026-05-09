@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Security;
 using System.Security.Authentication;
@@ -117,20 +118,17 @@ public partial class App : Application
                     diagnostics.ResponseBodyMilliseconds,
                     diagnostics.TotalMilliseconds));
             httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
-            var configuredHttpClient = CreateHttpClient(currentOptions.Http, cookieContainer: sharedCookieContainer);
-            var inverseRedirectHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects, cookieContainer: sharedCookieContainer);
-            var ignoreCertHttpClient = CreateHttpClient(currentOptions.Http, ignoreCertificateValidation: true, cookieContainer: sharedCookieContainer);
-            var inverseRedirectIgnoreCertHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects, ignoreCertificateValidation: true, cookieContainer: sharedCookieContainer);
+            var httpClientsByRequestOptions = new ConcurrentDictionary<(bool FollowRedirects, bool IgnoreCert, string TlsVersion), global::System.Net.Http.HttpClient>();
             var retiredHttpClients = new List<global::System.Net.Http.HttpClient>();
-            httpRequestService.SetHttpClientFactory((bool? followRedirectsOverride, bool? ignoreCertValidation) =>
+            httpRequestService.SetHttpClientFactory((bool? followRedirectsOverride, bool? ignoreCertValidation, string? tlsVersionOverride) =>
             {
+                var effectiveTlsVersion = string.IsNullOrWhiteSpace(tlsVersionOverride)
+                    ? currentOptions.Http.TlsVersion
+                    : tlsVersionOverride;
                 var ignoreCert = ignoreCertValidation == true;
-                if (followRedirectsOverride is null || followRedirectsOverride == currentOptions.Http.FollowRedirects)
-                {
-                    return ignoreCert ? ignoreCertHttpClient : configuredHttpClient;
-                }
-
-                return ignoreCert ? inverseRedirectIgnoreCertHttpClient : inverseRedirectHttpClient;
+                var followRedirects = followRedirectsOverride ?? currentOptions.Http.FollowRedirects;
+                return httpClientsByRequestOptions.GetOrAdd((followRedirects, ignoreCert, effectiveTlsVersion), key =>
+                    CreateHttpClient(currentOptions.Http, key.FollowRedirects, key.IgnoreCert, sharedCookieContainer, key.TlsVersion));
             });
             var scheduledJobService = new ScheduledJobService(httpRequestService, Log.Logger, exceptionCollector);
             var demoServer = new DemoServer();
@@ -151,14 +149,8 @@ public partial class App : Application
                 updatedOptions =>
                 {
                     currentOptions = updatedOptions;
-                    retiredHttpClients.Add(configuredHttpClient);
-                    retiredHttpClients.Add(inverseRedirectHttpClient);
-                    retiredHttpClients.Add(ignoreCertHttpClient);
-                    retiredHttpClients.Add(inverseRedirectIgnoreCertHttpClient);
-                    configuredHttpClient = CreateHttpClient(currentOptions.Http, cookieContainer: sharedCookieContainer);
-                    inverseRedirectHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects, cookieContainer: sharedCookieContainer);
-                    ignoreCertHttpClient = CreateHttpClient(currentOptions.Http, ignoreCertificateValidation: true, cookieContainer: sharedCookieContainer);
-                    inverseRedirectIgnoreCertHttpClient = CreateHttpClient(currentOptions.Http, !currentOptions.Http.FollowRedirects, ignoreCertificateValidation: true, cookieContainer: sharedCookieContainer);
+                    retiredHttpClients.AddRange(httpClientsByRequestOptions.Values);
+                    httpClientsByRequestOptions.Clear();
                     httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
                     exceptionCollector.IsCollecting = currentOptions.Diagnostics.CollectUnhandledExceptions;
                 },
@@ -239,10 +231,11 @@ public partial class App : Application
                 {
                     viewModel.Dispose();
                     logWindowViewModel.Dispose();
-                    configuredHttpClient.Dispose();
-                    inverseRedirectHttpClient.Dispose();
-                    ignoreCertHttpClient.Dispose();
-                    inverseRedirectIgnoreCertHttpClient.Dispose();
+                    foreach (var activeHttpClient in httpClientsByRequestOptions.Values)
+                    {
+                        activeHttpClient.Dispose();
+                    }
+                    httpClientsByRequestOptions.Clear();
                     foreach (var retiredHttpClient in retiredHttpClients)
                     {
                         retiredHttpClient.Dispose();
@@ -300,14 +293,14 @@ public partial class App : Application
         }
     }
 
-    private static global::System.Net.Http.HttpClient CreateHttpClient(HttpOptions options, bool? followRedirectsOverride = null, bool ignoreCertificateValidation = false, System.Net.CookieContainer? cookieContainer = null)
+    private static global::System.Net.Http.HttpClient CreateHttpClient(HttpOptions options, bool followRedirects, bool ignoreCertificateValidation, System.Net.CookieContainer? cookieContainer = null, string? tlsVersionOverride = null)
     {
         var handler = new SocketsHttpHandler
         {
-            AllowAutoRedirect = followRedirectsOverride ?? options.FollowRedirects,
+            AllowAutoRedirect = followRedirects,
             SslOptions = new SslClientAuthenticationOptions
             {
-                EnabledSslProtocols = options.TlsVersion switch
+                EnabledSslProtocols = (tlsVersionOverride ?? options.TlsVersion) switch
                 {
                     // TLS 1.0 and 1.1 are cryptographically broken and disabled by default in modern
                     // operating systems. They are exposed here exclusively for testing HTTP clients

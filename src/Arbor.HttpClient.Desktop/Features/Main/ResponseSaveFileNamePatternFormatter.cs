@@ -13,6 +13,7 @@ internal static partial class ResponseSaveFileNamePatternFormatter
         "requestPath",
         "requestName",
         "timestamp",
+        "timestampUtc",
         "extension",
         "contentTypeExtension"
     ];
@@ -53,8 +54,11 @@ internal static partial class ResponseSaveFileNamePatternFormatter
                 "requestName" => requestName,
                 "extension" or "contentTypeExtension" => normalizedExtension,
                 "timestamp" => string.IsNullOrWhiteSpace(format)
-                    ? timestamp.ToString(CultureInfo.InvariantCulture)
-                    : timestamp.ToString(format, CultureInfo.InvariantCulture),
+                    ? timestamp.ToLocalTime().ToString(CultureInfo.InvariantCulture)
+                    : timestamp.ToLocalTime().ToString(format, CultureInfo.InvariantCulture),
+                "timestampUtc" => string.IsNullOrWhiteSpace(format)
+                    ? timestamp.ToUniversalTime().ToString(CultureInfo.InvariantCulture)
+                    : timestamp.ToUniversalTime().ToString(format, CultureInfo.InvariantCulture),
                 _ => string.Empty
             };
         });
@@ -96,13 +100,13 @@ internal static partial class ResponseSaveFileNamePatternFormatter
                 return false;
             }
 
-            if (token is not "timestamp" && !string.IsNullOrWhiteSpace(format))
+            if (token is not ("timestamp" or "timestampUtc") && !string.IsNullOrWhiteSpace(format))
             {
                 error = $"Token '{{{token}}}' does not support a format specifier.";
                 return false;
             }
 
-            if (token == "timestamp" && !string.IsNullOrWhiteSpace(format))
+            if ((token is "timestamp" or "timestampUtc") && !string.IsNullOrWhiteSpace(format))
             {
                 try
                 {

@@ -254,6 +254,74 @@ public class DemoServerTests
         }, CancellationToken.None);
     }
 
+    [Fact]
+    public async Task LoadCollectionRequest_WhenRequestNotOpen_OpensNewTab()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var collectionRepo = new InMemoryCollectionRepository();
+            await collectionRepo.SaveAsync(
+                "Tabs Test",
+                null,
+                $"http://localhost:{DemoServer.DefaultPort}",
+                [new CollectionRequest("Echo GET", "GET", "/echo", null)]);
+
+            var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+            using var _ = viewModel;
+
+            await viewModel.InitializeAsync();
+            var initialTabCount = viewModel.RequestTabs.Count;
+
+            var collection = viewModel.Collections.First(c => c.Name == "Tabs Test");
+            viewModel.SelectedCollection = collection;
+            var item = viewModel.FilteredCollectionItems.First();
+            viewModel.LoadCollectionRequestCore(item);
+
+            viewModel.RequestTabs.Count.Should().Be(initialTabCount + 1);
+            viewModel.ActiveRequestTab?.RequestEditor.RequestName.Should().Be("Echo GET");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task LoadCollectionRequest_WhenRequestAlreadyOpen_ActivatesExistingTab()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var collectionRepo = new InMemoryCollectionRepository();
+            await collectionRepo.SaveAsync(
+                "Tabs Test",
+                null,
+                $"http://localhost:{DemoServer.DefaultPort}",
+                [new CollectionRequest("Echo GET", "GET", "/echo", null)]);
+
+            var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+            using var _ = viewModel;
+
+            await viewModel.InitializeAsync();
+            var collection = viewModel.Collections.First(c => c.Name == "Tabs Test");
+            viewModel.SelectedCollection = collection;
+            var item = viewModel.FilteredCollectionItems.First();
+
+            viewModel.LoadCollectionRequestCore(item);
+            var firstOpenedTab = viewModel.ActiveRequestTab;
+            var tabCountAfterFirstOpen = viewModel.RequestTabs.Count;
+
+            viewModel.NewRequestTabCommand.Execute(null);
+            viewModel.LoadCollectionRequestCore(item);
+
+            viewModel.RequestTabs.Count.Should().Be(tabCountAfterFirstOpen + 1);
+            viewModel.ActiveRequestTab.Should().BeSameAs(firstOpenedTab);
+
+            return true;
+        }, CancellationToken.None);
+    }
+
     // ── Demo server banner visibility ────────────────────────────────────────
 
     [Fact]

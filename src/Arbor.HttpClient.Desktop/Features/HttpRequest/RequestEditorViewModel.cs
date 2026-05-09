@@ -56,6 +56,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     // ── Content-type constants ────────────────────────────────────────────────
     public const string NoneContentTypeOption = "(none)";
     public const string CustomContentTypeOption = "Custom...";
+    public const string DefaultTlsVersionOverrideOption = "(default)";
 
     // ── Observable properties ─────────────────────────────────────────────────
 
@@ -91,6 +92,9 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _ignoreCertificateValidationForRequest;
+
+    [ObservableProperty]
+    private string _selectedTlsVersionOverrideOption = DefaultTlsVersionOverrideOption;
 
     [ObservableProperty]
     private string _selectedHttpVersionOption = "1.1";
@@ -191,6 +195,16 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     public IReadOnlyList<string> Methods { get; } = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
     public IReadOnlyList<string> HttpVersionOptions { get; } = ["1.0", "1.1", "2.0", "3.0"];
+
+    public IReadOnlyList<string> TlsVersionOverrideOptions { get; } =
+    [
+        DefaultTlsVersionOverrideOption,
+        "SystemDefault",
+        "Tls10",
+        "Tls11",
+        "Tls12",
+        "Tls13"
+    ];
 
     public IReadOnlyList<string> WellKnownHeaderNames { get; } =
     [
@@ -512,7 +526,10 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             // null = "use default" (validate certificates); true = bypass validation.
             // false is never passed — disabled maps to null so the factory sees no override.
             IgnoreCertificateValidationForRequest ? true : null,
-            timeoutSeconds);
+            timeoutSeconds,
+            string.Equals(SelectedTlsVersionOverrideOption, DefaultTlsVersionOverrideOption, StringComparison.Ordinal)
+                ? null
+                : SelectedTlsVersionOverrideOption);
     }
 
     /// <summary>

@@ -100,6 +100,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private const int ResponseHeadersTabIndex = 2;
     private const int ResponseRawTabIndex = 3;
     private const int ResponseWebViewTabIndex = 4;
+    private const string DefaultContentTypeCustomOption = "Custom...";
 
     [ObservableProperty]
     private RequestTabViewModel? _activeRequestTab;
@@ -277,6 +278,27 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _defaultContentType = "application/json";
 
+    public IReadOnlyList<string> DefaultContentTypeOptions { get; } =
+    [
+        "application/json",
+        "application/xml",
+        "text/plain",
+        "text/html",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data",
+        DefaultContentTypeCustomOption
+    ];
+
+    public bool IsCustomDefaultContentType =>
+        string.Equals(SelectedDefaultContentTypeOption, DefaultContentTypeCustomOption, StringComparison.Ordinal);
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCustomDefaultContentType))]
+    private string _selectedDefaultContentTypeOption = "application/json";
+
+    [ObservableProperty]
+    private string _customDefaultContentType = string.Empty;
+
     [ObservableProperty]
     private string _responseSaveDefaultFolder = string.Empty;
 
@@ -382,11 +404,62 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         _debugLogger.Information("Default content type changed to {ContentType}", value);
         _requestEditor.DefaultContentType = value;
+        SyncDefaultContentTypeSelection(value);
         QueueOptionsAutoSave();
+    }
+
+    partial void OnSelectedDefaultContentTypeOptionChanged(string value)
+    {
+        if (string.Equals(value, DefaultContentTypeCustomOption, StringComparison.Ordinal))
+        {
+            if (!string.IsNullOrWhiteSpace(CustomDefaultContentType))
+            {
+                DefaultContentType = CustomDefaultContentType;
+            }
+
+            return;
+        }
+
+        CustomDefaultContentType = string.Empty;
+        DefaultContentType = value;
+    }
+
+    partial void OnCustomDefaultContentTypeChanged(string value)
+    {
+        if (!IsCustomDefaultContentType)
+        {
+            return;
+        }
+
+        DefaultContentType = value;
     }
 
     partial void OnResponseSaveDefaultFolderChanged(string value) =>
         QueueOptionsAutoSave();
+
+    [RelayCommand]
+    private async Task SelectResponseSaveDefaultFolderAsync()
+    {
+        if (StorageProvider is null)
+        {
+            return;
+        }
+
+        var suggestedStartLocation = await GetResponseSaveSuggestedStartLocationAsync();
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = Strings.OptionsResponseSaveDefaultFolder,
+            AllowMultiple = false,
+            SuggestedStartLocation = suggestedStartLocation
+        });
+
+        if (folders.Count == 0)
+        {
+            return;
+        }
+
+        ResponseSaveDefaultFolder = folders[0].Path.LocalPath;
+    }
 
     partial void OnResponseSaveFileNamePatternChanged(string value)
     {
@@ -1297,6 +1370,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        var collectionId = SelectedCollection?.Id ?? 0;
+        var existingTab = RequestTabs.FirstOrDefault(tab =>
+            tab.MatchesCollectionRequest(collectionId, item.Method, item.Path, item.Name));
+        if (existingTab is { })
+        {
+            ActiveRequestTab = existingTab;
+            return;
+        }
+
+        NewRequestTab();
+
         // Detect special protocol methods used in demo collections.
         _requestEditor.SelectedRequestType = item.Method switch
         {
@@ -1385,6 +1469,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IsDemoServerBannerVisible = _demoServer is { } server
             && !server.IsRunning
             && (IsDemoServerUrl(resolvedUrl, server.Port) || IsDemoServerUrl(resolvedUrl, server.HttpsPort));
+
+        ActiveRequestTab?.SetCollectionRequestSource(collectionId, item.Method, item.Path, item.Name);
     }
 
     /// <summary>Starts the embedded demo server on <see cref="DemoServerPort"/> and/or <see cref="DemoServerHttpsPort"/>.</summary>
@@ -2381,6 +2467,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         return false;
+    }
+
+    private void SyncDefaultContentTypeSelection(string value)
+    {
+        if (DefaultContentTypeOptions.Contains(value))
+        {
+            SelectedDefaultContentTypeOption = value;
+            CustomDefaultContentType = string.Empty;
+            return;
+        }
+
+        SelectedDefaultContentTypeOption = DefaultContentTypeCustomOption;
+        CustomDefaultContentType = value;
     }
 
     private void UpdateResponseRawText()

@@ -211,6 +211,9 @@
   <data name="RequestTimeoutDefaultWatermark" xml:space="preserve">
     <value>Default</value>
   </data>
+  <data name="RequestTlsVersionOverrideLabel" xml:space="preserve">
+    <value>TLS version override</value>
+  </data>
   <data name="RequestPrimaryActionTooltip" xml:space="preserve">
     <value>Send / Connect / Cancel (Ctrl+Enter)</value>
   </data>
@@ -514,7 +517,10 @@
     <value>Response file name pattern</value>
   </data>
   <data name="OptionsResponseSaveFileNamePatternHelp" xml:space="preserve">
-    <value>Supported tokens: {collectionName}, {requestPath}, {requestName}, {contentTypeExtension}, {extension}, {timestamp:format}. Invalid file-name characters are normalized automatically.</value>
+    <value>Supported tokens: {collectionName}, {requestPath}, {requestName}, {contentTypeExtension}, {extension}, {timestamp:format} (local), {timestampUtc:format} (UTC). Invalid file-name characters are normalized automatically.</value>
+  </data>
+  <data name="OptionsBrowse" xml:space="preserve">
+    <value>Browse…</value>
   </data>
   <data name="OptionsDemoServerTitle" xml:space="preserve">
     <value>Demo Server</value>

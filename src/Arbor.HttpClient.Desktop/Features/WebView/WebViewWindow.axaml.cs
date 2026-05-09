@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Globalization;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Desktop.Features.WebView;
 using Avalonia.Controls;
@@ -116,7 +117,7 @@ public partial class WebViewWindow : Window
         {
             // HandleResponse already marshals to the UI thread via Dispatcher.UIThread,
             // so this callback is already on the UI thread — no extra Post needed.
-            Navigate(uri);
+            Navigate(BuildNoCacheUri(uri));
         }
     }
 
@@ -168,5 +169,20 @@ public partial class WebViewWindow : Window
         {
             Navigate(uri);
         }
+    }
+
+    internal static Uri BuildNoCacheUri(Uri uri, long? cacheBustValue = null)
+    {
+        var cacheBust = cacheBustValue ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var existingQuery = string.IsNullOrEmpty(uri.Query) ? string.Empty : uri.Query[1..];
+        var cacheBustSegment = $"arborNoCache={cacheBust.ToString(CultureInfo.InvariantCulture)}";
+        var combinedQuery = string.IsNullOrEmpty(existingQuery)
+            ? cacheBustSegment
+            : $"{existingQuery}&{cacheBustSegment}";
+        var uriBuilder = new UriBuilder(uri)
+        {
+            Query = combinedQuery
+        };
+        return uriBuilder.Uri;
     }
 }

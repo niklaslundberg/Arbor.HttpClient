@@ -13,6 +13,22 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 public class WebViewWindowTests
 {
     [Fact]
+    public void BuildNoCacheUri_WithNoQuery_AppendsCacheBustParameter()
+    {
+        var result = WebViewWindow.BuildNoCacheUri(new Uri("https://example.com/page"), 1234);
+
+        result.ToString().Should().Be("https://example.com/page?arborNoCache=1234");
+    }
+
+    [Fact]
+    public void BuildNoCacheUri_WithExistingQuery_PreservesQueryAndAppendsCacheBustParameter()
+    {
+        var result = WebViewWindow.BuildNoCacheUri(new Uri("https://example.com/page?foo=bar"), 1234);
+
+        result.ToString().Should().Be("https://example.com/page?foo=bar&arborNoCache=1234");
+    }
+
+    [Fact]
     public async Task WebViewWindow_NavigationBarOverflow_UsesHorizontalScrollViewer()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));

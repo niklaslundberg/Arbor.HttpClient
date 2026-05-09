@@ -17,7 +17,7 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
     // Single volatile field — all three SetHttpClientFactory overloads normalise to this
     // two-parameter signature so that SendAsync reads exactly one reference (preventing
     // inconsistency between independently mutable fields during concurrent access).
-    private volatile Func<bool?, bool?, global::System.Net.Http.HttpClient>? _httpClientFactory;
+    private volatile Func<bool?, bool?, string?, global::System.Net.Http.HttpClient>? _httpClientFactory;
     private Action<HttpRequestDiagnostics>? _diagnosticsObserver;
     private bool _httpDiagnosticsEnabled;
     private TimeSpan? _defaultRequestTimeout;
@@ -25,13 +25,13 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
     public void SetHttpClientFactory(Func<global::System.Net.Http.HttpClient> httpClientFactory)
     {
         ArgumentNullException.ThrowIfNull(httpClientFactory);
-        _httpClientFactory = (_, _) => EnsureHttpClientTimeoutDisabled(httpClientFactory());
+        _httpClientFactory = (_, _, _) => EnsureHttpClientTimeoutDisabled(httpClientFactory());
     }
 
     public void SetHttpClientFactory(Func<bool?, global::System.Net.Http.HttpClient> httpClientFactoryWithRedirectOverride)
     {
         ArgumentNullException.ThrowIfNull(httpClientFactoryWithRedirectOverride);
-        _httpClientFactory = (followRedirects, _) => EnsureHttpClientTimeoutDisabled(httpClientFactoryWithRedirectOverride(followRedirects));
+        _httpClientFactory = (followRedirects, _, _) => EnsureHttpClientTimeoutDisabled(httpClientFactoryWithRedirectOverride(followRedirects));
     }
 
     /// <summary>
@@ -40,7 +40,21 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
     /// </summary>
     public void SetHttpClientFactory(Func<bool?, bool?, global::System.Net.Http.HttpClient> httpClientFactoryWithCertOverride)
     {
-        _httpClientFactory = httpClientFactoryWithCertOverride ?? throw new ArgumentNullException(nameof(httpClientFactoryWithCertOverride));
+        ArgumentNullException.ThrowIfNull(httpClientFactoryWithCertOverride);
+        _httpClientFactory = (followRedirects, ignoreCertValidation, _) =>
+            EnsureHttpClientTimeoutDisabled(httpClientFactoryWithCertOverride(followRedirects, ignoreCertValidation));
+    }
+
+    /// <summary>
+    /// Sets a factory that selects an <see cref="global::System.Net.Http.HttpClient"/> based on the per-request
+    /// <see cref="HttpRequestDraft.FollowRedirects"/>, <see cref="HttpRequestDraft.IgnoreCertificateValidation"/>,
+    /// and <see cref="HttpRequestDraft.TlsVersionOverride"/> overrides.
+    /// </summary>
+    public void SetHttpClientFactory(Func<bool?, bool?, string?, global::System.Net.Http.HttpClient> httpClientFactoryWithTlsOverride)
+    {
+        ArgumentNullException.ThrowIfNull(httpClientFactoryWithTlsOverride);
+        _httpClientFactory = (followRedirects, ignoreCertValidation, tlsVersionOverride) =>
+            EnsureHttpClientTimeoutDisabled(httpClientFactoryWithTlsOverride(followRedirects, ignoreCertValidation, tlsVersionOverride));
     }
 
     public void SetHttpDiagnosticsEnabled(bool enabled) => _httpDiagnosticsEnabled = enabled;
@@ -102,7 +116,7 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
         // Read the factory once into a local to avoid observing a partially-updated state
         // if another thread calls SetHttpClientFactory concurrently with SendAsync.
         var factory = _httpClientFactory;
-        var activeClient = factory?.Invoke(requestDraft.FollowRedirects, requestDraft.IgnoreCertificateValidation)
+        var activeClient = factory?.Invoke(requestDraft.FollowRedirects, requestDraft.IgnoreCertificateValidation, requestDraft.TlsVersionOverride)
             ?? _httpClient;
 
         var totalStopwatch = Stopwatch.StartNew();

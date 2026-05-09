@@ -283,6 +283,46 @@ public class HttpRequestServiceTests
     }
 
     [Fact]
+    public async Task SendAsync_ShouldIgnoreUnderlyingHttpClientTimeout_WhenUsingCertOverrideFactory()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        using var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(300), cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("completed") };
+        });
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => throw new InvalidOperationException("Fallback client should not be used"))), repository);
+        service.SetHttpClientFactory((_, _) => new global::System.Net.Http.HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromMilliseconds(100)
+        });
+
+        var response = await service.SendAsync(new HttpRequestDraft("NoClientTimeout", "GET", "http://localhost:5000/slow", null), TestContext.Current.CancellationToken);
+
+        response.Body.Should().Be("completed");
+    }
+
+    [Fact]
+    public async Task SendAsync_ShouldIgnoreUnderlyingHttpClientTimeout_WhenUsingTlsOverrideFactory()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        using var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(300), cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("completed") };
+        });
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => throw new InvalidOperationException("Fallback client should not be used"))), repository);
+        service.SetHttpClientFactory((_, _, _) => new global::System.Net.Http.HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromMilliseconds(100)
+        });
+
+        var response = await service.SendAsync(new HttpRequestDraft("NoClientTimeout", "GET", "http://localhost:5000/slow", null), TestContext.Current.CancellationToken);
+
+        response.Body.Should().Be("completed");
+    }
+
+    [Fact]
     public void SetDefaultRequestTimeout_ShouldThrow_WhenTimeoutIsZero()
     {
         using var client = new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
@@ -473,6 +513,16 @@ public class HttpRequestServiceTests
         var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
 
         var action = () => service.SetHttpClientFactory((Func<bool?, global::System.Net.Http.HttpClient>)null!);
+
+        action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void SetHttpClientFactoryWithTlsOverride_ShouldThrowOnNull()
+    {
+        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
+
+        var action = () => service.SetHttpClientFactory((Func<bool?, bool?, string?, global::System.Net.Http.HttpClient>)null!);
 
         action.Should().Throw<ArgumentNullException>();
     }
