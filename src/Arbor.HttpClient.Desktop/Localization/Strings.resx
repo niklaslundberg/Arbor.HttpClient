@@ -190,6 +190,12 @@
   <data name="RequestValidateUrlBeforeSend" xml:space="preserve">
     <value>Validate URL before send</value>
   </data>
+  <data name="RequestPrettyPrintBody" xml:space="preserve">
+    <value>Pretty-print request body for preview and send</value>
+  </data>
+  <data name="RequestPrettyPrintBodyUseIndentation" xml:space="preserve">
+    <value>Use indentation when pretty-printing request body</value>
+  </data>
   <data name="RequestIgnoreCertificateValidation" xml:space="preserve">
     <value>⚠ Ignore certificate validation</value>
   </data>
@@ -299,6 +305,9 @@
   </data>
   <data name="RequestBodyOpenInEditor" xml:space="preserve">
     <value>Open in editor</value>
+  </data>
+  <data name="RequestBodyPrettyPrintSource" xml:space="preserve">
+    <value>Pretty-print source</value>
   </data>
 
   <!-- GraphQL tab -->
