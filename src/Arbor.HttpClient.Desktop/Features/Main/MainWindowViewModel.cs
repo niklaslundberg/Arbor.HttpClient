@@ -480,8 +480,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         if (Application.Current is { } currentApp)
         {
-            // Avalonia FontFamily does not support CSS-style comma-separated font stacks.
-            // Split on commas and use only the first entry; fall back to the system default if empty.
+            // Split on ',' with count=2 to avoid allocating a large array for long CSS font
+            // stacks (e.g. "Cascadia Code,Consolas,Menlo,monospace") — only [0] is used.
             var firstFamily = value.Split(',', 2, StringSplitOptions.TrimEntries)[0];
             var fontFamily = string.IsNullOrEmpty(firstFamily)
                 ? FontFamily.Default
@@ -720,9 +720,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (newValue is not null)
         {
             _requestEditor = newValue.RequestEditor;
+            // Suppress refreshes while Avalonia's TwoWay bindings re-subscribe to the new
+            // editor and fire current ComboBox/TextBox values back as if they changed.
+            // Avalonia processes PropertyChanged notifications synchronously within the
+            // current dispatcher frame, so a Post at default priority is guaranteed to run
+            // after all binding subscriptions have settled for the current frame.
+            _requestEditor.BeginBulkUpdate();
             _requestEditor.PropertyChanged += OnRequestEditorPropertyChanged;
             OnPropertyChanged(nameof(RequestEditor));
             OnPropertyChanged(nameof(PrimaryActionLabel));
+            Dispatcher.UIThread.Post(() => _requestEditor.EndBulkUpdate());
         }
     }
 
@@ -1387,6 +1394,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         NewRequestTab();
 
+        // Suppress intermediate refreshes while populating the new editor; a single
+        // refresh fires when the handle is disposed at the end of this block.
+        using (_requestEditor.BeginBulkUpdate())
+        {
         // Detect special protocol methods used in demo collections.
         _requestEditor.SelectedRequestType = item.Method switch
         {
@@ -1477,6 +1488,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             && (IsDemoServerUrl(resolvedUrl, server.Port) || IsDemoServerUrl(resolvedUrl, server.HttpsPort));
 
         ActiveRequestTab?.SetCollectionRequestSource(collectionId, item.Method, item.Path, item.Name);
+        } // end BulkUpdateHandle — fires exactly one RefreshRequestDerivedViews
     }
 
     /// <summary>Starts the embedded demo server on <see cref="DemoServerPort"/> and/or <see cref="DemoServerHttpsPort"/>.</summary>

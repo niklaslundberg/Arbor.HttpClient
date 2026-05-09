@@ -37,6 +37,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     private readonly Action? _onOptionsAffectingPropertyChanged;
     private bool _isUpdatingRequestUrlFromQueryParameters;
     private bool _isUpdatingQueryParametersFromRequestUrl;
+    private bool _suppressRefresh;
     // RequestEditorViewModel state is mutated on the UI thread; this cache is intentionally unsynchronized.
     private string _cachedFormattedBody = string.Empty;
     private string _cachedFormattingResolvedBody = string.Empty;
@@ -467,10 +468,56 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     // ── Public methods ────────────────────────────────────────────────────────
 
     /// <summary>
+    /// Suppresses all preview/derived-view refreshes until <see cref="EndBulkUpdate"/>
+    /// is called or the returned handle is disposed. Exactly one refresh fires at the end
+    /// of the suppression window to bring derived state up to date.
+    /// Use this when setting multiple properties in bulk (e.g. loading a collection request
+    /// or switching the active tab) to avoid an O(n) chain of expensive formatting calls.
+    /// <para>
+    /// <strong>Threading:</strong> Must be called on the UI thread. All properties of
+    /// <see cref="RequestEditorViewModel"/> are mutated on the UI thread only.
+    /// </para>
+    /// </summary>
+    public BulkUpdateHandle BeginBulkUpdate()
+    {
+        _suppressRefresh = true;
+        return new BulkUpdateHandle(this);
+    }
+
+    /// <summary>
+    /// Ends the suppression window started by <see cref="BeginBulkUpdate"/> and fires one
+    /// deferred refresh. Safe to call if suppression was already lifted.
+    /// Must be called on the UI thread.
+    /// </summary>
+    public void EndBulkUpdate()
+    {
+        _suppressRefresh = false;
+        RefreshRequestDerivedViews();
+    }
+
+    /// <summary>
+    /// Opaque handle returned by <see cref="BeginBulkUpdate"/>. Dispose to call
+    /// <see cref="EndBulkUpdate"/> automatically via a <c>using</c> statement.
+    /// The <paramref name="vm"/> argument is always <c>this</c> and is never null.
+    /// </summary>
+    public readonly struct BulkUpdateHandle : IDisposable
+    {
+        private readonly RequestEditorViewModel _vm;
+        internal BulkUpdateHandle(RequestEditorViewModel vm) => _vm = vm;
+
+        public void Dispose() => _vm.EndBulkUpdate();
+    }
+
+    /// <summary>
     /// Refreshes the request preview text. Called externally when the active environment changes.
     /// </summary>
     public void RefreshRequestPreview()
     {
+        if (_suppressRefresh)
+        {
+            return;
+        }
+
         var variables = GetResolvedVariables();
         var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
         var resolvedBody = GetResolvedRequestBodyForPreviewAndSend(variables);
@@ -565,6 +612,11 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     private void RefreshRequestDerivedViews()
     {
+        if (_suppressRefresh)
+        {
+            return;
+        }
+
         UpdateRequestHeadersPreview();
         RefreshRequestPreview();
     }

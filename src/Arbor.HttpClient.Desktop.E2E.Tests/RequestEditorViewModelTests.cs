@@ -664,4 +664,68 @@ public class RequestEditorViewModelTests
 
         resolved.Should().BeEmpty();
     }
+
+    // ── BulkUpdate suppression guard ────────────────────────────────────────
+
+    [Fact]
+    public void BeginBulkUpdate_SuppressesRefreshDuringScope_ThenFiresOneRefreshOnDispose()
+    {
+        var editor = CreateEditor();
+        editor.SelectedContentTypeOption = "application/json";
+        editor.RequestUrl = "http://localhost/test";
+
+        // Capture the preview before the bulk update.
+        var previewBeforeUpdate = editor.RequestPreview;
+
+        var previewChangedCount = 0;
+        editor.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(RequestEditorViewModel.RequestPreview))
+            {
+                previewChangedCount++;
+            }
+        };
+
+        // Set multiple properties inside the suppression window.
+        using (editor.BeginBulkUpdate())
+        {
+            editor.SelectedMethod = "POST";
+            editor.RequestBody = "{}";
+            editor.RequestUrl = "http://localhost/bulk";
+            // No refresh should have fired yet.
+            previewChangedCount.Should().Be(0);
+        }
+
+        // Exactly one refresh should have fired when the handle was disposed.
+        previewChangedCount.Should().Be(1);
+        editor.RequestPreview.Should().Contain("POST");
+        editor.RequestPreview.Should().Contain("/bulk");
+    }
+
+    [Fact]
+    public void EndBulkUpdate_AfterBeginBulkUpdate_FiresOneRefresh()
+    {
+        var editor = CreateEditor();
+        editor.RequestUrl = "http://localhost/before";
+
+        var previewChangedCount = 0;
+        editor.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(RequestEditorViewModel.RequestPreview))
+            {
+                previewChangedCount++;
+            }
+        };
+
+        editor.BeginBulkUpdate();
+        editor.SelectedMethod = "PUT";
+        editor.RequestUrl = "http://localhost/after";
+        previewChangedCount.Should().Be(0);
+
+        editor.EndBulkUpdate();
+
+        previewChangedCount.Should().Be(1);
+        editor.RequestPreview.Should().Contain("PUT");
+        editor.RequestPreview.Should().Contain("/after");
+    }
 }
