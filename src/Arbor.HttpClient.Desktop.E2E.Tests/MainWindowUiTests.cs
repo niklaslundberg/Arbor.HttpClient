@@ -1175,6 +1175,52 @@ public class MainWindowUiTests
     }
 
     [Fact]
+    public async Task RequestView_HttpRequest_ShouldShowRequestOptionsAsTabInsteadOfExpander()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var repository = new InMemoryRequestHistoryRepository();
+            using var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+            using var httpClient = new global::System.Net.Http.HttpClient(handler);
+            var httpRequestService = new HttpRequestService(httpClient, repository);
+            var inMemorySink = new InMemorySink();
+            using var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+            using var mainViewModel = new MainWindowViewModel(
+                httpRequestService,
+                repository,
+                new InMemoryCollectionRepository(),
+                new InMemoryEnvironmentRepository(),
+                new InMemoryScheduledJobRepository(),
+                scheduledJobService,
+                logWindowViewModel);
+            mainViewModel.RequestEditor.SelectedRequestType = RequestType.Http;
+
+            var requestView = new RequestView
+            {
+                DataContext = new RequestViewModel(mainViewModel)
+            };
+            var window = new Window { Width = 900, Height = 500, Content = requestView };
+            window.Show();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+
+            var tabControl = window.GetVisualDescendants()
+                .OfType<TabControl>()
+                .Single(control => control.Items.OfType<TabItem>().Any(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal)));
+
+            VerifyTabRealized(tabControl, "Request options");
+            window.GetVisualDescendants().OfType<Expander>().Should().BeEmpty();
+
+            window.Close();
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task RequestView_VariableTextBoxes_ShouldDisableAcceptsTab()
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));

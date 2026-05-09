@@ -688,7 +688,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ### Local Demo Server HTTP/HTTPS ✅ Implemented
 > Implemented in PR #157 (commit `dee60fd`) — `src/Arbor.HttpClient.Desktop/Demo/DemoServer.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/HttpOptions.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/OptionsView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Core/HttpRequest/HttpRequestDraft.cs`, `src/Arbor.HttpClient.Core/HttpRequest/HttpRequestService.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`
 
-**What it means:** The embedded demo server now supports both HTTP and HTTPS on separate configurable ports. Each protocol can be independently enabled via a checkbox in Options › HTTP › Demo Server. The HTTPS endpoint uses a runtime-generated self-signed certificate. A per-request "⚠ Ignore certificate validation" option is available in the request panel for connecting to the demo server's HTTPS endpoint (or any other server with a self-signed/untrusted certificate).
+**What it means:** The embedded demo server now supports both HTTP and HTTPS on separate configurable ports. Each protocol can be independently enabled via a checkbox in Options › HTTP › Demo Server. The HTTPS endpoint uses a runtime-generated self-signed certificate. A per-request "⚠ Ignore certificate validation" option is available in the **Request options** tab for connecting to the demo server's HTTPS endpoint (or any other server with a self-signed/untrusted certificate).
 
 **What shipped:**
 - `DemoServer`: `DefaultHttpsPort = 5998` constant; `HttpsPort`, `IsHttpEnabled`, `IsHttpsEnabled` properties; `StartAsync` now accepts `httpPort`, `httpsPort`, `enableHttp`, `enableHttps` parameters; `CreateSelfSignedCertificate()` generates an in-memory RSA-2048 cert with SAN for `localhost`
@@ -700,7 +700,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 - `App.axaml.cs`: four HttpClient variants created (normal, inverse-redirect, ignore-cert, inverse-redirect+ignore-cert); factory wired up with the new two-param overload
 - `RequestEditorViewModel`: `IgnoreCertificateValidationForRequest` observable property; included in `BuildDraft()` (sets `IgnoreCertificateValidation = true` when checked, `null` otherwise)
 - `DraftState` / `DraftPersistenceService`: `IgnoreCertificateValidation` persisted and restored
-- `RequestView.axaml`: "⚠ Ignore certificate validation" checkbox added below "Follow redirects"; warning text appears when checked
+- `RequestView.axaml`: "⚠ Ignore certificate validation" checkbox added in the **Request options** tab below "Follow redirects"; warning text appears when checked
 - 7 new tests: 5 `DemoServerTests` (HTTPS start, both protocols, disabled, stop, echo over HTTPS), 2 `RequestEditorViewModelTests` (BuildDraft with ignore-cert on/off)
 
 ---
@@ -734,11 +734,11 @@ Each idea includes a description of what it means in practice, notes on how it c
 ### Request URL validation with override ✅ Implemented
 > Implemented in PR #160 (commit `6c1b517`) — `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`
 
-**What it means:** HTTP requests now perform fast URL validation after variable resolution before sending. This guard is enabled by default and stops send attempts early when the resolved URL is invalid. Users can opt out per request by disabling validation in the collapsed **Request options** panel.
+**What it means:** HTTP requests now perform fast URL validation after variable resolution before sending. This guard is enabled by default and stops send attempts early when the resolved URL is invalid. Users can opt out per request by disabling validation in the **Request options** tab.
 
 **What shipped:**
 - New `RequestEditorViewModel.ValidateUrlBeforeSend` option (default: `true`)
-- New **Validate URL before send** checkbox in `RequestView.axaml` advanced options (`Expander`)
+- New **Validate URL before send** checkbox in the `RequestView.axaml` **Request options** tab
 - `MainWindowViewModel.SendHttpRequestAsync` now blocks send early with a clear validation message when enabled and the resolved URL is invalid
 - Validation override support: when disabled, fast-feedback validation is skipped and the request flow continues
 - `DraftState` / `DraftPersistenceService` persist and restore the new override
@@ -749,10 +749,10 @@ Each idea includes a description of what it means in practice, notes on how it c
 ### Request body pretty print options ✅ Implemented
 > Implemented in PR #164 (commit `363e92b`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`
 
-**What it means:** For known request content types (JSON/XML), users can enable a per-request advanced option that pretty-prints the request body for preview and for the actual outgoing send payload without mutating the source body text. A sub-option controls whether pretty-printing uses indentation or compact formatting. A one-time body-tab action also formats the source body text directly.
+**What it means:** For known request content types (JSON/XML), users can enable per-request options in the **Request options** tab that pretty-print the request body for preview and for the actual outgoing send payload without mutating the source body text. A sub-option controls whether pretty-printing uses indentation or compact formatting. A one-time body-tab action also formats the source body text directly.
 
 **What shipped:**
-- New request options: **Pretty-print request body for preview and send** and **Use indentation when pretty-printing request body**
+- New **Request options** tab entries: **Pretty-print request body for preview and send** and **Use indentation when pretty-printing request body**
 - Pretty-print formatting now applies to the resolved body used in both `RequestPreview` and `BuildDraft()` send payload generation
 - Supported known media types: JSON (`application/json`, `+json`) and XML (`application/xml`, `text/xml`, `+xml`)
 - New body-tab action: **Pretty-print source** button, which reformats `RequestBody` once in-place
