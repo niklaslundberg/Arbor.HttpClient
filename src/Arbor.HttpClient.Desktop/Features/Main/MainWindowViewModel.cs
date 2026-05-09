@@ -410,8 +410,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedDefaultContentTypeOptionChanged(string value)
     {
-        OnPropertyChanged(nameof(IsCustomDefaultContentType));
-
         if (string.Equals(value, DefaultContentTypeCustomOption, StringComparison.Ordinal))
         {
             if (!string.IsNullOrWhiteSpace(CustomDefaultContentType))

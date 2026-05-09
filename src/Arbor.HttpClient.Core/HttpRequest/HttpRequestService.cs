@@ -42,7 +42,7 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
     {
         ArgumentNullException.ThrowIfNull(httpClientFactoryWithCertOverride);
         _httpClientFactory = (followRedirects, ignoreCertValidation, _) =>
-            httpClientFactoryWithCertOverride(followRedirects, ignoreCertValidation);
+            EnsureHttpClientTimeoutDisabled(httpClientFactoryWithCertOverride(followRedirects, ignoreCertValidation));
     }
 
     /// <summary>
@@ -52,7 +52,9 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
     /// </summary>
     public void SetHttpClientFactory(Func<bool?, bool?, string?, global::System.Net.Http.HttpClient> httpClientFactoryWithTlsOverride)
     {
-        _httpClientFactory = httpClientFactoryWithTlsOverride ?? throw new ArgumentNullException(nameof(httpClientFactoryWithTlsOverride));
+        ArgumentNullException.ThrowIfNull(httpClientFactoryWithTlsOverride);
+        _httpClientFactory = (followRedirects, ignoreCertValidation, tlsVersionOverride) =>
+            EnsureHttpClientTimeoutDisabled(httpClientFactoryWithTlsOverride(followRedirects, ignoreCertValidation, tlsVersionOverride));
     }
 
     public void SetHttpDiagnosticsEnabled(bool enabled) => _httpDiagnosticsEnabled = enabled;

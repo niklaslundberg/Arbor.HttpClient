@@ -176,7 +176,9 @@ public sealed class DraftPersistenceService(string draftsFolder)
         editor.PrettyPrintRequestBody = state.PrettyPrintRequestBody;
         editor.PrettyPrintRequestBodyUseIndentation = state.PrettyPrintRequestBodyUseIndentation;
         editor.IgnoreCertificateValidationForRequest = state.IgnoreCertificateValidation;
-        editor.SelectedTlsVersionOverrideOption = state.TlsVersionOverrideOption;
+        editor.SelectedTlsVersionOverrideOption = editor.TlsVersionOverrideOptions.Contains(state.TlsVersionOverrideOption)
+            ? state.TlsVersionOverrideOption
+            : RequestEditorViewModel.DefaultTlsVersionOverrideOption;
         editor.RequestTimeoutSecondsText = state.RequestTimeoutSecondsText;
         editor.SelectedHttpVersionOption = state.HttpVersion;
         editor.SelectedContentTypeOption = state.ContentTypeOption;

@@ -230,6 +230,17 @@ public class DraftPersistenceServiceTests
         editor.SelectedRequestType.Should().Be(RequestType.Http);
     }
 
+    [Fact]
+    public void RestoreToEditor_UsesDefaultTlsOverride_WhenSavedValueIsUnknown()
+    {
+        var editor = CreateEditor();
+        var draft = new DraftState { TlsVersionOverrideOption = "Tls99" };
+
+        DraftPersistenceService.RestoreToEditor(draft, editor);
+
+        editor.SelectedTlsVersionOverrideOption.Should().Be(RequestEditorViewModel.DefaultTlsVersionOverrideOption);
+    }
+
     // ── SaveDraftAsync creates folder if missing ──────────────────────────────
 
     [Fact]
