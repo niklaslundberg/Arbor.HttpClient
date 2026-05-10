@@ -109,7 +109,7 @@ public class ResponseViewDeadlockTests
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
         await session.Dispatch(async () =>
         {

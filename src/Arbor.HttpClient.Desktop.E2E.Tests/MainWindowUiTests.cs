@@ -841,7 +841,6 @@ public class MainWindowUiTests
             });
             using var httpClient = new global::System.Net.Http.HttpClient(handler);
             var httpRequestService = new HttpRequestService(httpClient, repository);
-            httpRequestService.SetDefaultRequestTimeout(TimeSpan.FromMilliseconds(50));
             var inMemorySink = new InMemorySink();
             var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
             var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
@@ -855,6 +854,9 @@ public class MainWindowUiTests
                 new InMemoryScheduledJobRepository(),
                 scheduledJobService,
                 logWindowViewModel);
+
+            // Set timeout AFTER constructor — the constructor resets it to DefaultRequestTimeoutSeconds (100s).
+            httpRequestService.SetDefaultRequestTimeout(TimeSpan.FromMilliseconds(50));
 
             viewModel.RequestEditor.RequestName = "Timeout test";
             viewModel.RequestEditor.RequestUrl = "http://localhost:5000/slow";

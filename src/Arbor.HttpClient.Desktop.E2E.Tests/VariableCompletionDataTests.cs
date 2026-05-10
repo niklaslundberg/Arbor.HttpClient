@@ -35,7 +35,7 @@ public class VariableCompletionDataTests
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(() =>
+        await HeadlessTestTimeout.DispatchAsync(session, () =>
         {
             var editor = new TextEditor();
             var window = new Window { Width = 400, Height = 100, Content = editor };
@@ -64,7 +64,7 @@ public class VariableCompletionDataTests
 
             window.Close();
             return true;
-        }, CancellationToken.None);
+        });
     }
 
     private sealed class TestEntryPoint

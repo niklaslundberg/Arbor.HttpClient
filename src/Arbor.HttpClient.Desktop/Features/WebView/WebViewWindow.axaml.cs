@@ -19,6 +19,8 @@ public partial class WebViewWindow : Window
     private NativeWebView? _webView;
     private Button? _backButton;
     private Button? _forwardButton;
+    private Button? _refreshButton;
+    private Button? _goButton;
     private TextBox? _urlBox;
     private ScheduledJobViewModel? _subscribedVm;
 
@@ -35,28 +37,27 @@ public partial class WebViewWindow : Window
         _backButton = this.FindControl<Button>("BackButton");
         _forwardButton = this.FindControl<Button>("ForwardButton");
         _urlBox = this.FindControl<TextBox>("UrlBox");
-
-        var refreshButton = this.FindControl<Button>("RefreshButton");
-        var goButton = this.FindControl<Button>("GoButton");
+        _refreshButton = this.FindControl<Button>("RefreshButton");
+        _goButton = this.FindControl<Button>("GoButton");
 
         if (_backButton is { } back)
         {
-            back.Click += (_, _) => _webView?.GoBack();
+            back.Click += OnBackButtonClick;
         }
 
         if (_forwardButton is { } forward)
         {
-            forward.Click += (_, _) => _webView?.GoForward();
+            forward.Click += OnForwardButtonClick;
         }
 
-        if (refreshButton is { } refresh)
+        if (_refreshButton is { } refresh)
         {
-            refresh.Click += (_, _) => _webView?.Refresh();
+            refresh.Click += OnRefreshButtonClick;
         }
 
-        if (goButton is { } go)
+        if (_goButton is { } go)
         {
-            go.Click += (_, _) => TryNavigateFromUrlBox();
+            go.Click += OnGoButtonClick;
         }
 
         if (_urlBox is { } box)
@@ -69,6 +70,48 @@ public partial class WebViewWindow : Window
             wv.NavigationStarted += OnNavigationStarted;
             wv.NavigationCompleted += OnNavigationCompleted;
         }
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        if (_subscribedVm is { } vm)
+        {
+            vm.PropertyChanged -= OnVmPropertyChanged;
+            _subscribedVm = null;
+        }
+
+        if (_backButton is { } back)
+        {
+            back.Click -= OnBackButtonClick;
+        }
+
+        if (_forwardButton is { } forward)
+        {
+            forward.Click -= OnForwardButtonClick;
+        }
+
+        if (_refreshButton is { } refresh)
+        {
+            refresh.Click -= OnRefreshButtonClick;
+        }
+
+        if (_goButton is { } go)
+        {
+            go.Click -= OnGoButtonClick;
+        }
+
+        if (_urlBox is { } box)
+        {
+            box.KeyDown -= OnUrlBoxKeyDown;
+        }
+
+        if (_webView is { } wv)
+        {
+            wv.NavigationStarted -= OnNavigationStarted;
+            wv.NavigationCompleted -= OnNavigationCompleted;
+        }
+
+        base.OnClosed(e);
     }
 
     /// <summary>
@@ -96,18 +139,15 @@ public partial class WebViewWindow : Window
     {
         _subscribedVm = vm;
         vm.PropertyChanged += OnVmPropertyChanged;
-        Closed += OnWindowClosed;
     }
 
-    private void OnWindowClosed(object? sender, EventArgs e)
-    {
-        if (_subscribedVm is { } vm)
-        {
-            vm.PropertyChanged -= OnVmPropertyChanged;
-        }
+    private void OnBackButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => _webView?.GoBack();
 
-        Closed -= OnWindowClosed;
-    }
+    private void OnForwardButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => _webView?.GoForward();
+
+    private void OnRefreshButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => _webView?.Refresh();
+
+    private void OnGoButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => TryNavigateFromUrlBox();
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {

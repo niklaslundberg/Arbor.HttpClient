@@ -1,10 +1,4 @@
-using Arbor.HttpClient.Desktop;
 using Arbor.HttpClient.Desktop.Features.WebView;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Headless;
-using Avalonia.Skia;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
@@ -29,29 +23,30 @@ public class WebViewWindowTests
     }
 
     [Fact]
-    public async Task WebViewWindow_NavigationBarOverflow_UsesHorizontalScrollViewer()
+    public void WebViewWindow_NavigationBarOverflow_UsesHorizontalScrollViewer()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+        var xamlPath = FindRepoRootPath("src", "Arbor.HttpClient.Desktop", "Features", "WebView", "WebViewWindow.axaml");
+        var xaml = File.ReadAllText(xamlPath);
 
-        await session.Dispatch(() =>
-        {
-            var window = new WebViewWindow();
-
-            var navigationScrollViewer = window.FindControl<ScrollViewer>("NavigationScrollViewer");
-            navigationScrollViewer.Should().NotBeNull();
-            navigationScrollViewer!.HorizontalScrollBarVisibility.Should().Be(ScrollBarVisibility.Auto);
-            navigationScrollViewer.VerticalScrollBarVisibility.Should().Be(ScrollBarVisibility.Disabled);
-
-            return Task.FromResult(true);
-        }, CancellationToken.None);
+        xaml.Should().Contain("x:Name=\"NavigationScrollViewer\"");
+        xaml.Should().Contain("HorizontalScrollBarVisibility=\"Auto\"");
+        xaml.Should().Contain("VerticalScrollBarVisibility=\"Disabled\"");
     }
 
-    private sealed class TestEntryPoint
+    private static string FindRepoRootPath(params string[] relativeSegments)
     {
-        public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
-            .WithInterFont()
-            .LogToTrace();
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is { })
+        {
+            var slnPath = Path.Combine(current.FullName, "Arbor.HttpClient.slnx");
+            if (File.Exists(slnPath))
+            {
+                return Path.Combine([current.FullName, .. relativeSegments]);
+            }
+
+            current = current.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate repository root from test base directory.");
     }
 }

@@ -27,7 +27,7 @@ public class VariableTextBoxTests
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(() =>
+        await HeadlessTestTimeout.DispatchAsync(session, () =>
         {
             var (box, scope) = CreateBoxInScope();
             using (scope)
@@ -36,7 +36,7 @@ public class VariableTextBoxTests
                 box.Text.Should().Be("helloworld");
             }
             return true;
-        }, CancellationToken.None);
+        });
     }
 
     /// <summary>
@@ -47,7 +47,7 @@ public class VariableTextBoxTests
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(() =>
+        await HeadlessTestTimeout.DispatchAsync(session, () =>
         {
             var (box, scope) = CreateBoxInScope();
             using (scope)
@@ -56,7 +56,7 @@ public class VariableTextBoxTests
                 box.Text.Should().Be("helloworld");
             }
             return true;
-        }, CancellationToken.None);
+        });
     }
 
     /// <summary>
@@ -67,7 +67,7 @@ public class VariableTextBoxTests
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(() =>
+        await HeadlessTestTimeout.DispatchAsync(session, () =>
         {
             var (box, scope) = CreateBoxInScope();
             using (scope)
@@ -76,7 +76,7 @@ public class VariableTextBoxTests
                 box.Text.Should().Be("https://example.com/api");
             }
             return true;
-        }, CancellationToken.None);
+        });
     }
 
     /// <summary>
@@ -87,7 +87,7 @@ public class VariableTextBoxTests
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(() =>
+        await HeadlessTestTimeout.DispatchAsync(session, () =>
         {
             var (box, scope) = CreateBoxInScope();
             using (scope)
@@ -96,7 +96,7 @@ public class VariableTextBoxTests
                 box.Text.Should().BeEmpty();
             }
             return true;
-        }, CancellationToken.None);
+        });
     }
 
     /// <summary>
@@ -109,7 +109,7 @@ public class VariableTextBoxTests
     {
         using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(() =>
+        await HeadlessTestTimeout.DispatchAsync(session, () =>
         {
             var (box, scope) = CreateBoxInScope();
             using (scope)
@@ -123,7 +123,7 @@ public class VariableTextBoxTests
                 box.Text.Should().Be("helloworld", "the bound Text property must reflect the stripped value");
             }
             return true;
-        }, CancellationToken.None);
+        });
     }
 
     private static (VariableTextBox box, Window window) CreateBoxInWindow()
