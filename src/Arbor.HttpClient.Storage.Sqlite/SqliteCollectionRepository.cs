@@ -21,6 +21,7 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
                 name TEXT NOT NULL,
                 source_path TEXT NULL,
                 base_url TEXT NULL,
+                headers TEXT NULL,
                 created_at_utc TEXT NOT NULL
             );
 
@@ -42,9 +43,16 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         await RunMigrationAsync(connection, "ALTER TABLE collection_requests ADD COLUMN body TEXT NULL;", cancellationToken).ConfigureAwait(false);
         await RunMigrationAsync(connection, "ALTER TABLE collection_requests ADD COLUMN content_type TEXT NULL;", cancellationToken).ConfigureAwait(false);
         await RunMigrationAsync(connection, "ALTER TABLE collection_requests ADD COLUMN headers TEXT NULL;", cancellationToken).ConfigureAwait(false);
+        await RunMigrationAsync(connection, "ALTER TABLE collections ADD COLUMN headers TEXT NULL;", cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<int> SaveAsync(string name, string? sourcePath, string? baseUrl, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken = default)
+    public async Task<int> SaveAsync(
+        string name,
+        string? sourcePath,
+        string? baseUrl,
+        IReadOnlyList<CollectionRequest> requests,
+        CancellationToken cancellationToken = default,
+        IReadOnlyList<RequestHeader>? headers = null)
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -56,13 +64,14 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         insertCollection.Transaction = (SqliteTransaction)transaction;
         insertCollection.CommandText =
             """
-            INSERT INTO collections (name, source_path, base_url, created_at_utc)
-            VALUES ($name, $sourcePath, $baseUrl, $createdAtUtc);
+            INSERT INTO collections (name, source_path, base_url, headers, created_at_utc)
+            VALUES ($name, $sourcePath, $baseUrl, $headers, $createdAtUtc);
             SELECT last_insert_rowid();
             """;
         insertCollection.Parameters.AddWithValue("$name", name);
         insertCollection.Parameters.AddWithValue("$sourcePath", sourcePath ?? (object)DBNull.Value);
         insertCollection.Parameters.AddWithValue("$baseUrl", baseUrl ?? (object)DBNull.Value);
+        insertCollection.Parameters.AddWithValue("$headers", headers is { Count: > 0 } ? JsonSerializer.Serialize(headers) : (object)DBNull.Value);
         insertCollection.Parameters.AddWithValue("$createdAtUtc", DateTimeOffset.UtcNow.UtcDateTime);
 
         var collectionId = (long)(await insertCollection.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
@@ -82,7 +91,7 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         await using var cmd = connection.CreateCommand();
         cmd.CommandText =
             """
-            SELECT c.id, c.name, c.source_path, c.base_url,
+            SELECT c.id, c.name, c.source_path, c.base_url, c.headers,
                    r.name, r.method, r.path, r.description, r.notes,
                    r.tag, r.body, r.content_type, r.headers
             FROM collections c
@@ -90,7 +99,7 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
             ORDER BY c.id, r.id;
             """;
 
-        var collections = new Dictionary<int, (string Name, string? SourcePath, string? BaseUrl, List<CollectionRequest> Requests)>();
+        var collections = new Dictionary<int, (string Name, string? SourcePath, string? BaseUrl, IReadOnlyList<RequestHeader>? Headers, List<CollectionRequest> Requests)>();
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -98,45 +107,45 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
             var id = reader.GetInt32(0);
             if (!collections.TryGetValue(id, out var entry))
             {
-                entry = (reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetString(3), []);
+                entry = (
+                    reader.GetString(1),
+                    reader.IsDBNull(2) ? null : reader.GetString(2),
+                    reader.IsDBNull(3) ? null : reader.GetString(3),
+                    DeserializeHeaders(reader.IsDBNull(4) ? null : reader.GetString(4)),
+                    []);
                 collections[id] = entry;
             }
 
-            if (!reader.IsDBNull(4))
+            if (!reader.IsDBNull(5))
             {
-                var headersJson = reader.IsDBNull(12) ? null : reader.GetString(12);
-                IReadOnlyList<RequestHeader>? headers = null;
-                if (!string.IsNullOrEmpty(headersJson))
-                {
-                    try
-                    {
-                        headers = JsonSerializer.Deserialize<List<RequestHeader>>(headersJson);
-                    }
-                    catch (JsonException)
-                    {
-                        headers = null;
-                    }
-                }
+                var headers = DeserializeHeaders(reader.IsDBNull(13) ? null : reader.GetString(13));
 
                 entry.Requests.Add(new CollectionRequest(
-                    reader.GetString(4),
                     reader.GetString(5),
                     reader.GetString(6),
-                    reader.IsDBNull(7) ? null : reader.GetString(7),
+                    reader.GetString(7),
                     reader.IsDBNull(8) ? null : reader.GetString(8),
-                    Tag: reader.IsDBNull(9) ? null : reader.GetString(9),
-                    Body: reader.IsDBNull(10) ? null : reader.GetString(10),
-                    ContentType: reader.IsDBNull(11) ? null : reader.GetString(11),
+                    reader.IsDBNull(9) ? null : reader.GetString(9),
+                    Tag: reader.IsDBNull(10) ? null : reader.GetString(10),
+                    Body: reader.IsDBNull(11) ? null : reader.GetString(11),
+                    ContentType: reader.IsDBNull(12) ? null : reader.GetString(12),
                     Headers: headers));
             }
         }
 
         return collections
-            .Select(kvp => new Collection(kvp.Key, kvp.Value.Name, kvp.Value.SourcePath, kvp.Value.BaseUrl, kvp.Value.Requests))
+            .Select(kvp => new Collection(kvp.Key, kvp.Value.Name, kvp.Value.SourcePath, kvp.Value.BaseUrl, kvp.Value.Requests, kvp.Value.Headers))
             .ToList();
     }
 
-    public async Task UpdateAsync(int collectionId, string name, string? sourcePath, string? baseUrl, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken = default)
+    public async Task UpdateAsync(
+        int collectionId,
+        string name,
+        string? sourcePath,
+        string? baseUrl,
+        IReadOnlyList<CollectionRequest> requests,
+        CancellationToken cancellationToken = default,
+        IReadOnlyList<RequestHeader>? headers = null)
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -149,13 +158,14 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         updateCollection.CommandText =
             """
             UPDATE collections
-            SET name = $name, source_path = $sourcePath, base_url = $baseUrl
+            SET name = $name, source_path = $sourcePath, base_url = $baseUrl, headers = $headers
             WHERE id = $id;
             """;
         updateCollection.Parameters.AddWithValue("$id", collectionId);
         updateCollection.Parameters.AddWithValue("$name", name);
         updateCollection.Parameters.AddWithValue("$sourcePath", sourcePath ?? (object)DBNull.Value);
         updateCollection.Parameters.AddWithValue("$baseUrl", baseUrl ?? (object)DBNull.Value);
+        updateCollection.Parameters.AddWithValue("$headers", headers is { Count: > 0 } ? JsonSerializer.Serialize(headers) : (object)DBNull.Value);
         await updateCollection.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
         await using var deleteRequests = connection.CreateCommand();
@@ -206,6 +216,23 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         exception.SqliteErrorCode == 1 &&
         exception.Message.Contains("duplicate column name", StringComparison.OrdinalIgnoreCase);
 
+    private static IReadOnlyList<RequestHeader>? DeserializeHeaders(string? headersJson)
+    {
+        if (string.IsNullOrEmpty(headersJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<RequestHeader>>(headersJson);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     private static async Task InsertRequestsAsync(SqliteConnection connection, SqliteTransaction transaction, int collectionId, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken)
     {
         if (requests.Count == 0)
@@ -251,4 +278,3 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         }
     }
 }
-

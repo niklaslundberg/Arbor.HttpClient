@@ -1,3 +1,5 @@
+using Arbor.HttpClient.Core.HttpRequest;
+
 namespace Arbor.HttpClient.Core.Collections;
 
 public sealed record Collection(
@@ -5,4 +7,5 @@ public sealed record Collection(
     string Name,
     string? SourcePath,
     string? BaseUrl,
-    IReadOnlyList<CollectionRequest> Requests);
+    IReadOnlyList<CollectionRequest> Requests,
+    IReadOnlyList<RequestHeader>? Headers = null);

@@ -461,8 +461,9 @@ public class OpenApiImportServiceTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithGlobalSecurity));
         var collection = _service.Import(stream);
         var getData = collection.Requests.Single(r => r.Name == "getData");
-        getData.Headers.Should().ContainSingle(h =>
+        collection.Headers.Should().ContainSingle(h =>
             h.Name == "Authorization" && h.Value == "Bearer {{bearerToken}}");
+        getData.Headers.Should().BeNull();
     }
 
     // ── Collection name fallbacks ─────────────────────────────────────────────

@@ -1442,9 +1442,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _requestEditor.RequestName = item.Name;
             _requestEditor.RequestNotes = item.Notes ?? string.Empty;
 
-            // Populate headers from the collection request (header parameters + auth from import)
+            // Populate headers from collection defaults, then apply request-level overrides.
             _requestEditor.RequestHeaders.Clear();
-            if (item.Headers is { } importedHeaders)
+            var importedHeaders = MergeCollectionAndRequestHeaders(SelectedCollection?.Headers, item.Headers);
+            if (importedHeaders is { })
             {
                 foreach (var h in importedHeaders)
                 {
@@ -1492,6 +1493,37 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             ActiveRequestTab?.SetCollectionRequestSource(collectionId, item.Method, item.Path, item.Name);
         } // end BulkUpdateHandle — fires exactly one RefreshRequestDerivedViews
+    }
+
+    private static IReadOnlyList<RequestHeader>? MergeCollectionAndRequestHeaders(
+        IReadOnlyList<RequestHeader>? collectionHeaders,
+        IReadOnlyList<RequestHeader>? requestHeaders)
+    {
+        var merged = new List<RequestHeader>();
+        if (collectionHeaders is { })
+        {
+            merged.AddRange(collectionHeaders);
+        }
+
+        if (requestHeaders is { })
+        {
+            foreach (var requestHeader in requestHeaders)
+            {
+                var index = merged.FindIndex(existing =>
+                    string.Equals(existing.Name, requestHeader.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (index >= 0)
+                {
+                    merged[index] = requestHeader;
+                }
+                else
+                {
+                    merged.Add(requestHeader);
+                }
+            }
+        }
+
+        return merged.Count > 0 ? merged : null;
     }
 
     /// <summary>Starts the embedded demo server on <see cref="DemoServerPort"/> and/or <see cref="DemoServerHttpsPort"/>.</summary>
@@ -1626,7 +1658,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         ErrorMessage = string.Empty;
-        await _collectionRepository.UpdateAsync(collection.Id, newName, collection.SourcePath, collection.BaseUrl, collection.Requests, cancellationToken);
+        await _collectionRepository.UpdateAsync(collection.Id, newName, collection.SourcePath, collection.BaseUrl, collection.Requests, cancellationToken, collection.Headers);
         IsRenameCollectionFormVisible = false;
         RenameCollectionName = string.Empty;
         _debugLogger.Information("Renamed collection {OldName} to {NewName}", collection.Name, newName);
@@ -1682,7 +1714,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             collection.Name,
             collection.SourcePath,
             collection.BaseUrl,
-            updatedRequests);
+            updatedRequests,
+            headers: collection.Headers);
 
         await LoadCollectionsAsync();
         SelectedCollection = Collections.FirstOrDefault(c => c.Id == collection.Id);
@@ -1785,7 +1818,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 collection.Name,
                 collection.SourcePath,
                 collection.BaseUrl,
-                collection.Requests);
+                collection.Requests,
+                headers: collection.Headers);
 
             await LoadCollectionsAsync();
             SelectedCollection = Collections.FirstOrDefault(c => c.Id == id);

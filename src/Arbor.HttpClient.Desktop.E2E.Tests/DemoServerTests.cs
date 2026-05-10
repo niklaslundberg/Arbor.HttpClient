@@ -329,6 +329,121 @@ public class DemoServerTests
         }, CancellationToken.None);
     }
 
+    [Fact]
+    public async Task LoadCollectionRequest_WithCollectionDefaultHeaders_InheritsAndResolvesVariables()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var collectionRepo = new InMemoryCollectionRepository();
+            var environmentRepo = new InMemoryEnvironmentRepository();
+
+            await environmentRepo.SaveAsync(
+                "Header Env",
+                [new EnvironmentVariable("collectionToken", "token-from-env", IsEnabled: true)]);
+
+            await collectionRepo.SaveAsync(
+                "Header Defaults",
+                null,
+                $"http://localhost:{DemoServer.DefaultPort}",
+                [new CollectionRequest("Echo GET", "GET", "/echo", null)],
+                headers:
+                [
+                    new RequestHeader("Authorization", "Bearer {{collectionToken}}")
+                ]);
+
+            var viewModel = CreateViewModel(
+                collectionRepository: collectionRepo,
+                environmentRepository: environmentRepo);
+            using var _ = viewModel;
+
+            await viewModel.InitializeAsync();
+            viewModel.ActiveEnvironment = viewModel.Environments.First(e => e.Name == "Header Env");
+
+            var collection = viewModel.Collections.First(c => c.Name == "Header Defaults");
+            viewModel.SelectedCollection = collection;
+
+            var item = viewModel.FilteredCollectionItems.First();
+            viewModel.LoadCollectionRequestCore(item);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+
+            viewModel.RequestEditor.RequestHeaders.Should().ContainSingle(h =>
+                h.Name == "Authorization" && h.Value == "Bearer {{collectionToken}}");
+            viewModel.RequestEditor.GetResolvedHeaders().Should().ContainSingle(h =>
+                h.Name == "Authorization" && h.Value == "Bearer token-from-env");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task LoadCollectionRequest_WhenRequestHeadersOverrideCollectionHeaders_RequestValuesWinAndDisabledHeaderOptsOut()
+    {
+        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+
+        await session.Dispatch(async () =>
+        {
+            var collectionRepo = new InMemoryCollectionRepository();
+            var environmentRepo = new InMemoryEnvironmentRepository();
+
+            await environmentRepo.SaveAsync(
+                "Header Env",
+                [
+                    new EnvironmentVariable("collectionToken", "token-from-collection", IsEnabled: true),
+                    new EnvironmentVariable("requestToken", "token-from-request", IsEnabled: true),
+                    new EnvironmentVariable("tenant", "northwind", IsEnabled: true)
+                ]);
+
+            await collectionRepo.SaveAsync(
+                "Header Overrides",
+                null,
+                $"http://localhost:{DemoServer.DefaultPort}",
+                [
+                    new CollectionRequest(
+                        "Echo GET",
+                        "GET",
+                        "/echo",
+                        null,
+                        Headers:
+                        [
+                            new RequestHeader("Authorization", "Bearer {{requestToken}}"),
+                            new RequestHeader("X-Tenant", "{{tenant}}", IsEnabled: false)
+                        ])
+                ],
+                headers:
+                [
+                    new RequestHeader("Authorization", "Bearer {{collectionToken}}"),
+                    new RequestHeader("X-Tenant", "{{tenant}}")
+                ]);
+
+            var viewModel = CreateViewModel(
+                collectionRepository: collectionRepo,
+                environmentRepository: environmentRepo);
+            using var _ = viewModel;
+
+            await viewModel.InitializeAsync();
+            viewModel.ActiveEnvironment = viewModel.Environments.First(e => e.Name == "Header Env");
+
+            var collection = viewModel.Collections.First(c => c.Name == "Header Overrides");
+            viewModel.SelectedCollection = collection;
+
+            var item = viewModel.FilteredCollectionItems.First();
+            viewModel.LoadCollectionRequestCore(item);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+
+            viewModel.RequestEditor.RequestHeaders.Should().ContainSingle(h =>
+                h.Name == "X-Tenant" && h.IsEnabled == false);
+
+            var resolvedHeaders = viewModel.RequestEditor.GetResolvedHeaders();
+            resolvedHeaders.Should().ContainSingle(h =>
+                h.Name == "Authorization" && h.Value == "Bearer token-from-request");
+            resolvedHeaders.Should().NotContain(h => h.Name == "X-Tenant");
+
+            return true;
+        }, CancellationToken.None);
+    }
+
     // ── Demo server banner visibility ────────────────────────────────────────
 
     [Fact]

@@ -29,6 +29,7 @@ public sealed class OpenApiImportService
 
         var name = document.Info?.Title ?? Path.GetFileNameWithoutExtension(sourcePath) ?? "Imported Collection";
         var baseUrl = document.Servers?.Count > 0 ? document.Servers[0].Url : null;
+        var collectionHeaders = BuildSecurityHeaders(document, document.SecurityRequirements ?? []);
 
         var requests = new List<CollectionRequest>();
 
@@ -59,7 +60,6 @@ public sealed class OpenApiImportService
                     resolvedPath += "?" + queryString;
                 }
 
-                // Collect header parameters and security (auth) headers
                 var headers = BuildHeaders(document, operationValue, effectiveParams);
 
                 // Extract first example body and matching content type
@@ -80,7 +80,7 @@ public sealed class OpenApiImportService
             }
         }
 
-        return new Collection(0, name, sourcePath, baseUrl, requests);
+        return new Collection(0, name, sourcePath, baseUrl, requests, collectionHeaders.Count > 0 ? collectionHeaders : null);
     }
 
     /// <summary>
@@ -128,26 +128,30 @@ public sealed class OpenApiImportService
             headers.Add(new RequestHeader(param.Name, $"{{{{{param.Name}}}}}"));
         }
 
-        // Security / auth headers derived from the effective security requirements.
-        // When the operation defines no security entries (null or empty list), fall back
-        // to the document-level security requirements. The Microsoft.OpenApi library
-        // returns an empty (non-null) list for both "not declared" and "security: []",
-        // so we treat count == 0 as "use document defaults" — this matches the common
-        // case of inheriting global auth from the document root.
-        IEnumerable<OpenApiSecurityRequirement> effectiveSecurityRequirements =
-            operation.Security is null or { Count: 0 }
-                ? document.SecurityRequirements ?? []
-                : operation.Security;
+        foreach (var securityHeader in BuildSecurityHeaders(document, operation.Security ?? []))
+        {
+            if (!headers.Any(h => string.Equals(h.Name, securityHeader.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                headers.Add(securityHeader);
+            }
+        }
 
-        foreach (var requirement in effectiveSecurityRequirements)
+        return headers;
+    }
+
+    private static List<RequestHeader> BuildSecurityHeaders(
+        OpenApiDocument document,
+        IEnumerable<OpenApiSecurityRequirement> requirements)
+    {
+        var headers = new List<RequestHeader>();
+        foreach (var requirement in requirements)
         {
             foreach (var scheme in requirement.Keys)
             {
-                // The key may be a reference object; resolve via document components
                 var schemeId = scheme.Reference?.Id ?? scheme.Name;
                 var resolved = !string.IsNullOrEmpty(schemeId) &&
-                               document.Components?.SecuritySchemes?.TryGetValue(schemeId, out var s) == true
-                    ? s
+                               document.Components?.SecuritySchemes?.TryGetValue(schemeId, out var securityScheme) == true
+                    ? securityScheme
                     : scheme;
 
                 if (resolved.Type == SecuritySchemeType.Http)
@@ -163,7 +167,8 @@ public sealed class OpenApiImportService
                         headers.Add(new RequestHeader("Authorization", "Basic {{credentials}}"));
                     }
                 }
-                else if (resolved.Type == SecuritySchemeType.ApiKey && resolved.In == ParameterLocation.Header
+                else if (resolved.Type == SecuritySchemeType.ApiKey
+                         && resolved.In == ParameterLocation.Header
                          && !string.IsNullOrEmpty(resolved.Name)
                          && !headers.Any(h => string.Equals(h.Name, resolved.Name, StringComparison.OrdinalIgnoreCase)))
                 {

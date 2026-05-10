@@ -555,6 +555,11 @@ public class SqliteRepositoriesTests
                 new("Authorization", "Bearer {{bearerToken}}"),
                 new("X-Request-ID", "{{X-Request-ID}}", IsEnabled: false)
             };
+            var collectionHeaders = new List<RequestHeader>
+            {
+                new("Authorization", "Bearer {{collectionToken}}"),
+                new("X-Tenant", "{{tenant}}")
+            };
 
             var requests = new List<CollectionRequest>
             {
@@ -567,13 +572,16 @@ public class SqliteRepositoriesTests
                 new("List Pets", "GET", "/pets", "Lists pets")
             };
 
-            var collectionId = await repository.SaveAsync("Pet API", null, "http://localhost:5000", requests, TestContext.Current.CancellationToken);
+            var collectionId = await repository.SaveAsync("Pet API", null, "http://localhost:5000", requests, TestContext.Current.CancellationToken, collectionHeaders);
 
             var collections = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
             collections.Should().ContainSingle();
             var loaded = collections[0];
             loaded.Id.Should().Be(collectionId);
+            loaded.Headers.Should().HaveCount(2);
+            loaded.Headers![0].Name.Should().Be("Authorization");
+            loaded.Headers![0].Value.Should().Be("Bearer {{collectionToken}}");
             loaded.Requests.Should().HaveCount(2);
 
             var createPet = loaded.Requests[0];
@@ -995,4 +1003,3 @@ public class SqliteRepositoriesTests
         }
     }
 }
-

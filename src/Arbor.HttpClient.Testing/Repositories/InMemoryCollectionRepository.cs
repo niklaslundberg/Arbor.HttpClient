@@ -1,4 +1,5 @@
 using Arbor.HttpClient.Core.Collections;
+using Arbor.HttpClient.Core.HttpRequest;
 
 namespace Arbor.HttpClient.Testing.Repositories;
 
@@ -18,12 +19,13 @@ public sealed class InMemoryCollectionRepository : ICollectionRepository
         string? sourcePath,
         string? baseUrl,
         IReadOnlyList<CollectionRequest> requests,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyList<RequestHeader>? headers = null)
     {
         lock (_lock)
         {
             var id = _nextId++;
-            _items.Add(new Collection(id, name, sourcePath, baseUrl, requests.ToList()));
+            _items.Add(new Collection(id, name, sourcePath, baseUrl, requests.ToList(), headers?.ToList()));
             return Task.FromResult(id);
         }
     }
@@ -34,14 +36,15 @@ public sealed class InMemoryCollectionRepository : ICollectionRepository
         string? sourcePath,
         string? baseUrl,
         IReadOnlyList<CollectionRequest> requests,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyList<RequestHeader>? headers = null)
     {
         lock (_lock)
         {
             var index = _items.FindIndex(c => c.Id == collectionId);
             if (index >= 0)
             {
-                _items[index] = new Collection(collectionId, name, sourcePath, baseUrl, requests.ToList());
+                _items[index] = new Collection(collectionId, name, sourcePath, baseUrl, requests.ToList(), headers?.ToList());
             }
         }
 
