@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text;
 using Arbor.HttpClient.Desktop;
@@ -78,16 +79,31 @@ public class MainWindowUiTests
         {
             var args = new FileSystemEventArgs(WatcherChangeTypes.Changed, tempDirectory, Path.GetFileName(tempFile));
 
-            var action = () => onChangedMethod!.Invoke(viewModel, [viewModel, args]);
+            var action = () => onChangedMethod!.Invoke(viewModel, [new object(), args]);
             action.Should().NotThrow();
 
-            await Task.Delay(300, TestContext.Current.CancellationToken);
+            await WaitForConditionAsync(
+                () => Equals(pendingField!.GetValue(viewModel), 0),
+                TimeSpan.FromSeconds(2),
+                TestContext.Current.CancellationToken);
+
             pendingField!.GetValue(viewModel).Should().Be(0);
         }
         finally
         {
             ctsField.SetValue(viewModel, null);
             Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    private static async Task WaitForConditionAsync(Func<bool> condition, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+
+        while (!condition())
+        {
+            stopwatch.Elapsed.Should().BeLessThan(timeout);
+            await Task.Delay(50, cancellationToken);
         }
     }
 
