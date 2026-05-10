@@ -2156,10 +2156,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         foreach (var file in _tempFiles)
         {
             try { File.Delete(file); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or PathTooLongException or NotSupportedException)
-            {
-                /* best-effort cleanup */
-            }
+            catch (UnauthorizedAccessException) { /* best-effort cleanup */ }
+            catch (SecurityException) { /* best-effort cleanup */ }
+            catch (PathTooLongException) { /* best-effort cleanup */ }
+            catch (NotSupportedException) { /* best-effort cleanup */ }
+            catch (IOException) { /* best-effort cleanup */ }
         }
     }
 
