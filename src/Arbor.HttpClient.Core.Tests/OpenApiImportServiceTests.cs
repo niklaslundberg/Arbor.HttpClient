@@ -497,6 +497,8 @@ public class OpenApiImportServiceTests
             h.Name == "Authorization" && h.Value == "Bearer {{bearerToken}}");
         getPublicData.Headers.Should().ContainSingle(h =>
             h.Name == "Authorization" && !h.IsEnabled);
+        getPublicData.Headers.Should().NotContain(h =>
+            h.Name == "Authorization" && h.IsEnabled);
     }
 
     [Fact]

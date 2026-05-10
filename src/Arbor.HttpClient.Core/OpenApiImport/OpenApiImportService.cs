@@ -14,8 +14,23 @@ public sealed class OpenApiImportService
 
     public Collection Import(Stream stream, string? sourcePath = null)
     {
-        using var sourceReader = new StreamReader(stream, leaveOpen: true);
+        if (stream.CanSeek)
+        {
+            stream.Seek(0, SeekOrigin.Begin);
+        }
+
+        using var sourceReader = new StreamReader(
+            stream,
+            System.Text.Encoding.UTF8,
+            detectEncodingFromByteOrderMarks: true,
+            leaveOpen: true);
         var sourceText = sourceReader.ReadToEnd();
+
+        if (stream.CanSeek)
+        {
+            stream.Seek(0, SeekOrigin.Begin);
+        }
+
         var explicitlyEmptySecurityOperations = GetExplicitlyEmptySecurityOperations(sourceText);
 
         var reader = new OpenApiStreamReader();

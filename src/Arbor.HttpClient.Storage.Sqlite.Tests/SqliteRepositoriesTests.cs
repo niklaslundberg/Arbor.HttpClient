@@ -716,8 +716,8 @@ public class SqliteRepositoriesTests
                 null,
                 "http://localhost:5000",
                 requests,
-                updatedHeaders,
-                TestContext.Current.CancellationToken);
+                headers: updatedHeaders,
+                cancellationToken: TestContext.Current.CancellationToken);
 
             var withHeaders = await repository.GetAllAsync(TestContext.Current.CancellationToken);
             withHeaders.Should().ContainSingle();
