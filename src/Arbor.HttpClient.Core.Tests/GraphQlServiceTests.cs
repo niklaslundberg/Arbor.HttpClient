@@ -164,13 +164,14 @@ public class GraphQlServiceTests
     [Fact]
     public async Task SendQueryAsync_ShouldHandleInvalidVariablesJson()
     {
-        var handler = new StubHttpMessageHandler(_ =>
+        using var handler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("""{"data":{}}""", Encoding.UTF8, "application/json")
             });
 
-        var service = new GraphQlService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new GraphQlService(httpClient);
         // Invalid JSON for variables should not throw – service sends null variables instead
         var draft = new GraphQlDraft("http://localhost:5000/graphql", "{ __typename }", "not-valid-json{{{", null);
 
