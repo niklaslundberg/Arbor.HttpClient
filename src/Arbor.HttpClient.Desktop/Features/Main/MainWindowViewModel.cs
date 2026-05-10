@@ -1611,7 +1611,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         ErrorMessage = string.Empty;
-        var id = await _collectionRepository.SaveAsync(name, null, null, [], cancellationToken);
+        var id = await _collectionRepository.SaveAsync(name, null, null, [], cancellationToken: cancellationToken);
         IsNewCollectionFormVisible = false;
         NewCollectionName = string.Empty;
 
@@ -1661,7 +1661,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         ErrorMessage = string.Empty;
-        await _collectionRepository.UpdateAsync(collection.Id, newName, collection.SourcePath, collection.BaseUrl, collection.Requests, cancellationToken, collection.Headers);
+        await _collectionRepository.UpdateAsync(collection.Id, newName, collection.SourcePath, collection.BaseUrl, collection.Requests, collection.Headers, cancellationToken);
         IsRenameCollectionFormVisible = false;
         RenameCollectionName = string.Empty;
         _debugLogger.Information("Renamed collection {OldName} to {NewName}", collection.Name, newName);
@@ -1718,7 +1718,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             collection.SourcePath,
             collection.BaseUrl,
             updatedRequests,
-            headers: collection.Headers);
+            collection.Headers);
 
         await LoadCollectionsAsync();
         SelectedCollection = Collections.FirstOrDefault(c => c.Id == collection.Id);
@@ -1822,7 +1822,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 collection.SourcePath,
                 collection.BaseUrl,
                 collection.Requests,
-                headers: collection.Headers);
+                collection.Headers);
 
             await LoadCollectionsAsync();
             SelectedCollection = Collections.FirstOrDefault(c => c.Id == id);
@@ -2339,7 +2339,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 null,
                 "{{baseUrl}}",
                 demoRequests,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
             // Reload collections and select the newly seeded demo collection.
             await LoadCollectionsAsync(cancellationToken).ConfigureAwait(false);

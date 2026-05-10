@@ -19,8 +19,8 @@ public sealed class InMemoryCollectionRepository : ICollectionRepository
         string? sourcePath,
         string? baseUrl,
         IReadOnlyList<CollectionRequest> requests,
-        CancellationToken cancellationToken = default,
-        IReadOnlyList<RequestHeader>? headers = null)
+        IReadOnlyList<RequestHeader>? headers = null,
+        CancellationToken cancellationToken = default)
     {
         lock (_lock)
         {
@@ -36,8 +36,8 @@ public sealed class InMemoryCollectionRepository : ICollectionRepository
         string? sourcePath,
         string? baseUrl,
         IReadOnlyList<CollectionRequest> requests,
-        CancellationToken cancellationToken = default,
-        IReadOnlyList<RequestHeader>? headers = null)
+        IReadOnlyList<RequestHeader>? headers = null,
+        CancellationToken cancellationToken = default)
     {
         lock (_lock)
         {

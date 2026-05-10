@@ -319,7 +319,7 @@ public class SqliteRepositoriesTests
                 new("Create", "POST", "/items", "Creates a new item", "Requires authentication")
             };
 
-            var collectionId = await repository.SaveAsync("My API", "/path/to/spec", "http://localhost:5000", requests, TestContext.Current.CancellationToken);
+            var collectionId = await repository.SaveAsync("My API", "/path/to/spec", "http://localhost:5000", requests, cancellationToken: TestContext.Current.CancellationToken);
 
             var collections = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
@@ -358,7 +358,7 @@ public class SqliteRepositoriesTests
                 new("Test Request", "GET", "/test", null)
             };
 
-            var collectionId = await repository.SaveAsync("Test Collection", null, null, requests, TestContext.Current.CancellationToken);
+            var collectionId = await repository.SaveAsync("Test Collection", null, null, requests, cancellationToken: TestContext.Current.CancellationToken);
 
             await repository.DeleteAsync(collectionId, TestContext.Current.CancellationToken);
 
@@ -389,7 +389,7 @@ public class SqliteRepositoriesTests
             var id = await repository.SaveAsync("Original Name", null, "http://localhost:5000",
             [
                 new CollectionRequest("Old Request", "GET", "/old", null)
-            ], TestContext.Current.CancellationToken);
+            ], cancellationToken: TestContext.Current.CancellationToken);
 
             var updatedRequests = new List<CollectionRequest>
             {
@@ -397,7 +397,7 @@ public class SqliteRepositoriesTests
                 new("New Request B", "DELETE", "/new-b", "Second new request")
             };
 
-            await repository.UpdateAsync(id, "Updated Name", "/path/to/spec", "http://localhost:5000/updated", updatedRequests, TestContext.Current.CancellationToken);
+            await repository.UpdateAsync(id, "Updated Name", "/path/to/spec", "http://localhost:5000/updated", updatedRequests, cancellationToken: TestContext.Current.CancellationToken);
 
             var collections = await repository.GetAllAsync(TestContext.Current.CancellationToken);
             collections.Should().HaveCount(1);
@@ -431,9 +431,9 @@ public class SqliteRepositoriesTests
             var id = await repository.SaveAsync("My Collection", null, null,
             [
                 new CollectionRequest("Request", "GET", "/test", null)
-            ], TestContext.Current.CancellationToken);
+            ], cancellationToken: TestContext.Current.CancellationToken);
 
-            await repository.UpdateAsync(id, "My Collection", null, null, [], TestContext.Current.CancellationToken);
+            await repository.UpdateAsync(id, "My Collection", null, null, [], cancellationToken: TestContext.Current.CancellationToken);
 
             var collections = await repository.GetAllAsync(TestContext.Current.CancellationToken);
             collections.Should().HaveCount(1);
@@ -572,7 +572,7 @@ public class SqliteRepositoriesTests
                 new("List Pets", "GET", "/pets", "Lists pets")
             };
 
-            var collectionId = await repository.SaveAsync("Pet API", null, "http://localhost:5000", requests, TestContext.Current.CancellationToken, collectionHeaders);
+            var collectionId = await repository.SaveAsync("Pet API", null, "http://localhost:5000", requests, collectionHeaders, TestContext.Current.CancellationToken);
 
             var collections = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
@@ -666,9 +666,9 @@ public class SqliteRepositoriesTests
                 new("Get Items", "GET", "/items", null)
             };
 
-            var id = await repository.SaveAsync("Old Name", null, "http://localhost:5000", requests, TestContext.Current.CancellationToken);
+            var id = await repository.SaveAsync("Old Name", null, "http://localhost:5000", requests, cancellationToken: TestContext.Current.CancellationToken);
 
-            await repository.UpdateAsync(id, "New Name", null, "http://localhost:5000", requests, TestContext.Current.CancellationToken);
+            await repository.UpdateAsync(id, "New Name", null, "http://localhost:5000", requests, cancellationToken: TestContext.Current.CancellationToken);
 
             var collections = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
@@ -676,6 +676,66 @@ public class SqliteRepositoriesTests
             collections[0].Name.Should().Be("New Name");
             collections[0].Requests.Should().ContainSingle();
             collections[0].Requests[0].Name.Should().Be("Get Items");
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SqliteCollectionRepository_UpdateAsync_ShouldPersistAndClearCollectionHeaders()
+    {
+        var dbPath = Path.Join(Path.GetTempPath(), $"test_collection_update_headers_{Guid.NewGuid()}.db");
+        try
+        {
+            var connectionString = $"Data Source={dbPath}";
+            var repository = new SqliteCollectionRepository(connectionString);
+            await repository.InitializeAsync(TestContext.Current.CancellationToken);
+
+            var requests = new List<CollectionRequest>
+            {
+                new("Get Items", "GET", "/items", null)
+            };
+
+            var id = await repository.SaveAsync("Header Test", null, "http://localhost:5000", requests, cancellationToken: TestContext.Current.CancellationToken);
+
+            var updatedHeaders = new List<RequestHeader>
+            {
+                new("Authorization", "Bearer {{token}}"),
+                new("X-Tenant", "{{tenant}}")
+            };
+
+            await repository.UpdateAsync(
+                id,
+                "Header Test",
+                null,
+                "http://localhost:5000",
+                requests,
+                updatedHeaders,
+                TestContext.Current.CancellationToken);
+
+            var withHeaders = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+            withHeaders.Should().ContainSingle();
+            withHeaders[0].Headers.Should().HaveCount(2);
+            withHeaders[0].Headers![0].Name.Should().Be("Authorization");
+
+            await repository.UpdateAsync(
+                id,
+                "Header Test",
+                null,
+                "http://localhost:5000",
+                requests,
+                headers: null,
+                cancellationToken: TestContext.Current.CancellationToken);
+
+            var withoutHeaders = await repository.GetAllAsync(TestContext.Current.CancellationToken);
+            withoutHeaders.Should().ContainSingle();
+            withoutHeaders[0].Headers.Should().BeNull();
         }
         finally
         {

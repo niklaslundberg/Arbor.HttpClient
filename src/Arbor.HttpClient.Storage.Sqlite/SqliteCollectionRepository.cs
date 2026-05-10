@@ -51,8 +51,8 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         string? sourcePath,
         string? baseUrl,
         IReadOnlyList<CollectionRequest> requests,
-        CancellationToken cancellationToken = default,
-        IReadOnlyList<RequestHeader>? headers = null)
+        IReadOnlyList<RequestHeader>? headers = null,
+        CancellationToken cancellationToken = default)
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -144,8 +144,8 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         string? sourcePath,
         string? baseUrl,
         IReadOnlyList<CollectionRequest> requests,
-        CancellationToken cancellationToken = default,
-        IReadOnlyList<RequestHeader>? headers = null)
+        IReadOnlyList<RequestHeader>? headers = null,
+        CancellationToken cancellationToken = default)
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
