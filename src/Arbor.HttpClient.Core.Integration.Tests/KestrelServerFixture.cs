@@ -48,7 +48,7 @@ public sealed class KestrelServerFixture : IAsyncLifetime
     public string EchoUrl { get; private set; } = string.Empty;
 
     /// <inheritdoc />
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
@@ -257,7 +257,7 @@ public sealed class KestrelServerFixture : IAsyncLifetime
     }
 
     /// <inheritdoc />
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_app is { } app)
         {

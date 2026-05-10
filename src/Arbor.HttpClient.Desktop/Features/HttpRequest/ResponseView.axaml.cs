@@ -87,6 +87,16 @@ public partial class ResponseView : UserControl
 
     private void OnAppVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        // PropertyChanged may be raised from a background thread (e.g. after an async HTTP response
+        // sets ResponseBody). All editor mutations must happen on the UI thread to avoid the
+        // circular lock inversion between AvaloniaEdit's document lock and TextMateSharp's
+        // listener lock that causes a deadlock with the TMModel tokenizer thread.
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => OnAppVmPropertyChanged(sender, e));
+            return;
+        }
+
         if (e.PropertyName is nameof(MainWindowViewModel.ResponseBody)
             or nameof(MainWindowViewModel.RawResponseBody)
             or nameof(MainWindowViewModel.ResponseRawText)

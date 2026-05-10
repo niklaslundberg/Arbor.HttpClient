@@ -116,6 +116,8 @@ jobs:
     name: Unit Tests
     needs: build
     runs-on: ubuntu-latest
+    # Infrastructure safety net; independent from the 10-second runtime budget enforced in the test step.
+    timeout-minutes: 15
     permissions:
       contents: read
       # dotnet-trx uses this to post test result comments on pull requests.
@@ -133,66 +135,73 @@ jobs:
       - name: Restore
         run: dotnet restore Arbor.HttpClient.slnx --locked-mode
 
+      - name: Build unit test projects
+        run: >
+          dotnet build Arbor.HttpClient.slnx
+          --no-restore
+          --configuration Release
+
       - name: Install test reporting tools
         run: |
           dotnet tool install -g dotnet-trx --version 1.0.1
           dotnet tool install -g trxlog2html --version 1.0.4
-          dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.5.6
 
       - name: Run unit tests
-        run: >
-          dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj
-          --no-restore
-          --configuration Release
-          --logger "console;verbosity=normal"
-          --logger "trx;LogFileName=unit-tests.trx"
-          --results-directory TestResults/unit
-          --collect:"XPlat Code Coverage"
+        run: |
+          max_runtime_seconds=10
+          start_time=$(date +%s)
+          # Hang guard for each suite; strict "under 10s total" requirement is enforced below.
+          timeout 60 dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj \
+            --no-restore \
+            --no-build \
+            --configuration Release \
+            -- \
+            --results-directory TestResults/unit \
+            --report-xunit-trx \
+            --report-xunit-trx-filename unit-tests.trx || {
+              exit_code=$?
+              if [ "$exit_code" -eq 124 ]; then
+                echo "::error::Core unit tests timed out (hang detected)."
+                ps -ef | grep '[d]otnet' || true
+              fi
+              exit "$exit_code"
+            }
 
-      - name: Run SQLite storage tests
-        run: >
-          dotnet test src/Arbor.HttpClient.Storage.Sqlite.Tests/Arbor.HttpClient.Storage.Sqlite.Tests.csproj
-          --no-restore
-          --configuration Release
-          --logger "console;verbosity=normal"
-          --logger "trx;LogFileName=sqlite-tests.trx"
-          --results-directory TestResults/unit
-          --collect:"XPlat Code Coverage"
+          timeout 60 dotnet test src/Arbor.HttpClient.Storage.Sqlite.Tests/Arbor.HttpClient.Storage.Sqlite.Tests.csproj \
+            --no-restore \
+            --no-build \
+            --configuration Release \
+            -- \
+            --results-directory TestResults/unit \
+            --report-xunit-trx \
+            --report-xunit-trx-filename sqlite-tests.trx || {
+              exit_code=$?
+              if [ "$exit_code" -eq 124 ]; then
+                echo "::error::SQLite unit tests timed out (hang detected)."
+                ps -ef | grep '[d]otnet' || true
+              fi
+              exit "$exit_code"
+            }
+
+          elapsed=$(( $(date +%s) - start_time ))
+          echo "Unit test execution time: ${elapsed}s"
+          if [ "$elapsed" -ge "$max_runtime_seconds" ]; then
+            echo "::error::Unit tests exceeded ${max_runtime_seconds} seconds (${elapsed}s)."
+            exit 1
+          fi
 
       - name: Report unit test results
         if: always()
-        run: trx --path TestResults/unit --verbosity normal
-
-      - name: Generate code coverage report
-        if: ${{ !cancelled() }}
         run: |
-          reportgenerator \
-            -reports:"TestResults/unit/*/coverage.cobertura.xml" \
-            -targetdir:"TestResults/coverage-report" \
-            -reporttypes:"MarkdownSummaryGithub;Cobertura"
-
-      - name: Add coverage report to job summary
-        if: ${{ !cancelled() && hashFiles('TestResults/coverage-report/SummaryGithub.md') != '' }}
-        run: cat TestResults/coverage-report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload coverage
-        if: ${{ !cancelled() }}
-        id: upload-unit-coverage
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: unit-test-coverage
-          # Keep coverage optional so missing files do not hide unit test outcomes in CI.
-          path: |
-            TestResults/unit/*/coverage.cobertura.xml
-            TestResults/coverage-report/SummaryGithub.md
-          retention-days: 14
-          if-no-files-found: ignore
+          trx --path src/Arbor.HttpClient.Core.Tests/TestResults/unit --verbosity normal
+          trx --path src/Arbor.HttpClient.Storage.Sqlite.Tests/TestResults/unit --verbosity normal
 
       - name: Generate unit test HTML report
         if: always()
         run: |
           mkdir -p TestResults/unit/html
-          trxlog2html -i TestResults/unit/unit-tests.trx -o TestResults/unit/html/index.html
+          trxlog2html -i src/Arbor.HttpClient.Core.Tests/TestResults/unit/unit-tests.trx -o TestResults/unit/html/core-tests.html
+          trxlog2html -i src/Arbor.HttpClient.Storage.Sqlite.Tests/TestResults/unit/sqlite-tests.trx -o TestResults/unit/html/sqlite-tests.html
 
       - name: Upload unit test results
         if: always()
@@ -200,7 +209,9 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unit-test-results
-          path: TestResults/unit/*.trx
+          path: |
+            src/Arbor.HttpClient.Core.Tests/TestResults/unit/*.trx
+            src/Arbor.HttpClient.Storage.Sqlite.Tests/TestResults/unit/*.trx
           retention-days: 14
           if-no-files-found: error
 
@@ -223,9 +234,6 @@ jobs:
             echo "| ------ | -------- |"
             echo "| TRX results | [${{ steps.upload-unit-trx.outputs.artifact-url }}](${{ steps.upload-unit-trx.outputs.artifact-url }}) |"
             echo "| HTML report | [${{ steps.upload-unit-html.outputs.artifact-url }}](${{ steps.upload-unit-html.outputs.artifact-url }}) |"
-            if [ -n "${{ steps.upload-unit-coverage.outputs.artifact-url }}" ]; then
-              echo "| Code coverage | [${{ steps.upload-unit-coverage.outputs.artifact-url }}](${{ steps.upload-unit-coverage.outputs.artifact-url }}) |"
-            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
   integration-tests:
@@ -385,6 +393,7 @@ jobs:
     name: E2E Tests
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 6
     permissions:
       contents: read
       # dotnet-trx uses this to post test result comments on pull requests.
@@ -407,16 +416,42 @@ jobs:
           dotnet tool install -g dotnet-trx --version 1.0.1
           dotnet tool install -g trxlog2html --version 1.0.4
 
+      - name: Build E2E test project
+        run: >
+          dotnet build src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj
+          --no-restore
+          --configuration Release
+
       - name: Run E2E tests
         env:
           SCREENSHOT_OUTPUT_DIR: TestResults/screenshots
-        run: >
-          dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj
-          --no-restore
-          --configuration Release
-          --logger "console;verbosity=normal"
-          --logger "trx;LogFileName=e2e-tests.trx"
-          --results-directory TestResults/e2e
+        run: |
+          max_runtime_seconds=120
+          start_time=$(date +%s)
+          # Timeout is a hang guard; runtime budget is enforced explicitly below.
+          # This E2E job runs only integration-tagged tests; screenshot tests run in ux-screenshots.
+          timeout 180 dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
+            --no-restore \
+            --no-build \
+            --configuration Release \
+            --logger "console;verbosity=normal" \
+            --logger "trx;LogFileName=e2e-tests.trx" \
+            --results-directory TestResults/e2e \
+            --filter "Category=Integration&Category!=Screenshots" || {
+              exit_code=$?
+              if [ "$exit_code" -eq 124 ]; then
+                echo "::error::E2E tests timed out at 2 minutes (hang detected)."
+                ps -ef | grep '[d]otnet' || true
+              fi
+              exit "$exit_code"
+            }
+
+          elapsed=$(( $(date +%s) - start_time ))
+          echo "E2E integration runtime: ${elapsed}s"
+          if [ "$elapsed" -gt "$max_runtime_seconds" ]; then
+            echo "::error::E2E integration tests exceeded ${max_runtime_seconds} seconds (${elapsed}s)."
+            exit 1
+          fi
 
       - name: Report E2E test results
         if: always()

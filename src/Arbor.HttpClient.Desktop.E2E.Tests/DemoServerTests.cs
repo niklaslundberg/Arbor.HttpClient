@@ -8,6 +8,7 @@ using Arbor.HttpClient.Testing.Repositories;
 using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Skia;
+using Avalonia.Threading;
 using Serilog;
 using Arbor.HttpClient.Core.Collections;
 using Arbor.HttpClient.Core.Environments;
@@ -181,6 +182,7 @@ public class DemoServerTests
 
             var wsItem = viewModel.FilteredCollectionItems.First(i => i.Method == "WS");
             viewModel.LoadCollectionRequestCore(wsItem);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
             viewModel.RequestEditor.SelectedRequestType.Should().Be(RequestType.WebSocket);
             viewModel.RequestEditor.RequestUrl.Should().StartWith("ws://");
@@ -214,6 +216,7 @@ public class DemoServerTests
 
             var sseItem = viewModel.FilteredCollectionItems.First(i => i.Method == "SSE");
             viewModel.LoadCollectionRequestCore(sseItem);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
             viewModel.RequestEditor.SelectedRequestType.Should().Be(RequestType.Sse);
 
@@ -246,6 +249,7 @@ public class DemoServerTests
 
             var getItem = viewModel.FilteredCollectionItems.First(i => i.Method == "GET");
             viewModel.LoadCollectionRequestCore(getItem);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
             viewModel.RequestEditor.SelectedRequestType.Should().Be(RequestType.Http);
             viewModel.RequestEditor.SelectedMethod.Should().Be("GET");
@@ -278,6 +282,7 @@ public class DemoServerTests
             viewModel.SelectedCollection = collection;
             var item = viewModel.FilteredCollectionItems.First();
             viewModel.LoadCollectionRequestCore(item);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
             viewModel.RequestTabs.Count.Should().Be(initialTabCount + 1);
             viewModel.ActiveRequestTab?.RequestEditor.RequestName.Should().Be("Echo GET");
@@ -309,11 +314,13 @@ public class DemoServerTests
             var item = viewModel.FilteredCollectionItems.First();
 
             viewModel.LoadCollectionRequestCore(item);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
             var firstOpenedTab = viewModel.ActiveRequestTab;
             var tabCountAfterFirstOpen = viewModel.RequestTabs.Count;
 
             viewModel.NewRequestTabCommand.Execute(null);
             viewModel.LoadCollectionRequestCore(item);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
             viewModel.RequestTabs.Count.Should().Be(tabCountAfterFirstOpen + 1);
             viewModel.ActiveRequestTab.Should().BeSameAs(firstOpenedTab);
@@ -353,6 +360,7 @@ public class DemoServerTests
 
             var echoItem = viewModel.FilteredCollectionItems.First(i => i.Method == "GET");
             viewModel.LoadCollectionRequestCore(echoItem);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
             viewModel.IsDemoServerBannerVisible.Should().BeTrue();
 
@@ -390,6 +398,7 @@ public class DemoServerTests
 
             var echoItem = viewModel.FilteredCollectionItems.First(i => i.Method == "GET");
             viewModel.LoadCollectionRequestCore(echoItem);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
             viewModel.IsDemoServerBannerVisible.Should().BeFalse();
 
