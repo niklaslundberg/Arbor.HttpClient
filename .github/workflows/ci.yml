@@ -430,7 +430,7 @@ jobs:
           start_time=$(date +%s)
           # Timeout is a hang guard; runtime budget is enforced explicitly below.
           # This E2E job runs only integration-tagged tests; screenshot tests run in ux-screenshots.
-          timeout 180 dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
+          timeout 120 dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
             --no-restore \
             --no-build \
             --configuration Release \

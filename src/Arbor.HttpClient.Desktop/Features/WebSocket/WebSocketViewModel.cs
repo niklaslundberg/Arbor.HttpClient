@@ -100,7 +100,7 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
         }
         finally
         {
-            if (_connectionCts is {})
+            if (_connectionCts is { })
             {
                 await _connectionCts.CancelAsync();
             }

@@ -179,5 +179,49 @@ public class ScheduledJobServiceTests
         var wasCancelled = await callbackCancelled.Task.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         wasCancelled.Should().BeTrue();
     }
-}
 
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task Start_WhenAlreadyRunning_DoesNotStartDuplicateJob()
+    {
+        var sendCount = 0;
+        var firstInvocation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var handler = new StubHttpMessageHandler(_ =>
+        {
+            if (Interlocked.Increment(ref sendCount) == 1)
+            {
+                firstInvocation.TrySetResult(true);
+            }
+
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent("ok"),
+                ReasonPhrase = "OK"
+            };
+        });
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, new InMemoryRequestHistoryRepository());
+        var logger = new LoggerConfiguration().CreateLogger();
+
+        using var jobService = new ScheduledJobService(httpRequestService, logger);
+
+        var config = new ScheduledJobConfig(
+            Id: 4,
+            Name: "Single Runner Job",
+            Method: "GET",
+            Url: "http://localhost:5000/test",
+            Body: null,
+            HeadersJson: null,
+            IntervalSeconds: 1,
+            AutoStart: false);
+
+        jobService.Start(config);
+        jobService.Start(config);
+
+        await firstInvocation.Task.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+        await Task.Delay(250, TestContext.Current.CancellationToken);
+        jobService.Stop(4);
+
+        sendCount.Should().Be(1);
+    }
+}

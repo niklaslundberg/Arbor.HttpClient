@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -2155,7 +2156,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         foreach (var file in _tempFiles)
         {
             try { File.Delete(file); }
-            catch (Exception) when (!Debugger.IsAttached) { /* best-effort cleanup */ }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or PathTooLongException or NotSupportedException)
+            {
+                /* best-effort cleanup */
+            }
         }
     }
 

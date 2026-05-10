@@ -141,18 +141,6 @@ This project makes use of third-party packages. Their licenses and attribution d
 
 ---
 
-## Microsoft.NET.Test.Sdk
-
-**Package:** Microsoft.NET.Test.Sdk  
-**Version:** 18.5.1  
-**Authors:** Microsoft  
-**Copyright:** © Microsoft Corporation. All rights reserved.  
-**Project URL:** https://github.com/microsoft/vstest  
-**License:** MIT  
-**Note:** Test-only dependency, not included in production builds.
-
----
-
 ## xunit.v3
 
 **Package:** xunit.v3  
