@@ -27,7 +27,8 @@ public class GraphQlServiceTests
             };
         });
 
-        var service = new GraphQlService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new GraphQlService(httpClient);
         var draft = new GraphQlDraft("http://localhost:5000/graphql", "{ __typename }", null, null);
 
         var result = await service.SendQueryAsync(draft, TestContext.Current.CancellationToken);
@@ -54,7 +55,8 @@ public class GraphQlServiceTests
             };
         });
 
-        var service = new GraphQlService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new GraphQlService(httpClient);
         var draft = new GraphQlDraft("http://localhost:5000/graphql", "query Q($id: ID!) { node(id: $id) { id } }", """{"id":"1"}""", "Q");
 
         await service.SendQueryAsync(draft, TestContext.Current.CancellationToken);
@@ -78,7 +80,8 @@ public class GraphQlServiceTests
             };
         });
 
-        var service = new GraphQlService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new GraphQlService(httpClient);
         var draft = new GraphQlDraft("http://localhost:5000/graphql", "{ __typename }", null, null);
 
         await service.SendQueryAsync(draft, TestContext.Current.CancellationToken);
@@ -105,7 +108,8 @@ public class GraphQlServiceTests
             };
         });
 
-        var service = new GraphQlService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new GraphQlService(httpClient);
         var draft = new GraphQlDraft("http://localhost:5000/graphql", "{ __typename }", null, null);
 
         await service.SendQueryAsync(draft, TestContext.Current.CancellationToken);
@@ -128,7 +132,8 @@ public class GraphQlServiceTests
             };
         });
 
-        var service = new GraphQlService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new GraphQlService(httpClient);
         var headers = new[] { new RequestHeader("X-Api-Key", "my-key") };
         var draft = new GraphQlDraft("http://localhost:5000/graphql", "{ __typename }", null, null, headers);
 
@@ -141,8 +146,9 @@ public class GraphQlServiceTests
     [Fact]
     public async Task SendQueryAsync_ShouldRejectNonHttpUrl()
     {
-        var service = new GraphQlService(new System.Net.Http.HttpClient(
-            new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))));
+        using var httpClient = new System.Net.Http.HttpClient(
+            new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        var service = new GraphQlService(httpClient);
 
         var draft = new GraphQlDraft("file:///etc/passwd", "{ __typename }", null, null);
         var action = () => service.SendQueryAsync(draft);
@@ -153,8 +159,9 @@ public class GraphQlServiceTests
     [Fact]
     public async Task SendQueryAsync_ShouldThrowOnNullDraft()
     {
-        var service = new GraphQlService(new System.Net.Http.HttpClient(
-            new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))));
+        using var httpClient = new System.Net.Http.HttpClient(
+            new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        var service = new GraphQlService(httpClient);
 
         var action = () => service.SendQueryAsync(null!);
 
@@ -193,7 +200,8 @@ public class GraphQlServiceTests
                 Content = new StringContent(schemaResponse, Encoding.UTF8, "application/json")
             });
 
-        var service = new GraphQlService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new GraphQlService(httpClient);
 
         var result = await service.IntrospectSchemaAsync("http://localhost:5000/graphql", cancellationToken: TestContext.Current.CancellationToken);
 
@@ -277,7 +285,8 @@ public class GraphQlServiceTests
             };
         });
 
-        var service = new GraphQlService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new GraphQlService(httpClient);
         var headers = new[] { new RequestHeader("Content-Type", "text/plain") };
         var draft = new GraphQlDraft("http://localhost:5000/graphql", "{ __typename }", null, null, headers);
 

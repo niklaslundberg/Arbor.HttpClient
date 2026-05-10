@@ -153,8 +153,9 @@ public class SseServiceTests
     [Fact]
     public async Task ConnectAsync_ShouldThrowOnNonHttpUrl()
     {
-        var service = new SseService(new System.Net.Http.HttpClient(
-            new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))));
+        using var httpClient = new System.Net.Http.HttpClient(
+            new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        var service = new SseService(httpClient);
 
         var action = () => service.ConnectAsync("ftp://localhost:5000/stream", _ => { });
 
@@ -164,8 +165,9 @@ public class SseServiceTests
     [Fact]
     public async Task ConnectAsync_ShouldThrowWhenOnEventIsNull()
     {
-        var service = new SseService(new System.Net.Http.HttpClient(
-            new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))));
+        using var httpClient = new System.Net.Http.HttpClient(
+            new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        var service = new SseService(httpClient);
 
         var action = () => service.ConnectAsync("http://localhost:5000/stream", null!);
 
@@ -188,7 +190,8 @@ public class SseServiceTests
             return response;
         });
 
-        var service = new SseService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new SseService(httpClient);
         var events = new List<SseEvent>();
 
         await service.ConnectAsync("http://localhost:5000/stream", events.Add, cancellationToken: TestContext.Current.CancellationToken);
@@ -281,7 +284,8 @@ public class SseServiceTests
             };
         });
 
-        var service = new SseService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new SseService(httpClient);
         var headers = new[] { new RequestHeader("X-Disabled", "value", IsEnabled: false) };
 
         await service.ConnectAsync("http://localhost:5000/stream", _ => { }, headers, TestContext.Current.CancellationToken);
