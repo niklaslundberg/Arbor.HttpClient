@@ -128,12 +128,10 @@ public sealed class OpenApiImportService
             headers.Add(new RequestHeader(param.Name, $"{{{{{param.Name}}}}}"));
         }
 
-        foreach (var securityHeader in BuildSecurityHeaders(document, operation.Security ?? []))
+        foreach (var securityHeader in BuildSecurityHeaders(document, operation.Security ?? [])
+                     .Where(securityHeader => !headers.Any(h => string.Equals(h.Name, securityHeader.Name, StringComparison.OrdinalIgnoreCase))))
         {
-            if (!headers.Any(h => string.Equals(h.Name, securityHeader.Name, StringComparison.OrdinalIgnoreCase)))
-            {
-                headers.Add(securityHeader);
-            }
+            headers.Add(securityHeader);
         }
 
         return headers;
