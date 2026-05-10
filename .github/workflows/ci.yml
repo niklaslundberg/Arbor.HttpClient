@@ -151,13 +151,18 @@ jobs:
           max_runtime_seconds=10
           start_time=$(date +%s)
           # Hang guard for each suite; strict "under 10s total" requirement is enforced below.
-          timeout 60 dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj \
+          timeout 90 dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj \
             --no-restore \
             --no-build \
             --configuration Release \
             -- \
-            --results-directory TestResults/unit \
+            --results-directory "$GITHUB_WORKSPACE/artifacts/test-results/unit/core" \
             --report-xunit-trx \
+            --diagnostic \
+            --diagnostic-output-fileprefix core-tests \
+            --diagnostic-filelogger-synchronouswrite \
+            --timeout 60s \
+            --long-running 10 \
             --report-xunit-trx-filename unit-tests.trx || {
               exit_code=$?
               if [ "$exit_code" -eq 124 ]; then
@@ -167,14 +172,19 @@ jobs:
               exit "$exit_code"
             }
 
-          timeout 60 dotnet test src/Arbor.HttpClient.Storage.Sqlite.Tests/Arbor.HttpClient.Storage.Sqlite.Tests.csproj \
+          timeout 90 dotnet test src/Arbor.HttpClient.Storage.Sqlite.Tests/Arbor.HttpClient.Storage.Sqlite.Tests.csproj \
             --no-restore \
             --no-build \
             --configuration Release \
             -- \
-            --results-directory TestResults/unit \
+            --results-directory "$GITHUB_WORKSPACE/artifacts/test-results/unit/sqlite" \
             --report-xunit-trx \
-            --report-xunit-trx-filename sqlite-tests.trx || {
+            --report-xunit-trx-filename sqlite-tests.trx \
+            --diagnostic \
+            --diagnostic-output-fileprefix sqlite-tests \
+            --diagnostic-filelogger-synchronouswrite \
+            --timeout 60s \
+            --long-running 10 || {
               exit_code=$?
               if [ "$exit_code" -eq 124 ]; then
                 echo "::error::SQLite unit tests timed out (hang detected)."
@@ -193,15 +203,15 @@ jobs:
       - name: Report unit test results
         if: always()
         run: |
-          trx --path src/Arbor.HttpClient.Core.Tests/TestResults/unit --verbosity normal
-          trx --path src/Arbor.HttpClient.Storage.Sqlite.Tests/TestResults/unit --verbosity normal
+          trx --path artifacts/test-results/unit/core --verbosity normal
+          trx --path artifacts/test-results/unit/sqlite --verbosity normal
 
       - name: Generate unit test HTML report
         if: always()
         run: |
-          mkdir -p TestResults/unit/html
-          trxlog2html -i src/Arbor.HttpClient.Core.Tests/TestResults/unit/unit-tests.trx -o TestResults/unit/html/core-tests.html
-          trxlog2html -i src/Arbor.HttpClient.Storage.Sqlite.Tests/TestResults/unit/sqlite-tests.trx -o TestResults/unit/html/sqlite-tests.html
+          mkdir -p artifacts/test-results/unit/html
+          trxlog2html -i artifacts/test-results/unit/core/unit-tests.trx -o artifacts/test-results/unit/html/core-tests.html
+          trxlog2html -i artifacts/test-results/unit/sqlite/sqlite-tests.trx -o artifacts/test-results/unit/html/sqlite-tests.html
 
       - name: Upload unit test results
         if: always()
@@ -210,8 +220,8 @@ jobs:
         with:
           name: unit-test-results
           path: |
-            src/Arbor.HttpClient.Core.Tests/TestResults/unit/*.trx
-            src/Arbor.HttpClient.Storage.Sqlite.Tests/TestResults/unit/*.trx
+            artifacts/test-results/unit/core/*
+            artifacts/test-results/unit/sqlite/*
           retention-days: 14
           if-no-files-found: error
 
@@ -221,7 +231,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unit-test-results-html
-          path: TestResults/unit/html/*.html
+          path: artifacts/test-results/unit/html/*.html
           retention-days: 14
           if-no-files-found: error
 
@@ -260,7 +270,24 @@ jobs:
           dotnet test src/Arbor.HttpClient.Core.Integration.Tests/Arbor.HttpClient.Core.Integration.Tests.csproj
           --no-restore
           --configuration Release
-          --logger "console;verbosity=normal"
+          --
+          --results-directory "${{ github.workspace }}/artifacts/test-results/integration"
+          --report-xunit-trx
+          --report-xunit-trx-filename integration-tests.trx
+          --diagnostic
+          --diagnostic-output-fileprefix integration-tests
+          --diagnostic-filelogger-synchronouswrite
+          --timeout 120s
+          --long-running 15
+
+      - name: Upload integration test diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: integration-test-results
+          path: artifacts/test-results/integration/*
+          retention-days: 14
+          if-no-files-found: error
 
   release-verification:
     name: Release Build Verification
@@ -304,14 +331,26 @@ jobs:
           dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj
           --no-restore
           --configuration Release
-          --logger "console;verbosity=normal"
+          --
+          --results-directory "${{ github.workspace }}/artifacts/test-results/release-verification/core"
+          --diagnostic
+          --diagnostic-output-fileprefix release-verification-core-tests
+          --diagnostic-filelogger-synchronouswrite
+          --timeout 60s
+          --long-running 10
 
       - name: Run SQLite storage tests
         run: >
           dotnet test src/Arbor.HttpClient.Storage.Sqlite.Tests/Arbor.HttpClient.Storage.Sqlite.Tests.csproj
           --no-restore
           --configuration Release
-          --logger "console;verbosity=normal"
+          --
+          --results-directory "${{ github.workspace }}/artifacts/test-results/release-verification/sqlite"
+          --diagnostic
+          --diagnostic-output-fileprefix release-verification-sqlite-tests
+          --diagnostic-filelogger-synchronouswrite
+          --timeout 60s
+          --long-running 10
 
       - name: Publish win-x64 self-contained
         run: >
@@ -357,8 +396,14 @@ jobs:
           dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj
           --no-restore
           --configuration Release
-          --filter "Category=Screenshots"
-          --logger "console;verbosity=normal"
+          --
+          --filter-trait "Category=Screenshots"
+          --results-directory "${{ github.workspace }}/artifacts/test-results/ux-screenshots"
+          --diagnostic
+          --diagnostic-output-fileprefix ux-screenshots
+          --diagnostic-filelogger-synchronouswrite
+          --timeout 120s
+          --long-running 30
 
       - name: Upload UX screenshots
         if: always()
@@ -430,16 +475,21 @@ jobs:
           start_time=$(date +%s)
           # Timeout is a hang guard; runtime budget is enforced explicitly below.
           # This E2E job runs only integration-tagged tests; screenshot tests run in ux-screenshots.
-          timeout 120 dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
+          timeout 150 dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
             --no-restore \
             --no-build \
             --configuration Release \
             -- \
             --filter-trait Category=Integration \
             --filter-not-trait Category=Screenshots \
-            --results-directory TestResults/e2e \
+            --results-directory "$GITHUB_WORKSPACE/artifacts/test-results/e2e" \
             --report-xunit-trx \
-            --report-xunit-trx-filename e2e-tests.trx || {
+            --report-xunit-trx-filename e2e-tests.trx \
+            --diagnostic \
+            --diagnostic-output-fileprefix e2e-tests \
+            --diagnostic-filelogger-synchronouswrite \
+            --timeout 120s \
+            --long-running 30 || {
               exit_code=$?
               if [ "$exit_code" -eq 124 ]; then
                 echo "::error::E2E tests timed out at 2 minutes (hang detected)."
@@ -457,13 +507,13 @@ jobs:
 
       - name: Report E2E test results
         if: always()
-        run: trx --path src/Arbor.HttpClient.Desktop.E2E.Tests/TestResults/e2e --verbosity normal
+        run: trx --path artifacts/test-results/e2e --verbosity normal
 
       - name: Generate E2E test HTML report
         if: always()
         run: |
-          mkdir -p TestResults/e2e/html
-          trxlog2html -i src/Arbor.HttpClient.Desktop.E2E.Tests/TestResults/e2e/e2e-tests.trx -o TestResults/e2e/html/index.html
+          mkdir -p artifacts/test-results/e2e/html
+          trxlog2html -i artifacts/test-results/e2e/e2e-tests.trx -o artifacts/test-results/e2e/html/index.html
 
       - name: Upload E2E test results
         if: always()
@@ -471,7 +521,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: e2e-test-results
-          path: src/Arbor.HttpClient.Desktop.E2E.Tests/TestResults/e2e/*.trx
+          path: artifacts/test-results/e2e/*
           retention-days: 14
           if-no-files-found: error
 

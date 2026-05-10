@@ -14,8 +14,10 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUTPUT_DIR="$REPO_ROOT/docs/screenshots"
+RESULTS_DIR="$REPO_ROOT/artifacts/test-results/ux-screenshots"
 
 mkdir -p "$OUTPUT_DIR"
+mkdir -p "$RESULTS_DIR"
 export SCREENSHOT_OUTPUT_DIR="$OUTPUT_DIR"
 
 echo "Building solution..."
@@ -25,8 +27,15 @@ echo "Generating screenshots -> $OUTPUT_DIR"
 dotnet test "$REPO_ROOT/src/Arbor.HttpClient.Desktop.E2E.Tests" \
     --no-build \
     --configuration Release \
-    --filter "Category=Screenshots" \
-    -v minimal
+    -v minimal \
+    -- \
+    --filter-trait "Category=Screenshots" \
+    --results-directory "$RESULTS_DIR" \
+    --diagnostic \
+    --diagnostic-output-fileprefix ux-screenshots \
+    --diagnostic-filelogger-synchronouswrite \
+    --timeout 120s \
+    --long-running 30
 
 echo ""
 echo "Screenshots written:"
