@@ -416,14 +416,23 @@ jobs:
           dotnet tool install -g dotnet-trx --version 1.0.1
           dotnet tool install -g trxlog2html --version 1.0.4
 
+      - name: Build E2E test project
+        run: >
+          dotnet build src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj
+          --no-restore
+          --configuration Release
+
       - name: Run E2E tests
         env:
           SCREENSHOT_OUTPUT_DIR: TestResults/screenshots
         run: |
-          # 130s gives a small safety margin around the 2-minute target while still failing fast on hangs.
+          max_runtime_seconds=120
+          start_time=$(date +%s)
+          # Timeout is a hang guard; runtime budget is enforced explicitly below.
           # This E2E job runs only integration-tagged tests; screenshot tests run in ux-screenshots.
-          timeout 130 dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
+          timeout 180 dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
             --no-restore \
+            --no-build \
             --configuration Release \
             --logger "console;verbosity=normal" \
             --logger "trx;LogFileName=e2e-tests.trx" \
@@ -436,6 +445,13 @@ jobs:
               fi
               exit "$exit_code"
             }
+
+          elapsed=$(( $(date +%s) - start_time ))
+          echo "E2E integration runtime: ${elapsed}s"
+          if [ "$elapsed" -gt "$max_runtime_seconds" ]; then
+            echo "::error::E2E integration tests exceeded ${max_runtime_seconds} seconds (${elapsed}s)."
+            exit 1
+          fi
 
       - name: Report E2E test results
         if: always()
