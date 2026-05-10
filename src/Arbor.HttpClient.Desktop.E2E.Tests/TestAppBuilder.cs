@@ -1,3 +1,4 @@
+using Arbor.HttpClient.Desktop;
 using Arbor.HttpClient.Desktop.E2E.Tests;
 using Avalonia;
 using Avalonia.Headless;

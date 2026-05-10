@@ -303,10 +303,8 @@ public partial class App : Application
                     // operating systems. They are exposed here exclusively for testing HTTP clients
                     // against legacy servers that cannot be upgraded. Never use these in production.
 #pragma warning disable SYSLIB0039
-#pragma warning disable SYSLIB0039
                     "Tls10" => SslProtocols.Tls,
                     "Tls11" => SslProtocols.Tls11,
-#pragma warning restore SYSLIB0039
 #pragma warning restore SYSLIB0039
                     "Tls12" => SslProtocols.Tls12,
                     "Tls13" => SslProtocols.Tls13,

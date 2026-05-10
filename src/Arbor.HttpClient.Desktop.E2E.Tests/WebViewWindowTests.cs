@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using Arbor.HttpClient.Desktop.Features.WebView;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
@@ -26,11 +27,14 @@ public class WebViewWindowTests
     public void WebViewWindow_NavigationBarOverflow_UsesHorizontalScrollViewer()
     {
         var xamlPath = FindRepoRootPath("src", "Arbor.HttpClient.Desktop", "Features", "WebView", "WebViewWindow.axaml");
-        var xaml = File.ReadAllText(xamlPath);
+        var document = XDocument.Parse(File.ReadAllText(xamlPath));
+        var xNamespace = XNamespace.Get("http://schemas.microsoft.com/winfx/2006/xaml");
+        var navigationScrollViewer = document
+            .Descendants()
+            .Single(element => string.Equals((string?)element.Attribute(xNamespace + "Name"), "NavigationScrollViewer", StringComparison.Ordinal));
 
-        xaml.Should().Contain("x:Name=\"NavigationScrollViewer\"");
-        xaml.Should().Contain("HorizontalScrollBarVisibility=\"Auto\"");
-        xaml.Should().Contain("VerticalScrollBarVisibility=\"Disabled\"");
+        ((string?)navigationScrollViewer.Attribute("HorizontalScrollBarVisibility")).Should().Be("Auto");
+        ((string?)navigationScrollViewer.Attribute("VerticalScrollBarVisibility")).Should().Be("Disabled");
     }
 
     private static string FindRepoRootPath(params string[] relativeSegments)
@@ -38,10 +42,10 @@ public class WebViewWindowTests
         var current = new DirectoryInfo(AppContext.BaseDirectory);
         while (current is { })
         {
-            var slnPath = Path.Combine(current.FullName, "Arbor.HttpClient.slnx");
+            var slnPath = Path.Join(current.FullName, "Arbor.HttpClient.slnx");
             if (File.Exists(slnPath))
             {
-                return Path.Combine([current.FullName, .. relativeSegments]);
+                return Path.Join([current.FullName, .. relativeSegments]);
             }
 
             current = current.Parent;
@@ -50,4 +54,3 @@ public class WebViewWindowTests
         throw new DirectoryNotFoundException("Could not locate repository root from test base directory.");
     }
 }
-
