@@ -300,7 +300,8 @@ public class SseServiceTests
             };
         });
 
-        var service = new SseService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new SseService(httpClient);
         var headers = new[] { new RequestHeader("  ", "value") };
 
         // Blank-name headers must be silently dropped (no exception)
