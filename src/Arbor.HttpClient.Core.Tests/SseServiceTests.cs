@@ -211,7 +211,8 @@ public class SseServiceTests
             };
         });
 
-        var service = new SseService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new SseService(httpClient);
         await service.ConnectAsync("http://localhost:5000/stream", _ => { }, cancellationToken: TestContext.Current.CancellationToken);
 
         captured.Should().NotBeNull();
@@ -232,7 +233,8 @@ public class SseServiceTests
             };
         });
 
-        var service = new SseService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new SseService(httpClient);
         var headers = new[] { new RequestHeader("X-Api-Key", "secret-token") };
 
         await service.ConnectAsync("http://localhost:5000/stream", _ => { }, headers, TestContext.Current.CancellationToken);
@@ -255,7 +257,8 @@ public class SseServiceTests
             };
         });
 
-        var service = new SseService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new SseService(httpClient);
         var headers = new[] { new RequestHeader("Accept", "text/html") };
 
         await service.ConnectAsync("http://localhost:5000/stream", _ => { }, headers, TestContext.Current.CancellationToken);
