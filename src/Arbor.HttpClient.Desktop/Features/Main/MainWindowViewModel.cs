@@ -2410,23 +2410,38 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var cts = _fileWatcherCts;
-        var token = cts?.Token ?? CancellationToken.None;
+        var cancellationToken = CancellationToken.None;
 
-        Task.Run(async () =>
+        if (_fileWatcherCts is { } fileWatcherCts)
         {
-            await Task.Delay(200, token).ConfigureAwait(false);
-            Interlocked.Exchange(ref _requestBodyReadPending, 0);
             try
             {
-                var content = await File.ReadAllTextAsync(e.FullPath, token).ConfigureAwait(false);
+                cancellationToken = fileWatcherCts.Token;
+            }
+            catch (ObjectDisposedException)
+            {
+                // The watcher is being torn down; fall back to an uncancelable token so the
+                // pending flag can still be reset by the background task.
+            }
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+                var content = await File.ReadAllTextAsync(e.FullPath, cancellationToken).ConfigureAwait(false);
                 await Dispatcher.UIThread.InvokeAsync(() => _requestEditor.RequestBody = content);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
             {
                 // Transient read errors while the editor is still writing, or task cancelled during shutdown
             }
-        }, token);
+            finally
+            {
+                Interlocked.Exchange(ref _requestBodyReadPending, 0);
+            }
+        });
     }
 
     private async Task<string> WriteTempFileAsync(string prefix, string content, CancellationToken cancellationToken = default)

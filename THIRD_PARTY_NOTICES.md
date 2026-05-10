@@ -13,6 +13,7 @@ This project makes use of third-party packages. Their licenses and attribution d
 **Project URL:** https://avaloniaui.net/  
 **Source:** https://github.com/AvaloniaUI/Avalonia  
 **License:** MIT  
+**Note:** `Avalonia.Headless` and `Avalonia.Headless.XUnit` are direct test-only dependencies used by `Arbor.HttpClient.Desktop.E2E.Tests`; the remaining Avalonia packages are used by the desktop application.
 
 ---
 
