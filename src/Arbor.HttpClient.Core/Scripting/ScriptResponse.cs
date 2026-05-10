@@ -5,7 +5,7 @@ namespace Arbor.HttpClient.Core.Scripting;
 /// <summary>
 /// HTTP response data made available to post-response scripts.
 /// <see cref="BodyJson"/> is parsed from <see cref="Body"/> using
-/// <see cref="System.Text.Json.JsonDocument"/> so scripts can navigate the
+/// <see cref="JsonDocument"/> so scripts can navigate the
 /// response with standard STJ APIs without an extra import.
 /// </summary>
 public sealed class ScriptResponse

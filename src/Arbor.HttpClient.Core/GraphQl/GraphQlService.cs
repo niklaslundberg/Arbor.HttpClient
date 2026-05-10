@@ -11,7 +11,7 @@ namespace Arbor.HttpClient.Core.GraphQl;
 /// Sends GraphQL queries (and introspection requests) over HTTP using <c>System.Text.Json</c>
 /// for serialisation.  No external library dependency is required.
 /// </summary>
-public sealed class GraphQlService(global::System.Net.Http.HttpClient httpClient)
+public sealed class GraphQlService(System.Net.Http.HttpClient httpClient)
 {
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {

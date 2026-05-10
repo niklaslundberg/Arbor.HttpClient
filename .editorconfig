@@ -84,6 +84,12 @@ csharp_style_expression_bodied_accessors = true:silent
 csharp_style_expression_bodied_lambdas = true:silent
 csharp_style_expression_bodied_local_functions = true:silent
 
+# Default severity for analyzer diagnostics with category 'Naming'
+dotnet_analyzer_diagnostic.category-Naming.severity = none
+
+# CA1707 — allow underscores in identifiers (test method naming convention Method_Scenario_ExpectedResult)
+dotnet_diagnostic.CA1707.severity = none
+
 [*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,nativeproj,locproj,props,targets,config,nuspec,builds,resx,ruleset,slnx,stylecop,xml,axaml,xaml}]
 indent_size = 2
 
@@ -101,12 +107,6 @@ trim_trailing_whitespace = false
 
 [Makefile]
 indent_style = tab
-
-# xUnit v3 analyzers — xUnit1051 fires on every async call that accepts a CancellationToken,
-# suggesting TestContext.Current.CancellationToken. The test projects intentionally use the
-# default token; suppress entirely to keep the VS Error List clean.
-[*.cs]
-dotnet_diagnostic.xUnit1051.severity = none
 
 # RCS1261 — HeadlessUnitTestSession implements IDisposable but not IAsyncDisposable;
 # async dispose is not available for this type.

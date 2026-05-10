@@ -15,7 +15,7 @@ namespace Arbor.HttpClient.Desktop.Features.Layout;
 /// Saves and restores request editor state to/from a JSON draft file in
 /// <c>drafts/draft.json</c> under the given folder.
 /// The auto-save loop itself is driven by the caller (see
-/// <see cref="MainWindowViewModel"/>) using a <see cref="System.Threading.PeriodicTimer"/>
+/// <see cref="MainWindowViewModel"/>) using a <see cref="PeriodicTimer"/>
 /// so that this service has no dependency on Avalonia and remains fully unit-testable.
 /// </summary>
 public sealed class DraftPersistenceService(string draftsFolder)

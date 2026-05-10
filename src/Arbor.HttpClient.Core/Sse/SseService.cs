@@ -9,7 +9,7 @@ namespace Arbor.HttpClient.Core.Sse;
 /// Connects to a Server-Sent Events (SSE) endpoint and streams <see cref="SseEvent"/>
 /// records to the caller via a callback.
 /// </summary>
-public sealed class SseService(global::System.Net.Http.HttpClient httpClient)
+public sealed class SseService(System.Net.Http.HttpClient httpClient)
 {
     /// <summary>
     /// Opens a long-lived GET request to <paramref name="url"/> with an

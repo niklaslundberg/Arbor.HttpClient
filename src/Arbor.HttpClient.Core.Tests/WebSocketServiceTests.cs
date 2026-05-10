@@ -86,7 +86,7 @@ public class WebSocketServiceTests
     [Fact]
     public void Dispose_ShouldNotThrow()
     {
-        var service = new WebSocketService();
+        using var service = new WebSocketService();
         var action = () => service.Dispose();
         action.Should().NotThrow();
     }
@@ -94,9 +94,9 @@ public class WebSocketServiceTests
     [Fact]
     public void Dispose_CalledMultipleTimes_ShouldNotThrow()
     {
-        var service = new WebSocketService();
-        service.Dispose();
+        using var service = new WebSocketService();
         var action = () => service.Dispose();
+        action.Should().NotThrow();
         action.Should().NotThrow();
     }
 }

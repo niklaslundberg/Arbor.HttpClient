@@ -22,7 +22,7 @@ public class RoslynScriptRunnerTests
 
     // ── No-op when script is null/whitespace ──────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RunPreRequestAsync_NullScript_ReturnsSuccessEmptyResult()
     {
         var result = await _runner.RunPreRequestAsync(null, MakeContext());
@@ -32,7 +32,7 @@ public class RoslynScriptRunnerTests
         result.Log.Should().BeEmpty();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RunPreRequestAsync_WhitespaceScript_ReturnsSuccessEmptyResult()
     {
         var result = await _runner.RunPreRequestAsync("   ", MakeContext());
@@ -42,7 +42,7 @@ public class RoslynScriptRunnerTests
 
     // ── Successful execution ──────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RunPreRequestAsync_ValidScript_ReturnsSuccess()
     {
         const string script = "ctx.Log(\"hello from script\");";
@@ -53,7 +53,7 @@ public class RoslynScriptRunnerTests
         result.Log.Should().ContainSingle("hello from script");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RunPreRequestAsync_MutatesContext_ChangesArePropagated()
     {
         const string script = "ctx.Method = \"POST\"; ctx.Url = \"https://mutated.example.com\";";
@@ -65,7 +65,7 @@ public class RoslynScriptRunnerTests
         ctx.Url.Should().Be("https://mutated.example.com");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RunPreRequestAsync_ReadsEnvVariable_Succeeds()
     {
         const string script = "ctx.Log(ctx.Env[\"token\"]);";
@@ -77,7 +77,7 @@ public class RoslynScriptRunnerTests
         result.Log.Should().ContainSingle("abc123");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RunPreRequestAsync_SetsEnvVariable_IsVisibleInContext()
     {
         const string script = "ctx.Env[\"newKey\"] = \"newValue\";";
@@ -91,7 +91,7 @@ public class RoslynScriptRunnerTests
 
     // ── Assertion failures ────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RunPreRequestAsync_FailedAssertion_ReturnsFailureWithMessage()
     {
         const string script = "ctx.Assert(false, \"expected 200\");";
@@ -102,7 +102,7 @@ public class RoslynScriptRunnerTests
         result.Errors.Should().ContainSingle("expected 200");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RunPreRequestAsync_PassedAssertion_ReturnsSuccess()
     {
         const string script = "ctx.Assert(1 == 1, \"should pass\");";
@@ -115,7 +115,7 @@ public class RoslynScriptRunnerTests
 
     // ── Compilation errors ────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RunPreRequestAsync_SyntaxError_ReturnsFailureWithErrors()
     {
         const string script = "this is not valid C#!!!";
@@ -128,7 +128,7 @@ public class RoslynScriptRunnerTests
 
     // ── Runtime exceptions ────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RunPreRequestAsync_ThrowingScript_ReturnsFailureWithRuntimeError()
     {
         const string script = "throw new InvalidOperationException(\"runtime error from test\");";
@@ -141,7 +141,7 @@ public class RoslynScriptRunnerTests
 
     // ── Post-response script with Response ───────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RunPostResponseAsync_WithResponse_ReadsStatusCode()
     {
         const string script = "ctx.Log(ctx.Response!.StatusCode.ToString());";
@@ -154,7 +154,7 @@ public class RoslynScriptRunnerTests
         result.Log.Should().ContainSingle("200");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RunPostResponseAsync_ParsesBodyJsonViaSelf_ReadsProperty()
     {
         const string script = """
@@ -172,7 +172,7 @@ public class RoslynScriptRunnerTests
 
     // ── Script caching ────────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RunPreRequestAsync_SameScript_UsesCache_SecondRunSucceeds()
     {
         const string script = "ctx.Log(\"cached\");";
@@ -186,7 +186,7 @@ public class RoslynScriptRunnerTests
 
     // ── Cancellation ──────────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RunPreRequestAsync_AlreadyCancelledToken_ReturnsCancelledResult()
     {
         const string script = "ctx.Log(\"should not run\");";
@@ -200,3 +200,4 @@ public class RoslynScriptRunnerTests
         result.Log.Should().NotContain("should not run");
     }
 }
+

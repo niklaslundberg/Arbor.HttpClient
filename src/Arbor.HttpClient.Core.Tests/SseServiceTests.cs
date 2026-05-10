@@ -17,7 +17,7 @@ public class SseServiceTests
         using var reader = new StreamReader(new MemoryStream(Encoding.UTF8.GetBytes(sseText)));
 
         var events = new List<SseEvent>();
-        await SseService.ParseSseStreamAsync(reader, events.Add, CancellationToken.None);
+        await SseService.ParseSseStreamAsync(reader, events.Add, TestContext.Current.CancellationToken);
 
         events.Should().ContainSingle();
         events[0].Data.Should().Be("hello world");
@@ -32,7 +32,7 @@ public class SseServiceTests
         using var reader = new StreamReader(new MemoryStream(Encoding.UTF8.GetBytes(sseText)));
 
         var events = new List<SseEvent>();
-        await SseService.ParseSseStreamAsync(reader, events.Add, CancellationToken.None);
+        await SseService.ParseSseStreamAsync(reader, events.Add, TestContext.Current.CancellationToken);
 
         events.Should().ContainSingle();
         events[0].Id.Should().Be("42");
@@ -47,7 +47,7 @@ public class SseServiceTests
         using var reader = new StreamReader(new MemoryStream(Encoding.UTF8.GetBytes(sseText)));
 
         var events = new List<SseEvent>();
-        await SseService.ParseSseStreamAsync(reader, events.Add, CancellationToken.None);
+        await SseService.ParseSseStreamAsync(reader, events.Add, TestContext.Current.CancellationToken);
 
         events.Should().ContainSingle();
         events[0].Data.Should().Be("line one\nline two");
@@ -60,7 +60,7 @@ public class SseServiceTests
         using var reader = new StreamReader(new MemoryStream(Encoding.UTF8.GetBytes(sseText)));
 
         var events = new List<SseEvent>();
-        await SseService.ParseSseStreamAsync(reader, events.Add, CancellationToken.None);
+        await SseService.ParseSseStreamAsync(reader, events.Add, TestContext.Current.CancellationToken);
 
         events.Should().HaveCount(2);
         events[0].Data.Should().Be("first");
@@ -74,7 +74,7 @@ public class SseServiceTests
         using var reader = new StreamReader(new MemoryStream(Encoding.UTF8.GetBytes(sseText)));
 
         var events = new List<SseEvent>();
-        await SseService.ParseSseStreamAsync(reader, events.Add, CancellationToken.None);
+        await SseService.ParseSseStreamAsync(reader, events.Add, TestContext.Current.CancellationToken);
 
         events.Should().ContainSingle();
         events[0].Data.Should().Be("value");
@@ -88,7 +88,7 @@ public class SseServiceTests
         using var reader = new StreamReader(new MemoryStream(Encoding.UTF8.GetBytes(sseText)));
 
         var events = new List<SseEvent>();
-        await SseService.ParseSseStreamAsync(reader, events.Add, CancellationToken.None);
+        await SseService.ParseSseStreamAsync(reader, events.Add, TestContext.Current.CancellationToken);
 
         events.Should().ContainSingle();
         events[0].Data.Should().Be("trailing");
@@ -98,7 +98,7 @@ public class SseServiceTests
     public async Task ParseSseStreamAsync_ShouldRespectCancellationToken()
     {
         // Build a large repeating SSE stream
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
         for (var i = 0; i < 100; i++)
         {
             sb.AppendLine($"data: event{i}");
@@ -128,7 +128,7 @@ public class SseServiceTests
         using var reader = new StreamReader(new MemoryStream([]));
         var events = new List<SseEvent>();
 
-        await SseService.ParseSseStreamAsync(reader, events.Add, CancellationToken.None);
+        await SseService.ParseSseStreamAsync(reader, events.Add, TestContext.Current.CancellationToken);
 
         events.Should().BeEmpty();
     }
@@ -140,7 +140,7 @@ public class SseServiceTests
         using var reader = new StreamReader(new MemoryStream(Encoding.UTF8.GetBytes(sseText)));
 
         var events = new List<SseEvent>();
-        await SseService.ParseSseStreamAsync(reader, events.Add, CancellationToken.None);
+        await SseService.ParseSseStreamAsync(reader, events.Add, TestContext.Current.CancellationToken);
 
         events.Should().ContainSingle();
         events[0].Data.Should().Be("trimmed");
@@ -153,8 +153,9 @@ public class SseServiceTests
     [Fact]
     public async Task ConnectAsync_ShouldThrowOnNonHttpUrl()
     {
-        var service = new SseService(new global::System.Net.Http.HttpClient(
-            new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))));
+        using var httpClient = new System.Net.Http.HttpClient(
+            new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        var service = new SseService(httpClient);
 
         var action = () => service.ConnectAsync("ftp://localhost:5000/stream", _ => { });
 
@@ -164,8 +165,9 @@ public class SseServiceTests
     [Fact]
     public async Task ConnectAsync_ShouldThrowWhenOnEventIsNull()
     {
-        var service = new SseService(new global::System.Net.Http.HttpClient(
-            new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))));
+        using var httpClient = new System.Net.Http.HttpClient(
+            new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        var service = new SseService(httpClient);
 
         var action = () => service.ConnectAsync("http://localhost:5000/stream", null!);
 
@@ -188,7 +190,8 @@ public class SseServiceTests
             return response;
         });
 
-        var service = new SseService(new global::System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new SseService(httpClient);
         var events = new List<SseEvent>();
 
         await service.ConnectAsync("http://localhost:5000/stream", events.Add, cancellationToken: TestContext.Current.CancellationToken);
@@ -211,7 +214,8 @@ public class SseServiceTests
             };
         });
 
-        var service = new SseService(new global::System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new SseService(httpClient);
         await service.ConnectAsync("http://localhost:5000/stream", _ => { }, cancellationToken: TestContext.Current.CancellationToken);
 
         captured.Should().NotBeNull();
@@ -232,7 +236,8 @@ public class SseServiceTests
             };
         });
 
-        var service = new SseService(new global::System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new SseService(httpClient);
         var headers = new[] { new RequestHeader("X-Api-Key", "secret-token") };
 
         await service.ConnectAsync("http://localhost:5000/stream", _ => { }, headers, TestContext.Current.CancellationToken);
@@ -255,7 +260,8 @@ public class SseServiceTests
             };
         });
 
-        var service = new SseService(new global::System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new SseService(httpClient);
         var headers = new[] { new RequestHeader("Accept", "text/html") };
 
         await service.ConnectAsync("http://localhost:5000/stream", _ => { }, headers, TestContext.Current.CancellationToken);
@@ -278,7 +284,8 @@ public class SseServiceTests
             };
         });
 
-        var service = new SseService(new global::System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new SseService(httpClient);
         var headers = new[] { new RequestHeader("X-Disabled", "value", IsEnabled: false) };
 
         await service.ConnectAsync("http://localhost:5000/stream", _ => { }, headers, TestContext.Current.CancellationToken);
@@ -300,7 +307,8 @@ public class SseServiceTests
             };
         });
 
-        var service = new SseService(new global::System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new SseService(httpClient);
         var headers = new[] { new RequestHeader("  ", "value") };
 
         // Blank-name headers must be silently dropped (no exception)

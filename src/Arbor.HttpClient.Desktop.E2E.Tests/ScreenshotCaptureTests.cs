@@ -7,11 +7,8 @@ using Arbor.HttpClient.Desktop.Features.Options;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Testing.Fakes;
 using Arbor.HttpClient.Testing.Repositories;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
-using Avalonia.Skia;
-using Avalonia.VisualTree;
 using Serilog;
 using Arbor.HttpClient.Core.Collections;
 using Arbor.HttpClient.Core.HttpRequest;
@@ -30,48 +27,42 @@ public class ScreenshotCaptureTests
     /// Output directory is controlled by the SCREENSHOT_OUTPUT_DIR environment variable
     /// (defaults to the system temp folder).
     /// </summary>
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task Capture_OptionsView_ScheduledJobsPage()
     {
         var outputDir = ResolveOutputDir();
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var repository = new InMemoryRequestHistoryRepository();
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-        await session.Dispatch(async () =>
-        {
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var repository = new InMemoryRequestHistoryRepository();
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        var optionsVm = new OptionsViewModel(viewModel);
+        var window = new Window { Width = 820, Height = 560, DataContext = optionsVm };
+        window.Content = new OptionsView();
+        window.Show();
 
-            var optionsVm = new OptionsViewModel(viewModel);
-            var window = new Window { Width = 820, Height = 560, DataContext = optionsVm };
-            window.Content = new OptionsView();
-            window.Show();
+        // Navigate to the Scheduled Jobs page via the ViewModel
+        optionsVm.SelectedOptionsPage = "ScheduledJobs";
 
-            // Navigate to the Scheduled Jobs page via the ViewModel
-            optionsVm.SelectedOptionsPage = "ScheduledJobs";
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
 
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        screenshot?.Save(Path.Join(outputDir, "options-view-scheduled-jobs.png"));
 
-            var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            screenshot?.Save(Path.Join(outputDir, "options-view-scheduled-jobs.png"));
-
-            window.Close();
-            return true;
-        }, CancellationToken.None);
+        window.Close();
     }
 
     /// <summary>
@@ -80,51 +71,44 @@ public class ScreenshotCaptureTests
     /// Output directory is controlled by the SCREENSHOT_OUTPUT_DIR environment variable
     /// (defaults to the system temp folder).
     /// </summary>
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task Capture_ScheduledJobsPanel_AutostartCheckbox()
     {
         var outputDir = ResolveOutputDir();
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var repository = new InMemoryRequestHistoryRepository();
+        var scheduledJobRepository = new InMemoryScheduledJobRepository();
+        await scheduledJobRepository.SaveAsync(new ScheduledJobConfig(
+            0, "Daily health-check", "GET", "http://localhost:5000/health",
+            null, null, 60, AutoStart: true));
 
-        await session.Dispatch(async () =>
-        {
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var repository = new InMemoryRequestHistoryRepository();
-            var scheduledJobRepository = new InMemoryScheduledJobRepository();
-            await scheduledJobRepository.SaveAsync(new ScheduledJobConfig(
-                0, "Daily health-check", "GET", "http://localhost:5000/health",
-                null, null, 60, AutoStart: true));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            scheduledJobRepository,
+            scheduledJobService,
+            logWindowViewModel);
 
-            var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                scheduledJobRepository,
-                scheduledJobService,
-                logWindowViewModel);
+        await viewModel.InitializeAsync();
+        viewModel.LeftPanelTab = "ScheduledJobs";
 
-            await viewModel.InitializeAsync();
-            viewModel.LeftPanelTab = "ScheduledJobs";
+        var window = new MainWindow { DataContext = viewModel };
+        window.Show();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(5);
 
-            var window = new MainWindow { DataContext = viewModel };
-            window.Show();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(5);
+        var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        screenshot?.Save(Path.Join(outputDir, "scheduled-jobs-autostart.png"));
 
-            var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            screenshot?.Save(Path.Join(outputDir, "scheduled-jobs-autostart.png"));
-
-            window.Close();
-            viewModel.Dispose();
-            return true;
-        }, CancellationToken.None);
+        window.Close();
     }
 
     /// <summary>
@@ -133,27 +117,22 @@ public class ScreenshotCaptureTests
     /// Output directory is controlled by the SCREENSHOT_OUTPUT_DIR environment variable
     /// (defaults to the system temp folder).
     /// </summary>
-    [Fact]
-    public async Task Capture_AboutWindow()
+    [AvaloniaFact(Timeout = 10_000)]
+    public Task Capture_AboutWindow()
     {
         var outputDir = ResolveOutputDir();
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+        var viewModel = new AboutWindowViewModel();
+        var window = new AboutWindow { DataContext = viewModel };
+        window.Show();
 
-        await session.Dispatch(() =>
-        {
-            var viewModel = new AboutWindowViewModel();
-            var window = new AboutWindow { DataContext = viewModel };
-            window.Show();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
 
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        screenshot?.Save(Path.Join(outputDir, "about-window.png"));
 
-            var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            screenshot?.Save(Path.Join(outputDir, "about-window.png"));
-
-            window.Close();
-            return Task.FromResult(true);
-        }, CancellationToken.None);
+        window.Close();
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -162,11 +141,11 @@ public class ScreenshotCaptureTests
     /// warning banner, and the activity-bar badge dot.  The color dots on each dropdown item
     /// are a runtime visual inside the Avalonia popup visual root and cannot be captured by
     /// <see cref="Window.GetLastRenderedFrame"/>; they are verified by the ItemTemplate XAML
-    /// and the <see cref="Arbor.HttpClient.Desktop.Shared.NotNullConverter"/> binding.
+    /// and the <see cref="Shared.NotNullConverter"/> binding.
     /// Output directory is controlled by the SCREENSHOT_OUTPUT_DIR environment variable
     /// (defaults to the system temp folder).
     /// </summary>
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task Capture_EnvironmentColorDropdown()
     {
         // Preset accent colors matching EnvironmentsPreset*Brush resources defined in App.axaml.
@@ -176,54 +155,48 @@ public class ScreenshotCaptureTests
 
         var outputDir = ResolveOutputDir();
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var repository = new InMemoryRequestHistoryRepository();
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-        await session.Dispatch(async () =>
+        var environmentRepository = new InMemoryEnvironmentRepository();
+        await environmentRepository.SaveAsync("Development", [], accentColor: DevelopmentGreen);
+        await environmentRepository.SaveAsync("Staging", [], accentColor: StagingAmber);
+        await environmentRepository.SaveAsync("Production", [], accentColor: ProductionRed, showWarningBanner: true);
+
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            environmentRepository,
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        await viewModel.InitializeAsync();
+
+        var productionEnvironment = viewModel.Environments.FirstOrDefault(e => e.Name == "Production");
+        if (productionEnvironment is null)
         {
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var repository = new InMemoryRequestHistoryRepository();
-            using var httpClient = new global::System.Net.Http.HttpClient(handler);
-            var httpRequestService = new HttpRequestService(httpClient, repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+            throw new InvalidOperationException(
+                $"Expected '{nameof(MainWindowViewModel.Environments)}' to contain 'Production' after '{nameof(MainWindowViewModel.InitializeAsync)}'.");
+        }
 
-            var environmentRepository = new InMemoryEnvironmentRepository();
-            await environmentRepository.SaveAsync("Development", [], accentColor: DevelopmentGreen);
-            await environmentRepository.SaveAsync("Staging", [], accentColor: StagingAmber);
-            await environmentRepository.SaveAsync("Production", [], accentColor: ProductionRed, showWarningBanner: true);
+        viewModel.ActiveEnvironment = productionEnvironment;
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                environmentRepository,
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        var window = new MainWindow { DataContext = viewModel };
+        window.Show();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(5);
 
-            await viewModel.InitializeAsync();
+        var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        screenshot?.Save(Path.Join(outputDir, "env-color-dropdown.png"));
 
-            var productionEnvironment = viewModel.Environments.FirstOrDefault(e => e.Name == "Production");
-            if (productionEnvironment is null)
-            {
-                throw new InvalidOperationException(
-                    $"Expected '{nameof(MainWindowViewModel.Environments)}' to contain 'Production' after '{nameof(MainWindowViewModel.InitializeAsync)}'.");
-            }
-
-            viewModel.ActiveEnvironment = productionEnvironment;
-
-            var window = new MainWindow { DataContext = viewModel };
-            window.Show();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(5);
-
-            var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            screenshot?.Save(Path.Join(outputDir, "env-color-dropdown.png"));
-
-            window.Close();
-            return true;
-        }, CancellationToken.None);
+        window.Close();
     }
 
     private static string ResolveOutputDir()
@@ -233,14 +206,4 @@ public class ScreenshotCaptureTests
         Directory.CreateDirectory(dir);
         return dir;
     }
-
-    private sealed class TestEntryPoint
-    {
-        public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
-            .WithInterFont()
-            .LogToTrace();
-    }
-
 }

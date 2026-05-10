@@ -37,7 +37,7 @@ public sealed partial class GraphQlViewModel : ViewModelBase
     [ObservableProperty]
     private string _introspectionError = string.Empty;
 
-    public GraphQlViewModel(global::System.Net.Http.HttpClient httpClient, ILogger logger)
+    public GraphQlViewModel(System.Net.Http.HttpClient httpClient, ILogger logger)
     {
         _service = new GraphQlService(httpClient);
         _logger = logger.ForContext<GraphQlViewModel>();

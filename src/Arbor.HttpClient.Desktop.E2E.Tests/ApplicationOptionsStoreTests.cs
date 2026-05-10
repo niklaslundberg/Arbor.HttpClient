@@ -8,7 +8,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Trait("Category", "Integration")]
 public class ApplicationOptionsStoreTests
 {
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Load_ShouldReturnDefaults_WhenOptionsFileDoesNotExist()
     {
         var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}", "options.json");
@@ -26,7 +26,7 @@ public class ApplicationOptionsStoreTests
         options.ScheduledJobs.DefaultIntervalSeconds.Should().Be(60);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Import_ShouldRejectInvalidHttpVersion()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}");
@@ -56,7 +56,7 @@ public class ApplicationOptionsStoreTests
         action.Should().Throw<InvalidDataException>();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void SaveAndImport_ShouldRoundtripValidOptions()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}");
@@ -135,7 +135,7 @@ public class ApplicationOptionsStoreTests
         imported.Layouts.SavedLayouts[0].Name.Should().Be("Layout 1");
     }
 
-    [Theory]
+    [AvaloniaTheory(Timeout = 10_000)]
     [InlineData("Tls10")]
     [InlineData("Tls11")]
     public void Validate_ShouldAcceptInsecureTlsVersions(string tlsVersion)
@@ -163,7 +163,7 @@ public class ApplicationOptionsStoreTests
         action.Should().NotThrow();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Validate_ShouldRejectUnknownTlsVersion()
     {
         var options = new ApplicationOptions
@@ -189,7 +189,7 @@ public class ApplicationOptionsStoreTests
         action.Should().Throw<InvalidDataException>().WithMessage("*TLS version*");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Validate_ShouldRejectZeroDefaultInterval()
     {
         var options = new ApplicationOptions
@@ -220,7 +220,7 @@ public class ApplicationOptionsStoreTests
         action.Should().Throw<InvalidDataException>().WithMessage("*interval*");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Validate_ShouldRejectZeroDefaultRequestTimeout()
     {
         var options = new ApplicationOptions
@@ -247,7 +247,7 @@ public class ApplicationOptionsStoreTests
         action.Should().Throw<InvalidDataException>().WithMessage("*timeout*");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Validate_ShouldRejectInvalidResponseSavePattern()
     {
         var options = new ApplicationOptions
@@ -274,7 +274,7 @@ public class ApplicationOptionsStoreTests
         action.Should().Throw<InvalidDataException>().WithMessage("*file name pattern*");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Validate_ShouldRejectDuplicateSavedLayoutNames()
     {
         var options = new ApplicationOptions
@@ -294,3 +294,4 @@ public class ApplicationOptionsStoreTests
         action.Should().Throw<InvalidDataException>().WithMessage("*Duplicate saved layout name*");
     }
 }
+

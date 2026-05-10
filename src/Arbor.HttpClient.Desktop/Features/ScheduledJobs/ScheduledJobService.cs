@@ -21,6 +21,7 @@ public sealed class ScheduledJobService : IDisposable
     private readonly HttpRequestService _httpRequestService;
     private readonly ILogger _logger;
     private readonly UnhandledExceptionCollector? _exceptionCollector;
+    private readonly object _gate = new();
     private readonly ConcurrentDictionary<int, JobHandle> _handles = new();
 
     public ScheduledJobService(HttpRequestService httpRequestService, ILogger logger, UnhandledExceptionCollector? exceptionCollector = null)
@@ -45,21 +46,32 @@ public sealed class ScheduledJobService : IDisposable
         ScheduledJobConfig config,
         Func<HttpResponseDetails, CancellationToken, Task>? onResponseAsync = null)
     {
-        if (_handles.ContainsKey(config.Id))
+        lock (_gate)
         {
-            return;
+            if (_handles.ContainsKey(config.Id))
+            {
+                return;
+            }
+
+            var cts = new CancellationTokenSource();
+            var handle = new JobHandle(cts);
+            _handles[config.Id] = handle;
+            handle.Task = RunAsync(config, onResponseAsync, cts.Token);
         }
 
-        var cts = new CancellationTokenSource();
-        var task = RunAsync(config, onResponseAsync, cts.Token);
-        _handles[config.Id] = new JobHandle(cts, task);
         _logger.Information("Scheduled job {JobName} (id={JobId}) started with interval {IntervalSeconds}s",
             config.Name, config.Id, config.IntervalSeconds);
     }
 
     public void Stop(int jobId)
     {
-        if (_handles.TryRemove(jobId, out var handle))
+        JobHandle? handle;
+        lock (_gate)
+        {
+            _handles.TryRemove(jobId, out handle);
+        }
+
+        if (handle is { })
         {
             handle.Cts.Cancel();
             _logger.Information("Scheduled job id={JobId} stopped", jobId);
@@ -128,7 +140,7 @@ public sealed class ScheduledJobService : IDisposable
             return JsonSerializer.Deserialize<List<RequestHeader>>(headersJson,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         }
-        catch
+        catch (JsonException)
         {
             return null;
         }
@@ -136,13 +148,23 @@ public sealed class ScheduledJobService : IDisposable
 
     public void Dispose()
     {
-        foreach (var handle in _handles.Values)
+        JobHandle[] handles;
+        lock (_gate)
+        {
+            handles = [.. _handles.Values];
+            _handles.Clear();
+        }
+
+        foreach (var handle in handles)
         {
             handle.Cts.Cancel();
         }
-
-        _handles.Clear();
     }
 
-    private sealed record JobHandle(CancellationTokenSource Cts, Task Task);
+    private sealed class JobHandle(CancellationTokenSource cts)
+    {
+        public CancellationTokenSource Cts { get; } = cts;
+
+        public Task? Task { get; set; }
+    }
 }

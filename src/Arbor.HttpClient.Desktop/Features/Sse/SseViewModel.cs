@@ -35,7 +35,7 @@ public sealed partial class SseViewModel : ViewModelBase, IDisposable
 
     public string ConnectButtonLabel => IsConnected ? "Disconnect" : "Connect";
 
-    public SseViewModel(global::System.Net.Http.HttpClient httpClient, ILogger logger)
+    public SseViewModel(System.Net.Http.HttpClient httpClient, ILogger logger)
     {
         _service = new SseService(httpClient);
         _logger = logger.ForContext<SseViewModel>();
@@ -79,12 +79,16 @@ public sealed partial class SseViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             _logger.Error(ex, "SSE connection failed for {Url}", url);
-            ConnectionError = $"Connection failed: {ex.Message}";
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+                () => ConnectionError = $"Connection failed: {ex.Message}");
         }
         finally
         {
-            IsConnected = false;
-            StatusMessage = "Disconnected.";
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                IsConnected = false;
+                StatusMessage = "Disconnected.";
+            });
             _logger.Information("SSE disconnected from {Url}", url);
         }
     }
@@ -94,12 +98,30 @@ public sealed partial class SseViewModel : ViewModelBase, IDisposable
     private void Disconnect()
     {
         _connectionCts?.Cancel();
-        IsConnected = false;
+
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            IsConnected = false;
+        }
+        else
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => IsConnected = false);
+        }
     }
 
     /// <summary>Clears the event log.</summary>
     [RelayCommand]
-    private void ClearEvents() => Events.Clear();
+    private void ClearEvents()
+    {
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            Events.Clear();
+        }
+        else
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => Events.Clear());
+        }
+    }
 
     /// <inheritdoc />
     public void Dispose()

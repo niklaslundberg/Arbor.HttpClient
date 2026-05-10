@@ -8,7 +8,7 @@ using Dock.Model.Core;
 
 namespace Arbor.HttpClient.Desktop.Features.Main;
 
-public partial class MainWindow : Avalonia.Controls.Window
+public partial class MainWindow : Window
 {
     public MainWindow()
     {
@@ -16,7 +16,7 @@ public partial class MainWindow : Avalonia.Controls.Window
         DataContextChanged += OnDataContextChanged;
     }
 
-    private void OnDataContextChanged(object? sender, System.EventArgs e)
+    private void OnDataContextChanged(object? sender, EventArgs e)
     {
         if (DataContext is MainWindowViewModel viewModel)
         {
@@ -93,7 +93,7 @@ public partial class MainWindow : Avalonia.Controls.Window
         }
     }
 
-    protected override void OnClosed(System.EventArgs e)
+    protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
     }

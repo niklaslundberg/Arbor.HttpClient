@@ -430,14 +430,16 @@ jobs:
           start_time=$(date +%s)
           # Timeout is a hang guard; runtime budget is enforced explicitly below.
           # This E2E job runs only integration-tagged tests; screenshot tests run in ux-screenshots.
-          timeout 180 dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
+          timeout 120 dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
             --no-restore \
             --no-build \
             --configuration Release \
-            --logger "console;verbosity=normal" \
-            --logger "trx;LogFileName=e2e-tests.trx" \
+            -- \
+            --filter-trait Category=Integration \
+            --filter-not-trait Category=Screenshots \
             --results-directory TestResults/e2e \
-            --filter "Category=Integration&Category!=Screenshots" || {
+            --report-xunit-trx \
+            --report-xunit-trx-filename e2e-tests.trx || {
               exit_code=$?
               if [ "$exit_code" -eq 124 ]; then
                 echo "::error::E2E tests timed out at 2 minutes (hang detected)."
@@ -455,13 +457,13 @@ jobs:
 
       - name: Report E2E test results
         if: always()
-        run: trx --path TestResults/e2e --verbosity normal
+        run: trx --path src/Arbor.HttpClient.Desktop.E2E.Tests/TestResults/e2e --verbosity normal
 
       - name: Generate E2E test HTML report
         if: always()
         run: |
           mkdir -p TestResults/e2e/html
-          trxlog2html -i TestResults/e2e/e2e-tests.trx -o TestResults/e2e/html/index.html
+          trxlog2html -i src/Arbor.HttpClient.Desktop.E2E.Tests/TestResults/e2e/e2e-tests.trx -o TestResults/e2e/html/index.html
 
       - name: Upload E2E test results
         if: always()
@@ -469,7 +471,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: e2e-test-results
-          path: TestResults/e2e/*.trx
+          path: src/Arbor.HttpClient.Desktop.E2E.Tests/TestResults/e2e/*.trx
           retention-days: 14
           if-no-files-found: error
 

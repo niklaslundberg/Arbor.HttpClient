@@ -29,7 +29,7 @@ public sealed class InMemorySink : ILogEventSink, IDisposable
 
     public void Emit(LogEvent logEvent)
     {
-        using var writer = new System.IO.StringWriter();
+        using var writer = new StringWriter();
         _formatter.Format(logEvent, writer);
         var message = writer.ToString().TrimEnd();
 

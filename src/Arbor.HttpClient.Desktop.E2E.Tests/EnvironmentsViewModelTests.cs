@@ -3,9 +3,6 @@ using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Testing.Repositories;
 using Arbor.HttpClient.Core.Environments;
 using Arbor.HttpClient.Core.Variables;
-using Avalonia;
-using Avalonia.Headless;
-using Avalonia.Skia;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
@@ -17,7 +14,7 @@ public class EnvironmentsViewModelTests
         return new EnvironmentsViewModel(repository, () => requestEditor, () => null);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void NewEnvironmentCommand_ShouldResetDraftAndShowPanel()
     {
         var repository = new InMemoryEnvironmentRepository();
@@ -34,7 +31,7 @@ public class EnvironmentsViewModelTests
         viewModel.IsEnvironmentPanelVisible.Should().BeTrue();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task SaveEnvironmentCommand_ShouldCreateAndActivateEnvironment()
     {
         var repository = new InMemoryEnvironmentRepository();
@@ -50,7 +47,7 @@ public class EnvironmentsViewModelTests
         viewModel.ActiveEnvironment!.Name.Should().Be("dev");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task EditEnvironmentCommand_ShouldLoadVariablesIntoDraft()
     {
         var repository = new InMemoryEnvironmentRepository();
@@ -72,7 +69,7 @@ public class EnvironmentsViewModelTests
         viewModel.ActiveEnvironmentVariables[1].IsEnabled.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DeleteEnvironmentCommand_ShouldRemoveEnvironmentAndClearSelection()
     {
         var repository = new InMemoryEnvironmentRepository();
@@ -87,7 +84,7 @@ public class EnvironmentsViewModelTests
         viewModel.ActiveEnvironment.Should().BeNull();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void GetActiveVariablesForEditor_ShouldReturnCurrentVariableSnapshot()
     {
         var repository = new InMemoryEnvironmentRepository();
@@ -102,7 +99,7 @@ public class EnvironmentsViewModelTests
         variables[1].IsEnabled.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task SwitchActiveEnvironment_ShouldRefreshVariables()
     {
         var repository = new InMemoryEnvironmentRepository();
@@ -123,42 +120,27 @@ public class EnvironmentsViewModelTests
 [Trait("Category", "Integration")]
 public class EnvironmentsViewModelAutoSaveTests
 {
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task AutoSave_ShouldNotWipeVariablesAfterReload()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+        var repository = new InMemoryEnvironmentRepository();
+        var requestEditor = new RequestEditorViewModel(new VariableResolver(), () => []);
+        var viewModel = new EnvironmentsViewModel(repository, () => requestEditor, () => null);
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryEnvironmentRepository();
-            var requestEditor = new RequestEditorViewModel(new VariableResolver(), () => []);
-            var viewModel = new EnvironmentsViewModel(repository, () => requestEditor, () => null);
+        viewModel.NewEnvironmentCommand.Execute(null);
+        viewModel.NewEnvironmentName = "myenv";
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
 
-            viewModel.NewEnvironmentCommand.Execute(null);
-            viewModel.NewEnvironmentName = "myenv";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
+        // Wait long enough for auto-save debounce to fire and complete.
+        await Task.Delay(1500, TestContext.Current.CancellationToken);
 
-            // Wait long enough for auto-save debounce to fire and complete.
-            await Task.Delay(1500);
+        // Environment should have been created and the panel should remain open.
+        viewModel.ActiveEnvironment.Should().NotBeNull();
+        viewModel.ActiveEnvironment!.Name.Should().Be("myenv");
+        viewModel.IsEnvironmentPanelVisible.Should().BeTrue();
 
-            // Environment should have been created and the panel should remain open.
-            viewModel.ActiveEnvironment.Should().NotBeNull();
-            viewModel.ActiveEnvironment!.Name.Should().Be("myenv");
-            viewModel.IsEnvironmentPanelVisible.Should().BeTrue();
-
-            // Variables must not have been wiped by the reload triggered by auto-save.
-            viewModel.ActiveEnvironmentVariables.Should().ContainSingle(variable => variable.Name == "host");
-
-            return true;
-        }, CancellationToken.None);
-    }
-
-    private sealed class TestEntryPoint
-    {
-        public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
-            .WithInterFont()
-            .LogToTrace();
+        // Variables must not have been wiped by the reload triggered by auto-save.
+        viewModel.ActiveEnvironmentVariables.Should().ContainSingle(variable => variable.Name == "host");
     }
 }
+

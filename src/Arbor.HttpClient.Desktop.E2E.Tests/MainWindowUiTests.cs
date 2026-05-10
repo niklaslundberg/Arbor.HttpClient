@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Diagnostics;
+using System.Reflection;
 using System.Text;
 using Arbor.HttpClient.Desktop;
 using Arbor.HttpClient.Desktop.Features.Environments;
@@ -34,322 +36,357 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Trait("Category", "Integration")]
 public class MainWindowUiTests
 {
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task OnRequestBodyFileChanged_WhenWatcherTokenAlreadyCancelled_ResetsPendingFlag()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        using var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        using var cancelledCts = new CancellationTokenSource();
+        await cancelledCts.CancelAsync();
+
+        var ctsField = typeof(MainWindowViewModel).GetField("_fileWatcherCts", BindingFlags.Instance | BindingFlags.NonPublic);
+        var pendingField = typeof(MainWindowViewModel).GetField("_requestBodyReadPending", BindingFlags.Instance | BindingFlags.NonPublic);
+        var onChangedMethod = typeof(MainWindowViewModel).GetMethod("OnRequestBodyFileChanged", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        ctsField.Should().NotBeNull();
+        pendingField.Should().NotBeNull();
+        onChangedMethod.Should().NotBeNull();
+
+        ctsField!.SetValue(viewModel, cancelledCts);
+
+        var tempDirectory = Path.Join(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDirectory);
+        var tempFile = Path.Join(tempDirectory, "request-body.json");
+        await File.WriteAllTextAsync(tempFile, "{\"updated\":true}", TestContext.Current.CancellationToken);
+
+        try
+        {
+            var args = new FileSystemEventArgs(WatcherChangeTypes.Changed, tempDirectory, Path.GetFileName(tempFile));
+
+            var action = () => onChangedMethod!.Invoke(viewModel, [new object(), args]);
+            action.Should().NotThrow();
+
+            await WaitForConditionAsync(
+                () => Equals(pendingField!.GetValue(viewModel), 0),
+                TimeSpan.FromSeconds(2),
+                TestContext.Current.CancellationToken);
+
+            pendingField!.GetValue(viewModel).Should().Be(0);
+        }
+        finally
+        {
+            ctsField.SetValue(viewModel, null);
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    private static async Task WaitForConditionAsync(Func<bool> condition, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+
+        while (!condition())
+        {
+            stopwatch.Elapsed.Should().BeLessThan(timeout);
+            await Task.Delay(50, cancellationToken);
+        }
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task MainWindowViewModel_ShouldRestoreImplicitLayoutFromInitialOptions()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel,
-                initialOptions: new ApplicationOptions
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel,
+            initialOptions: new ApplicationOptions
+            {
+                Layouts = new LayoutOptions
                 {
-                    Layouts = new LayoutOptions
+                    CurrentLayout = new DockLayoutSnapshot
                     {
-                        CurrentLayout = new DockLayoutSnapshot
-                        {
-                            LeftToolProportion = 0.4,
-                            DocumentProportion = 0.6,
-                            ActiveToolDockableId = "options",
-                            LeftToolDockableOrder = ["options", "left-panel"]
-                        }
+                        LeftToolProportion = 0.4,
+                        DocumentProportion = 0.6,
+                        ActiveToolDockableId = "options",
+                        LeftToolDockableOrder = ["options", "left-panel"]
                     }
-                });
+                }
+            });
 
-            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
-            var documentLayout = FindDockById<ProportionalDock>(viewModel.Layout!, "document-layout");
+        var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+        var documentLayout = FindDockById<ProportionalDock>(viewModel.Layout!, "document-layout");
 
-            leftToolDock.Should().NotBeNull();
-            documentLayout.Should().NotBeNull();
-            leftToolDock!.Proportion.Should().BeApproximately(0.4, 0.0001);
-            documentLayout!.Proportion.Should().BeApproximately(0.6, 0.0001);
-            leftToolDock.ActiveDockable?.Id.Should().Be("options");
-
-            return true;
-        }, CancellationToken.None);
+        leftToolDock.Should().NotBeNull();
+        documentLayout.Should().NotBeNull();
+        leftToolDock.Proportion.Should().BeApproximately(0.4, 0.0001);
+        documentLayout.Proportion.Should().BeApproximately(0.6, 0.0001);
+        leftToolDock.ActiveDockable?.Id.Should().Be("options");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task MainWindowViewModel_ShouldSaveRestoreAndRemoveNamedLayouts()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
-            var documentLayout = FindDockById<ProportionalDock>(viewModel.Layout!, "document-layout");
-            leftToolDock.Should().NotBeNull();
-            documentLayout.Should().NotBeNull();
+        var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+        var documentLayout = FindDockById<ProportionalDock>(viewModel.Layout!, "document-layout");
+        leftToolDock.Should().NotBeNull();
+        documentLayout.Should().NotBeNull();
 
-            leftToolDock!.Proportion = 0.35;
-            documentLayout!.Proportion = 0.65;
-            leftToolDock.ActiveDockable = leftToolDock.VisibleDockables!.First(d => d.Id == "options");
+        leftToolDock.Proportion = 0.35;
+        documentLayout.Proportion = 0.65;
+        leftToolDock.ActiveDockable = leftToolDock.VisibleDockables!.First(d => d.Id == "options");
 
-            viewModel.SaveLayoutAsNewCommand.Execute(null);
-            viewModel.SavedLayoutNames.Should().ContainSingle();
-            var layoutName = viewModel.SavedLayoutNames.Single();
+        viewModel.SaveLayoutAsNewCommand.Execute(null);
+        viewModel.SavedLayoutNames.Should().ContainSingle();
+        var layoutName = viewModel.SavedLayoutNames.Single();
 
-            leftToolDock.Proportion = 0.2;
-            documentLayout.Proportion = 0.8;
-            leftToolDock.ActiveDockable = leftToolDock.VisibleDockables!.First(d => d.Id == "left-panel");
+        leftToolDock.Proportion = 0.2;
+        documentLayout.Proportion = 0.8;
+        leftToolDock.ActiveDockable = leftToolDock.VisibleDockables!.First(d => d.Id == "left-panel");
 
-            // Selection was already layoutName after save; clear it first so the re-selection triggers restore
-            viewModel.SelectedLayoutName = null;
-            viewModel.SelectedLayoutName = layoutName;
+        // Selection was already layoutName after save; clear it first so the re-selection triggers restore
+        viewModel.SelectedLayoutName = null;
+        viewModel.SelectedLayoutName = layoutName;
 
-            leftToolDock.Proportion.Should().BeApproximately(0.35, 0.0001);
-            documentLayout.Proportion.Should().BeApproximately(0.65, 0.0001);
-            leftToolDock.ActiveDockable?.Id.Should().Be("options");
+        leftToolDock.Proportion.Should().BeApproximately(0.35, 0.0001);
+        documentLayout.Proportion.Should().BeApproximately(0.65, 0.0001);
+        leftToolDock.ActiveDockable?.Id.Should().Be("options");
 
-            viewModel.RemoveLayoutCommand.Execute(layoutName);
-            viewModel.SavedLayoutNames.Should().BeEmpty();
-
-            return true;
-        }, CancellationToken.None);
+        viewModel.RemoveLayoutCommand.Execute(layoutName);
+        viewModel.SavedLayoutNames.Should().BeEmpty();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task Layout_DefaultSplitView_ShouldShowRequestAboveResponse()
     {
         // Verifies the default layout places request-dock above response-dock in a vertical split
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            var documentLayout = FindDockById<ProportionalDock>(viewModel.Layout!, "document-layout");
-            var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
-            var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
+        var documentLayout = FindDockById<ProportionalDock>(viewModel.Layout!, "document-layout");
+        var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
+        var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
 
-            documentLayout.Should().NotBeNull("document-layout must exist in the default dock layout");
-            requestDock.Should().NotBeNull("request-dock must exist in the default dock layout");
-            responseDock.Should().NotBeNull("response-dock must exist in the default dock layout");
+        documentLayout.Should().NotBeNull("document-layout must exist in the default dock layout");
+        requestDock.Should().NotBeNull("request-dock must exist in the default dock layout");
+        responseDock.Should().NotBeNull("response-dock must exist in the default dock layout");
 
-            // Request dock should be first (top) in the vertical split
-            var visibleDockables = documentLayout!.VisibleDockables!;
-            var requestIndex = visibleDockables.IndexOf(requestDock!);
-            var responseIndex = visibleDockables.IndexOf(responseDock!);
-            requestIndex.Should().BeLessThan(responseIndex, "request-dock must appear before response-dock (top before bottom)");
+        // Request dock should be first (top) in the vertical split
+        var visibleDockables = documentLayout.VisibleDockables!;
+        var requestIndex = visibleDockables.IndexOf(requestDock);
+        var responseIndex = visibleDockables.IndexOf(responseDock);
+        requestIndex.Should().BeLessThan(responseIndex, "request-dock must appear before response-dock (top before bottom)");
 
-            // Default proportions: request gets more space
-            requestDock!.Proportion.Should().BeGreaterThan(0, "request dock must have a positive proportion");
-            responseDock!.Proportion.Should().BeGreaterThan(0, "response dock must have a positive proportion");
-
-            return true;
-        }, CancellationToken.None);
+        // Default proportions: request gets more space
+        requestDock.Proportion.Should().BeGreaterThan(0, "request dock must have a positive proportion");
+        responseDock.Proportion.Should().BeGreaterThan(0, "response dock must have a positive proportion");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task Layout_SplitViewProportions_ShouldPersistAcrossRestarts()
     {
         // Verifies that the request/response split proportions are saved and restored
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            // ── First "application run" ──────────────────────────────────────
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        // ── First "application run" ──────────────────────────────────────
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
-            var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
-            requestDock.Should().NotBeNull();
-            responseDock.Should().NotBeNull();
+        var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
+        var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
+        requestDock.Should().NotBeNull();
+        responseDock.Should().NotBeNull();
 
-            // Simulate user resizing the split — give response more space
-            requestDock!.Proportion = 0.3;
-            responseDock!.Proportion = 0.7;
+        // Simulate user resizing the split — give response more space
+        requestDock.Proportion = 0.3;
+        responseDock.Proportion = 0.7;
 
-            // Simulate OnClosing: persist then capture
-            var savedLayout = viewModel.CaptureCurrentLayout();
+        // Simulate OnClosing: persist then capture
+        var savedLayout = viewModel.CaptureCurrentLayout();
 
-            // ── Second "application run" ─────────────────────────────────────
-            var handler2 = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService2 = new HttpRequestService(new global::System.Net.Http.HttpClient(handler2), repository);
-            var inMemorySink2 = new InMemorySink();
-            var logger2 = new LoggerConfiguration().WriteTo.Sink(inMemorySink2).CreateLogger();
-            var scheduledJobService2 = new ScheduledJobService(httpRequestService2, logger2);
-            var logWindowViewModel2 = new LogWindowViewModel(inMemorySink2);
+        // ── Second "application run" ─────────────────────────────────────
+        var handler2 = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService2 = new HttpRequestService(new System.Net.Http.HttpClient(handler2), repository);
+        var inMemorySink2 = new InMemorySink();
+        var logger2 = new LoggerConfiguration().WriteTo.Sink(inMemorySink2).CreateLogger();
+        var scheduledJobService2 = new ScheduledJobService(httpRequestService2, logger2);
+        var logWindowViewModel2 = new LogWindowViewModel(inMemorySink2);
 
-            using var viewModel2 = new MainWindowViewModel(
-                httpRequestService2,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService2,
-                logWindowViewModel2,
-                initialOptions: new ApplicationOptions { Layouts = savedLayout });
+        using var viewModel2 = new MainWindowViewModel(
+            httpRequestService2,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService2,
+            logWindowViewModel2,
+            initialOptions: new ApplicationOptions { Layouts = savedLayout });
 
-            var requestDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "request-dock");
-            var responseDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "response-dock");
-            requestDock2.Should().NotBeNull();
-            responseDock2.Should().NotBeNull();
-            requestDock2!.Proportion.Should().BeApproximately(0.3, 0.001, "request dock proportion should be restored");
-            responseDock2!.Proportion.Should().BeApproximately(0.7, 0.001, "response dock proportion should be restored");
-
-            return true;
-        }, CancellationToken.None);
+        var requestDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "request-dock");
+        var responseDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "response-dock");
+        requestDock2.Should().NotBeNull();
+        responseDock2.Should().NotBeNull();
+        requestDock2.Proportion.Should().BeApproximately(0.3, 0.001, "request dock proportion should be restored");
+        responseDock2.Proportion.Should().BeApproximately(0.7, 0.001, "response dock proportion should be restored");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task Layout_DockTree_InPlace_ShouldRestoreProportionsFromTree()
     {
         // Verifies that when the saved DockTree has the same structure as the current layout
         // the in-place update path is taken (no rebuild) and proportions are restored.
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            // ── First "application run" ──────────────────────────────────────
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            using var httpClient = new global::System.Net.Http.HttpClient(handler);
-            var httpRequestService = new HttpRequestService(httpClient, repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        // ── First "application run" ──────────────────────────────────────
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
-            requestDock.Should().NotBeNull();
-            requestDock!.Proportion = 0.35;
+        var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
+        var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
+        requestDock.Should().NotBeNull();
+        responseDock.Should().NotBeNull();
 
-            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
-            leftToolDock.Should().NotBeNull();
-            leftToolDock!.Proportion = 0.30;
+        // Simulate user resizing the split — give response more space
+        requestDock.Proportion = 0.3;
+        responseDock.Proportion = 0.7;
 
-            // CaptureCurrentLayout refreshes _cachedDockTree so the proportions are included.
-            var savedLayout = viewModel.CaptureCurrentLayout();
+        // Simulate OnClosing: persist then capture
+        var savedLayout = viewModel.CaptureCurrentLayout();
 
-            // The saved DockTree must carry the updated proportions.
-            savedLayout.CurrentLayout?.DockTree.Should().NotBeNull("DockTree should always be populated by CaptureCurrentLayout");
+        // ── Second "application run" ─────────────────────────────────────
+        var handler2 = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var httpClient2 = new System.Net.Http.HttpClient(handler2);
+        var httpRequestService2 = new HttpRequestService(httpClient2, repository);
+        using var viewModel2 = new MainWindowViewModel(
+            httpRequestService2,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            new ScheduledJobService(httpRequestService2, new LoggerConfiguration().CreateLogger()),
+            new LogWindowViewModel(new InMemorySink()),
+            initialOptions: new ApplicationOptions { Layouts = savedLayout });
 
-            // ── Second "application run" ─────────────────────────────────────
-            var handler2 = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            using var httpClient2 = new global::System.Net.Http.HttpClient(handler2);
-            var httpRequestService2 = new HttpRequestService(httpClient2, repository);
-            using var viewModel2 = new MainWindowViewModel(
-                httpRequestService2,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                new ScheduledJobService(httpRequestService2, new LoggerConfiguration().CreateLogger()),
-                new LogWindowViewModel(new InMemorySink()),
-                initialOptions: new ApplicationOptions { Layouts = savedLayout });
-
-            var requestDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "request-dock");
-            var leftToolDock2 = FindDockById<ToolDock>(viewModel2.Layout!, "left-tool-dock");
-
-            requestDock2.Should().NotBeNull();
-            leftToolDock2.Should().NotBeNull();
-            requestDock2!.Proportion.Should().BeApproximately(0.35, 0.001,
-                "request dock proportion should be restored in-place from DockTree");
-            leftToolDock2!.Proportion.Should().BeApproximately(0.30, 0.001,
-                "left tool dock proportion should be restored in-place from DockTree");
-
-            return true;
-        }, CancellationToken.None);
+        var requestDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "request-dock");
+        var responseDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "response-dock");
+        requestDock2.Should().NotBeNull();
+        responseDock2.Should().NotBeNull();
+        requestDock2.Proportion.Should().BeApproximately(0.3, 0.001,
+            "request dock proportion should be restored in-place from DockTree");
+        responseDock2.Proportion.Should().BeApproximately(0.7, 0.001,
+            "response dock proportion should be restored in-place from DockTree");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task Layout_DockTree_ShouldRebuildWhenToolDockIdDiffers()
     {
         // Verifies the full-rebuild path: when the saved DockTree contains a ToolDock whose
         // ID is not present in the current layout (e.g. user docked a panel to a new position
         // creating a dock with a new ID), the layout is fully rebuilt from the saved tree and
         // all content dockables (like "log-panel") remain accessible in the result.
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, repository);
+
+        // Construct a DockTree snapshot where the left-side ToolDock has a non-default ID.
+        // "custom-left-dock" is not present in the default layout, so DockTreeRequiresRebuild
+        // returns true and a full tree rebuild is performed.
+        var changedTree = new DockTreeNode
         {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            using var httpClient = new global::System.Net.Http.HttpClient(handler);
-            var httpRequestService = new HttpRequestService(httpClient, repository);
-
-            // Construct a DockTree snapshot where the left-side ToolDock has a non-default ID.
-            // "custom-left-dock" is not present in the default layout, so DockTreeRequiresRebuild
-            // returns true and a full tree rebuild is performed.
-            var changedTree = new DockTreeNode
-            {
-                Type = "Root",
-                Id = "root",
-                Children =
-                [
-                    new DockTreeNode
+            Type = "Root",
+            Id = "root",
+            Children =
+            [
+                new DockTreeNode
                     {
                         Type = "Proportional",
                         Id = "main-layout",
@@ -394,923 +431,827 @@ public class MainWindowUiTests
                             }
                         ]
                     }
-                ]
-            };
+            ]
+        };
 
-            var savedLayout = new LayoutOptions
+        var savedLayout = new LayoutOptions
+        {
+            CurrentLayout = new DockLayoutSnapshot
             {
-                CurrentLayout = new DockLayoutSnapshot
-                {
-                    LeftToolProportion = 0.25,
-                    DocumentProportion = 0.75,
-                    DockTree = changedTree
-                },
-                SavedLayouts = []
-            };
+                LeftToolProportion = 0.25,
+                DocumentProportion = 0.75,
+                DockTree = changedTree
+            },
+            SavedLayouts = []
+        };
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                new ScheduledJobService(httpRequestService, new LoggerConfiguration().CreateLogger()),
-                new LogWindowViewModel(new InMemorySink()),
-                initialOptions: new ApplicationOptions { Layouts = savedLayout });
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            new ScheduledJobService(httpRequestService, new LoggerConfiguration().CreateLogger()),
+            new LogWindowViewModel(new InMemorySink()),
+            initialOptions: new ApplicationOptions { Layouts = savedLayout });
 
-            // After the rebuild, "left-tool-dock" (the default ID) should not exist because
-            // the layout was rebuilt from the custom tree that used "custom-left-dock".
-            var defaultToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
-            var customToolDock = FindDockById<ToolDock>(viewModel.Layout!, "custom-left-dock");
-            var logPanel = FindDockById<IDockable>(viewModel.Layout!, "log-panel");
+        // After the rebuild, "left-tool-dock" (the default ID) should not exist because
+        // the layout was rebuilt from the custom tree that used "custom-left-dock".
+        var defaultToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+        var customToolDock = FindDockById<ToolDock>(viewModel.Layout!, "custom-left-dock");
+        var logPanel = FindDockById<IDockable>(viewModel.Layout!, "log-panel");
 
-            defaultToolDock.Should().BeNull("old 'left-tool-dock' should not exist after rebuild with custom tree");
-            customToolDock.Should().NotBeNull("rebuilt layout should contain 'custom-left-dock' from saved tree");
-            logPanel.Should().NotBeNull("log-panel content dockable must be accessible after rebuild");
-            logPanel!.Owner.Should().BeSameAs(customToolDock,
-                "log-panel should be owned by the rebuilt tool dock");
-
-            return true;
-        }, CancellationToken.None);
+        defaultToolDock.Should().BeNull("old 'left-tool-dock' should not exist after rebuild with custom tree");
+        customToolDock.Should().NotBeNull("rebuilt layout should contain 'custom-left-dock' from saved tree");
+        logPanel.Should().NotBeNull("log-panel content dockable must be accessible after rebuild");
+        logPanel.Owner.Should().BeSameAs(customToolDock,
+            "log-panel should be owned by the rebuilt tool dock");
     }
 
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task OpenLogWindowCommand_ShouldActivateDockableLogPanel()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
-            leftToolDock.Should().NotBeNull();
-            leftToolDock!.VisibleDockables!.Should().Contain(d => d.Id == "log-panel");
+        var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+        leftToolDock.Should().NotBeNull();
+        leftToolDock.VisibleDockables!.Should().Contain(d => d.Id == "log-panel");
 
-            viewModel.OpenLogWindowCommand.Execute(null);
+        viewModel.OpenLogWindowCommand.Execute(null);
 
-            leftToolDock.ActiveDockable?.Id.Should().Be("log-panel");
-            return true;
-        }, CancellationToken.None);
+        leftToolDock.ActiveDockable?.Id.Should().Be("log-panel");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task OpenEnvironmentsCommand_ShouldActivateDockableEnvironmentsPanel()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
-            leftToolDock.Should().NotBeNull();
-            leftToolDock!.VisibleDockables!.Should().Contain(d => d.Id == "environments");
+        var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+        leftToolDock.Should().NotBeNull();
+        leftToolDock.VisibleDockables!.Should().Contain(d => d.Id == "environments");
 
-            viewModel.OpenEnvironmentsCommand.Execute(null);
+        viewModel.OpenEnvironmentsCommand.Execute(null);
 
-            leftToolDock.ActiveDockable?.Id.Should().Be("environments");
-            return true;
-        }, CancellationToken.None);
+        leftToolDock.ActiveDockable?.Id.Should().Be("environments");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task ShowCollectionsTabCommand_SwitchesToExplorerPanel_WhenAnotherPanelIsActive()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
-            leftToolDock.Should().NotBeNull();
+        var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+        leftToolDock.Should().NotBeNull();
 
-            // Switch to Environments first so the left panel is no longer active
-            viewModel.OpenEnvironmentsCommand.Execute(null);
-            leftToolDock!.ActiveDockable?.Id.Should().Be("environments");
+        // Switch to Environments first so the left panel is no longer active
+        viewModel.OpenEnvironmentsCommand.Execute(null);
+        leftToolDock.ActiveDockable?.Id.Should().Be("environments");
 
-            // Now click Collections — should switch back to the Explorer (left-panel) dock
-            viewModel.ShowCollectionsTabCommand.Execute(null);
+        // Now click Collections — should switch back to the Explorer (left-panel) dock
+        viewModel.ShowCollectionsTabCommand.Execute(null);
 
-            leftToolDock.ActiveDockable?.Id.Should().Be("left-panel");
-            viewModel.LeftPanelTab.Should().Be("Collections");
-            return true;
-        }, CancellationToken.None);
+        leftToolDock.ActiveDockable?.Id.Should().Be("left-panel");
+        viewModel.LeftPanelTab.Should().Be("Collections");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task ShowHistoryTabCommand_SwitchesToExplorerPanel_WhenAnotherPanelIsActive()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
-            leftToolDock.Should().NotBeNull();
+        var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+        leftToolDock.Should().NotBeNull();
 
-            // Switch to Environments first so the left panel is no longer active
-            viewModel.OpenEnvironmentsCommand.Execute(null);
-            leftToolDock!.ActiveDockable?.Id.Should().Be("environments");
+        // Switch to Environments first so the left panel is no longer active
+        viewModel.OpenEnvironmentsCommand.Execute(null);
+        leftToolDock.ActiveDockable?.Id.Should().Be("environments");
 
-            // Now click History — should switch back to the Explorer (left-panel) dock
-            viewModel.ShowHistoryTabCommand.Execute(null);
+        // Now click History — should switch back to the Explorer (left-panel) dock
+        viewModel.ShowHistoryTabCommand.Execute(null);
 
-            leftToolDock.ActiveDockable?.Id.Should().Be("left-panel");
-            viewModel.LeftPanelTab.Should().Be("History");
-            return true;
-        }, CancellationToken.None);
+        leftToolDock.ActiveDockable?.Id.Should().Be("left-panel");
+        viewModel.LeftPanelTab.Should().Be("History");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task ShowScheduledJobsTabCommand_SwitchesToExplorerPanel_WhenAnotherPanelIsActive()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
-            leftToolDock.Should().NotBeNull();
+        var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+        leftToolDock.Should().NotBeNull();
 
-            // Switch to Environments first so the left panel is no longer active
-            viewModel.OpenEnvironmentsCommand.Execute(null);
-            leftToolDock!.ActiveDockable?.Id.Should().Be("environments");
+        // Switch to Environments first so the left panel is no longer active
+        viewModel.OpenEnvironmentsCommand.Execute(null);
+        leftToolDock.ActiveDockable?.Id.Should().Be("environments");
 
-            // Now click Scheduled Jobs — should switch back to the Explorer (left-panel) dock
-            viewModel.ShowScheduledJobsTabCommand.Execute(null);
+        // Now click Scheduled Jobs — should switch back to the Explorer (left-panel) dock
+        viewModel.ShowScheduledJobsTabCommand.Execute(null);
 
-            leftToolDock.ActiveDockable?.Id.Should().Be("left-panel");
-            viewModel.LeftPanelTab.Should().Be("ScheduledJobs");
-            return true;
-        }, CancellationToken.None);
+        leftToolDock.ActiveDockable?.Id.Should().Be("left-panel");
+        viewModel.LeftPanelTab.Should().Be("ScheduledJobs");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task OpenLayoutPanelCommand_ShouldActivateDockableLayoutPanel()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
-            leftToolDock.Should().NotBeNull();
-            leftToolDock!.VisibleDockables!.Should().Contain(d => d.Id == "layout-management");
+        var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+        leftToolDock.Should().NotBeNull();
+        leftToolDock.VisibleDockables!.Should().Contain(d => d.Id == "layout-management");
 
-            viewModel.OpenLayoutPanelCommand.Execute(null);
+        viewModel.OpenLayoutPanelCommand.Execute(null);
 
-            leftToolDock.ActiveDockable?.Id.Should().Be("layout-management");
-            return true;
-        }, CancellationToken.None);
+        leftToolDock.ActiveDockable?.Id.Should().Be("layout-management");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task InitializeAsync_ShouldNotAutoStartScheduledJobs_WhenApplicationOptionIsDisabled()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var scheduledJobRepository = new InMemoryScheduledJobRepository();
-            var jobId = await scheduledJobRepository.SaveAsync(new ScheduledJobConfig(
-                0,
-                "Job 1",
-                "GET",
-                "http://localhost:5000/job",
-                null,
-                null,
-                60,
-                true));
+        var repository = new InMemoryRequestHistoryRepository();
+        var scheduledJobRepository = new InMemoryScheduledJobRepository();
+        var jobId = await scheduledJobRepository.SaveAsync(new ScheduledJobConfig(
+            0,
+            "Job 1",
+            "GET",
+            "http://localhost:5000/job",
+            null,
+            null,
+            60,
+            true));
 
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                scheduledJobRepository,
-                scheduledJobService,
-                logWindowViewModel,
-                initialOptions: new ApplicationOptions
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            scheduledJobRepository,
+            scheduledJobService,
+            logWindowViewModel,
+            initialOptions: new ApplicationOptions
+            {
+                ScheduledJobs = new ScheduledJobsOptions
                 {
-                    ScheduledJobs = new ScheduledJobsOptions
-                    {
-                        AutoStartOnLaunch = false
-                    }
-                });
+                    AutoStartOnLaunch = false
+                }
+            });
 
-            await viewModel.InitializeAsync();
+        await viewModel.InitializeAsync();
 
-            viewModel.ScheduledJobs.Should().HaveCount(1);
-            viewModel.ScheduledJobs.Single().AutoStart.Should().BeTrue();
-            viewModel.ScheduledJobs.Single().IsRunning.Should().BeFalse();
-            scheduledJobService.IsRunning(jobId).Should().BeFalse();
-
-            return true;
-        }, CancellationToken.None);
+        viewModel.ScheduledJobs.Should().HaveCount(1);
+        viewModel.ScheduledJobs.Single().AutoStart.Should().BeTrue();
+        viewModel.ScheduledJobs.Single().IsRunning.Should().BeFalse();
+        scheduledJobService.IsRunning(jobId).Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task SendButton_ShouldUpdateResponseStatusAndBody()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ =>
-                new HttpResponseMessage(HttpStatusCode.Accepted)
-                {
-                    ReasonPhrase = "Accepted",
-                    Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
-                });
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.Accepted)
+            {
+                ReasonPhrase = "Accepted",
+                Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
+            });
 
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            viewModel.RequestEditor.RequestName = "UI Test";
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
-            viewModel.RequestEditor.SelectedMethod = "GET";
+        viewModel.RequestEditor.RequestName = "UI Test";
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
+        viewModel.RequestEditor.SelectedMethod = "GET";
 
-            var window = new MainWindow { DataContext = viewModel };
-            window.Show();
+        var window = new MainWindow { DataContext = viewModel };
+        window.Show();
 
-            // Allow Dock to render its panel contents
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        // Allow Dock to render its panel contents
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
 
-            // The Send button is now inside RequestView which is rendered by the DockControl.
-            // Dock uses deferred content materialization, so visual-tree traversal may not find
-            // the button during headless tests. Execute the command via the ViewModel directly,
-            // which is what the button's Command binding ultimately calls.
-            viewModel.Layout.Should().NotBeNull("dock layout should be initialized");
-            await viewModel.SendRequestCommand.ExecuteAsync(null);
+        // The Send button is now inside RequestView which is rendered by the DockControl.
+        // Dock uses deferred content materialization, so visual-tree traversal may not find
+        // the button during headless tests. Execute the command via the ViewModel directly,
+        // which is what the button's Command binding ultimately calls.
+        viewModel.Layout.Should().NotBeNull("dock layout should be initialized");
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
 
-            viewModel.ResponseStatus.Should().Be("202 Accepted");
-            viewModel.ResponseBody.Should().Contain("ok");
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
-            var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-ui.png");
-            screenshot?.Save(screenshotPath);
+        viewModel.ResponseStatus.Should().Be("202 Accepted");
+        viewModel.ResponseBody.Should().Contain("ok");
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+        var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-ui.png");
+        screenshot?.Save(screenshotPath);
 
-            window.Close();
-            return true;
-        }, CancellationToken.None);
+        window.Close();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task ExecutePrimaryAction_ShouldCancelInFlightManualRequest()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
+        var repository = new InMemoryRequestHistoryRepository();
+        using var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
         {
-            var repository = new InMemoryRequestHistoryRepository();
-            using var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent("completed")
-                };
-            });
-            using var httpClient = new global::System.Net.Http.HttpClient(handler);
-            var httpRequestService = new HttpRequestService(httpClient, repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+                Content = new StringContent("completed")
+            };
+        });
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            viewModel.RequestEditor.RequestName = "Cancel test";
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/slow";
-            viewModel.RequestEditor.SelectedMethod = "GET";
-            viewModel.PrimaryActionLabel.Should().Be("Send");
+        viewModel.RequestEditor.RequestName = "Cancel test";
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/slow";
+        viewModel.RequestEditor.SelectedMethod = "GET";
+        viewModel.PrimaryActionLabel.Should().Be("Send");
 
-            viewModel.ExecutePrimaryActionCommand.Execute(null);
-            await Task.Delay(30);
-            viewModel.SendRequestCommand.IsRunning.Should().BeTrue();
-            viewModel.PrimaryActionLabel.Should().Be("Cancel");
+        viewModel.ExecutePrimaryActionCommand.Execute(null);
+        await Task.Delay(30, TestContext.Current.CancellationToken);
+        viewModel.SendRequestCommand.IsRunning.Should().BeTrue();
+        viewModel.PrimaryActionLabel.Should().Be("Cancel");
 
-            viewModel.ExecutePrimaryActionCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+        viewModel.ExecutePrimaryActionCommand.Execute(null);
+        await viewModel.SendRequestCommand.ExecutionTask!;
 
-            viewModel.PrimaryActionLabel.Should().Be("Send");
-            viewModel.ErrorMessage.Should().Be("Request cancelled.");
-            return true;
-        }, CancellationToken.None);
+        viewModel.PrimaryActionLabel.Should().Be("Send");
+        viewModel.ErrorMessage.Should().Be("Request cancelled.");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task ExecutePrimaryAction_ShouldShowTimeoutMessage_WhenManualRequestTimesOut()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
+        var repository = new InMemoryRequestHistoryRepository();
+        using var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
         {
-            var repository = new InMemoryRequestHistoryRepository();
-            using var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent("completed")
-                };
-            });
-            using var httpClient = new global::System.Net.Http.HttpClient(handler);
-            var httpRequestService = new HttpRequestService(httpClient, repository);
-            httpRequestService.SetDefaultRequestTimeout(TimeSpan.FromMilliseconds(50));
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+                Content = new StringContent("completed")
+            };
+        });
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            viewModel.RequestEditor.RequestName = "Timeout test";
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/slow";
-            viewModel.RequestEditor.SelectedMethod = "GET";
+        // Set timeout AFTER constructor — the constructor resets it to DefaultRequestTimeoutSeconds (100s).
+        httpRequestService.SetDefaultRequestTimeout(TimeSpan.FromMilliseconds(50));
 
-            viewModel.ExecutePrimaryActionCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+        viewModel.RequestEditor.RequestName = "Timeout test";
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/slow";
+        viewModel.RequestEditor.SelectedMethod = "GET";
 
-            viewModel.ErrorMessage.Should().Be("Request timed out.");
-            return true;
-        }, CancellationToken.None);
+        viewModel.ExecutePrimaryActionCommand.Execute(null);
+        await viewModel.SendRequestCommand.ExecutionTask!;
+
+        viewModel.ErrorMessage.Should().Be("Request timed out.");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RequestUrlAndQueryParameters_ShouldStayInSync_AndPreserveFragment()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/items?first=1&second=2#keep";
-            viewModel.RequestEditor.RequestQueryParameters.Should().HaveCount(3);
-            viewModel.RequestEditor.RequestQueryParameters[0].Key.Should().Be("first");
-            viewModel.RequestEditor.RequestQueryParameters[0].Value.Should().Be("1");
-            viewModel.RequestEditor.RequestQueryParameters[1].Key.Should().Be("second");
-            viewModel.RequestEditor.RequestQueryParameters[1].Value.Should().Be("2");
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/items?first=1&second=2#keep";
+        viewModel.RequestEditor.RequestQueryParameters.Should().HaveCount(3);
+        viewModel.RequestEditor.RequestQueryParameters[0].Key.Should().Be("first");
+        viewModel.RequestEditor.RequestQueryParameters[0].Value.Should().Be("1");
+        viewModel.RequestEditor.RequestQueryParameters[1].Key.Should().Be("second");
+        viewModel.RequestEditor.RequestQueryParameters[1].Value.Should().Be("2");
 
-            viewModel.RequestEditor.RequestQueryParameters[0].IsEnabled = false;
-            viewModel.RequestEditor.RequestUrl.Should().Be("http://localhost:5000/items?second=2#keep");
+        viewModel.RequestEditor.RequestQueryParameters[0].IsEnabled = false;
+        viewModel.RequestEditor.RequestUrl.Should().Be("http://localhost:5000/items?second=2#keep");
 
-            viewModel.RequestEditor.AddQueryParameterCommand.Execute(null);
-            var added = viewModel.RequestEditor.RequestQueryParameters[viewModel.RequestEditor.RequestQueryParameters.Count - 1];
-            added.Key = "third";
-            added.Value = "3";
+        viewModel.RequestEditor.AddQueryParameterCommand.Execute(null);
+        var added = viewModel.RequestEditor.RequestQueryParameters[viewModel.RequestEditor.RequestQueryParameters.Count - 1];
+        added.Key = "third";
+        added.Value = "3";
 
-            viewModel.RequestEditor.RequestUrl.Should().Be("http://localhost:5000/items?second=2&third=3#keep");
-
-            return true;
-        }, CancellationToken.None);
+        viewModel.RequestEditor.RequestUrl.Should().Be("http://localhost:5000/items?second=2&third=3#keep");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task SendRequest_ShouldBuildInterpretedAndRawResponseViews()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ =>
-                new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    ReasonPhrase = "OK",
-                    Content = new StringContent("{\"message\":\"hello\"}", Encoding.UTF8, "application/json")
-                });
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                ReasonPhrase = "OK",
+                Content = new StringContent("{\"message\":\"hello\"}", Encoding.UTF8, "application/json")
+            });
 
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            viewModel.RequestEditor.RequestName = "response test";
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/data";
-            viewModel.RequestEditor.SelectedMethod = "GET";
+        viewModel.RequestEditor.RequestName = "response test";
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/data";
+        viewModel.RequestEditor.SelectedMethod = "GET";
 
-            await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
 
-            viewModel.ResponseBodyTabLabel.Should().Be("JSON");
-            viewModel.ResponseBody.Should().Contain("\n");
-            viewModel.RawResponseBody.Should().Be("{\"message\":\"hello\"}");
-            viewModel.ResponseRawText.Should().Contain("Content-Type:");
-            viewModel.ResponseRawText.Should().Contain("{\"message\":\"hello\"}");
-            viewModel.IsBinaryResponse.Should().BeFalse();
-            viewModel.IsResponseWebViewAvailable.Should().BeFalse();
-
-            return true;
-        }, CancellationToken.None);
+        viewModel.ResponseBodyTabLabel.Should().Be("JSON");
+        viewModel.ResponseBody.Should().Contain("\n");
+        viewModel.RawResponseBody.Should().Be("{\"message\":\"hello\"}");
+        viewModel.ResponseRawText.Should().Contain("Content-Type:");
+        viewModel.ResponseRawText.Should().Contain("{\"message\":\"hello\"}");
+        viewModel.IsBinaryResponse.Should().BeFalse();
+        viewModel.IsResponseWebViewAvailable.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task SendRequest_WithHtmlResponse_ShouldEnableResponseWebView()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ =>
-                new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent("<html><body><h1>docs</h1></body></html>", Encoding.UTF8, "text/html")
-                });
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<html><body><h1>docs</h1></body></html>", Encoding.UTF8, "text/html")
+            });
 
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/docs.html";
-            await viewModel.SendRequestCommand.ExecuteAsync(null);
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/docs.html";
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
 
-            viewModel.IsResponseWebViewAvailable.Should().BeTrue();
-            viewModel.ResponseWebViewUri.Should().StartWith("data:text/html");
-
-            return true;
-        }, CancellationToken.None);
+        viewModel.IsResponseWebViewAvailable.Should().BeTrue();
+        viewModel.ResponseWebViewUri.Should().StartWith("data:text/html");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task SendRequestAndPreview_ShouldResolveVariables_InUrlHeadersAndBody()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
+        Uri? capturedUri = null;
+        string? capturedHeaderValue = null;
+        string? capturedBody = null;
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(request =>
         {
-            Uri? capturedUri = null;
-            string? capturedHeaderValue = null;
-            string? capturedBody = null;
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(request =>
+            capturedUri = request.RequestUri;
+            if (request.Headers.TryGetValues("X-Tenant", out var headerValues))
             {
-                capturedUri = request.RequestUri;
-                if (request.Headers.TryGetValues("X-Tenant", out var headerValues))
-                {
-                    capturedHeaderValue = headerValues.SingleOrDefault();
-                }
+                capturedHeaderValue = headerValues.SingleOrDefault();
+            }
 
-                capturedBody = request.Content is null
-                    ? string.Empty
-                    : request.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            capturedBody = request.Content is null
+                ? string.Empty
+                : request.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    ReasonPhrase = "OK",
-                    Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
-                };
-            });
-
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
-
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
-
-            viewModel.RequestEditor.RequestName = "variable resolution test";
-            viewModel.RequestEditor.SelectedMethod = "POST";
-            viewModel.RequestEditor.RequestUrl = "http://{{host}}/api?{{queryKey}}={{queryValue}}";
-            viewModel.RequestEditor.RequestBody = "{\"token\":\"{{token}}\",\"env\":\"{{environment}}\"}";
-
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost:5000"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryKey", "search"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryValue", "term"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerValue", "blue"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "abc123"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("environment", "dev"));
-
-            viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Name = "X-{{headerName}}",
-                Value = "{{headerValue}}",
-                IsEnabled = true
-            });
+                ReasonPhrase = "OK",
+                Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
+            };
+        });
 
-            viewModel.RequestEditor.RequestPreview.Should().Contain("POST http://localhost:5000/api?search=term HTTP/");
-            viewModel.RequestEditor.RequestPreview.Should().Contain("X-Tenant: blue");
-            viewModel.RequestEditor.RequestPreview.Should().Contain("\"token\":\"abc123\"");
-            viewModel.RequestEditor.RequestPreview.Should().Contain("\"env\":\"dev\"");
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            await viewModel.SendRequestCommand.ExecuteAsync(null);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            capturedUri.Should().NotBeNull();
-            capturedUri!.AbsoluteUri.Should().Be("http://localhost:5000/api?search=term");
-            capturedHeaderValue.Should().Be("blue");
-            capturedBody.Should().Be("{\"token\":\"abc123\",\"env\":\"dev\"}");
+        viewModel.RequestEditor.RequestName = "variable resolution test";
+        viewModel.RequestEditor.SelectedMethod = "POST";
+        viewModel.RequestEditor.RequestUrl = "http://{{host}}/api?{{queryKey}}={{queryValue}}";
+        viewModel.RequestEditor.RequestBody = "{\"token\":\"{{token}}\",\"env\":\"{{environment}}\"}";
 
-            return true;
-        }, CancellationToken.None);
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost:5000"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryKey", "search"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryValue", "term"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerValue", "blue"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "abc123"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("environment", "dev"));
+
+        viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+        {
+            Name = "X-{{headerName}}",
+            Value = "{{headerValue}}",
+            IsEnabled = true
+        });
+
+        viewModel.RequestEditor.RequestPreview.Should().Contain("POST http://localhost:5000/api?search=term HTTP/");
+        viewModel.RequestEditor.RequestPreview.Should().Contain("X-Tenant: blue");
+        viewModel.RequestEditor.RequestPreview.Should().Contain("\"token\":\"abc123\"");
+        viewModel.RequestEditor.RequestPreview.Should().Contain("\"env\":\"dev\"");
+
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
+
+        capturedUri.Should().NotBeNull();
+        capturedUri!.AbsoluteUri.Should().Be("http://localhost:5000/api?search=term");
+        capturedHeaderValue.Should().Be("blue");
+        capturedBody.Should().Be("{\"token\":\"abc123\",\"env\":\"dev\"}");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task SendRequestAndPreview_ShouldApplyAuthHelperAuthorizationHeader()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
+        string? capturedAuthorization = null;
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(request =>
         {
-            string? capturedAuthorization = null;
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(request =>
+            if (request.Headers.TryGetValues("Authorization", out var headerValues))
             {
-                if (request.Headers.TryGetValues("Authorization", out var headerValues))
-                {
-                    capturedAuthorization = headerValues.SingleOrDefault();
-                }
+                capturedAuthorization = headerValues.SingleOrDefault();
+            }
 
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    ReasonPhrase = "OK",
-                    Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
-                };
-            });
-
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
-
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
-
-            viewModel.RequestEditor.RequestName = "auth helper test";
-            viewModel.RequestEditor.SelectedMethod = "GET";
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
-            viewModel.RequestEditor.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
-            viewModel.RequestEditor.AuthBearerToken = "{{token}}";
-
-            viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Name = "Authorization",
-                Value = "Bearer old-token",
-                IsEnabled = true
-            });
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "abc123"));
+                ReasonPhrase = "OK",
+                Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
+            };
+        });
 
-            viewModel.RequestEditor.RequestPreview.Should().Contain("Authorization: Bearer abc123");
-            viewModel.RequestEditor.RequestPreview.Should().NotContain("Bearer old-token");
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            await viewModel.SendRequestCommand.ExecuteAsync(null);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            capturedAuthorization.Should().Be("Bearer abc123");
-            return true;
-        }, CancellationToken.None);
+        viewModel.RequestEditor.RequestName = "auth helper test";
+        viewModel.RequestEditor.SelectedMethod = "GET";
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
+        viewModel.RequestEditor.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
+        viewModel.RequestEditor.AuthBearerToken = "{{token}}";
+
+        viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+        {
+            Name = "Authorization",
+            Value = "Bearer old-token",
+            IsEnabled = true
+        });
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "abc123"));
+
+        viewModel.RequestEditor.RequestPreview.Should().Contain("Authorization: Bearer abc123");
+        viewModel.RequestEditor.RequestPreview.Should().NotContain("Bearer old-token");
+
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
+
+        capturedAuthorization.Should().Be("Bearer abc123");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RequestUrlEditor_AutocompleteShouldInsertFilteredEnvironmentVariable()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var mainViewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        mainViewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "abc"));
+        mainViewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
+
+        var requestView = new RequestView
         {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+            DataContext = new RequestViewModel(mainViewModel)
+        };
+        var window = new Window { Width = 900, Height = 500, Content = requestView };
+        window.Show();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
 
-            using var mainViewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        var requestUrlEditor = requestView.FindControl<TextEditor>("RequestUrlEditor");
+        requestUrlEditor.Should().NotBeNull();
+        requestView.RequestUrlEditorForTests.Should().NotBeNull();
+        requestUrlEditor.Text = string.Empty;
+        requestUrlEditor.CaretOffset = 0;
 
-            mainViewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "abc"));
-            mainViewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
+        requestUrlEditor.TextArea.PerformTextInput("{");
+        requestUrlEditor.TextArea.PerformTextInput("{");
+        requestUrlEditor.TextArea.PerformTextInput("t");
+        requestUrlEditor.TextArea.PerformTextInput("o");
 
-            var requestView = new RequestView
+        var controller = requestView.RequestUrlAutoCompleteControllerForTests;
+        controller.Should().NotBeNull();
+        var completionWindow = controller.CurrentCompletionWindow;
+        completionWindow.Should().NotBeNull();
+        completionWindow.IsOpen.Should().BeTrue();
+        var completionItem = completionWindow.CompletionList.CompletionData.Single(data => data.Text == "token");
+        completionItem.Complete(
+            requestUrlEditor.TextArea,
+            new TextSegment
             {
-                DataContext = new RequestViewModel(mainViewModel)
-            };
-            var window = new Window { Width = 900, Height = 500, Content = requestView };
-            window.Show();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+                StartOffset = completionWindow.StartOffset,
+                Length = completionWindow.EndOffset - completionWindow.StartOffset
+            },
+            EventArgs.Empty);
 
-            var requestUrlEditor = requestView.FindControl<TextEditor>("RequestUrlEditor");
-            requestUrlEditor.Should().NotBeNull();
-            requestView.RequestUrlEditorForTests.Should().NotBeNull();
-            requestUrlEditor!.Text = string.Empty;
-            requestUrlEditor.CaretOffset = 0;
+        requestUrlEditor.Text.Should().Be("{{token}}");
+        mainViewModel.RequestEditor.RequestUrl.Should().Be("{{token}}");
 
-            requestUrlEditor.TextArea.PerformTextInput("{");
-            requestUrlEditor.TextArea.PerformTextInput("{");
-            requestUrlEditor.TextArea.PerformTextInput("t");
-            requestUrlEditor.TextArea.PerformTextInput("o");
-
-            var controller = requestView.RequestUrlAutoCompleteControllerForTests;
-            controller.Should().NotBeNull();
-            var completionWindow = controller!.CurrentCompletionWindow;
-            completionWindow.Should().NotBeNull();
-            completionWindow!.IsOpen.Should().BeTrue();
-            var completionItem = completionWindow.CompletionList.CompletionData.Single(data => data.Text == "token");
-            completionItem.Complete(
-                requestUrlEditor.TextArea,
-                new TextSegment
-                {
-                    StartOffset = completionWindow.StartOffset,
-                    Length = completionWindow.EndOffset - completionWindow.StartOffset
-                },
-                EventArgs.Empty);
-
-            requestUrlEditor.Text.Should().Be("{{token}}");
-            mainViewModel.RequestEditor.RequestUrl.Should().Be("{{token}}");
-
-            window.Close();
-            return true;
-        }, CancellationToken.None);
+        window.Close();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RequestView_HttpRequest_ShouldShowOptionsAsLastTabInsteadOfExpander()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
+        var repository = new InMemoryRequestHistoryRepository();
+        using var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, repository);
+        var inMemorySink = new InMemorySink();
+        using var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var mainViewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+        mainViewModel.RequestEditor.SelectedRequestType = RequestType.Http;
+
+        var requestView = new RequestView
         {
-            var repository = new InMemoryRequestHistoryRepository();
-            using var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            using var httpClient = new global::System.Net.Http.HttpClient(handler);
-            var httpRequestService = new HttpRequestService(httpClient, repository);
-            var inMemorySink = new InMemorySink();
-            using var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+            DataContext = new RequestViewModel(mainViewModel)
+        };
+        var window = new Window { Width = 900, Height = 500, Content = requestView };
+        window.Show();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
 
-            using var mainViewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
-            mainViewModel.RequestEditor.SelectedRequestType = RequestType.Http;
+        var tabControl = window.GetVisualDescendants()
+            .OfType<TabControl>()
+            .Single(control => control.Items.OfType<TabItem>().Any(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal)));
+        var hasRequestOptionsExpander = window.GetVisualDescendants()
+            .OfType<Expander>()
+            .Any(expander => string.Equals(expander.Header?.ToString(), "Options", StringComparison.Ordinal));
 
-            var requestView = new RequestView
-            {
-                DataContext = new RequestViewModel(mainViewModel)
-            };
-            var window = new Window { Width = 900, Height = 500, Content = requestView };
-            window.Show();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+        VerifyTabRealized(tabControl, "Options");
+        var tabItems = tabControl.Items.OfType<TabItem>().ToList();
+        tabItems[tabItems.Count - 1].Header?.ToString().Should().Be("Options");
+        hasRequestOptionsExpander.Should().BeFalse();
 
-            var tabControl = window.GetVisualDescendants()
-                .OfType<TabControl>()
-                .Single(control => control.Items.OfType<TabItem>().Any(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal)));
-            var hasRequestOptionsExpander = window.GetVisualDescendants()
-                .OfType<Expander>()
-                .Any(expander => string.Equals(expander.Header?.ToString(), "Options", StringComparison.Ordinal));
-
-            VerifyTabRealized(tabControl, "Options");
-            var tabItems = tabControl.Items.OfType<TabItem>().ToList();
-            tabItems[tabItems.Count - 1].Header?.ToString().Should().Be("Options");
-            hasRequestOptionsExpander.Should().BeFalse();
-
-            window.Close();
-            return true;
-        }, CancellationToken.None);
+        window.Close();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RequestView_VariableTextBoxes_ShouldDisableAcceptsTab()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
+        var repository = new InMemoryRequestHistoryRepository();
+        using var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, repository);
+        var inMemorySink = new InMemorySink();
+        using var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var mainViewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+        mainViewModel.RequestEditor.SelectedRequestType = RequestType.Http;
+        mainViewModel.RequestEditor.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
+
+        var requestView = new RequestView
         {
-            var repository = new InMemoryRequestHistoryRepository();
-            using var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            using var httpClient = new global::System.Net.Http.HttpClient(handler);
-            var httpRequestService = new HttpRequestService(httpClient, repository);
-            var inMemorySink = new InMemorySink();
-            using var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+            DataContext = new RequestViewModel(mainViewModel)
+        };
+        var window = new Window { Width = 900, Height = 500, Content = requestView };
+        window.Show();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
 
-            using var mainViewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
-            mainViewModel.RequestEditor.SelectedRequestType = RequestType.Http;
-            mainViewModel.RequestEditor.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
+        var tabControl = window.GetVisualDescendants()
+            .OfType<TabControl>()
+            .Single(control => control.Items.OfType<TabItem>().Any(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal)));
+        VerifyTabRealized(tabControl, "Query");
+        VerifyTabRealized(tabControl, "Headers");
+        VerifyTabRealized(tabControl, "Auth");
 
-            var requestView = new RequestView
-            {
-                DataContext = new RequestViewModel(mainViewModel)
-            };
-            var window = new Window { Width = 900, Height = 500, Content = requestView };
-            window.Show();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+        var variableTextBox = new VariableTextBox();
+        variableTextBox.AcceptsTabForTests.Should().BeFalse();
 
-            var tabControl = window.GetVisualDescendants()
-                .OfType<TabControl>()
-                .Single(control => control.Items.OfType<TabItem>().Any(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal)));
-            VerifyTabRealized(tabControl, "Query");
-            VerifyTabRealized(tabControl, "Headers");
-            VerifyTabRealized(tabControl, "Auth");
-
-            var variableTextBox = new VariableTextBox();
-            variableTextBox.AcceptsTabForTests.Should().BeFalse();
-
-            window.Close();
-            return true;
-        }, CancellationToken.None);
+        window.Close();
     }
 
     private static void VerifyTabRealized(TabControl tabControl, string tabHeader)
@@ -1323,220 +1264,194 @@ public class MainWindowUiTests
         tabControl.SelectedItem.Should().Be(tabItem);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task OptionsView_ShouldDisplayScheduledJobsPage_WithAutoStartAndIntervalOptions()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            var optionsVm = new OptionsViewModel(viewModel);
-            var window = new Window { Width = 820, Height = 560, DataContext = optionsVm, Content = new OptionsView() };
-            window.Show();
+        var optionsVm = new OptionsViewModel(viewModel);
+        var window = new Window { Width = 820, Height = 560, DataContext = optionsVm, Content = new OptionsView() };
+        window.Show();
 
-            // Navigate to the Scheduled Jobs page via the ViewModel
-            optionsVm.SelectedOptionsPage = "ScheduledJobs";
+        // Navigate to the Scheduled Jobs page via the ViewModel
+        optionsVm.SelectedOptionsPage = "ScheduledJobs";
 
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
 
-            // The explicit <TextBlock> label is always in the visual tree
-            var textBlocks = window.GetVisualDescendants().OfType<TextBlock>().Select(tb => tb.Text).ToList();
+        // The explicit <TextBlock> label is always in the visual tree
+        var textBlocks = window.GetVisualDescendants().OfType<TextBlock>().Select(tb => tb.Text).ToList();
 
-            textBlocks
-                .Any(t => string.Equals(t, "Default interval for new jobs", StringComparison.Ordinal))
-                .Should()
-                .BeTrue("default interval label should be on the Scheduled Jobs page");
+        textBlocks
+            .Any(t => string.Equals(t, "Default interval for new jobs", StringComparison.Ordinal))
+            .Should()
+            .BeTrue("default interval label should be on the Scheduled Jobs page");
 
-            // CheckBox.Content is checked directly — no need for template rendering
-            window.GetVisualDescendants().OfType<CheckBox>()
-                .Any(cb => string.Equals(cb.Content?.ToString(), "Auto-start scheduled jobs on launch", StringComparison.Ordinal))
-                .Should()
-                .BeTrue("auto-start toggle should be on the Scheduled Jobs page");
+        // CheckBox.Content is checked directly — no need for template rendering
+        window.GetVisualDescendants().OfType<CheckBox>()
+            .Any(cb => string.Equals(cb.Content?.ToString(), "Auto-start scheduled jobs on launch", StringComparison.Ordinal))
+            .Should()
+            .BeTrue("auto-start toggle should be on the Scheduled Jobs page");
 
-            var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-options-view.png");
-            screenshot?.Save(screenshotPath);
+        var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-options-view.png");
+        screenshot?.Save(screenshotPath);
 
-            window.Close();
-            return true;
-        }, CancellationToken.None);
+        window.Close();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task OptionsChanges_ShouldAutoSaveAndLogToDebug()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
-            var optionsPath = Path.Combine(Path.GetTempPath(), $"arbor-options-autosave-{Guid.NewGuid():N}.json");
-            var optionsStore = new ApplicationOptionsStore(optionsPath);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var optionsPath = Path.Combine(Path.GetTempPath(), $"arbor-options-autosave-{Guid.NewGuid():N}.json");
+        var optionsStore = new ApplicationOptionsStore(optionsPath);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel,
-                logger,
-                optionsStore);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel,
+            logger,
+            optionsStore);
 
-            viewModel.SelectedTlsVersionOption = "Tls13";
+        viewModel.SelectedTlsVersionOption = "Tls13";
 
-            await Task.Delay(1200);
+        await Task.Delay(1200, TestContext.Current.CancellationToken);
 
-            var saved = optionsStore.Load();
-            saved.Http.TlsVersion.Should().Be("Tls13");
-            inMemorySink.GetSnapshot().Should().Contain(entry => entry.Message.Contains("Saved application options", StringComparison.Ordinal));
-
-            return true;
-        }, CancellationToken.None);
+        var saved = optionsStore.Load();
+        saved.Http.TlsVersion.Should().Be("Tls13");
+        inMemorySink.GetSnapshot().Should().Contain(entry => entry.Message.Contains("Saved application options", StringComparison.Ordinal));
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task EnvironmentEdits_ShouldAutoSaveWithoutExplicitSaveCommand()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var environmentRepository = new InMemoryEnvironmentRepository();
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var environmentRepository = new InMemoryEnvironmentRepository();
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                environmentRepository,
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            environmentRepository,
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            viewModel.NewEnvironmentCommand.Execute(null);
-            viewModel.NewEnvironmentName = "myenv";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
+        viewModel.NewEnvironmentCommand.Execute(null);
+        viewModel.NewEnvironmentName = "myenv";
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
 
-            await Task.Delay(1200);
+        await Task.Delay(1200, TestContext.Current.CancellationToken);
 
-            var all = await environmentRepository.GetAllAsync();
-            all.Should().ContainSingle(e => e.Name == "myenv");
-            viewModel.ActiveEnvironment.Should().NotBeNull();
-            viewModel.ActiveEnvironment!.Name.Should().Be("myenv");
-            viewModel.IsEnvironmentPanelVisible.Should().BeTrue();
-
-            return true;
-        }, CancellationToken.None);
+        var all = await environmentRepository.GetAllAsync();
+        all.Should().ContainSingle(e => e.Name == "myenv");
+        viewModel.ActiveEnvironment.Should().NotBeNull();
+        viewModel.ActiveEnvironment!.Name.Should().Be("myenv");
+        viewModel.IsEnvironmentPanelVisible.Should().BeTrue();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task ScheduledJobEdits_ShouldAutoSaveWithoutExplicitSaveCommand()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var scheduledJobRepository = new InMemoryScheduledJobRepository();
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var scheduledJobRepository = new InMemoryScheduledJobRepository();
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                scheduledJobRepository,
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            scheduledJobRepository,
+            scheduledJobService,
+            logWindowViewModel);
 
-            viewModel.AddScheduledJobCommand.Execute(null);
-            var job = viewModel.ScheduledJobs.Should().ContainSingle().Subject;
-            job.Name = "sync job";
-            job.Url = "http://localhost:5000/sync";
+        viewModel.AddScheduledJobCommand.Execute(null);
+        var job = viewModel.ScheduledJobs.Should().ContainSingle().Subject;
+        job.Name = "sync job";
+        job.Url = "http://localhost:5000/sync";
 
-            await Task.Delay(1200);
+        await Task.Delay(1200, TestContext.Current.CancellationToken);
 
-            var all = await scheduledJobRepository.GetAllAsync();
-            all.Should().ContainSingle(config =>
-                string.Equals(config.Name, "sync job", StringComparison.Ordinal) &&
-                string.Equals(config.Url, "http://localhost:5000/sync", StringComparison.Ordinal));
-
-            return true;
-        }, CancellationToken.None);
+        var all = await scheduledJobRepository.GetAllAsync();
+        all.Should().ContainSingle(config =>
+            string.Equals(config.Name, "sync job", StringComparison.Ordinal) &&
+            string.Equals(config.Url, "http://localhost:5000/sync", StringComparison.Ordinal));
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task FloatingWindow_PositionShouldBeRestoredOnStartup()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            // Create a ViewModel that starts with a floating left-panel at a known position
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel,
-                initialOptions: new ApplicationOptions
+        // Create a ViewModel that starts with a floating left-panel at a known position
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel,
+            initialOptions: new ApplicationOptions
+            {
+                Layouts = new LayoutOptions
                 {
-                    Layouts = new LayoutOptions
+                    CurrentLayout = new DockLayoutSnapshot
                     {
-                        CurrentLayout = new DockLayoutSnapshot
-                        {
-                            LeftToolProportion = 0.25,
-                            DocumentProportion = 0.75,
-                            LeftToolDockableOrder = ["options"],
-                            FloatingWindows =
-                            [
-                                new FloatingWindowSnapshot
+                        LeftToolProportion = 0.25,
+                        DocumentProportion = 0.75,
+                        LeftToolDockableOrder = ["options"],
+                        FloatingWindows =
+                        [
+                            new FloatingWindowSnapshot
                                 {
                                     X = 100,
                                     Y = 200,
@@ -1545,46 +1460,40 @@ public class MainWindowUiTests
                                     DockableIds = ["left-panel"],
                                     ActiveDockableId = "left-panel"
                                 }
-                            ]
-                        }
+                        ]
                     }
-                });
+                }
+            });
 
-            // The floating window should have been created and positioned
-            viewModel.Layout!.Windows.Should().HaveCount(1);
-            var floatWin = viewModel.Layout.Windows![0];
-            floatWin.X.Should().BeApproximately(100, 0.001);
-            floatWin.Y.Should().BeApproximately(200, 0.001);
-            floatWin.Width.Should().BeApproximately(400, 0.001);
-            floatWin.Height.Should().BeApproximately(300, 0.001);
-
-            return true;
-        }, CancellationToken.None);
+        // The floating window should have been created and positioned
+        viewModel.Layout!.Windows.Should().HaveCount(1);
+        var floatWin = viewModel.Layout.Windows![0];
+        floatWin.X.Should().BeApproximately(100, 0.001);
+        floatWin.Y.Should().BeApproximately(200, 0.001);
+        floatWin.Width.Should().BeApproximately(400, 0.001);
+        floatWin.Height.Should().BeApproximately(300, 0.001);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task FloatingWindow_PositionShouldBeRestoredFromSavedLayout()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        var floatingSnapshot = new DockLayoutSnapshot
         {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
-
-            var floatingSnapshot = new DockLayoutSnapshot
-            {
-                LeftToolProportion = 0.25,
-                DocumentProportion = 0.75,
-                LeftToolDockableOrder = ["options"],
-                FloatingWindows =
-                [
-                    new FloatingWindowSnapshot
+            LeftToolProportion = 0.25,
+            DocumentProportion = 0.75,
+            LeftToolDockableOrder = ["options"],
+            FloatingWindows =
+            [
+                new FloatingWindowSnapshot
                     {
                         X = 250,
                         Y = 350,
@@ -1593,400 +1502,46 @@ public class MainWindowUiTests
                         DockableIds = ["left-panel"],
                         ActiveDockableId = "left-panel"
                     }
-                ]
-            };
+            ]
+        };
 
-            // Pre-load a named saved layout with floating windows
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel,
-                initialOptions: new ApplicationOptions
+        // Pre-load a named saved layout with floating windows
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel,
+            initialOptions: new ApplicationOptions
+            {
+                Layouts = new LayoutOptions
                 {
-                    Layouts = new LayoutOptions
-                    {
-                        SavedLayouts =
-                        [
-                            new NamedDockLayout { Name = "Floating Layout", Layout = floatingSnapshot }
-                        ]
-                    }
-                });
-
-            viewModel.SavedLayoutNames.Should().ContainSingle(n => n == "Floating Layout");
-            viewModel.Layout!.Windows?.Count.Should().Be(0, "no windows before selecting the layout");
-
-            // SelectedLayoutName was pre-set during init (with suppress=true), so set to null
-            // first to force a change event when we select it again.
-            viewModel.SelectedLayoutName = null;
-            viewModel.SelectedLayoutName = "Floating Layout";
-
-            viewModel.Layout!.Windows.Should().HaveCount(1);
-            var floatWin = viewModel.Layout.Windows![0];
-            floatWin.X.Should().BeApproximately(250, 0.001);
-            floatWin.Y.Should().BeApproximately(350, 0.001);
-            floatWin.Width.Should().BeApproximately(500, 0.001);
-            floatWin.Height.Should().BeApproximately(400, 0.001);
-
-            return true;
-        }, CancellationToken.None);
-    }
-
-    [Fact]
-    public async Task SaveNewEnvironment_ShouldAutoActivateItAndResolveVariablesInPreviewAndSend()
-    {
-        // Regression test: after saving a brand-new environment (ActiveEnvironment was null),
-        // SaveEnvironmentAsync must automatically set ActiveEnvironment to the created entry
-        // so that variable tokens in the URL/body/headers resolve immediately without the user
-        // having to manually select the environment from the dropdown.
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
-            Uri? capturedUri = null;
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(req =>
-            {
-                capturedUri = req.RequestUri;
-                return new HttpResponseMessage(HttpStatusCode.OK);
+                    SavedLayouts =
+                    [
+                        new NamedDockLayout { Name = "Floating Layout", Layout = floatingSnapshot }
+                    ]
+                }
             });
 
-            var environmentRepository = new InMemoryEnvironmentRepository();
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        viewModel.SavedLayoutNames.Should().ContainSingle(n => n == "Floating Layout");
+        viewModel.Layout!.Windows?.Count.Should().Be(0, "no windows before selecting the layout");
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                environmentRepository,
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        // SelectedLayoutName was pre-set during init (with suppress=true), so set to null
+        // first to force a change event when we select it again.
+        viewModel.SelectedLayoutName = null;
+        viewModel.SelectedLayoutName = "Floating Layout";
 
-            viewModel.RequestEditor.RequestUrl = "http://{{host}}/api";
-            viewModel.RequestEditor.SelectedMethod = "GET";
-
-            // Simulate "+ New Environment" → fills in name and a variable
-            viewModel.NewEnvironmentCommand.Execute(null);
-            viewModel.NewEnvironmentName = "myenv";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost:5000"));
-
-            // Save – this is the path where ActiveEnvironment was previously never restored
-            await viewModel.SaveEnvironmentCommand.ExecuteAsync(null);
-
-            // After save, ActiveEnvironment should be auto-selected to the newly created env
-            viewModel.ActiveEnvironment.Should().NotBeNull("SaveEnvironmentAsync must auto-select the new environment");
-            viewModel.ActiveEnvironment!.Name.Should().Be("myenv");
-
-            // Variables should now be reflected in the preview
-            viewModel.RequestEditor.RequestPreview.Should().Contain("http://localhost:5000/api",
-                "{{host}} should be resolved to 'localhost:5000' in the preview");
-
-            // And the actual request should also resolve variables
-            await viewModel.SendRequestCommand.ExecuteAsync(null);
-
-            capturedUri.Should().NotBeNull();
-            capturedUri!.AbsoluteUri.Should().Be("http://localhost:5000/api",
-                "{{host}} must be resolved to 'localhost:5000' when the request is sent");
-
-            return true;
-        }, CancellationToken.None);
+        viewModel.Layout!.Windows.Should().HaveCount(1);
+        var floatWin = viewModel.Layout.Windows![0];
+        floatWin.X.Should().BeApproximately(250, 0.001);
+        floatWin.Y.Should().BeApproximately(350, 0.001);
+        floatWin.Width.Should().BeApproximately(500, 0.001);
+        floatWin.Height.Should().BeApproximately(400, 0.001);
     }
 
-    [Fact]
-    public async Task DisabledEnvironmentVariable_ShouldNotResolveInPreviewOrSend()
-    {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
-            Uri? capturedUri = null;
-            var repository = new InMemoryRequestHistoryRepository();
-            using var handler = new StubHttpMessageHandler(req =>
-            {
-                capturedUri = req.RequestUri;
-                return new HttpResponseMessage(HttpStatusCode.OK);
-            });
-
-            using var httpClient = new global::System.Net.Http.HttpClient(handler);
-            var httpRequestService = new HttpRequestService(httpClient, repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
-
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
-
-            viewModel.RequestEditor.RequestUrl = "http://{{host}}/api";
-            viewModel.RequestEditor.SelectedMethod = "GET";
-
-            viewModel.NewEnvironmentCommand.Execute(null);
-            viewModel.NewEnvironmentName = "myenv";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost:5000", false));
-
-            await viewModel.SaveEnvironmentCommand.ExecuteAsync(null);
-
-            viewModel.RequestEditor.RequestPreview.Should().NotContain("localhost:5000");
-
-            await viewModel.SendRequestCommand.ExecuteAsync(null);
-
-            capturedUri.Should().BeNull("request should not be sent when a disabled variable leaves an invalid URL");
-            viewModel.ErrorMessage.Should().Contain("Resolved URL must be an absolute HTTP or HTTPS URL");
-
-            return true;
-        }, CancellationToken.None);
-    }
-
-    [Fact]
-    public async Task DisabledUrlValidation_ShouldBypassFastFeedbackValidation()
-    {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
-            Uri? capturedUri = null;
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(req =>
-            {
-                capturedUri = req.RequestUri;
-                return new HttpResponseMessage(HttpStatusCode.OK);
-            });
-
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
-
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
-
-            viewModel.RequestEditor.RequestUrl = "http://{{host}}/api";
-            viewModel.RequestEditor.SelectedMethod = "GET";
-            viewModel.RequestEditor.ValidateUrlBeforeSend = false;
-
-            viewModel.NewEnvironmentCommand.Execute(null);
-            viewModel.NewEnvironmentName = "myenv";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost:5000", false));
-
-            await viewModel.SaveEnvironmentCommand.ExecuteAsync(null);
-
-            await viewModel.SendRequestCommand.ExecuteAsync(null);
-
-            capturedUri.Should().BeNull("HttpRequestService still rejects invalid URLs, but RequestViewModel fast validation should be bypassed");
-            viewModel.ErrorMessage.Should().Contain("URL must be an absolute HTTP or HTTPS URL");
-            viewModel.ErrorMessage.Should().NotContain("Resolved URL must be an absolute HTTP or HTTPS URL");
-
-            return true;
-        }, CancellationToken.None);
-    }
-
-    [Fact]
-    public async Task AddEnvironmentVariable_ShouldKeepDraftRowWhileEditingEnvironment()
-    {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
-            var environmentRepository = new InMemoryEnvironmentRepository();
-            var environmentId = await environmentRepository.SaveAsync("dev",
-            [
-                new EnvironmentVariable("host", "localhost")
-            ]);
-
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                environmentRepository,
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
-
-            await viewModel.InitializeAsync();
-
-            var environment = viewModel.Environments.Single(e => e.Id == environmentId);
-            viewModel.EditEnvironmentCommand.Execute(environment);
-            viewModel.ActiveEnvironmentVariables.Should().HaveCount(1);
-
-            viewModel.AddEnvironmentVariableCommand.Execute(null);
-            viewModel.ActiveEnvironmentVariables.Should().HaveCount(2);
-
-            await Task.Delay(700);
-
-            viewModel.ActiveEnvironmentVariables.Should().HaveCount(2,
-                "a new blank variable row should remain visible while the user is still editing it");
-            viewModel.ActiveEnvironmentVariables[viewModel.ActiveEnvironmentVariables.Count - 1].Name.Should().BeEmpty();
-
-            return true;
-        }, CancellationToken.None);
-    }
-
-    [Fact]
-    public async Task FloatingWindow_PositionShouldSurviveLayoutSwitching()
-    {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
-
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
-
-            // Float the left-panel dockable
-            var leftPanel = FindDockById<IDockable>(viewModel.Layout!, "left-panel");
-            leftPanel.Should().NotBeNull("left-panel dockable must exist");
-            viewModel.Factory!.FloatDockable(leftPanel!);
-
-            viewModel.Layout!.Windows.Should().HaveCount(1, "FloatDockable should have created a floating window");
-            var floatWin = viewModel.Layout.Windows![0];
-
-            // Move the floating window to a known position
-            floatWin.X = 300;
-            floatWin.Y = 400;
-            floatWin.Width = 550;
-            floatWin.Height = 380;
-
-            // Save this layout
-            viewModel.SaveLayoutAsNewCommand.Execute(null);
-            viewModel.SavedLayoutNames.Should().ContainSingle();
-            var layoutName = viewModel.SavedLayoutNames.Single();
-
-            // Switch away: restore the default (no floating windows)
-            viewModel.RestoreDefaultLayoutCommand.Execute(null);
-            viewModel.Layout!.Windows?.Count.Should().Be(0, "default layout has no floating windows");
-
-            // Switch back: the saved layout should restore the floating window at the original position
-            viewModel.SelectedLayoutName = layoutName;
-
-            viewModel.Layout!.Windows.Should().HaveCount(1);
-            var restoredWin = viewModel.Layout.Windows![0];
-            restoredWin.X.Should().BeApproximately(300, 0.001);
-            restoredWin.Y.Should().BeApproximately(400, 0.001);
-            restoredWin.Width.Should().BeApproximately(550, 0.001);
-            restoredWin.Height.Should().BeApproximately(380, 0.001);
-
-            return true;
-        }, CancellationToken.None);
-    }
-
-    [Fact]
-    public async Task FloatingWindow_PositionShouldPersistAcrossAppRestarts()
-    {
-        // Verifies the full save→reload lifecycle:
-        // 1st "run": float a window, move it, call the OnClosing sequence
-        // 2nd "run": start with the saved layout, verify window is at the saved position
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
-            // ── First "application run" ──────────────────────────────────────
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
-
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
-
-            var leftPanel = FindDockById<IDockable>(viewModel.Layout!, "left-panel");
-            leftPanel.Should().NotBeNull("left-panel dockable must exist");
-            viewModel.Factory!.FloatDockable(leftPanel!);
-
-            viewModel.Layout!.Windows.Should().HaveCount(1);
-            var floatWin = viewModel.Layout.Windows![0];
-            floatWin.X = 123;
-            floatWin.Y = 456;
-            floatWin.Width = 600;
-            floatWin.Height = 450;
-
-            // Simulate MainWindow.OnClosing: persist first, then close floating windows
-            viewModel.PersistCurrentLayout();
-            var savedLayout = viewModel.CaptureCurrentLayout();
-            viewModel.CloseFloatingWindows();
-
-            // Floating windows should be gone from the model after close
-            viewModel.Layout.Windows.Should().BeEmpty("CloseFloatingWindows should remove all floating windows");
-
-            // ── Second "application run" ─────────────────────────────────────
-            var handler2 = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService2 = new HttpRequestService(new global::System.Net.Http.HttpClient(handler2), repository);
-            var inMemorySink2 = new InMemorySink();
-            var logger2 = new LoggerConfiguration().WriteTo.Sink(inMemorySink2).CreateLogger();
-            var scheduledJobService2 = new ScheduledJobService(httpRequestService2, logger2);
-            var logWindowViewModel2 = new LogWindowViewModel(inMemorySink2);
-
-            using var viewModel2 = new MainWindowViewModel(
-                httpRequestService2,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService2,
-                logWindowViewModel2,
-                initialOptions: new ApplicationOptions { Layouts = savedLayout });
-
-            viewModel2.Layout!.Windows.Should().HaveCount(1, "floating window should be restored on next startup");
-            var restoredWin = viewModel2.Layout.Windows![0];
-            restoredWin.X.Should().BeApproximately(123, 0.001);
-            restoredWin.Y.Should().BeApproximately(456, 0.001);
-            restoredWin.Width.Should().BeApproximately(600, 0.001);
-            restoredWin.Height.Should().BeApproximately(450, 0.001);
-
-            return true;
-        }, CancellationToken.None);
-    }
-
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task MainWindowViewModel_CloseFloatingWindowsThenDispose_ShouldNotThrow()
     {
         // Regression test for the NullReferenceException that occurred when:
@@ -1994,155 +1549,136 @@ public class MainWindowUiTests
         // 2. Dispose called (OnClosed fires via App.axaml.cs window.Closed handler)
         // Previously, Dispose also called PersistCurrentLayout, which triggered
         // CaptureLayoutSnapshot on an already-cleaned-up layout.
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        var leftPanel = FindDockById<IDockable>(viewModel.Layout!, "left-panel");
+        leftPanel.Should().NotBeNull();
+        viewModel.Factory!.FloatDockable(leftPanel);
+        viewModel.Layout!.Windows.Should().HaveCount(1);
+
+        // Simulate the OnClosing handler sequence – must not throw
+        var onClosingException = Record.Exception(() =>
         {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+            viewModel.PersistCurrentLayout();
+            viewModel.CloseFloatingWindows();
+        });
+        onClosingException.Should().BeNull("OnClosing sequence must not throw");
 
-            var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        viewModel.Layout.Windows.Should().BeEmpty("floating windows removed by CloseFloatingWindows");
 
-            var leftPanel = FindDockById<IDockable>(viewModel.Layout!, "left-panel");
-            leftPanel.Should().NotBeNull();
-            viewModel.Factory!.FloatDockable(leftPanel!);
-            viewModel.Layout!.Windows.Should().HaveCount(1);
-
-            // Simulate the OnClosing handler sequence – must not throw
-            var onClosingException = Record.Exception(() =>
-            {
-                viewModel.PersistCurrentLayout();
-                viewModel.CloseFloatingWindows();
-            });
-            onClosingException.Should().BeNull("OnClosing sequence must not throw");
-
-            viewModel.Layout.Windows.Should().BeEmpty("floating windows removed by CloseFloatingWindows");
-
-            // Simulate the window.Closed handler sequence – must not throw
-            var onClosedException = Record.Exception(() => viewModel.Dispose());
-            onClosedException.Should().BeNull("Dispose after CloseFloatingWindows must not throw");
-
-            return true;
-        }, CancellationToken.None);
+        // Simulate the window.Closed handler sequence – must not throw
+        var onClosedException = Record.Exception(() => viewModel.Dispose());
+        onClosedException.Should().BeNull("Dispose after CloseFloatingWindows must not throw");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task SendRequest_ShouldRespectFollowRedirectsOverride()
     {
         using var server = new RedirectTestServer();
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            using var defaultClient = new global::System.Net.Http.HttpClient();
-            using var followClient = new global::System.Net.Http.HttpClient(new SocketsHttpHandler { AllowAutoRedirect = true });
-            using var noFollowClient = new global::System.Net.Http.HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false });
-            var httpRequestService = new HttpRequestService(defaultClient, repository);
-            httpRequestService.SetHttpClientFactory(followRedirects =>
-                (followRedirects ?? true) ? followClient : noFollowClient);
+        var repository = new InMemoryRequestHistoryRepository();
+        using var defaultClient = new System.Net.Http.HttpClient();
+        using var followClient = new System.Net.Http.HttpClient(new SocketsHttpHandler { AllowAutoRedirect = true });
+        using var noFollowClient = new System.Net.Http.HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false });
+        var httpRequestService = new HttpRequestService(defaultClient, repository);
+        httpRequestService.SetHttpClientFactory(followRedirects =>
+            (followRedirects ?? true) ? followClient : noFollowClient);
 
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
 
-            viewModel.RequestEditor.RequestName = "redirect test";
-            viewModel.RequestEditor.SelectedMethod = "GET";
-            viewModel.RequestEditor.RequestUrl = server.RedirectUrl;
+        viewModel.RequestEditor.RequestName = "redirect test";
+        viewModel.RequestEditor.SelectedMethod = "GET";
+        viewModel.RequestEditor.RequestUrl = server.RedirectUrl;
 
-            viewModel.RequestEditor.FollowRedirectsForRequest = false;
-            await viewModel.SendRequestCommand.ExecuteAsync(null);
-            viewModel.ResponseStatus.Should().StartWith("302");
+        viewModel.RequestEditor.FollowRedirectsForRequest = false;
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        viewModel.ResponseStatus.Should().StartWith("302");
 
-            viewModel.RequestEditor.FollowRedirectsForRequest = true;
-            await viewModel.SendRequestCommand.ExecuteAsync(null);
-            viewModel.ResponseStatus.Should().Be("200 OK");
-            viewModel.RawResponseBody.Should().Contain("redirect-complete");
-
-            return true;
-        }, CancellationToken.None);
+        viewModel.RequestEditor.FollowRedirectsForRequest = true;
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        viewModel.ResponseStatus.Should().Be("200 OK");
+        viewModel.RawResponseBody.Should().Contain("redirect-complete");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task ScheduledJob_ShouldRespectFollowRedirectsOverride()
     {
         using var server = new RedirectTestServer();
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            using var defaultClient = new global::System.Net.Http.HttpClient();
-            using var followClient = new global::System.Net.Http.HttpClient(new SocketsHttpHandler { AllowAutoRedirect = true });
-            using var noFollowClient = new global::System.Net.Http.HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false });
-            var httpRequestService = new HttpRequestService(defaultClient, repository);
-            httpRequestService.SetHttpClientFactory(followRedirects =>
-                (followRedirects ?? true) ? followClient : noFollowClient);
+        var repository = new InMemoryRequestHistoryRepository();
+        using var defaultClient = new System.Net.Http.HttpClient();
+        using var followClient = new System.Net.Http.HttpClient(new SocketsHttpHandler { AllowAutoRedirect = true });
+        using var noFollowClient = new System.Net.Http.HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false });
+        var httpRequestService = new HttpRequestService(defaultClient, repository);
+        httpRequestService.SetHttpClientFactory(followRedirects =>
+            (followRedirects ?? true) ? followClient : noFollowClient);
 
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            using var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        using var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
 
-            const int noFollowId = 1;
-            scheduledJobService.Start(new ScheduledJobConfig(
-                noFollowId,
-                "redirect-off",
-                "GET",
-                server.RedirectUrl,
-                null,
-                null,
-                1,
-                AutoStart: false,
-                FollowRedirects: false));
+        const int noFollowId = 1;
+        scheduledJobService.Start(new ScheduledJobConfig(
+            noFollowId,
+            "redirect-off",
+            "GET",
+            server.RedirectUrl,
+            null,
+            null,
+            1,
+            AutoStart: false,
+            FollowRedirects: false));
 
-            await Task.Delay(1300);
-            scheduledJobService.Stop(noFollowId);
-            server.FinalRequestCount.Should().Be(0);
+        await Task.Delay(1300, TestContext.Current.CancellationToken);
+        scheduledJobService.Stop(noFollowId);
+        server.FinalRequestCount.Should().Be(0);
 
-            const int followId = 2;
-            scheduledJobService.Start(new ScheduledJobConfig(
-                followId,
-                "redirect-on",
-                "GET",
-                server.RedirectUrl,
-                null,
-                null,
-                1,
-                AutoStart: false,
-                FollowRedirects: true));
+        const int followId = 2;
+        scheduledJobService.Start(new ScheduledJobConfig(
+            followId,
+            "redirect-on",
+            "GET",
+            server.RedirectUrl,
+            null,
+            null,
+            1,
+            AutoStart: false,
+            FollowRedirects: true));
 
-            await Task.Delay(1300);
-            scheduledJobService.Stop(followId);
-            server.FinalRequestCount.Should().BeGreaterThan(0);
-
-            return true;
-        }, CancellationToken.None);
+        await Task.Delay(1300, TestContext.Current.CancellationToken);
+        scheduledJobService.Stop(followId);
+        server.FinalRequestCount.Should().BeGreaterThan(0);
     }
 
-
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task ReapplyStartupLayout_ShouldRestoreProportions_EvenAfterPspOverwroteModel()
     {
         // Verifies that ReapplyStartupLayout() correctly re-applies saved dock proportions
@@ -2150,196 +1686,168 @@ public class MainWindowUiTests
         // to handle the case where ProportionalStackPanel.AssignProportions runs before the
         // TwoWay binding is established and propagates equal-distribution proportions back to
         // IDockable.Proportion, overwriting the values that ApplyLayoutSnapshot set.
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(() =>
-        {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-            const double savedLeftProportion = 0.4;
-            const double savedDocProportion = 0.6;
-            const double savedRequestProportion = 0.35;
-            const double savedResponseProportion = 0.65;
+        const double savedLeftProportion = 0.4;
+        const double savedDocProportion = 0.6;
+        const double savedRequestProportion = 0.35;
+        const double savedResponseProportion = 0.65;
 
-            using var viewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel,
-                initialOptions: new ApplicationOptions
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel,
+            initialOptions: new ApplicationOptions
+            {
+                Layouts = new LayoutOptions
                 {
-                    Layouts = new LayoutOptions
+                    CurrentLayout = new DockLayoutSnapshot
                     {
-                        CurrentLayout = new DockLayoutSnapshot
-                        {
-                            LeftToolProportion = savedLeftProportion,
-                            DocumentProportion = savedDocProportion,
-                            RequestDockProportion = savedRequestProportion,
-                            ResponseDockProportion = savedResponseProportion,
-                        }
+                        LeftToolProportion = savedLeftProportion,
+                        DocumentProportion = savedDocProportion,
+                        RequestDockProportion = savedRequestProportion,
+                        ResponseDockProportion = savedResponseProportion,
                     }
-                });
+                }
+            });
 
-            var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
-            var documentLayout = FindDockById<ProportionalDock>(viewModel.Layout!, "document-layout");
-            var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
-            var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
+        var leftToolDock = FindDockById<ToolDock>(viewModel.Layout!, "left-tool-dock");
+        var documentLayout = FindDockById<ProportionalDock>(viewModel.Layout!, "document-layout");
+        var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
+        var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
 
-            leftToolDock.Should().NotBeNull();
-            documentLayout.Should().NotBeNull();
-            requestDock.Should().NotBeNull();
-            responseDock.Should().NotBeNull();
+        leftToolDock.Should().NotBeNull();
+        documentLayout.Should().NotBeNull();
+        requestDock.Should().NotBeNull();
+        responseDock.Should().NotBeNull();
 
-            // Simulate the scenario where the Dock PSP's TwoWay binding has already overwritten
-            // the model proportions with equal-distribution values before the first visual render.
-            // (This is the root cause: PSP.AssignProportions fires before the binding is set up.)
-            leftToolDock!.Proportion = 0.5;
-            documentLayout!.Proportion = 0.5;
-            requestDock!.Proportion = 0.5;
-            responseDock!.Proportion = 0.5;
+        // Simulate the scenario where the Dock PSP's TwoWay binding has already overwritten
+        // the model proportions with equal-distribution values before the first visual render.
+        // (This is the root cause: PSP.AssignProportions fires before the binding is set up.)
+        leftToolDock.Proportion = 0.5;
+        documentLayout.Proportion = 0.5;
+        requestDock.Proportion = 0.5;
+        responseDock.Proportion = 0.5;
 
-            // Now call ReapplyStartupLayout — this is what window.Opened does to correct the
-            // PSP-corrupted proportions once visual bindings are established.
-            viewModel.ReapplyStartupLayout();
+        // Now call ReapplyStartupLayout — this is what window.Opened does to correct the
+        // PSP-corrupted proportions once visual bindings are established.
+        viewModel.ReapplyStartupLayout();
 
-            // The model must be restored to the saved values.
-            leftToolDock.Proportion.Should().BeApproximately(savedLeftProportion, 0.001,
-                "left tool dock proportion should be restored by ReapplyStartupLayout");
-            documentLayout.Proportion.Should().BeApproximately(savedDocProportion, 0.001,
-                "document layout proportion should be restored by ReapplyStartupLayout");
-            requestDock.Proportion.Should().BeApproximately(savedRequestProportion, 0.001,
-                "request dock proportion should be restored by ReapplyStartupLayout");
-            responseDock.Proportion.Should().BeApproximately(savedResponseProportion, 0.001,
-                "response dock proportion should be restored by ReapplyStartupLayout");
+        // The model must be restored to the saved values.
+        leftToolDock.Proportion.Should().BeApproximately(savedLeftProportion, 0.001,
+            "left tool dock proportion should be restored by ReapplyStartupLayout");
+        documentLayout.Proportion.Should().BeApproximately(savedDocProportion, 0.001,
+            "document layout proportion should be restored by ReapplyStartupLayout");
+        requestDock.Proportion.Should().BeApproximately(savedRequestProportion, 0.001,
+            "request dock proportion should be restored by ReapplyStartupLayout");
+        responseDock.Proportion.Should().BeApproximately(savedResponseProportion, 0.001,
+            "response dock proportion should be restored by ReapplyStartupLayout");
 
-            // A second call must be a no-op (snapshot cleared after first use).
-            leftToolDock.Proportion = 0.9;
-            viewModel.ReapplyStartupLayout();
-            leftToolDock.Proportion.Should().BeApproximately(0.9, 0.001,
-                "second call to ReapplyStartupLayout should be a no-op");
-
-            return Task.FromResult(true);
-        }, CancellationToken.None);
+        // A second call must be a no-op (snapshot cleared after first use).
+        leftToolDock.Proportion = 0.9;
+        viewModel.ReapplyStartupLayout();
+        leftToolDock.Proportion.Should().BeApproximately(0.9, 0.001,
+            "second call to ReapplyStartupLayout should be a no-op");
     }
 
 
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RequestUrlEditor_SetWithNewline_NewlineIsStrippedAndViewModelIsUpdated()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-        await session.Dispatch(async () =>
+        using var mainViewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        var requestView = new RequestView
         {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+            DataContext = new RequestViewModel(mainViewModel)
+        };
+        var window = new Window { Width = 900, Height = 500, Content = requestView };
+        window.Show();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
 
-            using var mainViewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        var requestUrlEditor = requestView.FindControl<TextEditor>("RequestUrlEditor");
+        requestUrlEditor.Should().NotBeNull();
 
-            var requestView = new RequestView
-            {
-                DataContext = new RequestViewModel(mainViewModel)
-            };
-            var window = new Window { Width = 900, Height = 500, Content = requestView };
-            window.Show();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+        // Simulate pasting a URL that contains an embedded newline (e.g. from clipboard).
+        requestUrlEditor.Text = "http://example.com\npath";
 
-            var requestUrlEditor = requestView.FindControl<TextEditor>("RequestUrlEditor");
-            requestUrlEditor.Should().NotBeNull();
+        requestUrlEditor.Text.Should().Be("http://example.compath",
+            "the URL editor must strip newlines immediately after they are entered");
+        mainViewModel.RequestEditor.RequestUrl.Should().Be("http://example.compath",
+            "the ViewModel must receive the stripped URL, not the original with newline");
 
-            // Simulate pasting a URL that contains an embedded newline (e.g. from clipboard).
-            requestUrlEditor!.Text = "http://example.com\npath";
-
-            requestUrlEditor.Text.Should().Be("http://example.compath",
-                "the URL editor must strip newlines immediately after they are entered");
-            mainViewModel.RequestEditor.RequestUrl.Should().Be("http://example.compath",
-                "the ViewModel must receive the stripped URL, not the original with newline");
-
-            window.Close();
-            return true;
-        }, CancellationToken.None);
+        window.Close();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RequestUrl_SetOnViewModelWithNewline_NewlineIsStrippedWhenSyncedToEditor()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
 
-        await session.Dispatch(async () =>
+        using var mainViewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        var requestView = new RequestView
         {
-            var repository = new InMemoryRequestHistoryRepository();
-            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-            var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
-            var inMemorySink = new InMemorySink();
-            var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-            var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-            var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+            DataContext = new RequestViewModel(mainViewModel)
+        };
+        var window = new Window { Width = 900, Height = 500, Content = requestView };
+        window.Show();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
 
-            using var mainViewModel = new MainWindowViewModel(
-                httpRequestService,
-                repository,
-                new InMemoryCollectionRepository(),
-                new InMemoryEnvironmentRepository(),
-                new InMemoryScheduledJobRepository(),
-                scheduledJobService,
-                logWindowViewModel);
+        var requestUrlEditor = requestView.FindControl<TextEditor>("RequestUrlEditor");
+        requestUrlEditor.Should().NotBeNull();
 
-            var requestView = new RequestView
-            {
-                DataContext = new RequestViewModel(mainViewModel)
-            };
-            var window = new Window { Width = 900, Height = 500, Content = requestView };
-            window.Show();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+        // Simulate the ViewModel receiving a URL with a newline (e.g. from persisted state).
+        mainViewModel.RequestEditor.RequestUrl = "http://example.com\r\npath";
 
-            var requestUrlEditor = requestView.FindControl<TextEditor>("RequestUrlEditor");
-            requestUrlEditor.Should().NotBeNull();
+        requestUrlEditor.Text.Should().Be("http://example.compath",
+            "the URL editor must strip newlines when syncing from ViewModel");
+        mainViewModel.RequestEditor.RequestUrl.Should().Be("http://example.compath",
+            "the ViewModel must have the stripped URL after sync");
 
-            // Simulate the ViewModel receiving a URL with a newline (e.g. from persisted state).
-            mainViewModel.RequestEditor.RequestUrl = "http://example.com\r\npath";
-
-            requestUrlEditor!.Text.Should().Be("http://example.compath",
-                "the URL editor must strip newlines when syncing from ViewModel");
-            mainViewModel.RequestEditor.RequestUrl.Should().Be("http://example.compath",
-                "the ViewModel must have the stripped URL after sync");
-
-            window.Close();
-            return true;
-        }, CancellationToken.None);
+        window.Close();
     }
 
-    private static class TestEntryPoint
-    {
-        public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions
-            {
-                UseHeadlessDrawing = false
-            })
-            .WithInterFont()
-            .LogToTrace();
-    }
+
 
     private sealed class RedirectTestServer : IDisposable
     {
@@ -2414,7 +1922,8 @@ public class MainWindowUiTests
 
         public void Dispose()
         {
-            _cts.Cancel();
+            using var cancellationTokenSource = _cts;
+            cancellationTokenSource.Cancel();
             _listener.Stop();
             _listener.Close();
             try
@@ -2425,8 +1934,6 @@ public class MainWindowUiTests
             {
                 // Best effort stop for tests.
             }
-
-            _cts.Dispose();
         }
     }
 

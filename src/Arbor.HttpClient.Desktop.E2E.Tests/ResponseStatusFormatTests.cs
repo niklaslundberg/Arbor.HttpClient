@@ -10,7 +10,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 /// </summary>
 public class ResponseStatusFormatTests
 {
-    [Theory]
+    [AvaloniaTheory(Timeout = 10_000)]
     [InlineData(0, "0 ms")]
     [InlineData(12.4, "12 ms")]
     [InlineData(999, "999 ms")]
@@ -24,13 +24,13 @@ public class ResponseStatusFormatTests
         MainWindowViewModel.FormatElapsedMilliseconds(milliseconds).Should().Be(expected);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void FormatElapsedMilliseconds_ShouldClampNegativeInput()
     {
         MainWindowViewModel.FormatElapsedMilliseconds(-5).Should().Be("0 ms");
     }
 
-    [Theory]
+    [AvaloniaTheory(Timeout = 10_000)]
     [InlineData(0L, "0 B")]
     [InlineData(1L, "1 B")]
     [InlineData(1023L, "1023 B")]
@@ -44,13 +44,13 @@ public class ResponseStatusFormatTests
         MainWindowViewModel.FormatByteSize(bytes).Should().Be(expected);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void FormatByteSize_ShouldClampNegativeInput()
     {
         MainWindowViewModel.FormatByteSize(-42).Should().Be("0 B");
     }
 
-    [Theory]
+    [AvaloniaTheory(Timeout = 10_000)]
     [InlineData(100)]   // 1xx informational
     [InlineData(200)]   // 2xx success
     [InlineData(302)]   // 3xx redirect
@@ -69,3 +69,4 @@ public class ResponseStatusFormatTests
         brush.Should().BeAssignableTo<Avalonia.Media.IBrush>();
     }
 }
+

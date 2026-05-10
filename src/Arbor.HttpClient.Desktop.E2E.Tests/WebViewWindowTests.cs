@@ -1,10 +1,5 @@
-using Arbor.HttpClient.Desktop;
+using System.Xml.Linq;
 using Arbor.HttpClient.Desktop.Features.WebView;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Headless;
-using Avalonia.Skia;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
@@ -12,7 +7,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Trait("Category", "Integration")]
 public class WebViewWindowTests
 {
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildNoCacheUri_WithNoQuery_AppendsCacheBustParameter()
     {
         var result = WebViewWindow.BuildNoCacheUri(new Uri("https://example.com/page"), 1234);
@@ -20,7 +15,7 @@ public class WebViewWindowTests
         result.ToString().Should().Be("https://example.com/page?arborNoCache=1234");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildNoCacheUri_WithExistingQuery_PreservesQueryAndAppendsCacheBustParameter()
     {
         var result = WebViewWindow.BuildNoCacheUri(new Uri("https://example.com/page?foo=bar"), 1234);
@@ -28,30 +23,34 @@ public class WebViewWindowTests
         result.ToString().Should().Be("https://example.com/page?foo=bar&arborNoCache=1234");
     }
 
-    [Fact]
-    public async Task WebViewWindow_NavigationBarOverflow_UsesHorizontalScrollViewer()
+    [AvaloniaFact(Timeout = 10_000)]
+    public void WebViewWindow_NavigationBarOverflow_UsesHorizontalScrollViewer()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+        var xamlPath = FindRepoRootPath("src", "Arbor.HttpClient.Desktop", "Features", "WebView", "WebViewWindow.axaml");
+        var document = XDocument.Parse(File.ReadAllText(xamlPath));
+        var xNamespace = XNamespace.Get("http://schemas.microsoft.com/winfx/2006/xaml");
+        var navigationScrollViewer = document
+            .Descendants()
+            .Single(element => string.Equals((string?)element.Attribute(xNamespace + "Name"), "NavigationScrollViewer", StringComparison.Ordinal));
 
-        await session.Dispatch(() =>
-        {
-            var window = new WebViewWindow();
-
-            var navigationScrollViewer = window.FindControl<ScrollViewer>("NavigationScrollViewer");
-            navigationScrollViewer.Should().NotBeNull();
-            navigationScrollViewer!.HorizontalScrollBarVisibility.Should().Be(ScrollBarVisibility.Auto);
-            navigationScrollViewer.VerticalScrollBarVisibility.Should().Be(ScrollBarVisibility.Disabled);
-
-            return Task.FromResult(true);
-        }, CancellationToken.None);
+        ((string?)navigationScrollViewer.Attribute("HorizontalScrollBarVisibility")).Should().Be("Auto");
+        ((string?)navigationScrollViewer.Attribute("VerticalScrollBarVisibility")).Should().Be("Disabled");
     }
 
-    private sealed class TestEntryPoint
+    private static string FindRepoRootPath(params string[] relativeSegments)
     {
-        public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
-            .WithInterFont()
-            .LogToTrace();
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is { })
+        {
+            var slnPath = Path.Join(current.FullName, "Arbor.HttpClient.slnx");
+            if (File.Exists(slnPath))
+            {
+                return Path.Join([current.FullName, .. relativeSegments]);
+            }
+
+            current = current.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate repository root from test base directory.");
     }
 }

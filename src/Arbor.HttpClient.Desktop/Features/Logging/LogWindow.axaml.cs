@@ -13,7 +13,7 @@ public partial class LogWindow : Window
         DataContextChanged += OnDataContextChanged;
     }
 
-    private void OnDataContextChanged(object? sender, System.EventArgs e)
+    private void OnDataContextChanged(object? sender, EventArgs e)
     {
         _viewModel = DataContext as LogWindowViewModel;
 
@@ -41,7 +41,7 @@ public partial class LogWindow : Window
         }
     }
 
-    protected override void OnClosed(System.EventArgs e)
+    protected override void OnClosed(EventArgs e)
     {
         if (_viewModel is { } oldVm)
         {

@@ -87,7 +87,7 @@ public sealed class KestrelServerFixture : IAsyncLifetime
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Echo close", CancellationToken.None);
+                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Echo close", TestContext.Current.CancellationToken);
                     return;
                 }
 
@@ -114,7 +114,7 @@ public sealed class KestrelServerFixture : IAsyncLifetime
 
             // Tell the client the connection is ready.
             var ready = Encoding.UTF8.GetBytes("ready");
-            await ws.SendAsync(new ArraySegment<byte>(ready), WebSocketMessageType.Text, endOfMessage: true, CancellationToken.None);
+            await ws.SendAsync(new ArraySegment<byte>(ready), WebSocketMessageType.Text, endOfMessage: true, TestContext.Current.CancellationToken);
 
             // Wait for the client's acknowledgment so we know it is in the receive loop.
             var buffer = new byte[256];
@@ -167,7 +167,7 @@ public sealed class KestrelServerFixture : IAsyncLifetime
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Headers echo close", CancellationToken.None);
+                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Headers echo close", TestContext.Current.CancellationToken);
                     return;
                 }
             }
@@ -206,7 +206,7 @@ public sealed class KestrelServerFixture : IAsyncLifetime
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Fragment close", CancellationToken.None);
+                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Fragment close", TestContext.Current.CancellationToken);
                     return;
                 }
             }

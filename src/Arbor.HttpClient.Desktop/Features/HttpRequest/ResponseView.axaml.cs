@@ -38,7 +38,7 @@ public partial class ResponseView : UserControl
 
     private MainWindowViewModel? GetAppVm() => (DataContext as ResponseViewModel)?.App;
 
-    private void OnDataContextChanged(object? sender, System.EventArgs e)
+    private void OnDataContextChanged(object? sender, EventArgs e)
     {
         if (_appVm is not null)
         {

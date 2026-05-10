@@ -22,7 +22,7 @@ public sealed class CollectionItemViewModel(CollectionRequest request, string? b
     /// Absolute paths are returned as-is.
     /// Falls back to <see cref="Path"/> when no base URL is provided.
     /// </summary>
-    public string FullUrl { get; } = System.Uri.TryCreate(request.Path, System.UriKind.Absolute, out _)
+    public string FullUrl { get; } = Uri.TryCreate(request.Path, UriKind.Absolute, out _)
         ? request.Path
         : !string.IsNullOrWhiteSpace(baseUrl)
             ? baseUrl.TrimEnd('/') + request.Path

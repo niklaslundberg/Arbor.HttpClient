@@ -19,11 +19,11 @@ public sealed class WebSocketServiceIntegrationTests(KestrelServerFixture fixtur
     {
         using var service = new WebSocketService();
 
-        await service.ConnectAsync(fixture.WebSocketEchoUrl, _ => { });
+        await service.ConnectAsync(fixture.WebSocketEchoUrl, _ => { }, cancellationToken: TestContext.Current.CancellationToken);
 
         service.IsConnected.Should().BeTrue();
 
-        await service.DisconnectAsync();
+        await service.DisconnectAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -47,13 +47,14 @@ public sealed class WebSocketServiceIntegrationTests(KestrelServerFixture fixtur
                 receivedContent = msg.Content;
                 received.Release();
             },
-            additionalHeaders: headers);
+            additionalHeaders: headers,
+            cancellationToken: TestContext.Current.CancellationToken);
 
-        var gotMessage = await received.WaitAsync(TimeSpan.FromSeconds(10));
+        var gotMessage = await received.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         gotMessage.Should().BeTrue("the header-echo server should have sent a frame");
         receivedContent.Should().Be("my-test-value");
 
-        await service.DisconnectAsync();
+        await service.DisconnectAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -61,15 +62,15 @@ public sealed class WebSocketServiceIntegrationTests(KestrelServerFixture fixtur
     {
         using var service = new WebSocketService();
 
-        await service.ConnectAsync(fixture.WebSocketEchoUrl, _ => { });
-        await service.DisconnectAsync();
+        await service.ConnectAsync(fixture.WebSocketEchoUrl, _ => { }, cancellationToken: TestContext.Current.CancellationToken);
+        await service.DisconnectAsync(TestContext.Current.CancellationToken);
 
         // _webSocket is now not null (but Closed); calling ConnectAsync again exercises
         // the _webSocket?.Dispose() branch on line 48 of WebSocketService.cs.
-        await service.ConnectAsync(fixture.WebSocketEchoUrl, _ => { });
+        await service.ConnectAsync(fixture.WebSocketEchoUrl, _ => { }, cancellationToken: TestContext.Current.CancellationToken);
         service.IsConnected.Should().BeTrue();
 
-        await service.DisconnectAsync();
+        await service.DisconnectAsync(TestContext.Current.CancellationToken);
     }
 
     // ── SendMessageAsync ──────────────────────────────────────────────────────
@@ -87,17 +88,18 @@ public sealed class WebSocketServiceIntegrationTests(KestrelServerFixture fixtur
             {
                 receivedMessage = msg;
                 received.Release();
-            });
+            },
+            cancellationToken: TestContext.Current.CancellationToken);
 
-        await service.SendMessageAsync("hello integration test");
+        await service.SendMessageAsync("hello integration test", TestContext.Current.CancellationToken);
 
-        var gotMessage = await received.WaitAsync(TimeSpan.FromSeconds(10));
+        var gotMessage = await received.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         gotMessage.Should().BeTrue("the echo server should have reflected the frame");
         receivedMessage.Should().NotBeNull();
         receivedMessage!.Content.Should().Be("hello integration test");
         receivedMessage.Direction.Should().Be(WebSocketMessageDirection.Received);
 
-        await service.DisconnectAsync();
+        await service.DisconnectAsync(TestContext.Current.CancellationToken);
     }
 
     // ── DisconnectAsync ───────────────────────────────────────────────────────
@@ -111,11 +113,12 @@ public sealed class WebSocketServiceIntegrationTests(KestrelServerFixture fixtur
         await service.ConnectAsync(
             fixture.WebSocketEchoUrl,
             _ => { },
-            onDisconnected: () => disconnected.Release());
+            onDisconnected: () => disconnected.Release(),
+            cancellationToken: TestContext.Current.CancellationToken);
 
-        await service.DisconnectAsync();
+        await service.DisconnectAsync(TestContext.Current.CancellationToken);
 
-        var wasDisconnected = await disconnected.WaitAsync(TimeSpan.FromSeconds(10));
+        var wasDisconnected = await disconnected.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         wasDisconnected.Should().BeTrue("the receive loop should have exited after the close handshake");
         service.IsConnected.Should().BeFalse();
     }
@@ -135,20 +138,21 @@ public sealed class WebSocketServiceIntegrationTests(KestrelServerFixture fixtur
             {
                 receivedMessage = msg;
                 received.Release();
-            });
+            },
+            cancellationToken: TestContext.Current.CancellationToken);
 
-        var gotMessage = await received.WaitAsync(TimeSpan.FromSeconds(10));
+        var gotMessage = await received.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         gotMessage.Should().BeTrue("the server should have sent a fragmented text frame");
         receivedMessage!.Content.Should().Be("Hello World");
 
-        await service.DisconnectAsync();
+        await service.DisconnectAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
     public async Task ReceiveLoop_WhenCancelled_ExitsCleanly()
     {
         using var service = new WebSocketService();
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         using var completed = new SemaphoreSlim(0, 1);
 
         await service.ConnectAsync(
@@ -159,7 +163,7 @@ public sealed class WebSocketServiceIntegrationTests(KestrelServerFixture fixtur
 
         await cts.CancelAsync();
 
-        var finished = await completed.WaitAsync(TimeSpan.FromSeconds(10));
+        var finished = await completed.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         finished.Should().BeTrue("cancellation should cause the receive loop to exit via OperationCanceledException");
     }
 
@@ -179,17 +183,18 @@ public sealed class WebSocketServiceIntegrationTests(KestrelServerFixture fixtur
                     readyReceived.Release();
                 }
             },
-            onDisconnected: () => completed.Release());
+            onDisconnected: () => completed.Release(),
+            cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for the server's "ready" frame to confirm the connection is established.
-        var gotReady = await readyReceived.WaitAsync(TimeSpan.FromSeconds(10));
+        var gotReady = await readyReceived.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         gotReady.Should().BeTrue("the drop-server should have sent a ready frame");
 
         // Send ack so the server knows the client is in the receive loop, then aborts.
-        await service.SendMessageAsync("ack");
+        await service.SendMessageAsync("ack", TestContext.Current.CancellationToken);
 
         // Wait for the receive loop to exit after the WebSocketException.
-        var finished = await completed.WaitAsync(TimeSpan.FromSeconds(10));
+        var finished = await completed.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         finished.Should().BeTrue("an abruptly dropped connection should cause the receive loop to exit via WebSocketException");
         service.IsConnected.Should().BeFalse();
     }

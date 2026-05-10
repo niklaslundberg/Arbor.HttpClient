@@ -7,11 +7,11 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Trait("Category", "Integration")]
 public class SqliteScheduledJobRepositoryTests
 {
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task SaveAndLoad_ShouldPersistFollowRedirectOverride()
     {
         var dbPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
-        var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
+        var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
         var repository = new SqliteScheduledJobRepository(connectionString);
         await repository.InitializeAsync();
 
@@ -44,11 +44,11 @@ public class SqliteScheduledJobRepositoryTests
         }
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task SaveAndLoad_ShouldPersistUseWebViewEnabled()
     {
         var dbPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
-        var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
+        var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
         var repository = new SqliteScheduledJobRepository(connectionString);
         await repository.InitializeAsync();
 
@@ -82,11 +82,11 @@ public class SqliteScheduledJobRepositoryTests
         }
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task SaveAndLoad_ShouldDefaultUseWebViewToFalse()
     {
         var dbPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
-        var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
+        var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
         var repository = new SqliteScheduledJobRepository(connectionString);
         await repository.InitializeAsync();
 
@@ -118,11 +118,11 @@ public class SqliteScheduledJobRepositoryTests
         }
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task UpdateAndLoad_ShouldPersistUseWebViewChange()
     {
         var dbPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
-        var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
+        var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
         var repository = new SqliteScheduledJobRepository(connectionString);
         await repository.InitializeAsync();
 
@@ -165,3 +165,4 @@ public class SqliteScheduledJobRepositoryTests
         }
     }
 }
+

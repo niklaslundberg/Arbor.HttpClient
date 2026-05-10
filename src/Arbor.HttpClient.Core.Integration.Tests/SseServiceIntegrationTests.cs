@@ -17,7 +17,7 @@ public sealed class SseServiceIntegrationTests(KestrelServerFixture fixture)
         var service = new SseService(httpClient);
         var events = new List<SseEvent>();
 
-        await service.ConnectAsync(fixture.SseUrl, events.Add);
+        await service.ConnectAsync(fixture.SseUrl, events.Add, cancellationToken: TestContext.Current.CancellationToken);
 
         events.Should().HaveCount(2);
         events[0].Data.Should().Be("event1");

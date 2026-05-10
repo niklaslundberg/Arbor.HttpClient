@@ -73,8 +73,11 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.Error(ex, "WebSocket connection failed for {Url}", url);
-            ConnectionError = $"Connection failed: {ex.Message}";
-            IsConnected = false;
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                ConnectionError = $"Connection failed: {ex.Message}";
+                IsConnected = false;
+            });
         }
     }
 
@@ -97,8 +100,13 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
         }
         finally
         {
-            _connectionCts?.Cancel();
-            IsConnected = false;
+            if (_connectionCts is { })
+            {
+                await _connectionCts.CancelAsync();
+            }
+
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+                () => IsConnected = false);
         }
     }
 
@@ -124,13 +132,24 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             _logger.Error(ex, "WebSocket send failed");
-            ConnectionError = $"Send failed: {ex.Message}";
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+                () => ConnectionError = $"Send failed: {ex.Message}");
         }
     }
 
     /// <summary>Clears the message log.</summary>
     [RelayCommand]
-    private void ClearMessages() => Messages.Clear();
+    private void ClearMessages()
+    {
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            Messages.Clear();
+        }
+        else
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => Messages.Clear());
+        }
+    }
 
     /// <inheritdoc />
     public void Dispose()

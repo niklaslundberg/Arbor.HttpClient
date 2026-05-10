@@ -5,7 +5,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
 public class CookieJarViewModelTests
 {
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Constructor_WithNullContainer_ShouldInitializeWithEmptyCookieList()
     {
         var viewModel = new CookieJarViewModel(null);
@@ -15,7 +15,7 @@ public class CookieJarViewModelTests
         viewModel.Id.Should().Be("cookie-jar");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Constructor_WithContainerHavingCookies_ShouldLoadCookies()
     {
         var container = new CookieContainer();
@@ -29,7 +29,7 @@ public class CookieJarViewModelTests
         viewModel.Cookies[0].Domain.Should().Be("localhost");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void AddCookieCommand_WithValidInputs_ShouldAddCookieToContainerAndList()
     {
         var container = new CookieContainer();
@@ -51,7 +51,7 @@ public class CookieJarViewModelTests
         allCookies.Should().ContainSingle(c => c.Name == "token");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void AddCookieCommand_WithEmptyName_ShouldNotAddCookie()
     {
         var container = new CookieContainer();
@@ -65,7 +65,7 @@ public class CookieJarViewModelTests
         viewModel.Cookies.Should().BeEmpty();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void AddCookieCommand_WithEmptyDomain_ShouldNotAddCookie()
     {
         var container = new CookieContainer();
@@ -79,7 +79,7 @@ public class CookieJarViewModelTests
         viewModel.Cookies.Should().BeEmpty();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RemoveCommand_ShouldExpireCookieAndRemoveFromList()
     {
         var container = new CookieContainer();
@@ -93,7 +93,7 @@ public class CookieJarViewModelTests
         container.GetAllCookies().Single().Expired.Should().BeTrue();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void CookieEntryViewModel_ValueChange_ShouldSyncToUnderlyingCookie()
     {
         var cookie = new Cookie("key", "original", "/", "localhost");
@@ -104,7 +104,7 @@ public class CookieJarViewModelTests
         cookie.Value.Should().Be("updated");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void ClearAllCommand_ShouldExpireAllCookiesAndEmptyList()
     {
         var container = new CookieContainer();
@@ -118,7 +118,7 @@ public class CookieJarViewModelTests
         container.GetAllCookies().Should().AllSatisfy(c => c.Expired.Should().BeTrue());
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RefreshCommand_ShouldReloadCookiesFromContainer()
     {
         var container = new CookieContainer();
@@ -131,3 +131,4 @@ public class CookieJarViewModelTests
         viewModel.Cookies.Should().ContainSingle(c => c.Name == "new-cookie");
     }
 }
+

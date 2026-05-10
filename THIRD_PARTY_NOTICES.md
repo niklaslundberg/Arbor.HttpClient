@@ -6,13 +6,14 @@ This project makes use of third-party packages. Their licenses and attribution d
 
 ## Avalonia
 
-**Packages:** Avalonia, Avalonia.Desktop, Avalonia.Themes.Fluent, Avalonia.Fonts.Inter, Avalonia.Headless  
-**Version:** 12.0.1  
+**Packages:** Avalonia, Avalonia.Desktop, Avalonia.Themes.Fluent, Avalonia.Fonts.Inter, Avalonia.Headless, Avalonia.Headless.XUnit  
+**Version:** 12.0.2  
 **Authors:** Avalonia Team  
 **Copyright:** Copyright 2013-2026 © The AvaloniaUI Project  
 **Project URL:** https://avaloniaui.net/  
 **Source:** https://github.com/AvaloniaUI/Avalonia  
 **License:** MIT  
+**Note:** `Avalonia.Headless` and `Avalonia.Headless.XUnit` are direct test-only dependencies used by `Arbor.HttpClient.Desktop.E2E.Tests`; the remaining Avalonia packages are used by the desktop application.
 
 ---
 
@@ -87,7 +88,7 @@ This project makes use of third-party packages. Their licenses and attribution d
 ## CommunityToolkit.Mvvm
 
 **Package:** CommunityToolkit.Mvvm  
-**Version:** 8.4.1  
+**Version:** 8.4.2  
 **Authors:** Microsoft  
 **Copyright:** © .NET Foundation and Contributors. All rights reserved.  
 **Project URL:** https://github.com/CommunityToolkit/dotnet  
@@ -98,7 +99,7 @@ This project makes use of third-party packages. Their licenses and attribution d
 ## Microsoft.Data.Sqlite
 
 **Package:** Microsoft.Data.Sqlite  
-**Version:** 10.0.0  
+**Version:** 10.0.7  
 **Authors:** Microsoft  
 **Copyright:** © Microsoft Corporation. All rights reserved.  
 **Project URL:** https://docs.microsoft.com/dotnet/standard/data/sqlite/  
@@ -133,34 +134,10 @@ This project makes use of third-party packages. Their licenses and attribution d
 ## coverlet.collector
 
 **Package:** coverlet.collector  
-**Version:** 6.0.4  
+**Version:** 10.0.0  
 **Authors:** tonerdo  
 **Project URL:** https://github.com/coverlet-coverage/coverlet  
 **License:** MIT  
-**Note:** Test-only dependency, not included in production builds.
-
----
-
-## Microsoft.NET.Test.Sdk
-
-**Package:** Microsoft.NET.Test.Sdk  
-**Version:** 17.14.1  
-**Authors:** Microsoft  
-**Copyright:** © Microsoft Corporation. All rights reserved.  
-**Project URL:** https://github.com/microsoft/vstest  
-**License:** MIT  
-**Note:** Test-only dependency, not included in production builds.
-
----
-
-## xunit
-
-**Package:** xunit  
-**Version:** 2.9.3  
-**Authors:** jnewkirk, bradwilson  
-**Copyright:** Copyright (C) .NET Foundation  
-**Project URL:** https://github.com/xunit/xunit  
-**License:** Apache-2.0  
 **Note:** Test-only dependency, not included in production builds.
 
 ---
@@ -173,30 +150,7 @@ This project makes use of third-party packages. Their licenses and attribution d
 **Copyright:** Copyright (C) .NET Foundation  
 **Project URL:** https://github.com/xunit/xunit  
 **License:** Apache-2.0  
-**Note:** Test-only dependency used by unit test projects to enable parallel test execution. Not included in production builds.
-
----
-
-## Meziantou.Xunit.v3.ParallelTestFramework
-
-**Package:** Meziantou.Xunit.v3.ParallelTestFramework  
-**Version:** 1.0.6  
-**Authors:** Meziantou  
-**Project URL:** https://github.com/meziantou/Meziantou.Xunit.v3.ParallelTestFramework  
-**License:** MIT  
-**Note:** Test-only dependency that enables true parallel test execution within xUnit v3 test assemblies. Not included in production builds.
-
----
-
-## xunit.runner.visualstudio
-
-**Package:** xunit.runner.visualstudio  
-**Version:** 3.1.4  
-**Authors:** jnewkirk, bradwilson  
-**Copyright:** Copyright (C) .NET Foundation  
-**Project URL:** https://github.com/xunit/visualstudio.xunit  
-**License:** Apache-2.0  
-**Note:** Test-only dependency, not included in production builds.
+**Note:** Test-only dependency used by all test projects (`Core.Tests`, `Storage.Sqlite.Tests`, `Core.Integration.Tests`, `Desktop.E2E.Tests`). Not included in production builds.
 
 ---
 
@@ -214,7 +168,7 @@ The SIL Open Font License 1.1 permits the font to be used, studied, modified, an
 ## Dock
 
 **Packages:** Dock.Avalonia, Dock.Avalonia.Themes.Fluent, Dock.Model.Mvvm  
-**Version:** 12.0.0.1  
+**Version:** 12.0.0.2  
 **Authors:** Wiesław Šoltés  
 **Copyright:** Copyright © Wiesław Šoltés 2026  
 **Project URL:** https://github.com/wieslawsoltes/Dock  

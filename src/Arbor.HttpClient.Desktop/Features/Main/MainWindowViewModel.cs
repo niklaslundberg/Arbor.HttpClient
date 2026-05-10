@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -66,7 +67,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly Action<ApplicationOptions>? _onApplicationOptionsChanged;
     private readonly ILogger _debugLogger;
     private readonly ILogger _httpRequestsLogger;
-    private readonly global::System.Net.Http.HttpClient _protocolHttpClient = new();
+    private readonly System.Net.Http.HttpClient _protocolHttpClient = new();
     private RequestEditorViewModel _requestEditor = null!;
     private EnvironmentsViewModel _environmentsViewModel = null!;
     private OptionsViewModel _optionsViewModel = null!;
@@ -78,6 +79,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly List<string> _tempFiles = [];
     private readonly List<SavedRequest> _allHistory = [];
     private FileSystemWatcher? _requestBodyWatcher;
+    private CancellationTokenSource? _fileWatcherCts;
     private int _requestBodyReadPending;
     private DockFactory? _dockFactory;
     private ApplicationOptions _applicationOptions = new();
@@ -126,7 +128,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public IStorageProvider? StorageProvider { get; set; }
 
     // Needed for clipboard (e.g. "Copy as cURL" on history items) – set by the view
-    public global::Avalonia.Input.Platform.IClipboard? Clipboard { get; set; }
+    public IClipboard? Clipboard { get; set; }
 
     /// <summary>The collector used for unhandled exceptions; may be null when not configured.</summary>
     public UnhandledExceptionCollector? UnhandledExceptionCollector => _unhandledExceptionCollector;
@@ -623,8 +625,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _demoServer = demoServer;
         _unhandledExceptionCollector = unhandledExceptionCollector;
         var appLogger = (logger ?? Log.Logger).ForContext<MainWindowViewModel>();
-        _debugLogger = appLogger.ForContext("LogTab", Logging.LogTab.Debug);
-        _httpRequestsLogger = appLogger.ForContext("LogTab", Logging.LogTab.HttpRequests);
+        _debugLogger = appLogger.ForContext("LogTab", LogTab.Debug);
+        _httpRequestsLogger = appLogger.ForContext("LogTab", LogTab.HttpRequests);
 
         _requestEditor = new RequestEditorViewModel(
             _variableResolver,
@@ -870,7 +872,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public IRelayCommand NewEnvironmentCommand => _environmentsViewModel.NewEnvironmentCommand;
     public IAsyncRelayCommand ExportEnvironmentsCommand => _environmentsViewModel.ExportEnvironmentsCommand;
 
-    private void OnStreamingViewModelPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs e)
+    private void OnStreamingViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (string.Equals(e.PropertyName, nameof(WebSocketViewModel.IsConnected), StringComparison.Ordinal)
             || string.Equals(e.PropertyName, nameof(SseViewModel.IsConnected), StringComparison.Ordinal))
@@ -879,7 +881,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void OnSendRequestCommandPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs e)
+    private void OnSendRequestCommandPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (string.Equals(e.PropertyName, nameof(IAsyncRelayCommand.IsRunning), StringComparison.Ordinal)
             || string.Equals(e.PropertyName, nameof(IAsyncRelayCommand.CanBeCanceled), StringComparison.Ordinal))
@@ -888,7 +890,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void OnRequestEditorPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs e)
+    private void OnRequestEditorPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (string.Equals(e.PropertyName, nameof(RequestEditorViewModel.SelectedRequestType), StringComparison.Ordinal))
         {
@@ -896,7 +898,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void OnEnvironmentsViewModelPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs e)    {
+    private void OnEnvironmentsViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)    {
         if (string.Equals(e.PropertyName, nameof(EnvironmentsViewModel.ActiveEnvironment), StringComparison.Ordinal))
         {
             OnPropertyChanged(nameof(ActiveEnvironment));
@@ -1044,7 +1046,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var isHtml = HttpContentTypeHelper.IsHtmlMediaType(mediaType);
 
         IsBinaryResponse = IsBinaryMediaType(mediaType);
-        ResponseBodyTabLabel = isJson ? "JSON" : isXml ? "XML" : "Body";
+        if (isJson)
+        {
+            ResponseBodyTabLabel = "JSON";
+        }
+        else if (isXml)
+        {
+            ResponseBodyTabLabel = "XML";
+        }
+        else
+        {
+            ResponseBodyTabLabel = "Body";
+        }
+
         IsResponseWebViewAvailable = false;
         ResponseWebViewUri = "about:blank";
 
@@ -1956,8 +1970,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task OpenRequestBodyInExternalEditorAsync()
     {
+        if (_fileWatcherCts is { })
+        {
+            await _fileWatcherCts.CancelAsync();
+        }
+
+        _fileWatcherCts?.Dispose();
         _requestBodyWatcher?.Dispose();
         _requestBodyWatcher = null;
+
+        _fileWatcherCts = new CancellationTokenSource();
 
         var path = await WriteTempFileAsync("arbor-request", _requestEditor.RequestBody);
 
@@ -2116,6 +2138,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _draftAutoSaveCts?.Dispose();
         _draftPersistenceService?.ClearDraft();
         _scheduledJobService.Dispose();
+        _fileWatcherCts?.Cancel();
+        _fileWatcherCts?.Dispose();
         _requestBodyWatcher?.Dispose();
         _requestBodyWatcher = null;
         _streamingCts?.Cancel();
@@ -2132,7 +2156,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         foreach (var file in _tempFiles)
         {
             try { File.Delete(file); }
-            catch { /* best-effort cleanup */ }
+            catch (UnauthorizedAccessException) { /* best-effort cleanup */ }
+            catch (SecurityException) { /* best-effort cleanup */ }
+            catch (PathTooLongException) { /* best-effort cleanup */ }
+            catch (NotSupportedException) { /* best-effort cleanup */ }
+            catch (IOException) { /* best-effort cleanup */ }
         }
     }
 
@@ -2382,18 +2410,36 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        Task.Run(async () =>
+        var cancellationToken = CancellationToken.None;
+
+        if (_fileWatcherCts is { } fileWatcherCts)
         {
-            await Task.Delay(200).ConfigureAwait(false);
-            Interlocked.Exchange(ref _requestBodyReadPending, 0);
             try
             {
-                var content = await File.ReadAllTextAsync(e.FullPath).ConfigureAwait(false);
+                cancellationToken = fileWatcherCts.Token;
+            }
+            catch (ObjectDisposedException)
+            {
+                // The watcher is being torn down; fall back to an uncancelable token so the
+                // pending flag can still be reset by the background task.
+            }
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+                var content = await File.ReadAllTextAsync(e.FullPath, cancellationToken).ConfigureAwait(false);
                 await Dispatcher.UIThread.InvokeAsync(() => _requestEditor.RequestBody = content);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
             {
-                // ignore transient read errors while the editor is still writing
+                // Transient read errors while the editor is still writing, or task cancelled during shutdown
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _requestBodyReadPending, 0);
             }
         });
     }
@@ -2802,7 +2848,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             var contentIds = (toolDock.VisibleDockables ?? [])
                 .Where(c => !string.IsNullOrWhiteSpace(c.Id))
-                .Select(c => c.Id!)
+                .Select(c => c.Id)
                 .ToList();
 
             return new DockTreeNode
@@ -2822,7 +2868,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             var contentIds = (documentDock.VisibleDockables ?? [])
                 .Where(c => !string.IsNullOrWhiteSpace(c.Id))
-                .Select(c => c.Id!)
+                .Select(c => c.Id)
                 .ToList();
 
             return new DockTreeNode
@@ -3313,7 +3359,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         var byId = visibleDockables
             .Where(d => !string.IsNullOrWhiteSpace(d.Id))
-            .ToDictionary(d => d.Id!, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(d => d.Id, StringComparer.OrdinalIgnoreCase);
 
         var reordered = new List<IDockable>(visibleDockables.Count);
         foreach (var id in orderedDockableIds)
@@ -3631,7 +3677,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (_webSocketViewModel.IsConnected)
         {
             await _webSocketViewModel.DisconnectCommand.ExecuteAsync(null);
-            _streamingCts?.Cancel();
+            if (_streamingCts is { })
+            {
+                await _streamingCts.CancelAsync();
+            }
+
             _streamingCts = null;
             return;
         }
@@ -3683,7 +3733,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         var seconds = milliseconds / 1000.0;
         return seconds < 60
-            ? $"{seconds.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)} s"
+            ? $"{seconds.ToString("0.00", CultureInfo.InvariantCulture)} s"
             : $"{((long)seconds) / 60} min {((long)seconds) % 60} s";
     }
 
@@ -3704,13 +3754,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         if (byteCount < megabyte)
         {
-            return $"{(byteCount / kilobyte).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)} KB";
+            return $"{(byteCount / kilobyte).ToString("0.##", CultureInfo.InvariantCulture)} KB";
         }
         if (byteCount < gigabyte)
         {
-            return $"{(byteCount / megabyte).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)} MB";
+            return $"{(byteCount / megabyte).ToString("0.##", CultureInfo.InvariantCulture)} MB";
         }
-        return $"{(byteCount / gigabyte).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)} GB";
+        return $"{(byteCount / gigabyte).ToString("0.##", CultureInfo.InvariantCulture)} GB";
     }
 
     private async Task LoadHistoryAsync(CancellationToken cancellationToken = default)

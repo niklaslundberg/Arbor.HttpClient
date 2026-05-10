@@ -9,36 +9,36 @@ using System.Text;
 
 namespace Arbor.HttpClient.Core.HttpRequest;
 
-public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpClient, IRequestHistoryRepository requestHistoryRepository, TimeProvider? timeProvider = null)
+public sealed class HttpRequestService(System.Net.Http.HttpClient httpClient, IRequestHistoryRepository requestHistoryRepository, TimeProvider? timeProvider = null)
 {
-    private readonly global::System.Net.Http.HttpClient _httpClient = EnsureHttpClientTimeoutDisabled(httpClient);
+    private readonly System.Net.Http.HttpClient _httpClient = EnsureHttpClientTimeoutDisabled(httpClient);
     private readonly IRequestHistoryRepository _requestHistoryRepository = requestHistoryRepository;
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     // Single volatile field — all three SetHttpClientFactory overloads normalise to this
     // two-parameter signature so that SendAsync reads exactly one reference (preventing
     // inconsistency between independently mutable fields during concurrent access).
-    private volatile Func<bool?, bool?, string?, global::System.Net.Http.HttpClient>? _httpClientFactory;
+    private volatile Func<bool?, bool?, string?, System.Net.Http.HttpClient>? _httpClientFactory;
     private Action<HttpRequestDiagnostics>? _diagnosticsObserver;
     private bool _httpDiagnosticsEnabled;
     private TimeSpan? _defaultRequestTimeout;
 
-    public void SetHttpClientFactory(Func<global::System.Net.Http.HttpClient> httpClientFactory)
+    public void SetHttpClientFactory(Func<System.Net.Http.HttpClient> httpClientFactory)
     {
         ArgumentNullException.ThrowIfNull(httpClientFactory);
         _httpClientFactory = (_, _, _) => EnsureHttpClientTimeoutDisabled(httpClientFactory());
     }
 
-    public void SetHttpClientFactory(Func<bool?, global::System.Net.Http.HttpClient> httpClientFactoryWithRedirectOverride)
+    public void SetHttpClientFactory(Func<bool?, System.Net.Http.HttpClient> httpClientFactoryWithRedirectOverride)
     {
         ArgumentNullException.ThrowIfNull(httpClientFactoryWithRedirectOverride);
         _httpClientFactory = (followRedirects, _, _) => EnsureHttpClientTimeoutDisabled(httpClientFactoryWithRedirectOverride(followRedirects));
     }
 
     /// <summary>
-    /// Sets a factory that selects an <see cref="global::System.Net.Http.HttpClient"/> based on the per-request
+    /// Sets a factory that selects an <see cref="System.Net.Http.HttpClient"/> based on the per-request
     /// <see cref="HttpRequestDraft.FollowRedirects"/> and <see cref="HttpRequestDraft.IgnoreCertificateValidation"/> overrides.
     /// </summary>
-    public void SetHttpClientFactory(Func<bool?, bool?, global::System.Net.Http.HttpClient> httpClientFactoryWithCertOverride)
+    public void SetHttpClientFactory(Func<bool?, bool?, System.Net.Http.HttpClient> httpClientFactoryWithCertOverride)
     {
         ArgumentNullException.ThrowIfNull(httpClientFactoryWithCertOverride);
         _httpClientFactory = (followRedirects, ignoreCertValidation, _) =>
@@ -46,11 +46,11 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
     }
 
     /// <summary>
-    /// Sets a factory that selects an <see cref="global::System.Net.Http.HttpClient"/> based on the per-request
+    /// Sets a factory that selects an <see cref="System.Net.Http.HttpClient"/> based on the per-request
     /// <see cref="HttpRequestDraft.FollowRedirects"/>, <see cref="HttpRequestDraft.IgnoreCertificateValidation"/>,
     /// and <see cref="HttpRequestDraft.TlsVersionOverride"/> overrides.
     /// </summary>
-    public void SetHttpClientFactory(Func<bool?, bool?, string?, global::System.Net.Http.HttpClient> httpClientFactoryWithTlsOverride)
+    public void SetHttpClientFactory(Func<bool?, bool?, string?, System.Net.Http.HttpClient> httpClientFactoryWithTlsOverride)
     {
         ArgumentNullException.ThrowIfNull(httpClientFactoryWithTlsOverride);
         _httpClientFactory = (followRedirects, ignoreCertValidation, tlsVersionOverride) =>
@@ -253,11 +253,11 @@ public sealed class HttpRequestService(global::System.Net.Http.HttpClient httpCl
     }
 
     /// <summary>
-    /// Ensures the provided <see cref="global::System.Net.Http.HttpClient"/> will not apply
+    /// Ensures the provided <see cref="System.Net.Http.HttpClient"/> will not apply
     /// its own timeout so request timeouts are governed exclusively by cancellation tokens.
     /// This mutates the supplied client instance in place and returns the same instance.
     /// </summary>
-    private static global::System.Net.Http.HttpClient EnsureHttpClientTimeoutDisabled(global::System.Net.Http.HttpClient client)
+    private static System.Net.Http.HttpClient EnsureHttpClientTimeoutDisabled(System.Net.Http.HttpClient client)
     {
         if (client.Timeout != Timeout.InfiniteTimeSpan)
         {

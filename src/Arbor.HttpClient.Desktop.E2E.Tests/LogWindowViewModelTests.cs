@@ -5,7 +5,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
 public class LogWindowViewModelTests
 {
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Constructor_ShouldRouteExistingEntriesToMatchingTabs()
     {
         var sink = new InMemorySink();
@@ -24,3 +24,4 @@ public class LogWindowViewModelTests
         viewModel.DebugEntries.Should().ContainSingle(entry => entry.Message.Contains("debug"));
     }
 }
+

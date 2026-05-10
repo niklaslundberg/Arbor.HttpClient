@@ -66,16 +66,14 @@ dotnet test Arbor.HttpClient.slnx
 
 ### Test framework versions
 
-The test projects use two different xUnit generations:
+All test projects use **xunit.v3**:
 
-| Project | Framework | Runner | Reason |
+| Project | Framework | Runner | Notes |
 |---|---|---|---|
-| `Arbor.HttpClient.Core.Tests` | **xunit.v3** | Microsoft Testing Platform (MTP) | Modern runner with in-process execution |
-| `Arbor.HttpClient.Storage.Sqlite.Tests` | **xunit.v3** | Microsoft Testing Platform (MTP) | Modern runner with in-process execution |
-| `Arbor.HttpClient.Core.Integration.Tests` | **xunit.v3** | Microsoft Testing Platform (MTP) | Modern runner with in-process execution |
-| `Arbor.HttpClient.Desktop.E2E.Tests` | **xunit v2** | VSTest (`Microsoft.NET.Test.Sdk`) | Required by `Avalonia.Headless` — xunit.v3's auto-generated entry point does not provide the Avalonia dispatcher loop, causing headless UI tests to hang |
-
-Both versions are compatible with `dotnet test` and Visual Studio Test Explorer. NCrunch users should note that `Meziantou.Xunit.v3.ParallelTestFramework` is conditionally excluded under NCrunch builds (see the `Condition="'$(NCrunch)' != '1'"` guard in the xunit.v3 project files).
+| `Arbor.HttpClient.Core.Tests` | **xunit.v3** | Microsoft Testing Platform (MTP) | In-process execution |
+| `Arbor.HttpClient.Storage.Sqlite.Tests` | **xunit.v3** | Microsoft Testing Platform (MTP) | In-process execution |
+| `Arbor.HttpClient.Core.Integration.Tests` | **xunit.v3** | Microsoft Testing Platform (MTP) | In-process execution |
+| `Arbor.HttpClient.Desktop.E2E.Tests` | **xunit.v3** | Microsoft Testing Platform (MTP) | Uses `Avalonia.Headless.XUnit` and assembly-level Avalonia test setup |
 
 ## Using Variables
 
