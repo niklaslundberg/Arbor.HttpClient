@@ -1500,24 +1500,27 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IReadOnlyList<RequestHeader>? requestHeaders)
     {
         var merged = new List<RequestHeader>();
+        var headerIndexes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         if (collectionHeaders is { })
         {
-            merged.AddRange(collectionHeaders);
+            foreach (var header in collectionHeaders)
+            {
+                headerIndexes[header.Name] = merged.Count;
+                merged.Add(header);
+            }
         }
 
         if (requestHeaders is { })
         {
             foreach (var requestHeader in requestHeaders)
             {
-                var index = merged.FindIndex(existing =>
-                    string.Equals(existing.Name, requestHeader.Name, StringComparison.OrdinalIgnoreCase));
-
-                if (index >= 0)
+                if (headerIndexes.TryGetValue(requestHeader.Name, out var index))
                 {
                     merged[index] = requestHeader;
                 }
                 else
                 {
+                    headerIndexes[requestHeader.Name] = merged.Count;
                     merged.Add(requestHeader);
                 }
             }

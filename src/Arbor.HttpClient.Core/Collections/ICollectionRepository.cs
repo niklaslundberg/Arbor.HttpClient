@@ -1,4 +1,3 @@
-
 using Arbor.HttpClient.Core.HttpRequest;
 
 namespace Arbor.HttpClient.Core.Collections;
