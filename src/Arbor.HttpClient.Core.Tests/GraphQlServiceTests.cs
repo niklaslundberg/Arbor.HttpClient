@@ -212,7 +212,8 @@ public class GraphQlServiceTests
                 Content = new StringContent("""{"errors":[{"message":"Unauthorized"}]}""", Encoding.UTF8, "application/json")
             });
 
-        var service = new GraphQlService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new GraphQlService(httpClient);
 
         var action = () => service.IntrospectSchemaAsync("http://localhost:5000/graphql");
 
@@ -234,7 +235,8 @@ public class GraphQlServiceTests
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
         });
 
-        var service = new GraphQlService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new GraphQlService(httpClient);
         var draft = new GraphQlDraft("http://localhost:5000/graphql", "{ __typename }", null, null);
 
         var result = await service.SendQueryAsync(draft, TestContext.Current.CancellationToken);
@@ -253,7 +255,8 @@ public class GraphQlServiceTests
                 Content = new StringContent("not-json-content", Encoding.UTF8, "text/plain")
             });
 
-        var service = new GraphQlService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new GraphQlService(httpClient);
 
         var result = await service.IntrospectSchemaAsync("http://localhost:5000/graphql", cancellationToken: TestContext.Current.CancellationToken);
 
@@ -298,7 +301,8 @@ public class GraphQlServiceTests
             };
         });
 
-        var service = new GraphQlService(new System.Net.Http.HttpClient(handler));
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var service = new GraphQlService(httpClient);
         var headers = new[] { new RequestHeader("X-Disabled", "value", IsEnabled: false) };
         var draft = new GraphQlDraft("http://localhost:5000/graphql", "{ __typename }", null, null, headers);
 
