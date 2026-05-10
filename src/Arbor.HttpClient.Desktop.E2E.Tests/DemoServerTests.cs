@@ -433,7 +433,7 @@ public class DemoServerTests
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
             viewModel.RequestEditor.RequestHeaders.Should().ContainSingle(h =>
-                h.Name == "X-Tenant" && h.IsEnabled == false);
+                h.Name == "X-Tenant" && !h.IsEnabled);
 
             var resolvedHeaders = viewModel.RequestEditor.GetResolvedHeaders();
             resolvedHeaders.Should().ContainSingle(h =>
