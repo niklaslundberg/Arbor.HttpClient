@@ -151,7 +151,8 @@ jobs:
           max_runtime_seconds=10
           start_time=$(date +%s)
           # Hang guard for each suite; strict "under 10s total" requirement is enforced below.
-          timeout 90 dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj \
+          # Keep the shell guard slightly above the internal MTP timeout so MTP can emit diagnostics first.
+          timeout 70 dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj \
             --no-restore \
             --no-build \
             --configuration Release \
@@ -172,7 +173,8 @@ jobs:
               exit "$exit_code"
             }
 
-          timeout 90 dotnet test src/Arbor.HttpClient.Storage.Sqlite.Tests/Arbor.HttpClient.Storage.Sqlite.Tests.csproj \
+          # Keep the shell guard slightly above the internal MTP timeout so MTP can emit diagnostics first.
+          timeout 70 dotnet test src/Arbor.HttpClient.Storage.Sqlite.Tests/Arbor.HttpClient.Storage.Sqlite.Tests.csproj \
             --no-restore \
             --no-build \
             --configuration Release \
@@ -203,6 +205,8 @@ jobs:
       - name: Report unit test results
         if: always()
         run: |
+          test -f artifacts/test-results/unit/core/unit-tests.trx || { echo "::error::Missing core unit test TRX results."; exit 1; }
+          test -f artifacts/test-results/unit/sqlite/sqlite-tests.trx || { echo "::error::Missing SQLite unit test TRX results."; exit 1; }
           trx --path artifacts/test-results/unit/core --verbosity normal
           trx --path artifacts/test-results/unit/sqlite --verbosity normal
 
@@ -265,6 +269,11 @@ jobs:
       - name: Restore
         run: dotnet restore Arbor.HttpClient.slnx --locked-mode
 
+      - name: Install test reporting tools
+        run: |
+          dotnet tool install -g dotnet-trx --version 1.0.1
+          dotnet tool install -g trxlog2html --version 1.0.4
+
       - name: Run integration tests
         run: >
           dotnet test src/Arbor.HttpClient.Core.Integration.Tests/Arbor.HttpClient.Core.Integration.Tests.csproj
@@ -280,12 +289,33 @@ jobs:
           --timeout 120s
           --long-running 15
 
+      - name: Report integration test results
+        if: always()
+        run: |
+          test -f artifacts/test-results/integration/integration-tests.trx || { echo "::error::Missing integration test TRX results."; exit 1; }
+          trx --path artifacts/test-results/integration --verbosity normal
+
+      - name: Generate integration test HTML report
+        if: always()
+        run: |
+          mkdir -p artifacts/test-results/integration/html
+          trxlog2html -i artifacts/test-results/integration/integration-tests.trx -o artifacts/test-results/integration/html/index.html
+
       - name: Upload integration test diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: integration-test-results
           path: artifacts/test-results/integration/*
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload integration test HTML report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: integration-test-results-html
+          path: artifacts/test-results/integration/html/*.html
           retention-days: 14
           if-no-files-found: error
 
@@ -475,7 +505,8 @@ jobs:
           start_time=$(date +%s)
           # Timeout is a hang guard; runtime budget is enforced explicitly below.
           # This E2E job runs only integration-tagged tests; screenshot tests run in ux-screenshots.
-          timeout 150 dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
+          # Keep the shell guard slightly above the internal MTP timeout so MTP can emit diagnostics first.
+          timeout 130 dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
             --no-restore \
             --no-build \
             --configuration Release \
@@ -507,7 +538,9 @@ jobs:
 
       - name: Report E2E test results
         if: always()
-        run: trx --path artifacts/test-results/e2e --verbosity normal
+        run: |
+          test -f artifacts/test-results/e2e/e2e-tests.trx || { echo "::error::Missing E2E test TRX results."; exit 1; }
+          trx --path artifacts/test-results/e2e --verbosity normal
 
       - name: Generate E2E test HTML report
         if: always()

@@ -63,7 +63,8 @@ SCREENSHOT_OUTPUT_DIR="${SHOTS}" dotnet test \
     --diagnostic-output-fileprefix demo-screenshots \
     --diagnostic-filelogger-synchronouswrite \
     --timeout 120s \
-    --long-running 30 2>&1 | tee "${TMP}/dotnet-test.log" | grep -E "Passed|Failed|Error" || true
+    --long-running 30 \
+    2>&1 | tee "${TMP}/dotnet-test.log" | grep -E "Passed|Failed|Error" || true
 
 for img in state-initial state-response variables scheduled-jobs; do
     [ -f "${SHOTS}/${img}.png" ] || { echo "ERROR: Missing ${SHOTS}/${img}.png"; exit 1; }
