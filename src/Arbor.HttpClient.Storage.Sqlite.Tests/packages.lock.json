@@ -14,15 +14,6 @@
         "resolved": "10.0.0",
         "contentHash": "WFejCcOUR6k8UYyDnnR6Gk+obFYMsWrZuNqPJnsVFGVhpPSN0y20D4qbdKJnXinYGx9PQ397Hf9TnU1NBST8vA=="
       },
-      "Meziantou.Xunit.v3.ParallelTestFramework": {
-        "type": "Direct",
-        "requested": "[1.0.6, )",
-        "resolved": "1.0.6",
-        "contentHash": "zxTB5OB6WxXf2PTvMH9NUJzUQaN6YtnJU73FLjjMQGbbyWRAX5R00XtysLnzlO+qhl8KZ57/3HAYfYHcvB/gpg==",
-        "dependencies": {
-          "xunit.v3.extensibility.core": "3.0.0"
-        }
-      },
       "Microsoft.Data.Sqlite": {
         "type": "Direct",
         "requested": "[10.0.7, )",

@@ -17,7 +17,7 @@ public sealed class HttpOptions
 
     public string ResponseSaveDefaultFolder { get; init; } = string.Empty;
 
-    public string ResponseSaveFileNamePattern { get; init; } = global::Arbor.HttpClient.Desktop.Features.Main.ResponseSaveFileNamePatternFormatter.DefaultPattern;
+    public string ResponseSaveFileNamePattern { get; init; } = Main.ResponseSaveFileNamePatternFormatter.DefaultPattern;
 
     public int DefaultRequestTimeoutSeconds { get; init; } = 100;
 

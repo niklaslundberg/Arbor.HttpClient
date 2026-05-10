@@ -31,7 +31,7 @@ public class RequestEditorViewModelTests
 
     // ── URL ↔ query-parameter sync ──────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void QueryParameters_ArePopulated_WhenUrlContainsQueryString()
     {
         var editor = CreateEditor();
@@ -46,7 +46,7 @@ public class RequestEditorViewModelTests
         editor.RequestQueryParameters[2].IsEnabled.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void QueryParameters_AreCleared_WhenUrlHasNoQuery()
     {
         var editor = CreateEditor();
@@ -58,7 +58,7 @@ public class RequestEditorViewModelTests
         editor.RequestQueryParameters[0].IsEnabled.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Url_IsUpdated_WhenQueryParameterValueChanges()
     {
         var editor = CreateEditor();
@@ -70,7 +70,7 @@ public class RequestEditorViewModelTests
         editor.RequestUrl.Should().NotContain("foo=bar");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Url_IsUpdated_WhenDisabledQueryParameterIsExcluded()
     {
         var editor = CreateEditor();
@@ -82,7 +82,7 @@ public class RequestEditorViewModelTests
         editor.RequestUrl.Should().Contain("b=2");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void AddQueryParameter_AddsEmptyEntryToCollection()
     {
         var editor = CreateEditor();
@@ -92,7 +92,7 @@ public class RequestEditorViewModelTests
         editor.RequestQueryParameters.Should().HaveCount(1);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RemoveQueryParameter_RemovesEntry()
     {
         var editor = CreateEditor();
@@ -107,7 +107,7 @@ public class RequestEditorViewModelTests
 
     // ── Request headers ─────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void AddHeader_AddsEmptyHeader()
     {
         var editor = CreateEditor();
@@ -116,7 +116,7 @@ public class RequestEditorViewModelTests
         editor.RequestHeaders.Should().HaveCount(1);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RemoveHeader_RemovesHeader()
     {
         var editor = CreateEditor();
@@ -129,7 +129,7 @@ public class RequestEditorViewModelTests
         editor.RequestHeaders[0].IsEnabled.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void PlaceholderHeader_AutoEnablesAndAppendsNewPlaceholder_WhenNameIsTyped()
     {
         var editor = CreateEditor();
@@ -145,7 +145,7 @@ public class RequestEditorViewModelTests
         editor.RequestHeaders[^1].IsEnabled.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void PlaceholderHeader_CannotBeEnabled_WhenNameIsBlank()
     {
         var editor = CreateEditor();
@@ -158,7 +158,7 @@ public class RequestEditorViewModelTests
         editor.RequestHeaders[0].IsEnabled.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void PlaceholderQueryParameter_AutoEnablesAndAppendsNewPlaceholder_WhenKeyIsTyped()
     {
         var editor = CreateEditor();
@@ -174,7 +174,7 @@ public class RequestEditorViewModelTests
         editor.RequestQueryParameters[^1].IsEnabled.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void PlaceholderQueryParameter_CannotBeEnabled_WhenKeyIsBlank()
     {
         var editor = CreateEditor();
@@ -189,7 +189,7 @@ public class RequestEditorViewModelTests
 
     // ── Auth header building ─────────────────────────────────────────────────
 
-    [Theory]
+    [AvaloniaTheory(Timeout = 10_000)]
     [InlineData(RequestEditorViewModel.AuthNoneOption, "Authorization: Bearer token")]
     public void RequestPreview_DoesNotContainAuthHeader_WhenAuthModeIsNone(string mode, string notExpected)
     {
@@ -200,7 +200,7 @@ public class RequestEditorViewModelTests
         editor.RequestPreview.Should().NotContain(notExpected);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RequestPreview_ContainsBearerToken_WhenBearerAuthModeSelected()
     {
         var editor = CreateEditor();
@@ -210,7 +210,7 @@ public class RequestEditorViewModelTests
         editor.RequestPreview.Should().Contain("Authorization: Bearer my-token");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RequestPreview_ContainsBasicCredentials_WhenBasicAuthModeSelected()
     {
         var editor = CreateEditor();
@@ -223,7 +223,7 @@ public class RequestEditorViewModelTests
         editor.RequestPreview.Should().Contain($"Authorization: Basic {expected}");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RequestPreview_BearerOverridesExistingAuthorizationHeader()
     {
         var editor = CreateEditor();
@@ -240,7 +240,7 @@ public class RequestEditorViewModelTests
 
     // ── Content-type resolution ──────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void ContentType_IsEmpty_WhenNoneSelected()
     {
         var editor = CreateEditor();
@@ -249,7 +249,7 @@ public class RequestEditorViewModelTests
         editor.ContentType.Should().BeEmpty();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void ContentType_IsCustomValue_WhenCustomOptionSelectedAndValueProvided()
     {
         var editor = CreateEditor();
@@ -259,7 +259,7 @@ public class RequestEditorViewModelTests
         editor.ContentType.Should().Be("application/vnd.api+json");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RequestPreview_ContainsDefaultContentType_WhenBodyNonEmptyAndNoExplicitType()
     {
         var editor = CreateEditor(defaultContentType: "application/json");
@@ -269,7 +269,7 @@ public class RequestEditorViewModelTests
         editor.RequestPreview.Should().Contain("Content-Type: application/json");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RequestPreview_DoesNotContainContentType_WhenBodyIsEmpty()
     {
         var editor = CreateEditor(defaultContentType: "application/json");
@@ -278,7 +278,7 @@ public class RequestEditorViewModelTests
         editor.RequestPreview.Should().NotContain("Content-Type:");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RequestPreview_PrettyPrintsResolvedBody_WhenEnabled()
     {
         var editor = CreateEditor();
@@ -292,7 +292,7 @@ public class RequestEditorViewModelTests
 
     // ── Variable resolution in preview ───────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RequestPreview_ResolvesVariables_UsingActiveEnvironment()
     {
         var variables = new List<EnvironmentVariable>
@@ -309,7 +309,7 @@ public class RequestEditorViewModelTests
         editor.RequestPreview.Should().Contain("Authorization: Bearer abc123");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RequestPreview_ResolvesUnknownVariablesToEmpty_WhenVariablesNotDefined()
     {
         var editor = CreateEditor();
@@ -321,7 +321,7 @@ public class RequestEditorViewModelTests
 
     // ── BuildDraft ───────────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_ReturnsCorrectMethodAndUrl()
     {
         var editor = CreateEditor();
@@ -336,7 +336,7 @@ public class RequestEditorViewModelTests
         draft.Name.Should().Be("Create user");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_ResolvesVariables_InUrlAndBody()
     {
         var variables = new List<EnvironmentVariable>
@@ -353,7 +353,7 @@ public class RequestEditorViewModelTests
         draft.Body.Should().Be("{\"url\":\"http://localhost:5000\"}");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_PrettyPrintsJsonBodyWithIndentation_WhenEnabled()
     {
         var editor = CreateEditor();
@@ -367,7 +367,7 @@ public class RequestEditorViewModelTests
         draft.Body.Should().Be("{\n  \"a\": 1\n}");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_PrettyPrintsJsonBodyWithoutIndentation_WhenEnabled()
     {
         var editor = CreateEditor();
@@ -381,7 +381,7 @@ public class RequestEditorViewModelTests
         draft.Body.Should().Be("{\"a\":1}");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_PrettyPrintJson_DoesNotEscapeAngleBracketsOrAmpersands()
     {
         var editor = CreateEditor();
@@ -398,7 +398,7 @@ public class RequestEditorViewModelTests
         draft.Body.Should().NotContain("\\u0026");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_PrettyPrintsXmlBodyWithoutIndentation_WhenEnabled()
     {
         var editor = CreateEditor();
@@ -412,7 +412,7 @@ public class RequestEditorViewModelTests
         draft.Body.Should().Be("<root><item>1</item></root>");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void PrettyPrintRequestBodySourceCommand_FormatsSourceBody()
     {
         var editor = CreateEditor();
@@ -425,7 +425,7 @@ public class RequestEditorViewModelTests
         editor.RequestBody.Should().Be("{\"a\":1}");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_UsesFollowRedirectsForRequest()
     {
         var editor = CreateEditor();
@@ -436,7 +436,7 @@ public class RequestEditorViewModelTests
         draft.FollowRedirects.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void ValidateUrlBeforeSend_IsEnabledByDefault()
     {
         var editor = CreateEditor();
@@ -444,7 +444,7 @@ public class RequestEditorViewModelTests
         editor.ValidateUrlBeforeSend.Should().BeTrue();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_SetsIgnoreCertificateValidation_WhenEnabled()
     {
         var editor = CreateEditor();
@@ -455,7 +455,7 @@ public class RequestEditorViewModelTests
         draft.IgnoreCertificateValidation.Should().BeTrue();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_LeavesIgnoreCertificateValidationNull_WhenDisabled()
     {
         var editor = CreateEditor();
@@ -466,7 +466,7 @@ public class RequestEditorViewModelTests
         draft.IgnoreCertificateValidation.Should().BeNull();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_UsesNullTlsVersionOverride_WhenDefaultOptionSelected()
     {
         var editor = CreateEditor();
@@ -477,7 +477,7 @@ public class RequestEditorViewModelTests
         draft.TlsVersionOverride.Should().BeNull();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_UsesPerRequestTlsVersionOverride_WhenSpecified()
     {
         var editor = CreateEditor();
@@ -488,7 +488,7 @@ public class RequestEditorViewModelTests
         draft.TlsVersionOverride.Should().Be("Tls13");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_UsesPerRequestTimeoutSeconds_WhenProvided()
     {
         var editor = CreateEditor();
@@ -499,7 +499,7 @@ public class RequestEditorViewModelTests
         draft.TimeoutSeconds.Should().Be(12);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_UsesNoTimeout_WhenPerRequestTimeoutIsZero()
     {
         var editor = CreateEditor();
@@ -510,7 +510,7 @@ public class RequestEditorViewModelTests
         draft.TimeoutSeconds.Should().Be(0);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_UsesNullTimeout_WhenPerRequestTimeoutIsBlank()
     {
         var editor = CreateEditor();
@@ -521,7 +521,7 @@ public class RequestEditorViewModelTests
         draft.TimeoutSeconds.Should().BeNull();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_UsesNullTimeout_WhenPerRequestTimeoutContainsNoDigits()
     {
         var editor = CreateEditor();
@@ -530,7 +530,7 @@ public class RequestEditorViewModelTests
         draft.TimeoutSeconds.Should().BeNull();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_ClampsPerRequestTimeoutToMaximum()
     {
         var editor = CreateEditor();
@@ -539,7 +539,7 @@ public class RequestEditorViewModelTests
         draft.TimeoutSeconds.Should().Be(100);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RequestTimeoutSecondsText_ShouldClear_WhenInputContainsNonDigits()
     {
         var editor = CreateEditor();
@@ -548,7 +548,7 @@ public class RequestEditorViewModelTests
         editor.RequestTimeoutSecondsText.Should().BeEmpty();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RequestTimeoutSecondsText_ShouldClampToMaximum_WhenInputIsNumeric()
     {
         var editor = CreateEditor();
@@ -557,7 +557,7 @@ public class RequestEditorViewModelTests
         editor.RequestTimeoutSecondsText.Should().Be("100");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_UsesSelectedHttpVersion()
     {
         var editor = CreateEditor();
@@ -565,10 +565,10 @@ public class RequestEditorViewModelTests
 
         var draft = editor.BuildDraft();
 
-        draft.HttpVersion.Should().Be(global::System.Net.HttpVersion.Version20);
+        draft.HttpVersion.Should().Be(System.Net.HttpVersion.Version20);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_IncludesSelectedContentTypeInHeaders_WhenBodyProvided()
     {
         var editor = CreateEditor();
@@ -583,7 +583,7 @@ public class RequestEditorViewModelTests
             h.Value == "application/xml");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildDraft_DoesNotDuplicateContentTypeHeader_WhenUserAlsoAddsOneManually()
     {
         var editor = CreateEditor();
@@ -604,7 +604,7 @@ public class RequestEditorViewModelTests
 
     // ── HTTP version ─────────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void OptionsAffectingPropertyChanged_IsFired_WhenHttpVersionChanges()
     {
         var fired = false;
@@ -618,7 +618,7 @@ public class RequestEditorViewModelTests
         fired.Should().BeTrue();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void OptionsAffectingPropertyChanged_IsNotFired_WhenHttpVersionSetToSameValue()
     {
         var count = 0;
@@ -634,7 +634,7 @@ public class RequestEditorViewModelTests
 
     // ── GetResolvedVariables ─────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void GetResolvedVariables_FiltersOutDisabledVariables()
     {
         var variables = new List<EnvironmentVariable>
@@ -650,7 +650,7 @@ public class RequestEditorViewModelTests
         resolved[0].Name.Should().Be("a");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void GetResolvedVariables_FiltersOutVariablesWithEmptyName()
     {
         var variables = new List<EnvironmentVariable>
@@ -667,7 +667,7 @@ public class RequestEditorViewModelTests
 
     // ── BulkUpdate suppression guard ────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BeginBulkUpdate_SuppressesRefreshDuringScope_ThenFiresOneRefreshOnDispose()
     {
         var editor = CreateEditor();
@@ -699,7 +699,7 @@ public class RequestEditorViewModelTests
         editor.RequestPreview.Should().Contain("/bulk");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void EndBulkUpdate_AfterBeginBulkUpdate_FiresOneRefresh()
     {
         var editor = CreateEditor();
@@ -726,3 +726,4 @@ public class RequestEditorViewModelTests
         editor.RequestPreview.Should().Contain("/after");
     }
 }
+

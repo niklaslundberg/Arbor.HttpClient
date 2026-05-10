@@ -32,7 +32,7 @@ public class JwtExpiryExtractorTests
 
         result.Should().BeTrue();
         expiry.Should().NotBeNull();
-        expiry!.Value.Should().Be(ExpectedExpiry);
+        expiry.Value.Should().Be(ExpectedExpiry);
     }
 
     [Fact]

@@ -4,7 +4,7 @@
     (via the SDK's SourceRevisionId mechanism). If git is unavailable (e.g. a clean
     source-only build), SourceRevisionId stays empty and the version is unchanged.
   -->
-  <Target Name="SetSourceRevisionId" BeforeTargets="GetAssemblyVersion">
+  <Target Name="SetSourceRevisionId" BeforeTargets="GetAssemblyVersion" Condition="'$(NCrunch)' != '1'">
     <Exec Command="git rev-parse --short HEAD"
           ConsoleToMSBuild="true"
           ContinueOnError="true"

@@ -118,7 +118,7 @@ public sealed class WebSocketService : IDisposable
         {
             while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
             {
-                using var ms = new System.IO.MemoryStream();
+                using var ms = new MemoryStream();
                 WebSocketReceiveResult result;
 
                 do

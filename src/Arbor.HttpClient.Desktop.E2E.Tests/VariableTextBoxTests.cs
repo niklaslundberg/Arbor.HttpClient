@@ -1,9 +1,6 @@
 using System;
 using Arbor.HttpClient.Desktop.Features.Variables;
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Headless;
-using Avalonia.Skia;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
 
@@ -18,112 +15,74 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Trait("Category", "Integration")]
 public class VariableTextBoxTests
 {
-    /// <summary>
-    /// When the <see cref="VariableTextBox.Text"/> property is set to a value that
-    /// contains a newline the newline must be stripped before it reaches the editor.
-    /// </summary>
-    [Fact]
-    public async Task Text_SetWithNewline_NewlineIsStripped()
+    [AvaloniaFact(Timeout = 10_000)]
+    public Task Text_SetWithNewline_NewlineIsStripped()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await HeadlessTestTimeout.DispatchAsync(session, () =>
+        var (box, scope) = CreateBoxInScope();
+        using (scope)
         {
-            var (box, scope) = CreateBoxInScope();
-            using (scope)
-            {
-                box.Text = "hello\nworld";
-                box.Text.Should().Be("helloworld");
-            }
-            return true;
-        });
+            box.Text = "hello\nworld";
+            box.Text.Should().Be("helloworld");
+        }
+
+        return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// CR+LF sequences (Windows-style paste) must also be stripped.
-    /// </summary>
-    [Fact]
-    public async Task Text_SetWithCrLf_NewlineIsStripped()
+    [AvaloniaFact(Timeout = 10_000)]
+    public Task Text_SetWithCrLf_NewlineIsStripped()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await HeadlessTestTimeout.DispatchAsync(session, () =>
+        var (box, scope) = CreateBoxInScope();
+        using (scope)
         {
-            var (box, scope) = CreateBoxInScope();
-            using (scope)
-            {
-                box.Text = "hello\r\nworld";
-                box.Text.Should().Be("helloworld");
-            }
-            return true;
-        });
+            box.Text = "hello\r\nworld";
+            box.Text.Should().Be("helloworld");
+        }
+
+        return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// When text without newlines is set the value is preserved unchanged.
-    /// </summary>
-    [Fact]
-    public async Task Text_SetWithoutNewline_ValuePreserved()
+    [AvaloniaFact(Timeout = 10_000)]
+    public Task Text_SetWithoutNewline_ValuePreserved()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await HeadlessTestTimeout.DispatchAsync(session, () =>
+        var (box, scope) = CreateBoxInScope();
+        using (scope)
         {
-            var (box, scope) = CreateBoxInScope();
-            using (scope)
-            {
-                box.Text = "https://example.com/api";
-                box.Text.Should().Be("https://example.com/api");
-            }
-            return true;
-        });
+            box.Text = "https://example.com/api";
+            box.Text.Should().Be("https://example.com/api");
+        }
+
+        return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// When text with only newlines is set the result must be an empty string.
-    /// </summary>
-    [Fact]
-    public async Task Text_SetWithOnlyNewlines_ResultIsEmpty()
+    [AvaloniaFact(Timeout = 10_000)]
+    public Task Text_SetWithOnlyNewlines_ResultIsEmpty()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await HeadlessTestTimeout.DispatchAsync(session, () =>
+        var (box, scope) = CreateBoxInScope();
+        using (scope)
         {
-            var (box, scope) = CreateBoxInScope();
-            using (scope)
-            {
-                box.Text = "\r\n\r\n";
-                box.Text.Should().BeEmpty();
-            }
-            return true;
-        });
+            box.Text = "\r\n\r\n";
+            box.Text.Should().BeEmpty();
+        }
+
+        return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// When text containing a newline is typed into (or pasted into) the inner
-    /// <c>AvaloniaEdit.TextEditor</c> directly, the <c>OnEditorTextChanged</c> handler must
-    /// strip the newline from both the editor text and the bound <see cref="VariableTextBox.Text"/>.
-    /// </summary>
-    [Fact]
-    public async Task EditorText_SetWithNewline_NewlineIsStrippedFromEditorAndBoundProperty()
+    [AvaloniaFact(Timeout = 10_000)]
+    public Task EditorText_SetWithNewline_NewlineIsStrippedFromEditorAndBoundProperty()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await HeadlessTestTimeout.DispatchAsync(session, () =>
+        var (box, scope) = CreateBoxInScope();
+        using (scope)
         {
-            var (box, scope) = CreateBoxInScope();
-            using (scope)
-            {
-                var innerEditor = box.GetVisualDescendants().OfType<TextEditor>().FirstOrDefault();
-                innerEditor.Should().NotBeNull("VariableTextBox must contain a nested TextEditor");
+            var innerEditor = box.GetVisualDescendants().OfType<TextEditor>().FirstOrDefault();
+            innerEditor.Should().NotBeNull("VariableTextBox must contain a nested TextEditor");
 
-                innerEditor!.Text = "hello\nworld";
+            innerEditor.Text = "hello\nworld";
 
-                innerEditor.Text.Should().Be("helloworld", "the editor itself must have no newlines");
-                box.Text.Should().Be("helloworld", "the bound Text property must reflect the stripped value");
-            }
-            return true;
-        });
+            innerEditor.Text.Should().Be("helloworld", "the editor itself must have no newlines");
+            box.Text.Should().Be("helloworld", "the bound Text property must reflect the stripped value");
+        }
+
+        return Task.CompletedTask;
     }
 
     private static (VariableTextBox box, Window window) CreateBoxInWindow()
@@ -145,17 +104,5 @@ public class VariableTextBoxTests
     {
         var (box, window) = CreateBoxInWindow();
         return (box, new WindowScope(window));
-    }
-
-    private sealed class TestEntryPoint
-    {
-        public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions
-            {
-                UseHeadlessDrawing = false
-            })
-            .WithInterFont()
-            .LogToTrace();
     }
 }

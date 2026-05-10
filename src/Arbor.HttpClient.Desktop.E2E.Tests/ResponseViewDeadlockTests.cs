@@ -8,10 +8,6 @@ using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Testing.Fakes;
 using Arbor.HttpClient.Testing.Repositories;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Headless;
-using Avalonia.Skia;
 using Avalonia.Threading;
 using Serilog;
 using Arbor.HttpClient.Core.Collections;
@@ -29,21 +25,12 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Trait("Category", "Integration")]
 public class ResponseViewDeadlockTests
 {
-    private sealed class TestEntryPoint
-    {
-        public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
-            .WithInterFont()
-            .LogToTrace();
-    }
-
     private static MainWindowViewModel CreateViewModel()
     {
         var repository = new InMemoryRequestHistoryRepository();
         var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new System.Net.Http.StringContent("{\"ok\":true}", System.Text.Encoding.UTF8, "application/json")
+            Content = new StringContent("{\"ok\":true}", System.Text.Encoding.UTF8, "application/json")
         });
         var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
         var inMemorySink = new InMemorySink();
@@ -68,67 +55,43 @@ public class ResponseViewDeadlockTests
     /// from the worker thread, triggering a circular lock dependency with the TextMateSharp
     /// tokenizer thread.
     /// </summary>
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task ResponseBody_SetFromBackgroundThread_DoesNotDeadlock()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+        using var viewModel = CreateViewModel();
 
-        // The test completes successfully if it does not hang. A timeout is used to detect deadlocks.
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-
-        await session.Dispatch(async () =>
+        await Task.Run(() =>
         {
-            using var viewModel = CreateViewModel();
+            Dispatcher.UIThread.CheckAccess().Should().BeFalse();
+            viewModel.ResponseBody = "{\"test\":\"value\"}";
+            viewModel.RawResponseBody = "{\"test\":\"value\"}";
+            viewModel.ResponseContentType = "application/json";
+        }, TestContext.Current.CancellationToken);
 
-            // Simulate a background thread (e.g. an async HTTP response handler) setting
-            // ResponseBody without being on the UI thread.
-            await Task.Run(() =>
-            {
-                // Must not be on the UI thread.
-                Dispatcher.UIThread.CheckAccess().Should().BeFalse();
-                viewModel.ResponseBody = "{\"test\":\"value\"}";
-                viewModel.RawResponseBody = "{\"test\":\"value\"}";
-                viewModel.ResponseContentType = "application/json";
-            }, cts.Token);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
-            // Allow any posted dispatcher callbacks to run so property-changed handlers
-            // that were marshalled via Dispatcher.UIThread.Post can execute.
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
-
-            viewModel.ResponseBody.Should().Be("{\"test\":\"value\"}");
-            return true;
-        }, cts.Token);
+        viewModel.ResponseBody.Should().Be("{\"test\":\"value\"}");
     }
 
     /// <summary>
     /// Setting <see cref="MainWindowViewModel.ResponseBody"/> multiple times rapidly from a
     /// background thread must not deadlock even under contention.
     /// </summary>
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task ResponseBody_SetRepeatedly_FromBackgroundThread_DoesNotDeadlock()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+        using var viewModel = CreateViewModel();
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-
-        await session.Dispatch(async () =>
+        await Task.Run(async () =>
         {
-            using var viewModel = CreateViewModel();
-
-            // Fire many rapid updates from a background thread to stress the dispatch path.
-            await Task.Run(async () =>
+            for (int i = 0; i < 20; i++)
             {
-                for (int i = 0; i < 20; i++)
-                {
-                    viewModel.ResponseBody = $"{{\"iteration\":{i}}}";
-                    viewModel.ResponseContentType = "application/json";
-                    await Task.Yield();
-                }
-            }, cts.Token);
+                viewModel.ResponseBody = $"{{\"iteration\":{i}}}";
+                viewModel.ResponseContentType = "application/json";
+                await Task.Yield();
+            }
+        }, TestContext.Current.CancellationToken);
 
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
-
-            return true;
-        }, cts.Token);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
     }
 }

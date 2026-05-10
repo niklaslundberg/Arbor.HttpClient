@@ -6,7 +6,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Trait("Category", "Integration")]
 public class WebViewWindowTests
 {
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildNoCacheUri_WithNoQuery_AppendsCacheBustParameter()
     {
         var result = WebViewWindow.BuildNoCacheUri(new Uri("https://example.com/page"), 1234);
@@ -14,7 +14,7 @@ public class WebViewWindowTests
         result.ToString().Should().Be("https://example.com/page?arborNoCache=1234");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildNoCacheUri_WithExistingQuery_PreservesQueryAndAppendsCacheBustParameter()
     {
         var result = WebViewWindow.BuildNoCacheUri(new Uri("https://example.com/page?foo=bar"), 1234);
@@ -22,7 +22,7 @@ public class WebViewWindowTests
         result.ToString().Should().Be("https://example.com/page?foo=bar&arborNoCache=1234");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void WebViewWindow_NavigationBarOverflow_UsesHorizontalScrollViewer()
     {
         var xamlPath = FindRepoRootPath("src", "Arbor.HttpClient.Desktop", "Features", "WebView", "WebViewWindow.axaml");
@@ -50,3 +50,4 @@ public class WebViewWindowTests
         throw new DirectoryNotFoundException("Could not locate repository root from test base directory.");
     }
 }
+

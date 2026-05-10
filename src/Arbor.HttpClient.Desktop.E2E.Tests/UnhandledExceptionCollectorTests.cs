@@ -5,7 +5,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Trait("Category", "Integration")]
 public class UnhandledExceptionCollectorTests
 {
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Add_WhenNotCollecting_DoesNotStoreEntry()
     {
         var path = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}", "exceptions.json");
@@ -16,7 +16,7 @@ public class UnhandledExceptionCollectorTests
         collector.GetAll().Should().BeEmpty();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Add_WhenCollecting_StoresEntry()
     {
         var path = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}", "exceptions.json");
@@ -31,7 +31,7 @@ public class UnhandledExceptionCollectorTests
         all[0].Timestamp.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Add_NullException_IsIgnored()
     {
         var path = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}", "exceptions.json");
@@ -42,7 +42,7 @@ public class UnhandledExceptionCollectorTests
         collector.GetAll().Should().BeEmpty();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Remove_ExistingId_RemovesEntry()
     {
         var path = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}", "exceptions.json");
@@ -55,7 +55,7 @@ public class UnhandledExceptionCollectorTests
         collector.GetAll().Should().BeEmpty();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Remove_UnknownId_DoesNothing()
     {
         var path = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}", "exceptions.json");
@@ -67,7 +67,7 @@ public class UnhandledExceptionCollectorTests
         collector.GetAll().Should().ContainSingle();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Clear_RemovesAllEntries()
     {
         var path = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}", "exceptions.json");
@@ -80,7 +80,7 @@ public class UnhandledExceptionCollectorTests
         collector.GetAll().Should().BeEmpty();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void Entries_PersistedAndReloadedAcrossInstances()
     {
         var dir = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}");
@@ -94,7 +94,7 @@ public class UnhandledExceptionCollectorTests
         all[0].Message.Should().Be("persisted");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void GetAll_ReturnsNewestEntryFirst()
     {
         var path = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}", "exceptions.json");
@@ -107,3 +107,4 @@ public class UnhandledExceptionCollectorTests
         all[1].Message.Should().Be("first");
     }
 }
+

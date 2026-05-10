@@ -6,11 +6,9 @@ using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Testing.Fakes;
 using Arbor.HttpClient.Testing.Repositories;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input.Platform;
-using Avalonia.Skia;
 using Serilog;
 using Arbor.HttpClient.Core.Collections;
 using Arbor.HttpClient.Core.HttpRequest;
@@ -45,170 +43,120 @@ public class ResponseShortcutsTests
             logWindowViewModel);
     }
 
-    private sealed class TestEntryPoint
+    [AvaloniaFact(Timeout = 10_000)]
+    public Task HasTextResponse_IsFalse_BeforeAnyRequest()
     {
-        public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions
-            {
-                UseHeadlessDrawing = false
-            })
-            .WithInterFont()
-            .LogToTrace();
+        using var response = new HttpResponseMessage(HttpStatusCode.OK);
+        using var viewModel = CreateViewModel(response);
+
+        viewModel.HasTextResponse.Should().BeFalse();
+        return Task.CompletedTask;
     }
 
-    [Fact]
-    public async Task HasTextResponse_IsFalse_BeforeAnyRequest()
-    {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        var result = await session.Dispatch(() =>
-        {
-            using var response = new HttpResponseMessage(HttpStatusCode.OK);
-            using var viewModel = CreateViewModel(response);
-            return Task.FromResult(viewModel.HasTextResponse);
-        }, CancellationToken.None);
-
-        result.Should().BeFalse();
-    }
-
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task HasTextResponse_BecomesTrue_AfterTextResponse()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        var result = await session.Dispatch(async () =>
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
         {
-            using var response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
-            };
-            using var viewModel = CreateViewModel(response);
+            Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
+        };
+        using var viewModel = CreateViewModel(response);
 
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
+        viewModel.SendRequestCommand.Execute(null);
+        await viewModel.SendRequestCommand.ExecutionTask!;
 
-            return viewModel.HasTextResponse;
-        }, CancellationToken.None);
-
-        result.Should().BeTrue();
+        viewModel.HasTextResponse.Should().BeTrue();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task HasTextResponse_RemainsFalse_AfterBinaryResponse()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        var result = await session.Dispatch(async () =>
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
         {
-            using var response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new ByteArrayContent([0xFF, 0xD8, 0xFF])
-            };
-            response.Content.Headers.ContentType =
-                new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+            Content = new ByteArrayContent([0xFF, 0xD8, 0xFF])
+        };
+        response.Content.Headers.ContentType =
+            new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
 
-            using var viewModel = CreateViewModel(response);
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/image.png";
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+        using var viewModel = CreateViewModel(response);
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/image.png";
+        viewModel.SendRequestCommand.Execute(null);
+        await viewModel.SendRequestCommand.ExecutionTask!;
 
-            return viewModel.HasTextResponse;
-        }, CancellationToken.None);
-
-        result.Should().BeFalse();
+        viewModel.HasTextResponse.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task CopyResponseBodyCommand_CopiesFormattedBodyToClipboard()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        var clipboardText = await session.Dispatch(async () =>
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
         {
-            using var response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent("{\"hello\":\"world\"}", Encoding.UTF8, "application/json")
-            };
-            using var viewModel = CreateViewModel(response);
+            Content = new StringContent("{\"hello\":\"world\"}", Encoding.UTF8, "application/json")
+        };
+        using var viewModel = CreateViewModel(response);
 
-            var window = new MainWindow { DataContext = viewModel };
-            window.Show();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(1);
+        var window = new MainWindow { DataContext = viewModel };
+        window.Show();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(1);
 
-            viewModel.Clipboard = TopLevel.GetTopLevel(window)?.Clipboard;
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+        viewModel.Clipboard = TopLevel.GetTopLevel(window)?.Clipboard;
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
+        viewModel.SendRequestCommand.Execute(null);
+        await viewModel.SendRequestCommand.ExecutionTask!;
 
-            await viewModel.CopyResponseBodyCommand.ExecuteAsync(null);
+        await viewModel.CopyResponseBodyCommand.ExecuteAsync(null);
 
-            var text = await (TopLevel.GetTopLevel(window)?.Clipboard?.TryGetTextAsync()
-                             ?? Task.FromResult<string?>(null));
-            window.Close();
-            return text;
-        }, CancellationToken.None);
+        var clipboardText = await (TopLevel.GetTopLevel(window)?.Clipboard?.TryGetTextAsync()
+                         ?? Task.FromResult<string?>(null));
+        window.Close();
 
         clipboardText.Should().NotBeNullOrEmpty();
         clipboardText.Should().Contain("hello");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task CopyResponseBodyCommand_DoesNothing_WhenClipboardIsNull()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await session.Dispatch(async () =>
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
         {
-            using var response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent("test body", Encoding.UTF8, "text/plain")
-            };
-            using var viewModel = CreateViewModel(response);
+            Content = new StringContent("test body", Encoding.UTF8, "text/plain")
+        };
+        using var viewModel = CreateViewModel(response);
 
-            viewModel.Clipboard = null;
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+        viewModel.Clipboard = null;
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
+        viewModel.SendRequestCommand.Execute(null);
+        await viewModel.SendRequestCommand.ExecutionTask!;
 
-            // Should not throw
-            await viewModel.CopyResponseBodyCommand.ExecuteAsync(null);
-
-            return true;
-        }, CancellationToken.None);
+        // Should not throw
+        await viewModel.CopyResponseBodyCommand.ExecuteAsync(null);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task CopyCurrentRequestAsCurlCommand_CopiesCurlToClipboard()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        var clipboardText = await session.Dispatch(async () =>
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
         {
-            using var response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent("{}", Encoding.UTF8, "application/json")
-            };
-            using var viewModel = CreateViewModel(response);
+            Content = new StringContent("{}", Encoding.UTF8, "application/json")
+        };
+        using var viewModel = CreateViewModel(response);
 
-            var window = new MainWindow { DataContext = viewModel };
-            window.Show();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(1);
+        var window = new MainWindow { DataContext = viewModel };
+        window.Show();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(1);
 
-            viewModel.Clipboard = TopLevel.GetTopLevel(window)?.Clipboard;
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
-            viewModel.RequestEditor.SelectedMethod = "POST";
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+        viewModel.Clipboard = TopLevel.GetTopLevel(window)?.Clipboard;
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
+        viewModel.RequestEditor.SelectedMethod = "POST";
+        viewModel.SendRequestCommand.Execute(null);
+        await viewModel.SendRequestCommand.ExecutionTask!;
 
-            await viewModel.CopyCurrentRequestAsCurlCommand.ExecuteAsync(null);
+        await viewModel.CopyCurrentRequestAsCurlCommand.ExecuteAsync(null);
 
-            var text = await (TopLevel.GetTopLevel(window)?.Clipboard?.TryGetTextAsync()
-                             ?? Task.FromResult<string?>(null));
-            window.Close();
-            return text;
-        }, CancellationToken.None);
+        var clipboardText = await (TopLevel.GetTopLevel(window)?.Clipboard?.TryGetTextAsync()
+                         ?? Task.FromResult<string?>(null));
+        window.Close();
 
         clipboardText.Should().NotBeNullOrEmpty();
         clipboardText.Should().Contain("curl");
@@ -216,59 +164,46 @@ public class ResponseShortcutsTests
         clipboardText.Should().Contain("localhost:5000");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task SaveResponseBodyAsFileCommand_DoesNothing_WhenStorageProviderIsNull()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        await session.Dispatch(async () =>
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
         {
-            using var response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent("body text", Encoding.UTF8, "text/plain")
-            };
-            using var viewModel = CreateViewModel(response);
+            Content = new StringContent("body text", Encoding.UTF8, "text/plain")
+        };
+        using var viewModel = CreateViewModel(response);
 
-            viewModel.StorageProvider = null;
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+        viewModel.StorageProvider = null;
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
+        viewModel.SendRequestCommand.Execute(null);
+        await viewModel.SendRequestCommand.ExecutionTask!;
 
-            // Should not throw
-            await viewModel.SaveResponseBodyAsFileCommand.ExecuteAsync(null);
-
-            return true;
-        }, CancellationToken.None);
+        // Should not throw
+        await viewModel.SaveResponseBodyAsFileCommand.ExecuteAsync(null);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task ResponseBody_PreservesNonAsciiCharacters_AfterJsonResponse()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
-
-        var responseBody = await session.Dispatch(async () =>
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
         {
-            using var response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent("{\"name\":\"åäö\"}", Encoding.UTF8, "application/json")
-            };
-            using var viewModel = CreateViewModel(response);
+            Content = new StringContent("{\"name\":\"åäö\"}", Encoding.UTF8, "application/json")
+        };
+        using var viewModel = CreateViewModel(response);
 
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
+        viewModel.SendRequestCommand.Execute(null);
+        await viewModel.SendRequestCommand.ExecutionTask!;
 
-            return viewModel.ResponseBody;
-        }, CancellationToken.None);
-
+        var responseBody = viewModel.ResponseBody;
         responseBody.Should().Contain("åäö");
         responseBody.Should().NotContain("\\u00e5");
         responseBody.Should().NotContain("\\u00e4");
         responseBody.Should().NotContain("\\u00f6");
     }
 
-    [Fact]
-    public void TryGetSaveableResponseContent_WhenSelectedTabIsBody_ReturnsBodyAndDetectedExtension()
+    [AvaloniaFact(Timeout = 10_000)]
+    public Task TryGetSaveableResponseContent_WhenSelectedTabIsBody_ReturnsBodyAndDetectedExtension()
     {
         using var response = new HttpResponseMessage(HttpStatusCode.OK);
         using var viewModel = CreateViewModel(response);
@@ -282,10 +217,11 @@ public class ResponseShortcutsTests
         result.Should().BeTrue();
         content.Should().Be("{\"ok\":true}");
         extension.Should().Be(".json");
+        return Task.CompletedTask;
     }
 
-    [Fact]
-    public void TryGetSaveableResponseContent_WhenSelectedTabIsBodyRaw_ReturnsRawBodyAndExtension()
+    [AvaloniaFact(Timeout = 10_000)]
+    public Task TryGetSaveableResponseContent_WhenSelectedTabIsBodyRaw_ReturnsRawBodyAndExtension()
     {
         using var response = new HttpResponseMessage(HttpStatusCode.OK);
         using var viewModel = CreateViewModel(response);
@@ -299,10 +235,11 @@ public class ResponseShortcutsTests
         result.Should().BeTrue();
         content.Should().Be("<raw>");
         extension.Should().Be(".txt");
+        return Task.CompletedTask;
     }
 
-    [Fact]
-    public void TryGetSaveableResponseContent_WhenSelectedTabIsHeaders_ReturnsJoinedHeaders()
+    [AvaloniaFact(Timeout = 10_000)]
+    public Task TryGetSaveableResponseContent_WhenSelectedTabIsHeaders_ReturnsJoinedHeaders()
     {
         using var response = new HttpResponseMessage(HttpStatusCode.OK);
         using var viewModel = CreateViewModel(response);
@@ -316,10 +253,11 @@ public class ResponseShortcutsTests
         result.Should().BeTrue();
         content.Should().Be($"Content-Type: application/json{Environment.NewLine}X-Test: value");
         extension.Should().Be(".txt");
+        return Task.CompletedTask;
     }
 
-    [Fact]
-    public void TryGetSaveableResponseContent_WhenSelectedTabIsResponseRaw_ReturnsResponseRawText()
+    [AvaloniaFact(Timeout = 10_000)]
+    public Task TryGetSaveableResponseContent_WhenSelectedTabIsResponseRaw_ReturnsResponseRawText()
     {
         using var response = new HttpResponseMessage(HttpStatusCode.OK);
         using var viewModel = CreateViewModel(response);
@@ -333,10 +271,11 @@ public class ResponseShortcutsTests
         result.Should().BeTrue();
         content.Should().Be("HTTP/1.1 200 OK");
         extension.Should().Be(".json");
+        return Task.CompletedTask;
     }
 
-    [Fact]
-    public void TryGetSaveableResponseContent_WhenSelectedTabIsWebView_ReturnsFalse()
+    [AvaloniaFact(Timeout = 10_000)]
+    public Task TryGetSaveableResponseContent_WhenSelectedTabIsWebView_ReturnsFalse()
     {
         using var response = new HttpResponseMessage(HttpStatusCode.OK);
         using var viewModel = CreateViewModel(response);
@@ -349,28 +288,31 @@ public class ResponseShortcutsTests
         result.Should().BeFalse();
         content.Should().BeEmpty();
         extension.Should().Be(".txt");
+        return Task.CompletedTask;
     }
 
-    [Theory]
+    [AvaloniaTheory(Timeout = 10_000)]
     [InlineData("text/markdown", ".md")]
     [InlineData("application/json", ".json")]
     [InlineData("application/problem+json", ".json")]
     [InlineData("application/xml", ".xml")]
     [InlineData("application/atom+xml", ".xml")]
-    public void ExtensionFromContentType_ShouldReturnExpectedExtension(string contentType, string expectedExtension)
+    public Task ExtensionFromContentType_ShouldReturnExpectedExtension(string contentType, string expectedExtension)
     {
         var extension = MainWindowViewModel.ExtensionFromContentType(contentType);
 
         extension.Should().Be(expectedExtension);
+        return Task.CompletedTask;
     }
 
-    [Fact]
-    public void RequestTimeoutDefaultWatermark_ShouldIncludeConfiguredDefaultTimeoutValue()
+    [AvaloniaFact(Timeout = 10_000)]
+    public Task RequestTimeoutDefaultWatermark_ShouldIncludeConfiguredDefaultTimeoutValue()
     {
         using var response = new HttpResponseMessage(HttpStatusCode.OK);
         using var viewModel = CreateViewModel(response);
         viewModel.DefaultRequestTimeoutSeconds = 42;
 
         viewModel.RequestTimeoutDefaultWatermark.Should().Be("Default (42)");
+        return Task.CompletedTask;
     }
 }

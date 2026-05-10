@@ -11,7 +11,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Trait("Category", "Integration")]
 public class ScheduledJobServiceTests
 {
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task Start_JobFailure_AddsExceptionToCollector()
     {
         var collectorPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}", "exceptions.json");
@@ -35,14 +35,14 @@ public class ScheduledJobServiceTests
             AutoStart: false);
 
         jobService.Start(config);
-        await Task.Delay(1500, CancellationToken.None);
+        await Task.Delay(1500, TestContext.Current.CancellationToken);
         jobService.Stop(1);
 
         collector.GetAll().Should().NotBeEmpty();
         collector.GetAll()[0].ExceptionType.Should().Be("System.Net.Http.HttpRequestException");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task Start_JobFailure_NoCollector_DoesNotThrow()
     {
         var handler = new StubHttpMessageHandler(_ => throw new HttpRequestException("simulated job failure"));
@@ -63,11 +63,11 @@ public class ScheduledJobServiceTests
             AutoStart: false);
 
         jobService.Start(config);
-        await Task.Delay(1500, CancellationToken.None);
+        await Task.Delay(1500, TestContext.Current.CancellationToken);
         jobService.Stop(1);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task Start_JobFailure_CollectorNotCollecting_DoesNotStoreEntry()
     {
         var collectorPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}", "exceptions.json");
@@ -91,13 +91,13 @@ public class ScheduledJobServiceTests
             AutoStart: false);
 
         jobService.Start(config);
-        await Task.Delay(1500, CancellationToken.None);
+        await Task.Delay(1500, TestContext.Current.CancellationToken);
         jobService.Stop(1);
 
         collector.GetAll().Should().BeEmpty();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task Start_WithResponseCallback_PassesCancelableToken()
     {
         var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.OK)
@@ -128,12 +128,12 @@ public class ScheduledJobServiceTests
             return Task.CompletedTask;
         });
 
-        var result = await callbackTokenCanBeCanceled.Task.WaitAsync(TimeSpan.FromSeconds(3), CancellationToken.None);
+        var result = await callbackTokenCanBeCanceled.Task.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         result.Should().BeTrue();
         jobService.Stop(2);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task Start_WhenStopped_CancelsCallbackToken()
     {
         var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.OK)
@@ -173,10 +173,11 @@ public class ScheduledJobServiceTests
             }
         });
 
-        await callbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), CancellationToken.None);
+        await callbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         jobService.Stop(3);
 
-        var wasCancelled = await callbackCancelled.Task.WaitAsync(TimeSpan.FromSeconds(3), CancellationToken.None);
+        var wasCancelled = await callbackCancelled.Task.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         wasCancelled.Should().BeTrue();
     }
 }
+

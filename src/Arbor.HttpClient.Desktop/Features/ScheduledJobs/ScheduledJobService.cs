@@ -45,14 +45,18 @@ public sealed class ScheduledJobService : IDisposable
         ScheduledJobConfig config,
         Func<HttpResponseDetails, CancellationToken, Task>? onResponseAsync = null)
     {
-        if (_handles.ContainsKey(config.Id))
+        var cts = new CancellationTokenSource();
+        var task = RunAsync(config, onResponseAsync, cts.Token);
+        var handle = new JobHandle(cts, task);
+
+        if (!_handles.TryAdd(config.Id, handle))
         {
+            // Job already running — dispose the unused handle
+            cts.Cancel();
+            cts.Dispose();
             return;
         }
 
-        var cts = new CancellationTokenSource();
-        var task = RunAsync(config, onResponseAsync, cts.Token);
-        _handles[config.Id] = new JobHandle(cts, task);
         _logger.Information("Scheduled job {JobName} (id={JobId}) started with interval {IntervalSeconds}s",
             config.Name, config.Id, config.IntervalSeconds);
     }
@@ -128,7 +132,7 @@ public sealed class ScheduledJobService : IDisposable
             return JsonSerializer.Deserialize<List<RequestHeader>>(headersJson,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         }
-        catch
+        catch (JsonException)
         {
             return null;
         }

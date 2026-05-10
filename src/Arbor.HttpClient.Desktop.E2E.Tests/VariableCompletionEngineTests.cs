@@ -4,7 +4,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
 public class VariableCompletionEngineTests
 {
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void TryGetContext_ShouldReturnContext_WhenCaretIsInsideVariableToken()
     {
         var text = "https://{{ho";
@@ -18,7 +18,7 @@ public class VariableCompletionEngineTests
         context.IsEnvVariable.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void TryGetContext_ShouldReturnFalse_WhenTokenIsClosedBeforeCaret()
     {
         var text = "https://{{host}}/api";
@@ -29,7 +29,7 @@ public class VariableCompletionEngineTests
         hasContext.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void GetSuggestions_ShouldFilterByPrefix_CaseInsensitive()
     {
         var suggestions = VariableCompletionEngine.GetSuggestions(
@@ -39,7 +39,7 @@ public class VariableCompletionEngineTests
         suggestions.Should().Equal("tenant", "token");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void BuildInsertionText_ShouldAvoidDuplicatingClosingBraces()
     {
         var insertion = VariableCompletionEngine.BuildInsertionText("{{ho}}", 4, "host");
@@ -47,7 +47,7 @@ public class VariableCompletionEngineTests
         insertion.Should().Be("host");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void TryGetContext_ShouldReturnEnvContext_WhenCaretIsInsideEnvToken()
     {
         var text = "https://{{env:PA";
@@ -61,7 +61,7 @@ public class VariableCompletionEngineTests
         context.ReplaceStartOffset.Should().Be("https://{{env:".Length);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void TryGetContext_ShouldReturnEnvContext_WhenCaretIsRightAfterEnvColon()
     {
         var text = "{{env:";
@@ -75,7 +75,7 @@ public class VariableCompletionEngineTests
         context.ReplaceStartOffset.Should().Be("{{env:".Length);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void TryGetContext_EnvPrefixDetection_IsCaseInsensitive()
     {
         var text = "{{ENV:VAR";
@@ -88,7 +88,7 @@ public class VariableCompletionEngineTests
         context.Prefix.Should().Be("VAR");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void TryGetContext_ShouldTrimLeadingWhitespace_AfterEnvColon()
     {
         // "{{env: HOME" — space after the colon; prefix and start offset must skip the space
@@ -104,3 +104,4 @@ public class VariableCompletionEngineTests
     }
 
 }
+

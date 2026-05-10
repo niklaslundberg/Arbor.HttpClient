@@ -21,7 +21,7 @@ public class DraftPersistenceServiceTests
 
     // ── LoadDraft ─────────────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task LoadDraftAsync_ReturnsNull_WhenDraftFileDoesNotExist()
     {
         var folder = CreateTempDraftsFolder();
@@ -32,7 +32,7 @@ public class DraftPersistenceServiceTests
         result.Should().BeNull();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task LoadDraftAsync_ReturnsNull_WhenDraftFileIsCorrupted()
     {
         var folder = CreateTempDraftsFolder();
@@ -47,7 +47,7 @@ public class DraftPersistenceServiceTests
 
     // ── SaveDraftAsync / LoadDraftAsync round-trip ────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task SaveAndLoadDraftAsync_ShouldRoundtripAllFields()
     {
         var folder = CreateTempDraftsFolder();
@@ -84,7 +84,7 @@ public class DraftPersistenceServiceTests
         var loaded = await service.LoadDraftAsync();
 
         loaded.Should().NotBeNull();
-        loaded!.RequestName.Should().Be("My Request");
+        loaded.RequestName.Should().Be("My Request");
         loaded.Method.Should().Be("POST");
         loaded.Url.Should().Be("http://localhost:5000/data");
         loaded.Body.Should().Be("{\"key\":\"value\"}");
@@ -108,7 +108,7 @@ public class DraftPersistenceServiceTests
 
     // ── ClearDraft ────────────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task ClearDraft_DeletesDraftFile()
     {
         var folder = CreateTempDraftsFolder();
@@ -120,7 +120,7 @@ public class DraftPersistenceServiceTests
         File.Exists(service.DraftFilePath).Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void ClearDraft_DoesNotThrow_WhenFileDoesNotExist()
     {
         var folder = CreateTempDraftsFolder();
@@ -133,7 +133,7 @@ public class DraftPersistenceServiceTests
 
     // ── CaptureFromEditor ─────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void CaptureFromEditor_ReflectsEditorState()
     {
         var editor = CreateEditor();
@@ -167,7 +167,7 @@ public class DraftPersistenceServiceTests
 
     // ── RestoreToEditor ───────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RestoreToEditor_PopulatesAllEditorFields()
     {
         var editor = CreateEditor();
@@ -217,7 +217,7 @@ public class DraftPersistenceServiceTests
         editor.RequestHeaders[0].IsEnabled.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RestoreToEditor_IgnoresUnknownRequestType()
     {
         var editor = CreateEditor();
@@ -230,7 +230,7 @@ public class DraftPersistenceServiceTests
         editor.SelectedRequestType.Should().Be(RequestType.Http);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void RestoreToEditor_UsesDefaultTlsOverride_WhenSavedValueIsUnknown()
     {
         var editor = CreateEditor();
@@ -243,7 +243,7 @@ public class DraftPersistenceServiceTests
 
     // ── SaveDraftAsync creates folder if missing ──────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task SaveDraftAsync_CreatesDirectoryIfMissing()
     {
         var folder = CreateTempDraftsFolder(); // folder does not exist yet
@@ -257,7 +257,7 @@ public class DraftPersistenceServiceTests
 
     // ── CaptureFromEditor → RestoreToEditor round-trip ───────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void CaptureAndRestore_PreservesEditorState()
     {
         var original = CreateEditor();
@@ -287,3 +287,4 @@ public class DraftPersistenceServiceTests
         restored.RequestHeaders.Should().ContainSingle(h => h.Name == "X-Foo" && h.Value == "bar");
     }
 }
+

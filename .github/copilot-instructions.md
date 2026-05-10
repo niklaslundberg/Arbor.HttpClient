@@ -729,3 +729,7 @@ Artifacts are written to `docs/system-test-screenshots/alpine/` by default:
 
 - **Always** when making changes to the application UI (`.axaml`, ViewModels, main window layout).
 - **Optional** for backend-only changes (services, HTTP logic, storage).
+
+## 22. Test Command Timeout
+
+**Always run test commands with a hard timeout (maximum 120 seconds).**

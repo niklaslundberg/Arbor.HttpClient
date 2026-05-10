@@ -8,10 +8,8 @@ using Arbor.HttpClient.Desktop.Features.Logging;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Options;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
-using Avalonia.Skia;
 using Avalonia.VisualTree;
 using Serilog;
 using Arbor.HttpClient.Core.Collections;
@@ -32,17 +30,13 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Trait("Category", "Integration")]
 public class ScreenshotGenerator
 {
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateInitialStateScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(() =>
-        {
             // App as it looks when first opened — URL field empty, no response yet
             var (_, window) = CreateWindow(
                 BuildHandler("{}"),
@@ -57,21 +51,15 @@ public class ScreenshotGenerator
             frame?.Save(Path.Combine(outputDir, "state-initial.png"));
 
             window.Close();
-            return Task.FromResult(true);
-        }, CancellationToken.None);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateAfterResponseScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
             var (viewModel, window) = CreateWindow(
                 BuildHandler("""
                     {
@@ -94,21 +82,15 @@ public class ScreenshotGenerator
             frame?.Save(Path.Combine(outputDir, "state-response.png"));
 
             window.Close();
-            return true;
-        }, CancellationToken.None);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateMainWindowScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
             var (viewModel, window) = CreateWindow(
                 BuildHandler("""
                     {
@@ -133,21 +115,15 @@ public class ScreenshotGenerator
             frame?.Save(Path.Combine(outputDir, "main-window.png"));
 
             window.Close();
-            return true;
-        }, CancellationToken.None);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateVariablesScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
             var (viewModel, window) = CreateWindow(
                 BuildHandler("""
                     {
@@ -199,21 +175,15 @@ public class ScreenshotGenerator
             frame?.Save(Path.Combine(outputDir, "variables.png"));
 
             window.Close();
-            return true;
-        }, CancellationToken.None);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateVariablesQueryTabScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
             var (viewModel, window) = CreateWindow(
                 BuildHandler("{\"ok\":true}"),
                 requestName: "Query with variables",
@@ -260,21 +230,15 @@ public class ScreenshotGenerator
             frame?.Save(Path.Combine(outputDir, "variables-query-tab.png"));
 
             window.Close();
-            return true;
-        }, CancellationToken.None);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateVariablesHeadersTabScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
             var (viewModel, window) = CreateWindow(
                 BuildHandler("{\"ok\":true}"),
                 requestName: "Headers with variables",
@@ -313,21 +277,15 @@ public class ScreenshotGenerator
             frame?.Save(Path.Combine(outputDir, "variables-headers-tab.png"));
 
             window.Close();
-            return true;
-        }, CancellationToken.None);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateVariablesPreviewScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
             var (viewModel, window) = CreateWindow(
                 BuildHandler("""
                     {
@@ -370,21 +328,15 @@ public class ScreenshotGenerator
             frame?.Save(Path.Combine(outputDir, "variables-preview.png"));
 
             window.Close();
-            return true;
-        }, CancellationToken.None);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateScheduledJobsScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
             var (viewModel, window) = CreateWindow(
                 BuildHandler("{}"),
                 requestName: "Health check",
@@ -393,7 +345,7 @@ public class ScreenshotGenerator
 
             // Add a scheduled job so the tab looks populated
             var jobVm = new ScheduledJobViewModel(new InMemoryScheduledJobRepo(), new ScheduledJobService(
-                new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryHistoryRepo()),
+                new HttpRequestService(new System.Net.Http.HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryHistoryRepo()),
                 new LoggerConfiguration().WriteTo.Sink(new InMemorySink()).CreateLogger()))
             {
                 Name = "Health check every 60 s",
@@ -412,21 +364,15 @@ public class ScreenshotGenerator
             frame?.Save(Path.Combine(outputDir, "scheduled-jobs.png"));
 
             window.Close();
-            return true;
-        }, CancellationToken.None);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateFollowRedirectOverridesScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
             var (viewModel, window) = CreateWindow(
                 BuildHandler("{}"),
                 requestName: "Redirect override demo",
@@ -436,7 +382,7 @@ public class ScreenshotGenerator
             viewModel.RequestEditor.FollowRedirectsForRequest = false;
             viewModel.LeftPanelTab = "ScheduledJobs";
             viewModel.ScheduledJobs.Add(new ScheduledJobViewModel(new InMemoryScheduledJobRepo(), new ScheduledJobService(
-                new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryHistoryRepo()),
+                new HttpRequestService(new System.Net.Http.HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryHistoryRepo()),
                 new LoggerConfiguration().WriteTo.Sink(new InMemorySink()).CreateLogger()))
             {
                 Name = "Redirect check",
@@ -454,21 +400,15 @@ public class ScreenshotGenerator
             frame?.Save(Path.Combine(outputDir, "follow-redirect-overrides.png"));
 
             window.Close();
-            return true;
-        }, CancellationToken.None);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateOptionsWindowScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(() =>
-        {
             var (viewModel, _) = CreateWindow(
                 BuildHandler("{}"),
                 requestName: "Options demo",
@@ -483,21 +423,15 @@ public class ScreenshotGenerator
             frame?.Save(Path.Combine(outputDir, "options-window.png"));
 
             optionsWindow.Close();
-            return Task.FromResult(true);
-        }, CancellationToken.None);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateLayoutPanelScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
             var (viewModel, window) = CreateWindow(
                 BuildHandler("{}"),
                 requestName: "Layout demo",
@@ -514,21 +448,15 @@ public class ScreenshotGenerator
             frame?.Save(Path.Combine(outputDir, "layout-panel.png"));
 
             window.Close();
-            return true;
-        }, CancellationToken.None);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateLogPanelScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(() =>
-        {
             var (viewModel, window) = CreateWindow(
                 BuildHandler("{}"),
                 requestName: "Log panel demo",
@@ -545,21 +473,15 @@ public class ScreenshotGenerator
             frame?.Save(Path.Combine(outputDir, "log-panel.png"));
 
             window.Close();
-            return Task.FromResult(true);
-        }, CancellationToken.None);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateOptionsWindowHttpDiagnosticsScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(() =>
-        {
             var (viewModel, _) = CreateWindow(
                 BuildHandler("{}"),
                 requestName: "Diagnostics demo",
@@ -577,21 +499,15 @@ public class ScreenshotGenerator
             frame?.Save(Path.Combine(outputDir, "options-window-http-diagnostics.png"));
 
             optionsWindow.Close();
-            return Task.FromResult(true);
-        }, CancellationToken.None);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateCollectionsPanelScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(() =>
-        {
             IReadOnlyList<Collection> collections =
             [
                 new Collection(1, "Petstore API", "/specs/petstore.yaml", "http://localhost:5000",
@@ -620,8 +536,6 @@ public class ScreenshotGenerator
             treeFrame?.Save(Path.Join(outputDir, "collections-panel-tree.png"));
 
             window.Close();
-            return Task.FromResult(true);
-        }, CancellationToken.None);
     }
 
     // -------------------------------------------------------------------------
@@ -642,7 +556,7 @@ public class ScreenshotGenerator
         string url)
     {
         var historyRepo = new InMemoryHistoryRepo();
-        var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), historyRepo);
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), historyRepo);
         var sink = new InMemorySink();
         var logger = new LoggerConfiguration().WriteTo.Sink(sink).CreateLogger();
         var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
@@ -669,7 +583,7 @@ public class ScreenshotGenerator
         IReadOnlyList<Collection> collections)
     {
         var historyRepo = new InMemoryHistoryRepo();
-        var httpRequestService = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), historyRepo);
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), historyRepo);
         var sink = new InMemorySink();
         var logger = new LoggerConfiguration().WriteTo.Sink(sink).CreateLogger();
         var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
@@ -705,17 +619,13 @@ public class ScreenshotGenerator
         return (viewModel, new MainWindow { DataContext = viewModel });
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task GenerateRequestTabsScreenshot()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ScreenshotEntryPoint));
-
-        await session.Dispatch(async () =>
-        {
             var (viewModel, window) = CreateWindow(
                 BuildHandler("{}"),
                 requestName: "Get Users",
@@ -746,8 +656,6 @@ public class ScreenshotGenerator
             frame?.Save(Path.Join(outputDir, "request-tabs.png"));
 
             window.Close();
-            return true;
-        }, CancellationToken.None);
     }
 
     // -------------------------------------------------------------------------
@@ -814,12 +722,6 @@ public class ScreenshotGenerator
         public Task<IReadOnlyList<ScheduledJobConfig>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ScheduledJobConfig>>(_items.ToList());
     }
 
-    private sealed class ScreenshotEntryPoint
-    {
-        public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
-            .WithInterFont()
-            .LogToTrace();
-    }
+
 }
+

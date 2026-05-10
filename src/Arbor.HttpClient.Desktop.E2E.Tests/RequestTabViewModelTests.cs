@@ -16,7 +16,7 @@ public class RequestTabViewModelTests
 
     // ── DisplayTitle ────────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void DisplayTitle_ReturnsNew_WhenRequestNameIsEmpty()
     {
         var editor = CreateEditor();
@@ -26,7 +26,7 @@ public class RequestTabViewModelTests
         tab.DisplayTitle.Should().Be("New");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void DisplayTitle_ReturnsNew_WhenRequestNameIsWhitespace()
     {
         var editor = CreateEditor();
@@ -36,7 +36,7 @@ public class RequestTabViewModelTests
         tab.DisplayTitle.Should().Be("New");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void DisplayTitle_ReturnsRequestName_WhenNameIsSet()
     {
         var editor = CreateEditor();
@@ -46,7 +46,7 @@ public class RequestTabViewModelTests
         tab.DisplayTitle.Should().Be("Get Users");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void DisplayTitle_UpdatesWhenRequestNameChanges()
     {
         var editor = CreateEditor();
@@ -60,7 +60,7 @@ public class RequestTabViewModelTests
         tab.DisplayTitle.Should().Be("Create Order");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void DisplayTitle_RaisesPropertyChanged_WhenRequestNameChanges()
     {
         var editor = CreateEditor();
@@ -75,7 +75,7 @@ public class RequestTabViewModelTests
         changedProperties.Should().Contain(nameof(RequestTabViewModel.DisplayTitle));
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void DisplayTitle_DoesNotRaisePropertyChanged_WhenUnrelatedPropertyChanges()
     {
         var editor = CreateEditor();
@@ -89,7 +89,7 @@ public class RequestTabViewModelTests
         changedProperties.Should().NotContain(nameof(RequestTabViewModel.DisplayTitle));
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void DisplayTitle_ChangesFromNameToNew_WhenNameIsCleared()
     {
         var editor = CreateEditor();
@@ -101,3 +101,4 @@ public class RequestTabViewModelTests
         tab.DisplayTitle.Should().Be("New");
     }
 }
+

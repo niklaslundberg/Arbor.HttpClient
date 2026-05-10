@@ -5,9 +5,6 @@ using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Testing.Fakes;
 using Arbor.HttpClient.Testing.Repositories;
-using Avalonia;
-using Avalonia.Headless;
-using Avalonia.Skia;
 using Avalonia.Threading;
 using Serilog;
 using Arbor.HttpClient.Core.Collections;
@@ -22,14 +19,14 @@ public class DemoServerTests
 {
     // ── DemoServer start/stop ────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_IsNotRunning_ByDefault()
     {
         await using var server = new DemoServer();
         server.IsRunning.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_IsRunning_AfterStartAsync()
     {
         await using var server = new DemoServer();
@@ -39,7 +36,7 @@ public class DemoServerTests
         server.IsRunning.Should().BeTrue();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_IsNotRunning_AfterStopAsync()
     {
         await using var server = new DemoServer();
@@ -50,7 +47,7 @@ public class DemoServerTests
         server.IsRunning.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_EchoEndpoint_ReturnsJsonWhenNoBody()
     {
         await using var server = new DemoServer();
@@ -64,7 +61,7 @@ public class DemoServerTests
         body.Should().Contain("method");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_EchoEndpoint_ReflectsBodyOnPost()
     {
         await using var server = new DemoServer();
@@ -80,7 +77,7 @@ public class DemoServerTests
         body.Should().Be(json);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_StatusEndpoint_ReturnsServerInfo()
     {
         await using var server = new DemoServer();
@@ -94,7 +91,7 @@ public class DemoServerTests
         body.Should().Contain("Arbor.HttpClient Demo Server");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_DocsEndpoint_ReturnsMarkdownDocumentation()
     {
         await using var server = new DemoServer();
@@ -110,7 +107,7 @@ public class DemoServerTests
         body.Should().Contain("GET /status");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_DocsHtmlEndpoint_ReturnsHtmlDocumentation()
     {
         await using var server = new DemoServer();
@@ -126,13 +123,13 @@ public class DemoServerTests
         body.Should().Contain("<h1>Arbor.HttpClient Demo Server</h1>");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_RootEndpoint_RedirectsToHtmlDocs()
     {
         await using var server = new DemoServer();
         await server.StartAsync();
 
-        using var client = new System.Net.Http.HttpClient(new System.Net.Http.HttpClientHandler
+        using var client = new System.Net.Http.HttpClient(new HttpClientHandler
         {
             AllowAutoRedirect = false
         });
@@ -142,7 +139,7 @@ public class DemoServerTests
         response.Headers.Location?.ToString().Should().Be("/docs.html");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_StartAsync_IsNoOp_WhenAlreadyRunning()
     {
         await using var server = new DemoServer();
@@ -157,250 +154,218 @@ public class DemoServerTests
 
     // ── Collection request loading — WS / SSE type detection ────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task LoadCollectionRequest_WithWsMethod_SetsWebSocketRequestType()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var collectionRepo = new InMemoryCollectionRepository();
-            await collectionRepo.SaveAsync(
-                "WS Test",
-                null,
-                $"http://localhost:{DemoServer.DefaultPort}",
-                [new CollectionRequest("WS echo", "WS", "/ws", null)]);
 
-            var viewModel = CreateViewModel(collectionRepository: collectionRepo);
-            using var _ = viewModel;
+        var collectionRepo = new InMemoryCollectionRepository();
+        await collectionRepo.SaveAsync(
+            "WS Test",
+            null,
+            $"http://localhost:{DemoServer.DefaultPort}",
+            [new CollectionRequest("WS echo", "WS", "/ws", null)]);
 
-            await viewModel.InitializeAsync();
+        var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+        using var _ = viewModel;
 
-            var wsCollection = viewModel.Collections.First(c => c.Name == "WS Test");
-            viewModel.SelectedCollection = null;
-            viewModel.SelectedCollection = wsCollection;
+        await viewModel.InitializeAsync();
 
-            var wsItem = viewModel.FilteredCollectionItems.First(i => i.Method == "WS");
-            viewModel.LoadCollectionRequestCore(wsItem);
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        var wsCollection = viewModel.Collections.First(c => c.Name == "WS Test");
+        viewModel.SelectedCollection = null;
+        viewModel.SelectedCollection = wsCollection;
 
-            viewModel.RequestEditor.SelectedRequestType.Should().Be(RequestType.WebSocket);
-            viewModel.RequestEditor.RequestUrl.Should().StartWith("ws://");
+        var wsItem = viewModel.FilteredCollectionItems.First(i => i.Method == "WS");
+        viewModel.LoadCollectionRequestCore(wsItem);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
-            return true;
-        }, CancellationToken.None);
+        viewModel.RequestEditor.SelectedRequestType.Should().Be(RequestType.WebSocket);
+        viewModel.RequestEditor.RequestUrl.Should().StartWith("ws://");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task LoadCollectionRequest_WithSseMethod_SetsSseRequestType()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var collectionRepo = new InMemoryCollectionRepository();
-            await collectionRepo.SaveAsync(
-                "SSE Test",
-                null,
-                $"http://localhost:{DemoServer.DefaultPort}",
-                [new CollectionRequest("SSE stream", "SSE", "/sse", null)]);
 
-            var viewModel = CreateViewModel(collectionRepository: collectionRepo);
-            using var _ = viewModel;
+        var collectionRepo = new InMemoryCollectionRepository();
+        await collectionRepo.SaveAsync(
+            "SSE Test",
+            null,
+            $"http://localhost:{DemoServer.DefaultPort}",
+            [new CollectionRequest("SSE stream", "SSE", "/sse", null)]);
 
-            await viewModel.InitializeAsync();
+        var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+        using var _ = viewModel;
 
-            var sseCollection = viewModel.Collections.First(c => c.Name == "SSE Test");
-            viewModel.SelectedCollection = null;
-            viewModel.SelectedCollection = sseCollection;
+        await viewModel.InitializeAsync();
 
-            var sseItem = viewModel.FilteredCollectionItems.First(i => i.Method == "SSE");
-            viewModel.LoadCollectionRequestCore(sseItem);
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        var sseCollection = viewModel.Collections.First(c => c.Name == "SSE Test");
+        viewModel.SelectedCollection = null;
+        viewModel.SelectedCollection = sseCollection;
 
-            viewModel.RequestEditor.SelectedRequestType.Should().Be(RequestType.Sse);
+        var sseItem = viewModel.FilteredCollectionItems.First(i => i.Method == "SSE");
+        viewModel.LoadCollectionRequestCore(sseItem);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
-            return true;
-        }, CancellationToken.None);
+        viewModel.RequestEditor.SelectedRequestType.Should().Be(RequestType.Sse);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task LoadCollectionRequest_WithGetMethod_LeavesHttpRequestType()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var collectionRepo = new InMemoryCollectionRepository();
-            await collectionRepo.SaveAsync(
-                "HTTP Test",
-                null,
-                $"http://localhost:{DemoServer.DefaultPort}",
-                [new CollectionRequest("Echo GET", "GET", "/echo", null)]);
 
-            var viewModel = CreateViewModel(collectionRepository: collectionRepo);
-            using var _ = viewModel;
+        var collectionRepo = new InMemoryCollectionRepository();
+        await collectionRepo.SaveAsync(
+            "HTTP Test",
+            null,
+            $"http://localhost:{DemoServer.DefaultPort}",
+            [new CollectionRequest("Echo GET", "GET", "/echo", null)]);
 
-            await viewModel.InitializeAsync();
+        var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+        using var _ = viewModel;
 
-            var httpCollection = viewModel.Collections.First(c => c.Name == "HTTP Test");
-            viewModel.SelectedCollection = null;
-            viewModel.SelectedCollection = httpCollection;
+        await viewModel.InitializeAsync();
 
-            var getItem = viewModel.FilteredCollectionItems.First(i => i.Method == "GET");
-            viewModel.LoadCollectionRequestCore(getItem);
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        var httpCollection = viewModel.Collections.First(c => c.Name == "HTTP Test");
+        viewModel.SelectedCollection = null;
+        viewModel.SelectedCollection = httpCollection;
 
-            viewModel.RequestEditor.SelectedRequestType.Should().Be(RequestType.Http);
-            viewModel.RequestEditor.SelectedMethod.Should().Be("GET");
+        var getItem = viewModel.FilteredCollectionItems.First(i => i.Method == "GET");
+        viewModel.LoadCollectionRequestCore(getItem);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
-            return true;
-        }, CancellationToken.None);
+        viewModel.RequestEditor.SelectedRequestType.Should().Be(RequestType.Http);
+        viewModel.RequestEditor.SelectedMethod.Should().Be("GET");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task LoadCollectionRequest_WhenRequestNotOpen_OpensNewTab()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var collectionRepo = new InMemoryCollectionRepository();
-            await collectionRepo.SaveAsync(
-                "Tabs Test",
-                null,
-                $"http://localhost:{DemoServer.DefaultPort}",
-                [new CollectionRequest("Echo GET", "GET", "/echo", null)]);
 
-            var viewModel = CreateViewModel(collectionRepository: collectionRepo);
-            using var _ = viewModel;
+        var collectionRepo = new InMemoryCollectionRepository();
+        await collectionRepo.SaveAsync(
+            "Tabs Test",
+            null,
+            $"http://localhost:{DemoServer.DefaultPort}",
+            [new CollectionRequest("Echo GET", "GET", "/echo", null)]);
 
-            await viewModel.InitializeAsync();
-            var initialTabCount = viewModel.RequestTabs.Count;
+        var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+        using var _ = viewModel;
 
-            var collection = viewModel.Collections.First(c => c.Name == "Tabs Test");
-            viewModel.SelectedCollection = collection;
-            var item = viewModel.FilteredCollectionItems.First();
-            viewModel.LoadCollectionRequestCore(item);
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        await viewModel.InitializeAsync();
+        var initialTabCount = viewModel.RequestTabs.Count;
 
-            viewModel.RequestTabs.Count.Should().Be(initialTabCount + 1);
-            viewModel.ActiveRequestTab?.RequestEditor.RequestName.Should().Be("Echo GET");
+        var collection = viewModel.Collections.First(c => c.Name == "Tabs Test");
+        viewModel.SelectedCollection = collection;
+        var item = viewModel.FilteredCollectionItems.First();
+        viewModel.LoadCollectionRequestCore(item);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
-            return true;
-        }, CancellationToken.None);
+        viewModel.RequestTabs.Count.Should().Be(initialTabCount + 1);
+        viewModel.ActiveRequestTab?.RequestEditor.RequestName.Should().Be("Echo GET");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task LoadCollectionRequest_WhenRequestAlreadyOpen_ActivatesExistingTab()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var collectionRepo = new InMemoryCollectionRepository();
-            await collectionRepo.SaveAsync(
-                "Tabs Test",
-                null,
-                $"http://localhost:{DemoServer.DefaultPort}",
-                [new CollectionRequest("Echo GET", "GET", "/echo", null)]);
 
-            var viewModel = CreateViewModel(collectionRepository: collectionRepo);
-            using var _ = viewModel;
+        var collectionRepo = new InMemoryCollectionRepository();
+        await collectionRepo.SaveAsync(
+            "Tabs Test",
+            null,
+            $"http://localhost:{DemoServer.DefaultPort}",
+            [new CollectionRequest("Echo GET", "GET", "/echo", null)]);
 
-            await viewModel.InitializeAsync();
-            var collection = viewModel.Collections.First(c => c.Name == "Tabs Test");
-            viewModel.SelectedCollection = collection;
-            var item = viewModel.FilteredCollectionItems.First();
+        var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+        using var _ = viewModel;
 
-            viewModel.LoadCollectionRequestCore(item);
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
-            var firstOpenedTab = viewModel.ActiveRequestTab;
-            var tabCountAfterFirstOpen = viewModel.RequestTabs.Count;
+        await viewModel.InitializeAsync();
+        var collection = viewModel.Collections.First(c => c.Name == "Tabs Test");
+        viewModel.SelectedCollection = collection;
+        var item = viewModel.FilteredCollectionItems.First();
 
-            viewModel.NewRequestTabCommand.Execute(null);
-            viewModel.LoadCollectionRequestCore(item);
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        viewModel.LoadCollectionRequestCore(item);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        var firstOpenedTab = viewModel.ActiveRequestTab;
+        var tabCountAfterFirstOpen = viewModel.RequestTabs.Count;
 
-            viewModel.RequestTabs.Count.Should().Be(tabCountAfterFirstOpen + 1);
-            viewModel.ActiveRequestTab.Should().BeSameAs(firstOpenedTab);
+        viewModel.NewRequestTabCommand.Execute(null);
+        viewModel.LoadCollectionRequestCore(item);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
-            return true;
-        }, CancellationToken.None);
+        viewModel.RequestTabs.Count.Should().Be(tabCountAfterFirstOpen + 1);
+        viewModel.ActiveRequestTab.Should().BeSameAs(firstOpenedTab);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task LoadCollectionRequest_WithCollectionDefaultHeaders_InheritsAndResolvesVariables()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var collectionRepo = new InMemoryCollectionRepository();
-            var environmentRepo = new InMemoryEnvironmentRepository();
 
-            await environmentRepo.SaveAsync(
-                "Header Env",
-                [new EnvironmentVariable("collectionToken", "token-from-env", IsEnabled: true)]);
+        var collectionRepo = new InMemoryCollectionRepository();
+        var environmentRepo = new InMemoryEnvironmentRepository();
 
-            await collectionRepo.SaveAsync(
-                "Header Defaults",
-                null,
-                $"http://localhost:{DemoServer.DefaultPort}",
-                [new CollectionRequest("Echo GET", "GET", "/echo", null)],
-                headers:
-                [
-                    new RequestHeader("Authorization", "Bearer {{collectionToken}}")
-                ]);
+        await environmentRepo.SaveAsync(
+            "Header Env",
+            [new EnvironmentVariable("collectionToken", "token-from-env", IsEnabled: true)]);
 
-            var viewModel = CreateViewModel(
-                collectionRepository: collectionRepo,
-                environmentRepository: environmentRepo);
-            using var _ = viewModel;
+        await collectionRepo.SaveAsync(
+            "Header Defaults",
+            null,
+            $"http://localhost:{DemoServer.DefaultPort}",
+            [new CollectionRequest("Echo GET", "GET", "/echo", null)],
+            headers:
+            [
+                new RequestHeader("Authorization", "Bearer {{collectionToken}}")
+            ]);
 
-            await viewModel.InitializeAsync();
-            viewModel.ActiveEnvironment = viewModel.Environments.First(e => e.Name == "Header Env");
+        var viewModel = CreateViewModel(
+            collectionRepository: collectionRepo,
+            environmentRepository: environmentRepo);
+        using var _ = viewModel;
 
-            var collection = viewModel.Collections.First(c => c.Name == "Header Defaults");
-            viewModel.SelectedCollection = collection;
+        await viewModel.InitializeAsync();
+        viewModel.ActiveEnvironment = viewModel.Environments.First(e => e.Name == "Header Env");
 
-            var item = viewModel.FilteredCollectionItems.First();
-            viewModel.LoadCollectionRequestCore(item);
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        var collection = viewModel.Collections.First(c => c.Name == "Header Defaults");
+        viewModel.SelectedCollection = collection;
 
-            viewModel.RequestEditor.RequestHeaders.Should().ContainSingle(h =>
-                h.Name == "Authorization" && h.Value == "Bearer {{collectionToken}}");
-            viewModel.RequestEditor.GetResolvedHeaders().Should().ContainSingle(h =>
-                h.Name == "Authorization" && h.Value == "Bearer token-from-env");
+        var item = viewModel.FilteredCollectionItems.First();
+        viewModel.LoadCollectionRequestCore(item);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
-            return true;
-        }, CancellationToken.None);
+        viewModel.RequestEditor.RequestHeaders.Should().ContainSingle(h =>
+            h.Name == "Authorization" && h.Value == "Bearer {{collectionToken}}");
+        viewModel.RequestEditor.GetResolvedHeaders().Should().ContainSingle(h =>
+            h.Name == "Authorization" && h.Value == "Bearer token-from-env");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task LoadCollectionRequest_WhenRequestHeadersOverrideCollectionHeaders_RequestValuesWinAndDisabledHeaderOptsOut()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var collectionRepo = new InMemoryCollectionRepository();
-            var environmentRepo = new InMemoryEnvironmentRepository();
 
-            await environmentRepo.SaveAsync(
-                "Header Env",
-                [
-                    new EnvironmentVariable("collectionToken", "token-from-collection", IsEnabled: true),
+        var collectionRepo = new InMemoryCollectionRepository();
+        var environmentRepo = new InMemoryEnvironmentRepository();
+
+        await environmentRepo.SaveAsync(
+            "Header Env",
+            [
+                new EnvironmentVariable("collectionToken", "token-from-collection", IsEnabled: true),
                     new EnvironmentVariable("requestToken", "token-from-request", IsEnabled: true),
                     new EnvironmentVariable("tenant", "northwind", IsEnabled: true)
-                ]);
+            ]);
 
-            await collectionRepo.SaveAsync(
-                "Header Overrides",
-                null,
-                $"http://localhost:{DemoServer.DefaultPort}",
-                [
-                    new CollectionRequest(
+        await collectionRepo.SaveAsync(
+            "Header Overrides",
+            null,
+            $"http://localhost:{DemoServer.DefaultPort}",
+            [
+                new CollectionRequest(
                         "Echo GET",
                         "GET",
                         "/echo",
@@ -410,273 +375,225 @@ public class DemoServerTests
                             new RequestHeader("Authorization", "Bearer {{requestToken}}"),
                             new RequestHeader("X-Tenant", "{{tenant}}", IsEnabled: false)
                         ])
-                ],
-                headers:
-                [
-                    new RequestHeader("Authorization", "Bearer {{collectionToken}}"),
+            ],
+            headers:
+            [
+                new RequestHeader("Authorization", "Bearer {{collectionToken}}"),
                     new RequestHeader("X-Tenant", "{{tenant}}")
-                ]);
+            ]);
 
-            var viewModel = CreateViewModel(
-                collectionRepository: collectionRepo,
-                environmentRepository: environmentRepo);
-            using var _ = viewModel;
+        var viewModel = CreateViewModel(
+            collectionRepository: collectionRepo,
+            environmentRepository: environmentRepo);
+        using var _ = viewModel;
 
-            await viewModel.InitializeAsync();
-            viewModel.ActiveEnvironment = viewModel.Environments.First(e => e.Name == "Header Env");
+        await viewModel.InitializeAsync();
+        viewModel.ActiveEnvironment = viewModel.Environments.First(e => e.Name == "Header Env");
 
-            var collection = viewModel.Collections.First(c => c.Name == "Header Overrides");
-            viewModel.SelectedCollection = collection;
+        var collection = viewModel.Collections.First(c => c.Name == "Header Overrides");
+        viewModel.SelectedCollection = collection;
 
-            var item = viewModel.FilteredCollectionItems.First();
-            viewModel.LoadCollectionRequestCore(item);
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        var item = viewModel.FilteredCollectionItems.First();
+        viewModel.LoadCollectionRequestCore(item);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
-            viewModel.RequestEditor.RequestHeaders.Should().ContainSingle(h =>
-                h.Name == "X-Tenant" && !h.IsEnabled);
+        viewModel.RequestEditor.RequestHeaders.Should().ContainSingle(h =>
+            h.Name == "X-Tenant" && !h.IsEnabled);
 
-            var resolvedHeaders = viewModel.RequestEditor.GetResolvedHeaders();
-            resolvedHeaders.Should().ContainSingle(h =>
-                h.Name == "Authorization" && h.Value == "Bearer token-from-request");
-            resolvedHeaders.Should().NotContain(h => h.Name == "X-Tenant");
-
-            return true;
-        }, CancellationToken.None);
+        var resolvedHeaders = viewModel.RequestEditor.GetResolvedHeaders();
+        resolvedHeaders.Should().ContainSingle(h =>
+            h.Name == "Authorization" && h.Value == "Bearer token-from-request");
+        resolvedHeaders.Should().NotContain(h => h.Name == "X-Tenant");
     }
 
     // ── Demo server banner visibility ────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task LoadCollectionRequest_ShowsBanner_WhenDemoServerNotRunningAndUrlMatchesPort()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            await using var demoServer = new DemoServer();
-            var collectionRepo = new InMemoryCollectionRepository();
-            // Use a concrete URL so variable resolution is not required.
-            await collectionRepo.SaveAsync(
-                "Banner Test",
-                null,
-                $"http://localhost:{DemoServer.DefaultPort}",
-                [new CollectionRequest("Echo GET", "GET", "/echo", null)]);
 
-            var viewModel = CreateViewModel(
-                collectionRepository: collectionRepo,
-                demoServer: demoServer);
-            using var _ = viewModel;
+        await using var demoServer = new DemoServer();
+        var collectionRepo = new InMemoryCollectionRepository();
+        // Use a concrete URL so variable resolution is not required.
+        await collectionRepo.SaveAsync(
+            "Banner Test",
+            null,
+            $"http://localhost:{DemoServer.DefaultPort}",
+            [new CollectionRequest("Echo GET", "GET", "/echo", null)]);
 
-            await viewModel.InitializeAsync();
+        var viewModel = CreateViewModel(
+            collectionRepository: collectionRepo,
+            demoServer: demoServer);
+        using var _ = viewModel;
 
-            var bannerCollection = viewModel.Collections.First(c => c.Name == "Banner Test");
-            viewModel.SelectedCollection = null;
-            viewModel.SelectedCollection = bannerCollection;
+        await viewModel.InitializeAsync();
 
-            var echoItem = viewModel.FilteredCollectionItems.First(i => i.Method == "GET");
-            viewModel.LoadCollectionRequestCore(echoItem);
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        var bannerCollection = viewModel.Collections.First(c => c.Name == "Banner Test");
+        viewModel.SelectedCollection = null;
+        viewModel.SelectedCollection = bannerCollection;
 
-            viewModel.IsDemoServerBannerVisible.Should().BeTrue();
+        var echoItem = viewModel.FilteredCollectionItems.First(i => i.Method == "GET");
+        viewModel.LoadCollectionRequestCore(echoItem);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
-            return true;
-        }, CancellationToken.None);
+        viewModel.IsDemoServerBannerVisible.Should().BeTrue();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task LoadCollectionRequest_HidesBanner_WhenDemoServerIsRunning()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            await using var demoServer = new DemoServer();
-            await demoServer.StartAsync(DemoServer.DefaultPort);
 
-            var collectionRepo = new InMemoryCollectionRepository();
-            await collectionRepo.SaveAsync(
-                "Banner Test",
-                null,
-                $"http://localhost:{DemoServer.DefaultPort}",
-                [new CollectionRequest("Echo GET", "GET", "/echo", null)]);
+        await using var demoServer = new DemoServer();
+        await demoServer.StartAsync(DemoServer.DefaultPort);
 
-            var viewModel = CreateViewModel(
-                collectionRepository: collectionRepo,
-                demoServer: demoServer);
-            using var _ = viewModel;
+        var collectionRepo = new InMemoryCollectionRepository();
+        await collectionRepo.SaveAsync(
+            "Banner Test",
+            null,
+            $"http://localhost:{DemoServer.DefaultPort}",
+            [new CollectionRequest("Echo GET", "GET", "/echo", null)]);
 
-            await viewModel.InitializeAsync();
+        var viewModel = CreateViewModel(
+            collectionRepository: collectionRepo,
+            demoServer: demoServer);
+        using var _ = viewModel;
 
-            var bannerCollection = viewModel.Collections.First(c => c.Name == "Banner Test");
-            viewModel.SelectedCollection = null;
-            viewModel.SelectedCollection = bannerCollection;
+        await viewModel.InitializeAsync();
 
-            var echoItem = viewModel.FilteredCollectionItems.First(i => i.Method == "GET");
-            viewModel.LoadCollectionRequestCore(echoItem);
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        var bannerCollection = viewModel.Collections.First(c => c.Name == "Banner Test");
+        viewModel.SelectedCollection = null;
+        viewModel.SelectedCollection = bannerCollection;
 
-            viewModel.IsDemoServerBannerVisible.Should().BeFalse();
+        var echoItem = viewModel.FilteredCollectionItems.First(i => i.Method == "GET");
+        viewModel.LoadCollectionRequestCore(echoItem);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
-            return true;
-        }, CancellationToken.None);
+        viewModel.IsDemoServerBannerVisible.Should().BeFalse();
     }
 
     // ── Demo data seeding ────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task InitializeAsync_SeedsLocalhostDemoCollection_OnFirstRun()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var collectionRepo = new InMemoryCollectionRepository();
-            var environmentRepo = new InMemoryEnvironmentRepository();
-            var viewModel = CreateViewModel(
-                collectionRepository: collectionRepo,
-                environmentRepository: environmentRepo);
-            using var _ = viewModel;
 
-            await viewModel.InitializeAsync();
+        var collectionRepo = new InMemoryCollectionRepository();
+        var environmentRepo = new InMemoryEnvironmentRepository();
+        var viewModel = CreateViewModel(
+            collectionRepository: collectionRepo,
+            environmentRepository: environmentRepo);
+        using var _ = viewModel;
 
-            viewModel.Collections.Should().Contain(c => c.Name == "Localhost Demo");
+        await viewModel.InitializeAsync();
 
-            return true;
-        }, CancellationToken.None);
+        viewModel.Collections.Should().Contain(c => c.Name == "Localhost Demo");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task InitializeAsync_SeedsDemoEnvironment_OnFirstRun()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var collectionRepo = new InMemoryCollectionRepository();
-            var environmentRepo = new InMemoryEnvironmentRepository();
-            var viewModel = CreateViewModel(
-                collectionRepository: collectionRepo,
-                environmentRepository: environmentRepo);
-            using var _ = viewModel;
 
-            await viewModel.InitializeAsync();
+        var collectionRepo = new InMemoryCollectionRepository();
+        var environmentRepo = new InMemoryEnvironmentRepository();
+        var viewModel = CreateViewModel(
+            collectionRepository: collectionRepo,
+            environmentRepository: environmentRepo);
+        using var _ = viewModel;
 
-            viewModel.Environments.Should().Contain(e => e.Name == "Demo (localhost)");
-            var demoEnv = viewModel.Environments.First(e => e.Name == "Demo (localhost)");
-            demoEnv.Variables.Should().Contain(v => v.Name == "baseUrl");
+        await viewModel.InitializeAsync();
 
-            return true;
-        }, CancellationToken.None);
+        viewModel.Environments.Should().Contain(e => e.Name == "Demo (localhost)");
+        var demoEnv = viewModel.Environments.First(e => e.Name == "Demo (localhost)");
+        demoEnv.Variables.Should().Contain(v => v.Name == "baseUrl");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task InitializeAsync_DoesNotDuplicateDemo_WhenCalledTwice()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var collectionRepo = new InMemoryCollectionRepository();
-            var environmentRepo = new InMemoryEnvironmentRepository();
-            var viewModel = CreateViewModel(
-                collectionRepository: collectionRepo,
-                environmentRepository: environmentRepo);
-            using var _ = viewModel;
 
-            await viewModel.InitializeAsync();
-            await viewModel.InitializeAsync();
+        var collectionRepo = new InMemoryCollectionRepository();
+        var environmentRepo = new InMemoryEnvironmentRepository();
+        var viewModel = CreateViewModel(
+            collectionRepository: collectionRepo,
+            environmentRepository: environmentRepo);
+        using var _ = viewModel;
 
-            viewModel.Collections.Count(c => c.Name == "Localhost Demo").Should().Be(1);
-            viewModel.Environments.Count(e => e.Name == "Demo (localhost)").Should().Be(1);
+        await viewModel.InitializeAsync();
+        await viewModel.InitializeAsync();
 
-            return true;
-        }, CancellationToken.None);
+        viewModel.Collections.Count(c => c.Name == "Localhost Demo").Should().Be(1);
+        viewModel.Environments.Count(e => e.Name == "Demo (localhost)").Should().Be(1);
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoCollection_ContainsEchoGetRequest()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var collectionRepo = new InMemoryCollectionRepository();
-            var viewModel = CreateViewModel(collectionRepository: collectionRepo);
-            using var _ = viewModel;
 
-            await viewModel.InitializeAsync();
+        var collectionRepo = new InMemoryCollectionRepository();
+        var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+        using var _ = viewModel;
 
-            var demoCollection = viewModel.Collections.First(c => c.Name == "Localhost Demo");
-            demoCollection.Requests.Should().Contain(r => r.Method == "GET" && r.Path == "/echo");
+        await viewModel.InitializeAsync();
 
-            return true;
-        }, CancellationToken.None);
+        var demoCollection = viewModel.Collections.First(c => c.Name == "Localhost Demo");
+        demoCollection.Requests.Should().Contain(r => r.Method == "GET" && r.Path == "/echo");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoCollection_DefaultStartSampleRequest_IsDocs()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var collectionRepo = new InMemoryCollectionRepository();
-            var viewModel = CreateViewModel(collectionRepository: collectionRepo);
-            using var _ = viewModel;
 
-            await viewModel.InitializeAsync();
+        var collectionRepo = new InMemoryCollectionRepository();
+        var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+        using var _ = viewModel;
 
-            var demoCollection = viewModel.Collections.First(c => c.Name == "Localhost Demo");
-            demoCollection.Requests[0].Method.Should().Be("GET");
-            demoCollection.Requests[0].Path.Should().Be("/docs.html");
+        await viewModel.InitializeAsync();
 
-            return true;
-        }, CancellationToken.None);
+        var demoCollection = viewModel.Collections.First(c => c.Name == "Localhost Demo");
+        demoCollection.Requests[0].Method.Should().Be("GET");
+        demoCollection.Requests[0].Path.Should().Be("/docs.html");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoCollection_ContainsWebSocketRequest()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var collectionRepo = new InMemoryCollectionRepository();
-            var viewModel = CreateViewModel(collectionRepository: collectionRepo);
-            using var _ = viewModel;
 
-            await viewModel.InitializeAsync();
+        var collectionRepo = new InMemoryCollectionRepository();
+        var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+        using var _ = viewModel;
 
-            var demoCollection = viewModel.Collections.First(c => c.Name == "Localhost Demo");
-            demoCollection.Requests.Should().Contain(r => r.Method == "WS" && r.Path == "/ws");
+        await viewModel.InitializeAsync();
 
-            return true;
-        }, CancellationToken.None);
+        var demoCollection = viewModel.Collections.First(c => c.Name == "Localhost Demo");
+        demoCollection.Requests.Should().Contain(r => r.Method == "WS" && r.Path == "/ws");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoCollection_ContainsSseRequest()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
 
-        await session.Dispatch(async () =>
-        {
-            var collectionRepo = new InMemoryCollectionRepository();
-            var viewModel = CreateViewModel(collectionRepository: collectionRepo);
-            using var _ = viewModel;
 
-            await viewModel.InitializeAsync();
+        var collectionRepo = new InMemoryCollectionRepository();
+        var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+        using var _ = viewModel;
 
-            var demoCollection = viewModel.Collections.First(c => c.Name == "Localhost Demo");
-            demoCollection.Requests.Should().Contain(r => r.Method == "SSE" && r.Path == "/sse");
+        await viewModel.InitializeAsync();
 
-            return true;
-        }, CancellationToken.None);
+        var demoCollection = viewModel.Collections.First(c => c.Name == "Localhost Demo");
+        demoCollection.Requests.Should().Contain(r => r.Method == "SSE" && r.Path == "/sse");
     }
 
     // ── HTTPS support ────────────────────────────────────────────────────────
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_IsRunning_AfterStartAsync_HttpsOnly()
     {
         await using var server = new DemoServer();
@@ -688,7 +605,7 @@ public class DemoServerTests
         server.IsHttpsEnabled.Should().BeTrue();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_IsRunning_AfterStartAsync_BothProtocols()
     {
         await using var server = new DemoServer();
@@ -700,7 +617,7 @@ public class DemoServerTests
         server.IsHttpsEnabled.Should().BeTrue();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_StartAsync_IsNoOp_WhenBothDisabled()
     {
         await using var server = new DemoServer();
@@ -710,7 +627,7 @@ public class DemoServerTests
         server.IsRunning.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_IsNotRunning_AfterStopAsync_WhenStartedHttps()
     {
         await using var server = new DemoServer();
@@ -723,13 +640,13 @@ public class DemoServerTests
         server.IsHttpsEnabled.Should().BeFalse();
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task DemoServer_HttpsEchoEndpoint_RespondsWith200_WhenCertValidationIgnored()
     {
         await using var server = new DemoServer();
         await server.StartAsync(enableHttp: false, enableHttps: true);
 
-        var handler = new System.Net.Http.HttpClientHandler
+        var handler = new HttpClientHandler
         {
             ServerCertificateCustomValidationCallback = (_, _, _, _) => true
         };
@@ -765,12 +682,6 @@ public class DemoServerTests
             demoServer: demoServer);
     }
 
-    private sealed class TestEntryPoint
-    {
-        public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<Desktop.App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
-            .WithInterFont()
-            .LogToTrace();
-    }
+
 }
+

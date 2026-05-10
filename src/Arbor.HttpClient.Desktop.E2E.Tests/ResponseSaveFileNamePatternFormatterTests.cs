@@ -4,7 +4,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
 public class ResponseSaveFileNamePatternFormatterTests
 {
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void TryFormat_WithSupportedTokens_ReturnsNormalizedFileName()
     {
         var timestamp = new DateTimeOffset(2026, 05, 09, 13, 45, 00, TimeSpan.FromHours(2));
@@ -23,7 +23,7 @@ public class ResponseSaveFileNamePatternFormatterTests
         fileName.Should().Be($"My_Collection-api_v1_users-Get_Users-{timestamp.ToLocalTime():yyyy-MM-dd HH.mm.ss}.json");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void TryFormat_WithTimestampUtcToken_FormatsUtcValue()
     {
         var timestamp = new DateTimeOffset(2026, 05, 09, 13, 45, 00, TimeSpan.FromHours(2));
@@ -42,7 +42,7 @@ public class ResponseSaveFileNamePatternFormatterTests
         fileName.Should().Be($"{timestamp.ToLocalTime():yyyyMMddHHmmss}-{timestamp.ToUniversalTime():yyyyMMddHHmmss}.txt");
     }
 
-    [Fact]
+    [AvaloniaFact(Timeout = 10_000)]
     public void TryValidatePattern_WithUnknownToken_ReturnsFalse()
     {
         var success = ResponseSaveFileNamePatternFormatter.TryValidatePattern(
@@ -53,3 +53,4 @@ public class ResponseSaveFileNamePatternFormatterTests
         error.Should().Contain("Unsupported token");
     }
 }
+

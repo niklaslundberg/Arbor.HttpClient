@@ -19,7 +19,7 @@ public class HttpRequestServiceTests
                 Content = new StringContent("hello", Encoding.UTF8, "text/plain")
             });
 
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository, new FakeTimeProvider(new DateTimeOffset(2026, 4, 16, 0, 0, 0, TimeSpan.Zero)));
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository, new FakeTimeProvider(new DateTimeOffset(2026, 4, 16, 0, 0, 0, TimeSpan.Zero)));
 
         var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null), TestContext.Current.CancellationToken);
 
@@ -35,7 +35,7 @@ public class HttpRequestServiceTests
     [Fact]
     public async Task SendAsync_ShouldRejectNonHttpUrls()
     {
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
 
         var action = () => service.SendAsync(new HttpRequestDraft("Invalid", "GET", "file:///etc/passwd", null));
 
@@ -56,7 +56,7 @@ public class HttpRequestServiceTests
             };
         });
 
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
         var headers = new[] { new RequestHeader("Content-Type", "application/json") };
         await service.SendAsync(new HttpRequestDraft("Test", "POST", "http://localhost:5000", "{}", headers), TestContext.Current.CancellationToken);
@@ -79,7 +79,7 @@ public class HttpRequestServiceTests
             };
         });
 
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
         var headers = new[] { new RequestHeader("Content-Type", "application/xml") };
         var response = await service.SendAsync(new HttpRequestDraft("Test", "POST", "http://localhost:5000", "<root/>", headers), TestContext.Current.CancellationToken);
@@ -101,7 +101,7 @@ public class HttpRequestServiceTests
             };
         });
 
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
         var headers = new[] { new RequestHeader("X-Api-Key", "secret") };
         await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null, headers), TestContext.Current.CancellationToken);
@@ -124,7 +124,7 @@ public class HttpRequestServiceTests
             };
         });
 
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
         var headers = new[] { new RequestHeader("X-Disabled", "value", IsEnabled: false) };
         await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null, headers), TestContext.Current.CancellationToken);
@@ -147,12 +147,12 @@ public class HttpRequestServiceTests
             };
         });
 
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
-        await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null, HttpVersion: global::System.Net.HttpVersion.Version20), TestContext.Current.CancellationToken);
+        await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null, HttpVersion: HttpVersion.Version20), TestContext.Current.CancellationToken);
 
         capturedRequest.Should().NotBeNull();
-        capturedRequest!.Version.Should().Be(global::System.Net.HttpVersion.Version20);
+        capturedRequest!.Version.Should().Be(HttpVersion.Version20);
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public class HttpRequestServiceTests
     {
         var repository = new InMemoryRequestHistoryRepository();
         var fallbackHandler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("Fallback client should not be used"));
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(fallbackHandler), repository);
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(fallbackHandler), repository);
 
         var factoryHandler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
@@ -169,7 +169,7 @@ public class HttpRequestServiceTests
                 Content = new StringContent("from-factory")
             });
 
-        service.SetHttpClientFactory(() => new global::System.Net.Http.HttpClient(factoryHandler));
+        service.SetHttpClientFactory(() => new System.Net.Http.HttpClient(factoryHandler));
 
         var response = await service.SendAsync(new HttpRequestDraft("Factory", "GET", "http://localhost:5000", null), TestContext.Current.CancellationToken);
 
@@ -182,7 +182,7 @@ public class HttpRequestServiceTests
     {
         var repository = new InMemoryRequestHistoryRepository();
         var fallbackHandler = new StubHttpMessageHandler(_ => throw new InvalidOperationException("Fallback client should not be used"));
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(fallbackHandler), repository);
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(fallbackHandler), repository);
 
         var followHandler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
@@ -199,7 +199,7 @@ public class HttpRequestServiceTests
             });
 
         service.SetHttpClientFactory(followRedirects =>
-            new global::System.Net.Http.HttpClient((followRedirects ?? true) ? followHandler : noFollowHandler));
+            new System.Net.Http.HttpClient((followRedirects ?? true) ? followHandler : noFollowHandler));
 
         var followResponse = await service.SendAsync(new HttpRequestDraft("Factory", "GET", "http://localhost:5000", null, FollowRedirects: true), TestContext.Current.CancellationToken);
         var noFollowResponse = await service.SendAsync(new HttpRequestDraft("Factory", "GET", "http://localhost:5000", null, FollowRedirects: false), TestContext.Current.CancellationToken);
@@ -217,7 +217,7 @@ public class HttpRequestServiceTests
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("never") };
         });
-        using var httpClient = new global::System.Net.Http.HttpClient(handler);
+        using var httpClient = new System.Net.Http.HttpClient(handler);
         var service = new HttpRequestService(httpClient, repository);
         service.SetDefaultRequestTimeout(TimeSpan.FromMilliseconds(100));
 
@@ -235,7 +235,7 @@ public class HttpRequestServiceTests
             await Task.Delay(TimeSpan.FromMilliseconds(300), cancellationToken);
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("completed") };
         });
-        using var httpClient = new global::System.Net.Http.HttpClient(handler);
+        using var httpClient = new System.Net.Http.HttpClient(handler);
         var service = new HttpRequestService(httpClient, repository);
         service.SetDefaultRequestTimeout(TimeSpan.FromMilliseconds(100));
 
@@ -253,7 +253,7 @@ public class HttpRequestServiceTests
             await Task.Delay(TimeSpan.FromMilliseconds(300), cancellationToken);
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("completed") };
         });
-        using var httpClient = new global::System.Net.Http.HttpClient(handler);
+        using var httpClient = new System.Net.Http.HttpClient(handler);
         var service = new HttpRequestService(httpClient, repository);
         service.SetDefaultRequestTimeout(TimeSpan.FromMilliseconds(100));
 
@@ -271,7 +271,7 @@ public class HttpRequestServiceTests
             await Task.Delay(TimeSpan.FromMilliseconds(300), cancellationToken);
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("completed") };
         });
-        using var httpClient = new global::System.Net.Http.HttpClient(handler)
+        using var httpClient = new System.Net.Http.HttpClient(handler)
         {
             Timeout = TimeSpan.FromMilliseconds(100)
         };
@@ -291,8 +291,8 @@ public class HttpRequestServiceTests
             await Task.Delay(TimeSpan.FromMilliseconds(300), cancellationToken);
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("completed") };
         });
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => throw new InvalidOperationException("Fallback client should not be used"))), repository);
-        service.SetHttpClientFactory((_, _) => new global::System.Net.Http.HttpClient(handler)
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => throw new InvalidOperationException("Fallback client should not be used"))), repository);
+        service.SetHttpClientFactory((_, _) => new System.Net.Http.HttpClient(handler)
         {
             Timeout = TimeSpan.FromMilliseconds(100)
         });
@@ -311,8 +311,8 @@ public class HttpRequestServiceTests
             await Task.Delay(TimeSpan.FromMilliseconds(300), cancellationToken);
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("completed") };
         });
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => throw new InvalidOperationException("Fallback client should not be used"))), repository);
-        service.SetHttpClientFactory((_, _, _) => new global::System.Net.Http.HttpClient(handler)
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => throw new InvalidOperationException("Fallback client should not be used"))), repository);
+        service.SetHttpClientFactory((_, _, _) => new System.Net.Http.HttpClient(handler)
         {
             Timeout = TimeSpan.FromMilliseconds(100)
         });
@@ -325,7 +325,7 @@ public class HttpRequestServiceTests
     [Fact]
     public void SetDefaultRequestTimeout_ShouldThrow_WhenTimeoutIsZero()
     {
-        using var client = new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        using var client = new System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
         var service = new HttpRequestService(client, new InMemoryRequestHistoryRepository());
 
         var action = () => service.SetDefaultRequestTimeout(TimeSpan.Zero);
@@ -336,7 +336,7 @@ public class HttpRequestServiceTests
     [Fact]
     public void SetDefaultRequestTimeout_ShouldThrow_WhenTimeoutIsNegative()
     {
-        using var client = new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        using var client = new System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
         var service = new HttpRequestService(client, new InMemoryRequestHistoryRepository());
 
         var action = () => service.SetDefaultRequestTimeout(TimeSpan.FromSeconds(-1));
@@ -350,11 +350,11 @@ public class HttpRequestServiceTests
         using var handler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Version = global::System.Net.HttpVersion.Version20,
+                Version = HttpVersion.Version20,
                 ReasonPhrase = "OK",
                 Content = new StringContent("diagnostics")
             });
-        using var httpClient = new global::System.Net.Http.HttpClient(handler);
+        using var httpClient = new System.Net.Http.HttpClient(handler);
         var service = new HttpRequestService(httpClient, new InMemoryRequestHistoryRepository());
         HttpRequestDiagnostics? diagnostics = null;
         service.SetHttpDiagnosticsObserver(entry => diagnostics = entry);
@@ -381,7 +381,7 @@ public class HttpRequestServiceTests
                 ReasonPhrase = "OK",
                 Content = new StringContent("test")
             });
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
         HttpRequestDiagnostics? diagnostics = null;
         service.SetHttpDiagnosticsObserver(entry => diagnostics = entry);
         service.SetHttpDiagnosticsEnabled(false);
@@ -394,7 +394,7 @@ public class HttpRequestServiceTests
     [Fact]
     public async Task SendAsync_ShouldRejectEmptyMethod()
     {
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
 
         var action = () => service.SendAsync(new HttpRequestDraft("Test", "", "http://localhost:5000", null));
 
@@ -404,7 +404,7 @@ public class HttpRequestServiceTests
     [Fact]
     public async Task SendAsync_ShouldRejectNullMethod()
     {
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
 
         var action = () => service.SendAsync(new HttpRequestDraft("Test", null!, "http://localhost:5000", null));
 
@@ -425,7 +425,7 @@ public class HttpRequestServiceTests
             return response;
         });
 
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
         var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null), TestContext.Current.CancellationToken);
 
@@ -446,7 +446,7 @@ public class HttpRequestServiceTests
             return response;
         });
 
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
         var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null), TestContext.Current.CancellationToken);
 
@@ -467,7 +467,7 @@ public class HttpRequestServiceTests
             };
         });
 
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
         var headers = new[] { new RequestHeader("", "value") };
         await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null, headers), TestContext.Current.CancellationToken);
@@ -490,7 +490,7 @@ public class HttpRequestServiceTests
             return response;
         });
 
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(handler), new InMemoryRequestHistoryRepository());
 
         var response = await service.SendAsync(new HttpRequestDraft("Test", "GET", "http://localhost:5000", null), TestContext.Current.CancellationToken);
 
@@ -500,9 +500,9 @@ public class HttpRequestServiceTests
     [Fact]
     public void SetHttpClientFactory_ShouldThrowOnNull()
     {
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
 
-        var action = () => service.SetHttpClientFactory((Func<global::System.Net.Http.HttpClient>)null!);
+        var action = () => service.SetHttpClientFactory((Func<System.Net.Http.HttpClient>)null!);
 
         action.Should().Throw<ArgumentNullException>();
     }
@@ -510,9 +510,9 @@ public class HttpRequestServiceTests
     [Fact]
     public void SetHttpClientFactoryWithRedirectOverride_ShouldThrowOnNull()
     {
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
 
-        var action = () => service.SetHttpClientFactory((Func<bool?, global::System.Net.Http.HttpClient>)null!);
+        var action = () => service.SetHttpClientFactory((Func<bool?, System.Net.Http.HttpClient>)null!);
 
         action.Should().Throw<ArgumentNullException>();
     }
@@ -520,9 +520,9 @@ public class HttpRequestServiceTests
     [Fact]
     public void SetHttpClientFactoryWithTlsOverride_ShouldThrowOnNull()
     {
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
 
-        var action = () => service.SetHttpClientFactory((Func<bool?, bool?, string?, global::System.Net.Http.HttpClient>)null!);
+        var action = () => service.SetHttpClientFactory((Func<bool?, bool?, string?, System.Net.Http.HttpClient>)null!);
 
         action.Should().Throw<ArgumentNullException>();
     }
@@ -530,7 +530,7 @@ public class HttpRequestServiceTests
     [Fact]
     public void SetHttpDiagnosticsObserver_ShouldThrowOnNull()
     {
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryRequestHistoryRepository());
 
         var action = () => service.SetHttpDiagnosticsObserver(null!);
 
@@ -548,7 +548,7 @@ public class HttpRequestServiceTests
                 Content = new StringContent("test")
             });
 
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
 
         await service.SendAsync(new HttpRequestDraft("My Custom Request", "GET", "http://localhost:5000/path", null), TestContext.Current.CancellationToken);
 
@@ -567,7 +567,7 @@ public class HttpRequestServiceTests
                 Content = new StringContent("test")
             });
 
-        var service = new HttpRequestService(new global::System.Net.Http.HttpClient(handler), repository);
+        var service = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
 
         await service.SendAsync(new HttpRequestDraft("", "GET", "http://localhost:5000/path", null), TestContext.Current.CancellationToken);
 
@@ -584,7 +584,7 @@ public class HttpRequestServiceTests
                 ReasonPhrase = "OK",
                 Content = new StringContent("ok")
             });
-        using var httpClient = new global::System.Net.Http.HttpClient(handler);
+        using var httpClient = new System.Net.Http.HttpClient(handler);
         var service = new HttpRequestService(httpClient, new InMemoryRequestHistoryRepository());
         HttpRequestDiagnostics? diagnostics = null;
         service.SetHttpDiagnosticsObserver(d => diagnostics = d);
@@ -592,9 +592,9 @@ public class HttpRequestServiceTests
 
         // Start a TcpListener on an ephemeral port so TCP connect succeeds but
         // TLS handshake fails deterministically, exercising ProbeTlsAsync's catch block.
-        using var listener = new global::System.Net.Sockets.TcpListener(global::System.Net.IPAddress.Loopback, 0);
+        using var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
         listener.Start();
-        var port = ((global::System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
 
         await service.SendAsync(new HttpRequestDraft("TLSTest", "GET", $"https://localhost:{port}/test", null), TestContext.Current.CancellationToken);
@@ -612,7 +612,7 @@ public class HttpRequestServiceTests
                 ReasonPhrase = "OK",
                 Content = new StringContent("ok")
             });
-        using var httpClient = new global::System.Net.Http.HttpClient(handler);
+        using var httpClient = new System.Net.Http.HttpClient(handler);
         var service = new HttpRequestService(httpClient, new InMemoryRequestHistoryRepository());
         HttpRequestDiagnostics? diagnostics = null;
         service.SetHttpDiagnosticsObserver(d => diagnostics = d);
@@ -634,7 +634,7 @@ public class HttpRequestServiceTests
                 ReasonPhrase = "OK",
                 Content = new StringContent("ok")
             });
-        using var httpClient = new global::System.Net.Http.HttpClient(handler);
+        using var httpClient = new System.Net.Http.HttpClient(handler);
         var service = new HttpRequestService(httpClient, new InMemoryRequestHistoryRepository());
         HttpRequestDiagnostics? diagnostics = null;
         service.SetHttpDiagnosticsObserver(d => diagnostics = d);

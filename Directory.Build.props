@@ -7,5 +7,8 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <UseArtifactsOutput>true</UseArtifactsOutput>
     <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
+    <CodeAnalysisTreatWarningsAsErrors Condition="'$(Configuration)' == 'Release'">false</CodeAnalysisTreatWarningsAsErrors>
+    <AnalysisLevel Condition="'$(Configuration)' == 'Release'">latest-Recommended</AnalysisLevel>
+    <AnalysisMode Condition="'$(Configuration)' == 'Release'">All</AnalysisMode>
   </PropertyGroup>
 </Project>

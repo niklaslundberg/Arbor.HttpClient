@@ -86,7 +86,7 @@ public class AccessibilityContrastTests
 
     // ─── Dark theme ──────────────────────────────────────────────────────────
 
-    [Theory]
+    [AvaloniaTheory(Timeout = 10_000)]
     [InlineData(DarkMethodGet, DarkSurface, "GET / dark surface")]
     [InlineData(DarkMethodGet, DarkPanel, "GET / dark panel")]
     [InlineData(DarkMethodPost, DarkSurface, "POST / dark surface")]
@@ -135,7 +135,7 @@ public class AccessibilityContrastTests
 
     // ─── Light theme ─────────────────────────────────────────────────────────
 
-    [Theory]
+    [AvaloniaTheory(Timeout = 10_000)]
     [InlineData(LightMethodGet, LightSurface, "GET / light surface")]
     [InlineData(LightMethodGet, LightPanel, "GET / light panel")]
     [InlineData(LightMethodPost, LightSurface, "POST / light surface")]
@@ -204,3 +204,4 @@ public class AccessibilityContrastTests
     private static double Linearize(double c) =>
         c <= 0.04045 ? c / 12.92 : Math.Pow((c + 0.055) / 1.055, 2.4);
 }
+

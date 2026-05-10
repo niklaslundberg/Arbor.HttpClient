@@ -1,9 +1,6 @@
 using System;
 using Arbor.HttpClient.Desktop.Features.Variables;
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Headless;
-using Avalonia.Skia;
 using AvaloniaEdit;
 using AvaloniaEdit.Document;
 
@@ -30,52 +27,35 @@ public class VariableCompletionDataTests
     /// post-move value, causing caret placement at S + 2 × T which exceeds the document
     /// length and throws <see cref="ArgumentOutOfRangeException"/>.
     /// </summary>
-    [Fact]
-    public async Task Complete_EmptyPrefixWithAnchorSegment_CaretPlacedAfterInsertionWithoutException()
+    [AvaloniaFact(Timeout = 10_000)]
+    public Task Complete_EmptyPrefixWithAnchorSegment_CaretPlacedAfterInsertionWithoutException()
     {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(TestEntryPoint));
+        var editor = new TextEditor();
+        var window = new Window { Width = 400, Height = 100, Content = editor };
+        window.Show();
 
-        await HeadlessTestTimeout.DispatchAsync(session, () =>
-        {
-            var editor = new TextEditor();
-            var window = new Window { Width = 400, Height = 100, Content = editor };
-            window.Show();
+        editor.Text = "{{";
+        editor.CaretOffset = 2;
 
-            editor.Text = "{{";
-            editor.CaretOffset = 2;
+        // Create the AnchorSegment exactly as CompletionWindow.CompletionList_InsertionRequested
+        // does: AnchorSegment(document, StartOffset, EndOffset - StartOffset).
+        // With an empty prefix, StartOffset == EndOffset == 2 → Length = 0.
+        // The start anchor's MovementType is AfterInsertion, so after a pure insertion
+        // it moves to 2 + insertionLength — which is the source of the original bug.
+        var document = editor.Document;
+        var segment = new AnchorSegment(document, 2, 0);
 
-            // Create the AnchorSegment exactly as CompletionWindow.CompletionList_InsertionRequested
-            // does: AnchorSegment(document, StartOffset, EndOffset - StartOffset).
-            // With an empty prefix, StartOffset == EndOffset == 2 → Length = 0.
-            // The start anchor's MovementType is AfterInsertion, so after a pure insertion
-            // it moves to 2 + insertionLength — which is the source of the original bug.
-            var document = editor.Document;
-            var segment = new AnchorSegment(document, 2, 0);
+        var completionData = new VariableCompletionData("host");
 
-            var completionData = new VariableCompletionData("host");
+        // Act — must not throw ArgumentOutOfRangeException
+        var act = () => completionData.Complete(editor.TextArea, segment, EventArgs.Empty);
+        act.Should().NotThrow();
 
-            // Act — must not throw ArgumentOutOfRangeException
-            var act = () => completionData.Complete(editor.TextArea, segment, EventArgs.Empty);
-            act.Should().NotThrow();
+        // Assert: text is "{{host}}" and caret is at the end of the inserted text
+        editor.Text.Should().Be("{{host}}");
+        editor.CaretOffset.Should().Be("{{host}}".Length);
 
-            // Assert: text is "{{host}}" and caret is at the end of the inserted text
-            editor.Text.Should().Be("{{host}}");
-            editor.CaretOffset.Should().Be("{{host}}".Length);
-
-            window.Close();
-            return true;
-        });
-    }
-
-    private sealed class TestEntryPoint
-    {
-        public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-            .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions
-            {
-                UseHeadlessDrawing = false
-            })
-            .WithInterFont()
-            .LogToTrace();
+        window.Close();
+        return Task.CompletedTask;
     }
 }

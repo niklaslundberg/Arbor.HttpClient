@@ -29,7 +29,7 @@ public partial class RequestView : UserControl
     private MainWindowViewModel? _appVm;
     private RequestEditorViewModel? _requestEditorVm;
     private GraphQlViewModel? _graphQlVm;
-    private Scripting.ScriptViewModel? _scriptVm;
+    private ScriptViewModel? _scriptVm;
     private RegistryOptions? _registryOptions;
     private TextMate.Installation? _requestTextMate;
     private EventHandler<TextMate.Installation>? _appliedThemeHandler;
@@ -52,7 +52,7 @@ public partial class RequestView : UserControl
 
     private MainWindowViewModel? GetAppVm() => (DataContext as RequestViewModel)?.App;
 
-    private void OnDataContextChanged(object? sender, System.EventArgs e)
+    private void OnDataContextChanged(object? sender, EventArgs e)
     {
         // Detach all previous wiring before re-wiring
         if (_appVm is not null)
@@ -259,7 +259,7 @@ public partial class RequestView : UserControl
         }
     }
 
-    private void OnGraphQlQueryEditorTextChanged(object? sender, System.EventArgs e)
+    private void OnGraphQlQueryEditorTextChanged(object? sender, EventArgs e)
     {
         if (_graphQlVm is not null && _graphQlQueryEditor is not null
             && _graphQlVm.Query != _graphQlQueryEditor.Text)
@@ -268,7 +268,7 @@ public partial class RequestView : UserControl
         }
     }
 
-    private void OnGraphQlVariablesEditorTextChanged(object? sender, System.EventArgs e)
+    private void OnGraphQlVariablesEditorTextChanged(object? sender, EventArgs e)
     {
         if (_graphQlVm is not null && _graphQlVariablesEditor is not null
             && _graphQlVm.VariablesJson != _graphQlVariablesEditor.Text)
@@ -304,7 +304,7 @@ public partial class RequestView : UserControl
         }
     }
 
-    private void OnRequestEditorTextChanged(object? sender, System.EventArgs e)
+    private void OnRequestEditorTextChanged(object? sender, EventArgs e)
     {
         if (_requestEditorVm is not null && _requestBodyEditor is not null
             && _requestEditorVm.RequestBody != _requestBodyEditor.Text)

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
-    <OutputType>Exe</OutputType>
+    <OutputType Condition="'$(NCrunch)' != '1'">Exe</OutputType>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
 
@@ -12,12 +12,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <!-- Meziantou's parallel framework swaps out xunit.v3's ITestFramework, which conflicts
-         with NCrunch's planned-execution model and triggers the
-         "test was not executed during a planned execution run" warning.
-         NCrunch sets the NCrunch MSBuild property to 1 during its builds, so exclude
-         the package in that case and rely on xunit.v3's built-in parallelism. -->
-    <PackageReference Include="Meziantou.Xunit.v3.ParallelTestFramework" Condition="'$(NCrunch)' != '1'" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 

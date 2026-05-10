@@ -1,9 +1,6 @@
-using System;
 using System.Collections.Concurrent;
-using System.IO;
 using System.Net.Security;
 using System.Security.Authentication;
-using System.Threading.Tasks;
 using Arbor.HttpClient.Desktop.Demo;
 using Arbor.HttpClient.Desktop.Features.Diagnostics;
 using Arbor.HttpClient.Desktop.Features.Layout;
@@ -34,13 +31,13 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var dbPath = Path.Combine(
+            var dbPath = Path.Join(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "Arbor.HttpClient",
                 "requests.db");
 
             var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
-            var optionsPath = Path.Combine(
+            var optionsPath = Path.Join(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "Arbor.HttpClient",
                 "options.json");
@@ -101,7 +98,7 @@ public partial class App : Application
 
             // Services
             var sharedCookieContainer = new System.Net.CookieContainer();
-            var httpClient = new global::System.Net.Http.HttpClient();
+            var httpClient = new System.Net.Http.HttpClient();
             var httpRequestService = new HttpRequestService(httpClient, historyRepository);
             httpRequestService.SetHttpDiagnosticsObserver(diagnostics =>
                 diagnosticsLogger.Information(
@@ -118,9 +115,9 @@ public partial class App : Application
                     diagnostics.ResponseBodyMilliseconds,
                     diagnostics.TotalMilliseconds));
             httpRequestService.SetHttpDiagnosticsEnabled(currentOptions.Http.EnableHttpDiagnostics);
-            var httpClientsByRequestOptions = new ConcurrentDictionary<(bool FollowRedirects, bool IgnoreCert, string TlsVersion), global::System.Net.Http.HttpClient>();
-            var retiredHttpClients = new List<global::System.Net.Http.HttpClient>();
-            httpRequestService.SetHttpClientFactory((bool? followRedirectsOverride, bool? ignoreCertValidation, string? tlsVersionOverride) =>
+            var httpClientsByRequestOptions = new ConcurrentDictionary<(bool FollowRedirects, bool IgnoreCert, string TlsVersion), System.Net.Http.HttpClient>();
+            var retiredHttpClients = new List<System.Net.Http.HttpClient>();
+            httpRequestService.SetHttpClientFactory((followRedirectsOverride, ignoreCertValidation, tlsVersionOverride) =>
             {
                 var effectiveTlsVersion = string.IsNullOrWhiteSpace(tlsVersionOverride)
                     ? currentOptions.Http.TlsVersion
@@ -209,7 +206,7 @@ public partial class App : Application
                         y = Math.Clamp(y, totalTop, totalBottom - minVisiblePx);
                     }
 
-                    window.Position = new Avalonia.PixelPoint(x, y);
+                    window.Position = new PixelPoint(x, y);
                 }
             }
 
@@ -245,15 +242,15 @@ public partial class App : Application
                 }
                 catch (OperationCanceledException exception)
                 {
-                    exceptionCollector?.Add(exception);
+                    exceptionCollector.Add(exception);
                 }
                 catch (ObjectDisposedException exception)
                 {
-                    exceptionCollector?.Add(exception);
+                    exceptionCollector.Add(exception);
                 }
                 catch (InvalidOperationException exception)
                 {
-                    exceptionCollector?.Add(exception);
+                    exceptionCollector.Add(exception);
                 }
                 catch (IOException exception)
                 {
@@ -261,7 +258,7 @@ public partial class App : Application
                 }
                 finally
                 {
-                    Log.CloseAndFlush();
+                    await Log.CloseAndFlushAsync();
                 }
             }
             desktop.MainWindow = window;
@@ -293,7 +290,7 @@ public partial class App : Application
         }
     }
 
-    private static global::System.Net.Http.HttpClient CreateHttpClient(HttpOptions options, bool followRedirects, bool ignoreCertificateValidation, System.Net.CookieContainer? cookieContainer = null, string? tlsVersionOverride = null)
+    private static System.Net.Http.HttpClient CreateHttpClient(HttpOptions options, bool followRedirects, bool ignoreCertificateValidation, System.Net.CookieContainer? cookieContainer = null, string? tlsVersionOverride = null)
     {
         var handler = new SocketsHttpHandler
         {
@@ -306,8 +303,10 @@ public partial class App : Application
                     // operating systems. They are exposed here exclusively for testing HTTP clients
                     // against legacy servers that cannot be upgraded. Never use these in production.
 #pragma warning disable SYSLIB0039
+#pragma warning disable SYSLIB0039
                     "Tls10" => SslProtocols.Tls,
                     "Tls11" => SslProtocols.Tls11,
+#pragma warning restore SYSLIB0039
 #pragma warning restore SYSLIB0039
                     "Tls12" => SslProtocols.Tls12,
                     "Tls13" => SslProtocols.Tls13,
@@ -328,6 +327,6 @@ public partial class App : Application
             handler.CookieContainer = cookies;
         }
 
-        return new global::System.Net.Http.HttpClient(handler, disposeHandler: true);
+        return new System.Net.Http.HttpClient(handler, disposeHandler: true);
     }
 }
