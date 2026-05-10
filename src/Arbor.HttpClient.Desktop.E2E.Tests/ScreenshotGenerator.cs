@@ -778,8 +778,8 @@ public class ScreenshotGenerator
             _initial = initial ?? [];
 
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<int> SaveAsync(string name, string? sourcePath, string? baseUrl, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken = default) => Task.FromResult(1);
-        public Task UpdateAsync(int collectionId, string name, string? sourcePath, string? baseUrl, IReadOnlyList<CollectionRequest> requests, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> SaveAsync(string name, string? sourcePath, string? baseUrl, IReadOnlyList<CollectionRequest> requests, IReadOnlyList<RequestHeader>? headers = null, CancellationToken cancellationToken = default) => Task.FromResult(1);
+        public Task UpdateAsync(int collectionId, string name, string? sourcePath, string? baseUrl, IReadOnlyList<CollectionRequest> requests, IReadOnlyList<RequestHeader>? headers = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<IReadOnlyList<Collection>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult(_initial);
         public Task DeleteAsync(int collectionId, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }

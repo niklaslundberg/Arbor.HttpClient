@@ -1442,9 +1442,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _requestEditor.RequestName = item.Name;
             _requestEditor.RequestNotes = item.Notes ?? string.Empty;
 
-            // Populate headers from the collection request (header parameters + auth from import)
+            // Populate headers from collection defaults, then apply request-level overrides.
             _requestEditor.RequestHeaders.Clear();
-            if (item.Headers is { } importedHeaders)
+            var importedHeaders = MergeCollectionAndRequestHeaders(SelectedCollection?.Headers, item.Headers);
+            if (importedHeaders is { })
             {
                 foreach (var h in importedHeaders)
                 {
@@ -1492,6 +1493,40 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             ActiveRequestTab?.SetCollectionRequestSource(collectionId, item.Method, item.Path, item.Name);
         } // end BulkUpdateHandle — fires exactly one RefreshRequestDerivedViews
+    }
+
+    private static IReadOnlyList<RequestHeader>? MergeCollectionAndRequestHeaders(
+        IReadOnlyList<RequestHeader>? collectionHeaders,
+        IReadOnlyList<RequestHeader>? requestHeaders)
+    {
+        var merged = new List<RequestHeader>();
+        var headerIndexes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        if (collectionHeaders is { })
+        {
+            foreach (var header in collectionHeaders)
+            {
+                headerIndexes[header.Name] = merged.Count;
+                merged.Add(header);
+            }
+        }
+
+        if (requestHeaders is { })
+        {
+            foreach (var requestHeader in requestHeaders)
+            {
+                if (headerIndexes.TryGetValue(requestHeader.Name, out var index))
+                {
+                    merged[index] = requestHeader;
+                }
+                else
+                {
+                    headerIndexes[requestHeader.Name] = merged.Count;
+                    merged.Add(requestHeader);
+                }
+            }
+        }
+
+        return merged.Count > 0 ? merged : null;
     }
 
     /// <summary>Starts the embedded demo server on <see cref="DemoServerPort"/> and/or <see cref="DemoServerHttpsPort"/>.</summary>
@@ -1576,7 +1611,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         ErrorMessage = string.Empty;
-        var id = await _collectionRepository.SaveAsync(name, null, null, [], cancellationToken);
+        var id = await _collectionRepository.SaveAsync(name, null, null, [], cancellationToken: cancellationToken);
         IsNewCollectionFormVisible = false;
         NewCollectionName = string.Empty;
 
@@ -1626,7 +1661,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         ErrorMessage = string.Empty;
-        await _collectionRepository.UpdateAsync(collection.Id, newName, collection.SourcePath, collection.BaseUrl, collection.Requests, cancellationToken);
+        await _collectionRepository.UpdateAsync(collection.Id, newName, collection.SourcePath, collection.BaseUrl, collection.Requests, collection.Headers, cancellationToken);
         IsRenameCollectionFormVisible = false;
         RenameCollectionName = string.Empty;
         _debugLogger.Information("Renamed collection {OldName} to {NewName}", collection.Name, newName);
@@ -1682,7 +1717,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             collection.Name,
             collection.SourcePath,
             collection.BaseUrl,
-            updatedRequests);
+            updatedRequests,
+            collection.Headers);
 
         await LoadCollectionsAsync();
         SelectedCollection = Collections.FirstOrDefault(c => c.Id == collection.Id);
@@ -1785,7 +1821,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 collection.Name,
                 collection.SourcePath,
                 collection.BaseUrl,
-                collection.Requests);
+                collection.Requests,
+                collection.Headers);
 
             await LoadCollectionsAsync();
             SelectedCollection = Collections.FirstOrDefault(c => c.Id == id);
@@ -2302,7 +2339,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 null,
                 "{{baseUrl}}",
                 demoRequests,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
             // Reload collections and select the newly seeded demo collection.
             await LoadCollectionsAsync(cancellationToken).ConfigureAwait(false);
