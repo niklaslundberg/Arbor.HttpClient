@@ -564,7 +564,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: e2e-test-results-html
-          path: TestResults/e2e/html/*.html
+          path: artifacts/test-results/e2e/html/*.html
           retention-days: 14
           if-no-files-found: error
 
