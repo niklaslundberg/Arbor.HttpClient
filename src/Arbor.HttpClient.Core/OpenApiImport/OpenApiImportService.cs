@@ -14,8 +14,28 @@ public sealed class OpenApiImportService
 
     public Collection Import(Stream stream, string? sourcePath = null)
     {
+        if (stream.CanSeek)
+        {
+            stream.Seek(0, SeekOrigin.Begin);
+        }
+
+        using var sourceReader = new StreamReader(
+            stream,
+            System.Text.Encoding.UTF8,
+            detectEncodingFromByteOrderMarks: true,
+            leaveOpen: true);
+        var sourceText = sourceReader.ReadToEnd();
+
+        if (stream.CanSeek)
+        {
+            stream.Seek(0, SeekOrigin.Begin);
+        }
+
+        var explicitlyEmptySecurityOperations = GetExplicitlyEmptySecurityOperations(sourceText);
+
         var reader = new OpenApiStreamReader();
-        var document = reader.Read(stream, out var diagnostic);
+        using var sourceTextStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(sourceText));
+        var document = reader.Read(sourceTextStream, out var diagnostic);
 
         if (document is null)
         {
@@ -29,6 +49,7 @@ public sealed class OpenApiImportService
 
         var name = document.Info?.Title ?? Path.GetFileNameWithoutExtension(sourcePath) ?? "Imported Collection";
         var baseUrl = document.Servers?.Count > 0 ? document.Servers[0].Url : null;
+        var collectionHeaders = BuildSecurityHeaders(document, document.SecurityRequirements ?? []);
 
         var requests = new List<CollectionRequest>();
 
@@ -38,6 +59,7 @@ public sealed class OpenApiImportService
             {
                 var method = operation.Key.ToString().ToUpperInvariant();
                 var operationValue = operation.Value;
+                var operationKey = CreateOperationKey(path.Key, method);
 
                 var requestName = !string.IsNullOrWhiteSpace(operationValue.OperationId)
                     ? operationValue.OperationId
@@ -59,8 +81,12 @@ public sealed class OpenApiImportService
                     resolvedPath += "?" + queryString;
                 }
 
-                // Collect header parameters and security (auth) headers
-                var headers = BuildHeaders(document, operationValue, effectiveParams);
+                var headers = BuildHeaders(
+                    document,
+                    operationValue,
+                    effectiveParams,
+                    collectionHeaders,
+                    explicitlyEmptySecurityOperations.Contains(operationKey));
 
                 // Extract first example body and matching content type
                 var (body, contentType) = ExtractBodyAndContentType(operationValue);
@@ -80,7 +106,7 @@ public sealed class OpenApiImportService
             }
         }
 
-        return new Collection(0, name, sourcePath, baseUrl, requests);
+        return new Collection(0, name, sourcePath, baseUrl, requests, collectionHeaders.Count > 0 ? collectionHeaders : null);
     }
 
     /// <summary>
@@ -118,7 +144,9 @@ public sealed class OpenApiImportService
     private static List<RequestHeader> BuildHeaders(
         OpenApiDocument document,
         OpenApiOperation operation,
-        IReadOnlyList<OpenApiParameter> effectiveParams)
+        IReadOnlyList<OpenApiParameter> effectiveParams,
+        IReadOnlyList<RequestHeader> collectionSecurityHeaders,
+        bool operationSecurityIsExplicitlyEmpty)
     {
         var headers = new List<RequestHeader>();
 
@@ -128,26 +156,105 @@ public sealed class OpenApiImportService
             headers.Add(new RequestHeader(param.Name, $"{{{{{param.Name}}}}}"));
         }
 
-        // Security / auth headers derived from the effective security requirements.
-        // When the operation defines no security entries (null or empty list), fall back
-        // to the document-level security requirements. The Microsoft.OpenApi library
-        // returns an empty (non-null) list for both "not declared" and "security: []",
-        // so we treat count == 0 as "use document defaults" — this matches the common
-        // case of inheriting global auth from the document root.
-        IEnumerable<OpenApiSecurityRequirement> effectiveSecurityRequirements =
-            operation.Security is null or { Count: 0 }
-                ? document.SecurityRequirements ?? []
-                : operation.Security;
+        var operationSecurityHeaders = BuildSecurityHeaders(document, operation.Security ?? []);
+        foreach (var securityHeader in operationSecurityHeaders
+                     .Where(securityHeader => !headers.Any(h => string.Equals(h.Name, securityHeader.Name, StringComparison.OrdinalIgnoreCase))))
+        {
+            headers.Add(securityHeader);
+        }
 
-        foreach (var requirement in effectiveSecurityRequirements)
+        if (operationSecurityIsExplicitlyEmpty)
+        {
+            AddDisabledSecurityOptOutHeaders(headers, collectionSecurityHeaders);
+        }
+        else if (operation.Security is { Count: > 0 })
+        {
+            var operationSecurityHeaderNames = operationSecurityHeaders
+                .Select(header => header.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var inheritedHeadersToDisable = collectionSecurityHeaders
+                .Where(header => !operationSecurityHeaderNames.Contains(header.Name))
+                .ToList();
+
+            AddDisabledSecurityOptOutHeaders(headers, inheritedHeadersToDisable);
+        }
+
+        return headers;
+    }
+
+    private static void AddDisabledSecurityOptOutHeaders(
+        List<RequestHeader> requestHeaders,
+        IReadOnlyList<RequestHeader> inheritedSecurityHeaders)
+    {
+        foreach (var inheritedHeader in inheritedSecurityHeaders
+                     .Where(header => !requestHeaders.Any(existing => string.Equals(existing.Name, header.Name, StringComparison.OrdinalIgnoreCase))))
+        {
+            requestHeaders.Add(new RequestHeader(inheritedHeader.Name, inheritedHeader.Value, IsEnabled: false));
+        }
+    }
+
+    private static HashSet<string> GetExplicitlyEmptySecurityOperations(string sourceText)
+    {
+        var operations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            using var json = JsonDocument.Parse(sourceText);
+            if (!json.RootElement.TryGetProperty("paths", out var paths) || paths.ValueKind != JsonValueKind.Object)
+            {
+                return operations;
+            }
+
+            foreach (var pathEntry in paths.EnumerateObject())
+            {
+                if (pathEntry.Value.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                foreach (var operationEntry in pathEntry.Value.EnumerateObject())
+                {
+                    if (!IsHttpOperationName(operationEntry.Name) || operationEntry.Value.ValueKind != JsonValueKind.Object)
+                    {
+                        continue;
+                    }
+
+                    if (operationEntry.Value.TryGetProperty("security", out var security)
+                        && security.ValueKind == JsonValueKind.Array
+                        && security.GetArrayLength() == 0)
+                    {
+                        operations.Add(CreateOperationKey(pathEntry.Name, operationEntry.Name));
+                    }
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Non-JSON (e.g., YAML) — explicit-empty operation security detection not available.
+        }
+
+        return operations;
+    }
+
+    private static bool IsHttpOperationName(string operationName) =>
+        operationName is "get" or "put" or "post" or "delete" or "options" or "head" or "patch" or "trace";
+
+    private static string CreateOperationKey(string path, string method) =>
+        $"{method.ToUpperInvariant()} {path}";
+
+    private static List<RequestHeader> BuildSecurityHeaders(
+        OpenApiDocument document,
+        IEnumerable<OpenApiSecurityRequirement> requirements)
+    {
+        var headers = new List<RequestHeader>();
+        foreach (var requirement in requirements)
         {
             foreach (var scheme in requirement.Keys)
             {
-                // The key may be a reference object; resolve via document components
                 var schemeId = scheme.Reference?.Id ?? scheme.Name;
                 var resolved = !string.IsNullOrEmpty(schemeId) &&
-                               document.Components?.SecuritySchemes?.TryGetValue(schemeId, out var s) == true
-                    ? s
+                               document.Components?.SecuritySchemes?.TryGetValue(schemeId, out var securityScheme) == true
+                    ? securityScheme
                     : scheme;
 
                 if (resolved.Type == SecuritySchemeType.Http)
@@ -163,7 +270,8 @@ public sealed class OpenApiImportService
                         headers.Add(new RequestHeader("Authorization", "Basic {{credentials}}"));
                     }
                 }
-                else if (resolved.Type == SecuritySchemeType.ApiKey && resolved.In == ParameterLocation.Header
+                else if (resolved.Type == SecuritySchemeType.ApiKey
+                         && resolved.In == ParameterLocation.Header
                          && !string.IsNullOrEmpty(resolved.Name)
                          && !headers.Any(h => string.Equals(h.Name, resolved.Name, StringComparison.OrdinalIgnoreCase)))
                 {

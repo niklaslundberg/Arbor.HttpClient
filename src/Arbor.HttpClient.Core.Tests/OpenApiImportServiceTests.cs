@@ -461,8 +461,78 @@ public class OpenApiImportServiceTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithGlobalSecurity));
         var collection = _service.Import(stream);
         var getData = collection.Requests.Single(r => r.Name == "getData");
-        getData.Headers.Should().ContainSingle(h =>
+        collection.Headers.Should().ContainSingle(h =>
             h.Name == "Authorization" && h.Value == "Bearer {{bearerToken}}");
+        getData.Headers.Should().BeNull();
+    }
+
+    [Fact]
+    public void Import_ShouldDisableInheritedDocumentSecurityWhenOperationSecurityIsExplicitlyEmpty()
+    {
+        const string specWithNoOperationSecurity = """
+            {
+              "openapi": "3.0.3",
+              "info": { "title": "Secured API", "version": "1.0.0" },
+              "security": [{ "globalBearer": [] }],
+              "components": {
+                "securitySchemes": {
+                  "globalBearer": { "type": "http", "scheme": "bearer" }
+                }
+              },
+              "paths": {
+                "/public": {
+                  "get": {
+                    "operationId": "getPublicData",
+                    "security": []
+                  }
+                }
+              }
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithNoOperationSecurity));
+        var collection = _service.Import(stream);
+        var getPublicData = collection.Requests.Single(r => r.Name == "getPublicData");
+
+        collection.Headers.Should().ContainSingle(h =>
+            h.Name == "Authorization" && h.Value == "Bearer {{bearerToken}}");
+        getPublicData.Headers.Should().ContainSingle(h =>
+            h.Name == "Authorization" && !h.IsEnabled);
+        getPublicData.Headers.Should().NotContain(h =>
+            h.Name == "Authorization" && h.IsEnabled);
+    }
+
+    [Fact]
+    public void Import_ShouldDisableInheritedDocumentSecurityWhenOperationDefinesDifferentSecurityScheme()
+    {
+        const string specWithOverrideSecurity = """
+            {
+              "openapi": "3.0.3",
+              "info": { "title": "Secured API", "version": "1.0.0" },
+              "security": [{ "globalBearer": [] }],
+              "components": {
+                "securitySchemes": {
+                  "globalBearer": { "type": "http", "scheme": "bearer" },
+                  "apiKeyAuth": { "type": "apiKey", "in": "header", "name": "X-API-Key" }
+                }
+              },
+              "paths": {
+                "/private": {
+                  "get": {
+                    "operationId": "getPrivateData",
+                    "security": [{ "apiKeyAuth": [] }]
+                  }
+                }
+              }
+            }
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(specWithOverrideSecurity));
+        var collection = _service.Import(stream);
+        var getPrivateData = collection.Requests.Single(r => r.Name == "getPrivateData");
+
+        getPrivateData.Headers.Should().Contain(h =>
+            h.Name == "X-API-Key" && h.IsEnabled);
+        getPrivateData.Headers.Should().Contain(h =>
+            h.Name == "Authorization" && !h.IsEnabled);
     }
 
     // ── Collection name fallbacks ─────────────────────────────────────────────

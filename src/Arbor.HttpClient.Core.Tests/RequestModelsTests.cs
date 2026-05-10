@@ -163,13 +163,18 @@ public class RequestModelsTests
             new("Get Users", "GET", "/users", "Retrieves all users"),
             new("Create User", "POST", "/users", "Creates a new user", "Requires admin role")
         };
+        var headers = new List<RequestHeader>
+        {
+            new("Authorization", "Bearer {{token}}")
+        };
 
-        var collection = new Collection(42, "My Collection", "/path/to/source", "http://localhost:5000", requests);
+        var collection = new Collection(42, "My Collection", "/path/to/source", "http://localhost:5000", requests, headers);
 
         collection.Id.Should().Be(42);
         collection.Name.Should().Be("My Collection");
         collection.SourcePath.Should().Be("/path/to/source");
         collection.BaseUrl.Should().Be("http://localhost:5000");
+        collection.Headers.Should().ContainSingle(h => h.Name == "Authorization");
         collection.Requests.Should().HaveCount(2);
         collection.Requests[0].Name.Should().Be("Get Users");
         collection.Requests[1].Name.Should().Be("Create User");
