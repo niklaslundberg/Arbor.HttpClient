@@ -505,8 +505,8 @@ jobs:
           start_time=$(date +%s)
           # Timeout is a hang guard; runtime budget is enforced explicitly below.
           # This E2E job runs only integration-tagged tests; screenshot tests run in ux-screenshots.
-          # Keep the shell guard slightly above the internal MTP timeout so MTP can emit diagnostics first.
-          timeout 130 dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
+          # Keep the shell guard at the stated 2-minute cap and leave a small gap for MTP diagnostics first.
+          timeout 120 dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj \
             --no-restore \
             --no-build \
             --configuration Release \
@@ -519,7 +519,7 @@ jobs:
             --diagnostic \
             --diagnostic-output-fileprefix e2e-tests \
             --diagnostic-filelogger-synchronouswrite \
-            --timeout 120s \
+            --timeout 115s \
             --long-running 30 || {
               exit_code=$?
               if [ "$exit_code" -eq 124 ]; then
