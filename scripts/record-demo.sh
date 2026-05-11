@@ -28,11 +28,12 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SHOTS="${REPO_ROOT}/docs/screenshots"
 DOCS="${REPO_ROOT}/docs"
+RESULTS_DIR="${REPO_ROOT}/artifacts/test-results/demo-screenshots"
 TMP="/tmp/arbor-demo-segments"
 FINAL="${DOCS}/demo.mp4"
 FPS=30
 
-mkdir -p "${TMP}" "${SHOTS}" "${DOCS}"
+mkdir -p "${TMP}" "${SHOTS}" "${DOCS}" "${RESULTS_DIR}"
 
 # Locate fonts ----------------------------------------------------------------
 FONT_B=""
@@ -54,8 +55,16 @@ echo "Fonts: ${FONT_B} (bold)  ${FONT} (regular)"
 echo "[1/3] Generating screenshots via headless renderer..."
 SCREENSHOT_OUTPUT_DIR="${SHOTS}" dotnet test \
     "${REPO_ROOT}/src/Arbor.HttpClient.Desktop.E2E.Tests" \
-    --filter "Category=Screenshots" \
-    -v minimal 2>&1 | tee "${TMP}/dotnet-test.log" | grep -E "Passed|Failed|Error" || true
+    -v minimal \
+    -- \
+    --filter-trait "Category=Screenshots" \
+    --results-directory "${RESULTS_DIR}" \
+    --diagnostic \
+    --diagnostic-output-fileprefix demo-screenshots \
+    --diagnostic-filelogger-synchronouswrite \
+    --timeout 120s \
+    --long-running 30 \
+    2>&1 | tee "${TMP}/dotnet-test.log" | grep -E "Passed|Failed|Error" || true
 
 for img in state-initial state-response variables scheduled-jobs; do
     [ -f "${SHOTS}/${img}.png" ] || { echo "ERROR: Missing ${SHOTS}/${img}.png"; exit 1; }

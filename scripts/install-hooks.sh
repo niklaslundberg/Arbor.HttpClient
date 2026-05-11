@@ -31,13 +31,23 @@ cat > "$HOOK_FILE" << 'EOF'
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
+RESULTS_DIR="$REPO_ROOT/artifacts/test-results/pre-commit"
 
-echo "pre-commit: running tests..."
-if dotnet test "$REPO_ROOT/Arbor.HttpClient.slnx" --nologo -v minimal; then
+mkdir -p "$RESULTS_DIR"
+
+echo "pre-commit: running tests with diagnostics..."
+if dotnet test "$REPO_ROOT/Arbor.HttpClient.slnx" --nologo -v minimal -- \
+    --results-directory "$RESULTS_DIR" \
+    --diagnostic \
+    --diagnostic-output-fileprefix pre-commit \
+    --diagnostic-filelogger-synchronouswrite \
+    --timeout 120s \
+    --long-running 15; then
     echo "pre-commit: all tests passed."
 else
     echo ""
     echo "pre-commit: tests FAILED – commit blocked."
+    echo "Diagnostics were written to: $RESULTS_DIR"
     echo "Fix the failing tests, or use 'git commit --no-verify' to bypass (use sparingly)."
     exit 1
 fi
