@@ -200,6 +200,8 @@
                                                                Text="{Binding Value, Mode=TwoWay}" />
                                         <Button Grid.Column="3"
                                                 Content="✕"
+                                                AutomationProperties.Name="Remove inherited header"
+                                                ToolTip.Tip="Remove inherited header"
                                                 Command="{Binding $parent[UserControl].DataContext.App.RemoveCollectionInheritedHeaderCommand}"
                                                 CommandParameter="{Binding}" />
                                     </Grid>

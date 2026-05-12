@@ -506,9 +506,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         CollectionInheritedHeaders.Clear();
         if (value is { } collection)
         {
-            foreach (var r in collection.Requests)
+            foreach (var request in collection.Requests)
             {
-                CollectionItems.Add(new CollectionItemViewModel(r, collection.BaseUrl));
+                CollectionItems.Add(new CollectionItemViewModel(request, collection.BaseUrl));
             }
 
             if (collection.Headers is { } inheritedHeaders)
@@ -1697,7 +1697,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _debugLogger.Information("Renamed collection {OldName} to {NewName}", collection.Name, newName);
 
         await LoadCollectionsAsync(cancellationToken);
-        SelectedCollection = Collections.FirstOrDefault(c => c.Id == collection.Id);
+        SelectedCollection = Collections.FirstOrDefault(candidateCollection => candidateCollection.Id == collection.Id);
     }
 
     [RelayCommand]
