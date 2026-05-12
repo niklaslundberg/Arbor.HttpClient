@@ -14,7 +14,7 @@ public sealed class SystemEnvironmentVariableProvider : ISystemEnvironmentVariab
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (DictionaryEntry entry in envVars)
         {
-            if (entry.Key is string key && entry.Value is string value)
+            if (entry is { Key: string key, Value: string value })
             {
                 result[key] = value;
             }

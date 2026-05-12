@@ -195,10 +195,25 @@ public partial class App : Application
                         foreach (var screen in screens.All)
                         {
                             var wa = screen.WorkingArea;
-                            if (wa.X < totalLeft) totalLeft = wa.X;
-                            if (wa.Y < totalTop) totalTop = wa.Y;
-                            if (wa.X + wa.Width > totalRight) totalRight = wa.X + wa.Width;
-                            if (wa.Y + wa.Height > totalBottom) totalBottom = wa.Y + wa.Height;
+                            if (wa.X < totalLeft)
+                            {
+                                totalLeft = wa.X;
+                            }
+
+                            if (wa.Y < totalTop)
+                            {
+                                totalTop = wa.Y;
+                            }
+
+                            if (wa.X + wa.Width > totalRight)
+                            {
+                                totalRight = wa.X + wa.Width;
+                            }
+
+                            if (wa.Y + wa.Height > totalBottom)
+                            {
+                                totalBottom = wa.Y + wa.Height;
+                            }
                         }
 
                         // Clamp so that at least minVisiblePx of the title bar is on-screen.

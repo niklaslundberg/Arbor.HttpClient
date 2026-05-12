@@ -83,11 +83,14 @@ public partial class MainWindow : Window
     {
         foreach (var control in this.GetVisualDescendants()
                      .OfType<Control>()
-                     .Where(c => c.DataContext is IDockable && c.Parent is ProportionalStackPanel))
+                     .Where(c => c is { DataContext: IDockable, Parent: ProportionalStackPanel }))
         {
             var dockable = (IDockable)control.DataContext!;
             var proportion = ProportionalStackPanel.GetProportion(control);
-            if (!double.IsFinite(proportion) || proportion <= 0) continue;
+            if (!double.IsFinite(proportion) || proportion <= 0)
+            {
+                continue;
+            }
 
             dockable.Proportion = proportion;
         }

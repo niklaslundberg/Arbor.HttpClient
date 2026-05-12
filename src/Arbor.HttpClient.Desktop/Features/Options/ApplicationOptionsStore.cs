@@ -236,12 +236,12 @@ public sealed class ApplicationOptionsStore(string optionsPath)
         }
 
         // Validate window geometry: 0 means "not saved / use default"; non-zero must be a sensible minimum.
-        if (layout.WindowWidth < 0 || (layout.WindowWidth > 0 && layout.WindowWidth < 100))
+        if (layout.WindowWidth < 0 || layout.WindowWidth is > 0 and < 100)
         {
             throw new InvalidDataException("WindowWidth must be zero (default) or at least 100 pixels.");
         }
 
-        if (layout.WindowHeight < 0 || (layout.WindowHeight > 0 && layout.WindowHeight < 100))
+        if (layout.WindowHeight < 0 || layout.WindowHeight is > 0 and < 100)
         {
             throw new InvalidDataException("WindowHeight must be zero (default) or at least 100 pixels.");
         }

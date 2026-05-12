@@ -71,7 +71,7 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         insertCollection.Parameters.AddWithValue("$name", name);
         insertCollection.Parameters.AddWithValue("$sourcePath", sourcePath ?? (object)DBNull.Value);
         insertCollection.Parameters.AddWithValue("$baseUrl", baseUrl ?? (object)DBNull.Value);
-        insertCollection.Parameters.AddWithValue("$headers", headers is { Count: > 0 } ? JsonSerializer.Serialize(headers) : (object)DBNull.Value);
+        insertCollection.Parameters.AddWithValue("$headers", headers is { Count: > 0 } ? JsonSerializer.Serialize(headers) : DBNull.Value);
         insertCollection.Parameters.AddWithValue("$createdAtUtc", DateTimeOffset.UtcNow.UtcDateTime);
 
         var collectionId = (long)(await insertCollection.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
@@ -165,7 +165,7 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
         updateCollection.Parameters.AddWithValue("$name", name);
         updateCollection.Parameters.AddWithValue("$sourcePath", sourcePath ?? (object)DBNull.Value);
         updateCollection.Parameters.AddWithValue("$baseUrl", baseUrl ?? (object)DBNull.Value);
-        updateCollection.Parameters.AddWithValue("$headers", headers is { Count: > 0 } ? JsonSerializer.Serialize(headers) : (object)DBNull.Value);
+        updateCollection.Parameters.AddWithValue("$headers", headers is { Count: > 0 } ? JsonSerializer.Serialize(headers) : DBNull.Value);
         await updateCollection.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
         await using var deleteRequests = connection.CreateCommand();
@@ -273,7 +273,7 @@ public sealed class SqliteCollectionRepository(string connectionString) : IColle
             pContentType.Value = request.ContentType ?? (object)DBNull.Value;
             pHeaders.Value = request.Headers is { Count: > 0 }
                 ? JsonSerializer.Serialize(request.Headers)
-                : (object)DBNull.Value;
+                : DBNull.Value;
             await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
     }
