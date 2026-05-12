@@ -798,6 +798,15 @@ public static class Strings
     /// <summary>New collection name</summary>
     public static string LeftPanelRenameCollectionNamePlaceholder => Get(nameof(LeftPanelRenameCollectionNamePlaceholder));
 
+    /// <summary>Inherited headers</summary>
+    public static string LeftPanelInheritedHeaders => Get(nameof(LeftPanelInheritedHeaders));
+
+    /// <summary>+ Add header</summary>
+    public static string LeftPanelAddInheritedHeader => Get(nameof(LeftPanelAddInheritedHeader));
+
+    /// <summary>Save headers</summary>
+    public static string LeftPanelSaveInheritedHeaders => Get(nameof(LeftPanelSaveInheritedHeaders));
+
     /// <summary>Search requests…</summary>
     public static string LeftPanelSearchRequests => Get(nameof(LeftPanelSearchRequests));
 

@@ -65,6 +65,14 @@ var dbPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
 
 **[REQUIRED]** Use `nameof(member)` instead of string literals when referring to member names in log messages, exception messages, and `ArgumentException` parameter names. This ensures names stay correct after refactoring.
 
+**[REQUIRED]** Avoid single-character or abbreviated variable names in production code. Prefer full, descriptive words that make intent obvious.
+
+**[RECOMMENDED]** Prefer C# pattern matching and logical patterns (`and`, `or`, property patterns) over imperative branching when they improve readability.
+
+**[RECOMMENDED]** Prefer pure helper functions over mutating shared state where practical. Keep side effects explicit and localized.
+
+**[REQUIRED]** Keep cyclomatic complexity low. Favor small methods, guard clauses, and extracted helper methods instead of deeply nested branching.
+
 ## Fields
 
 **[REQUIRED]** Declare fields `readonly` whenever they are only assigned in the constructor and never mutated afterward. This is enforced by CodeQL ("Missed 'readonly' opportunity").
