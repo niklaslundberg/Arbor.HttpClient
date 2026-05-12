@@ -342,15 +342,20 @@ public sealed class ResponseActionsViewModel
 
         _context.SetResponseSaveFileNamePatternValidationError(validationError);
 
-        _ = ResponseSaveFileNamePatternFormatter.TryFormat(
-            ResponseSaveFileNamePatternFormatter.DefaultPattern,
-            collectionName,
-            requestPath,
-            requestName,
-            extension,
-            DateTimeOffset.UtcNow,
-            out var defaultFileName,
-            out _);
+        // DefaultPattern is a compile-time constant guaranteed to pass validation, so this
+        // fallback path only fails when TryFormat itself has a logic defect.
+        if (!ResponseSaveFileNamePatternFormatter.TryFormat(
+                ResponseSaveFileNamePatternFormatter.DefaultPattern,
+                collectionName,
+                requestPath,
+                requestName,
+                extension,
+                DateTimeOffset.UtcNow,
+                out var defaultFileName,
+                out _))
+        {
+            return string.Empty;
+        }
 
         return defaultFileName;
     }
@@ -364,7 +369,6 @@ public sealed class ResponseActionsViewModel
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or FileNotFoundException or PlatformNotSupportedException)
         {
             // No associated application or platform does not support shell execution — silently ignore.
-            _ = ex;
         }
     }
 }
