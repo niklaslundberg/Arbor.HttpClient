@@ -715,7 +715,11 @@ public class ScreenshotGenerator
         public Task UpdateAsync(ScheduledJobConfig config, CancellationToken cancellationToken = default)
         {
             var idx = _items.FindIndex(x => x.Id == config.Id);
-            if (idx >= 0) _items[idx] = config;
+            if (idx >= 0)
+            {
+                _items[idx] = config;
+            }
+
             return Task.CompletedTask;
         }
         public Task DeleteAsync(int id, CancellationToken cancellationToken = default) { _items.RemoveAll(x => x.Id == id); return Task.CompletedTask; }

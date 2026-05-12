@@ -270,8 +270,7 @@ public sealed class OpenApiImportService
                         headers.Add(new RequestHeader("Authorization", "Basic {{credentials}}"));
                     }
                 }
-                else if (resolved.Type == SecuritySchemeType.ApiKey
-                         && resolved.In == ParameterLocation.Header
+                else if (resolved is { Type: SecuritySchemeType.ApiKey, In: ParameterLocation.Header }
                          && !string.IsNullOrEmpty(resolved.Name)
                          && !headers.Any(h => string.Equals(h.Name, resolved.Name, StringComparison.OrdinalIgnoreCase)))
                 {
@@ -333,7 +332,7 @@ public sealed class OpenApiImportService
         return any switch
         {
             OpenApiNull => null,
-            OpenApiBoolean b => (object)b.Value,
+            OpenApiBoolean b => b.Value,
             OpenApiInteger i => i.Value,
             OpenApiLong l => l.Value,
             OpenApiFloat f => f.Value,

@@ -1944,7 +1944,7 @@ public class MainWindowUiTests
             return match;
         }
 
-        if (dockable is IDock dock && dock.VisibleDockables is { } visibleDockables)
+        if (dockable is IDock { VisibleDockables: { } visibleDockables })
         {
             foreach (var child in visibleDockables)
             {

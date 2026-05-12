@@ -469,8 +469,7 @@ public partial class RequestView : UserControl
             return;
         }
 
-        if ((e.PropertyName == nameof(MainWindowViewModel.UiFontFamily)
-             || e.PropertyName == nameof(MainWindowViewModel.UiFontSize))
+        if (e.PropertyName is nameof(MainWindowViewModel.UiFontFamily) or nameof(MainWindowViewModel.UiFontSize)
             && _appVm is not null)
         {
             if (_requestUrlEditor is not null)
