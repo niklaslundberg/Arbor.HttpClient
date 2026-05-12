@@ -116,6 +116,7 @@ Shared/                   — ViewModelBase, NotNullConverter, StringEqualityCon
 
 ## Ordered next steps
 
+0. Use the execution plan in [`docs/architecture/mainwindowviewmodel-split-plan.md`](mainwindowviewmodel-split-plan.md) for incremental extraction work and communication-pattern decisions.
 1. ~~Feature-centric folder structure~~ ✅ Complete — all projects now use vertical-slice feature folders.
 2. Refactor `DockFactory` to consume feature registrations and stop requiring a `MainWindowViewModel` reference.
 3. Evaluate whether a mediator/event-bus is needed after 1–2 successful slice extractions.
