@@ -1867,7 +1867,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 headerViewModel.IsEnabled))
             .ToList();
 
-        return headers.Count > 0 ? headers : null;
+        return headers is { Count: > 0 } ? headers : null;
     }
 
     [RelayCommand]
