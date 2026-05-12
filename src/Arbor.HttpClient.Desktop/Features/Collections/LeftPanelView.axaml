@@ -5,6 +5,8 @@
              xmlns:convHttp="using:Arbor.HttpClient.Desktop.Features.HttpRequest"
              xmlns:convColl="using:Arbor.HttpClient.Desktop.Features.Collections"
              xmlns:scheduledVm="using:Arbor.HttpClient.Desktop.Features.ScheduledJobs"
+             xmlns:views="using:Arbor.HttpClient.Desktop.Features.Variables"
+             xmlns:httpVm="using:Arbor.HttpClient.Desktop.Features.HttpRequest"
              xmlns:collections="using:Arbor.HttpClient.Core.Collections"
              xmlns:httpRequest="using:Arbor.HttpClient.Core.HttpRequest"
              xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
@@ -94,7 +96,7 @@
         <!-- Collections tab -->
         <Border Grid.Row="1" Background="{DynamicResource PanelBackgroundBrush}" Padding="12" CornerRadius="8"
                 IsVisible="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=Collections}">
-            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*">
 
                 <!-- Row 0: Collection selector + New button -->
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
@@ -164,13 +166,56 @@
                             Command="{Binding App.CancelRenameCollectionCommand}" />
                 </Grid>
 
-                <!-- Row 4: Search box -->
-                <TextBox Grid.Row="4" Margin="0,6,0,0"
+                <!-- Row 4: Inherited collection headers editor -->
+                <Grid Grid.Row="4" RowDefinitions="Auto,Auto,*" RowSpacing="4" Margin="0,6,0,0"
+                      IsVisible="{Binding App.SelectedCollection, Converter={x:Static conv:NotNullConverter.Instance}}">
+                    <TextBlock Text="{x:Static loc:Strings.LeftPanelInheritedHeaders}"
+                               FontWeight="SemiBold" />
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4">
+                        <Button Classes="compact"
+                                Content="{x:Static loc:Strings.LeftPanelAddInheritedHeader}"
+                                AutomationProperties.Name="Add inherited collection header"
+                                Command="{Binding App.AddCollectionInheritedHeaderCommand}" />
+                        <Button Classes="compact"
+                                Content="{x:Static loc:Strings.LeftPanelSaveInheritedHeaders}"
+                                AutomationProperties.Name="Save inherited collection headers"
+                                Command="{Binding App.SaveCollectionInheritedHeadersCommand}" />
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="2" MaxHeight="180">
+                        <ItemsControl ItemsSource="{Binding App.CollectionInheritedHeaders}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="httpVm:RequestHeaderViewModel">
+                                    <Grid ColumnDefinitions="Auto,*,*,Auto" ColumnSpacing="6" Margin="0,2,0,0">
+                                        <CheckBox Grid.Column="0"
+                                                  IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                                  VerticalAlignment="Center" />
+                                        <views:VariableTextBox Grid.Column="1"
+                                                               PlaceholderText="{x:Static loc:Strings.HeadersKeyPlaceholder}"
+                                                               AppViewModel="{Binding $parent[UserControl].DataContext.App}"
+                                                               AutoCompleteSource="{Binding $parent[UserControl].DataContext.App.RequestEditor.WellKnownHeaderNames}"
+                                                               Text="{Binding Name, Mode=TwoWay}" />
+                                        <views:VariableTextBox Grid.Column="2"
+                                                               PlaceholderText="{x:Static loc:Strings.HeadersValuePlaceholder}"
+                                                               AppViewModel="{Binding $parent[UserControl].DataContext.App}"
+                                                               Text="{Binding Value, Mode=TwoWay}" />
+                                        <Button Grid.Column="3"
+                                                Content="✕"
+                                                Command="{Binding $parent[UserControl].DataContext.App.RemoveCollectionInheritedHeaderCommand}"
+                                                CommandParameter="{Binding}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- Row 5: Search box -->
+                <TextBox Grid.Row="5" Margin="0,6,0,0"
                          PlaceholderText="{x:Static loc:Strings.LeftPanelSearchRequests}"
                          Text="{Binding App.CollectionSearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-                <!-- Row 5: Sort + view-mode toolbar -->
-                <Grid Grid.Row="5" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
+                <!-- Row 6: Sort + view-mode toolbar -->
+                <Grid Grid.Row="6" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
                     <!-- Sort row -->
                     <StackPanel Orientation="Horizontal" Spacing="0">
                         <TextBlock Text="{x:Static loc:Strings.LeftPanelSortLabel}" VerticalAlignment="Center" Opacity="0.7" Margin="0,0,4,0" FontSize="11" />
@@ -209,8 +254,8 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- Row 6: Flat list view (default) -->
-                <ScrollViewer Grid.Row="6" Margin="0,6,0,0"
+                <!-- Row 7: Flat list view (default) -->
+                <ScrollViewer Grid.Row="7" Margin="0,6,0,0"
                               IsVisible="{Binding !App.IsCollectionTreeView}">
                     <ItemsControl ItemsSource="{Binding App.FilteredCollectionItems}">
                         <ItemsControl.ItemTemplate>
@@ -250,8 +295,8 @@
                     </ItemsControl>
                 </ScrollViewer>
 
-                <!-- Row 6: Tree view (grouped by path segment) -->
-                <ScrollViewer Grid.Row="6" Margin="0,6,0,0"
+                <!-- Row 7: Tree view (grouped by path segment) -->
+                <ScrollViewer Grid.Row="7" Margin="0,6,0,0"
                               IsVisible="{Binding App.IsCollectionTreeView}">
                     <ItemsControl ItemsSource="{Binding App.CollectionGroups}">
                         <ItemsControl.ItemTemplate>

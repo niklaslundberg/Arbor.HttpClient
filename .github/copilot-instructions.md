@@ -197,6 +197,10 @@ If any step fails locally, fix it before pushing — this avoids triggering a CI
     - `Arbor.HttpClient.Testing`: no minimum — this project provides test doubles and its coverage is driven indirectly.
   - After every feature PR, run coverage, read the XML output, update `docs/coverage.md`, and include the numbers in the PR description.
 - **Test naming convention**: Name tests using the `Method_Scenario_ExpectedResult` pattern (e.g. `Parse_EmptyInput_ThrowsArgumentException`). Each test should verify one behavioral intent; arrange test data explicitly rather than relying on implicit state.
+- **[REQUIRED][QUALITY]** Avoid single-character or abbreviated variable names in production code; prefer full descriptive names.
+- **[RECOMMENDED][QUALITY]** Prefer C# pattern matching and logical patterns (`and`, `or`, property patterns) when they improve readability and intent clarity.
+- **[RECOMMENDED][ARCHITECTURE]** Prefer pure helper functions over mutating shared state when practical; keep side effects explicit.
+- **[REQUIRED][QUALITY]** Keep cyclomatic complexity low by favoring small focused methods, guard clauses, and extracted helpers over deeply nested branching.
 - **[REQUIRED][QUALITY]** Integration tests — tests that exercise real external resources (file system, network, process environment variables, database, etc.) — must be clearly distinguished from pure unit tests:
   - Annotate integration test classes with `[Trait("Category", "Integration")]`.
   - Any tests that mutate process-global state (e.g. `Environment.SetEnvironmentVariable`) must belong to a dedicated xUnit collection with `DisableParallelization = true` so they do not race with other tests that read the same state. Define the collection in a `*Collection.cs` file in the same test project:

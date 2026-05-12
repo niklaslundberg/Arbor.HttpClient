@@ -406,6 +406,79 @@ public class DemoServerTests
         resolvedHeaders.Should().NotContain(h => h.Name == "X-Tenant");
     }
 
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task SaveCollectionInheritedHeaders_AddOrEditHeaders_PersistsAndResolvesVariables()
+    {
+        var collectionRepo = new InMemoryCollectionRepository();
+        var environmentRepo = new InMemoryEnvironmentRepository();
+
+        await environmentRepo.SaveAsync(
+            "Header Env",
+            [new EnvironmentVariable("collectionToken", "token-from-editor", IsEnabled: true)]);
+
+        await collectionRepo.SaveAsync(
+            "Header Editor",
+            null,
+            $"http://localhost:{DemoServer.DefaultPort}",
+            [new CollectionRequest("Echo GET", "GET", "/echo", null)]);
+
+        var viewModel = CreateViewModel(
+            collectionRepository: collectionRepo,
+            environmentRepository: environmentRepo);
+        using var _ = viewModel;
+
+        await viewModel.InitializeAsync();
+        viewModel.ActiveEnvironment = viewModel.Environments.First(e => e.Name == "Header Env");
+        viewModel.SelectedCollection = viewModel.Collections.First(c => c.Name == "Header Editor");
+
+        viewModel.AddCollectionInheritedHeaderCommand.Execute(null);
+        viewModel.CollectionInheritedHeaders.Should().ContainSingle();
+        var inheritedHeader = viewModel.CollectionInheritedHeaders[0];
+        inheritedHeader.Name = "Authorization";
+        inheritedHeader.Value = "Bearer {{collectionToken}}";
+
+        await viewModel.SaveCollectionInheritedHeadersCommand.ExecuteAsync(null);
+
+        var refreshedCollection = viewModel.Collections.First(c => c.Name == "Header Editor");
+        refreshedCollection.Headers.Should().ContainSingle(h =>
+            h.Name == "Authorization" && h.Value == "Bearer {{collectionToken}}" && h.IsEnabled);
+
+        var requestItem = viewModel.FilteredCollectionItems.First();
+        viewModel.LoadCollectionRequestCore(requestItem);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+
+        viewModel.RequestEditor.GetResolvedHeaders().Should().ContainSingle(header =>
+            header.Name == "Authorization" && header.Value == "Bearer token-from-editor");
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task SaveCollectionInheritedHeaders_WhenHeaderRemoved_PersistsRemoval()
+    {
+        var collectionRepo = new InMemoryCollectionRepository();
+
+        await collectionRepo.SaveAsync(
+            "Header Removal",
+            null,
+            $"http://localhost:{DemoServer.DefaultPort}",
+            [new CollectionRequest("Echo GET", "GET", "/echo", null)],
+            headers: [new RequestHeader("X-Test", "value")]);
+
+        var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+        using var _ = viewModel;
+
+        await viewModel.InitializeAsync();
+        viewModel.SelectedCollection = viewModel.Collections.First(c => c.Name == "Header Removal");
+
+        viewModel.CollectionInheritedHeaders.Should().ContainSingle();
+        viewModel.RemoveCollectionInheritedHeaderCommand.Execute(viewModel.CollectionInheritedHeaders[0]);
+        viewModel.CollectionInheritedHeaders.Should().BeEmpty();
+
+        await viewModel.SaveCollectionInheritedHeadersCommand.ExecuteAsync(null);
+
+        var refreshedCollection = viewModel.Collections.First(c => c.Name == "Header Removal");
+        refreshedCollection.Headers.Should().BeNull();
+    }
+
     // ── Demo server banner visibility ────────────────────────────────────────
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -684,4 +757,3 @@ public class DemoServerTests
 
 
 }
-

@@ -827,6 +827,15 @@
   <data name="LeftPanelRenameCollectionNamePlaceholder" xml:space="preserve">
     <value>New collection name</value>
   </data>
+  <data name="LeftPanelInheritedHeaders" xml:space="preserve">
+    <value>Inherited headers</value>
+  </data>
+  <data name="LeftPanelAddInheritedHeader" xml:space="preserve">
+    <value>+ Add header</value>
+  </data>
+  <data name="LeftPanelSaveInheritedHeaders" xml:space="preserve">
+    <value>Save headers</value>
+  </data>
   <data name="LeftPanelSearchRequests" xml:space="preserve">
     <value>Search requests…</value>
   </data>

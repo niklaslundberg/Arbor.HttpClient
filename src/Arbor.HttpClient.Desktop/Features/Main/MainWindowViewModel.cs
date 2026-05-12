@@ -503,11 +503,25 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         RenameCollectionName = string.Empty;
 
         CollectionItems.Clear();
+        CollectionInheritedHeaders.Clear();
         if (value is { } collection)
         {
             foreach (var r in collection.Requests)
             {
                 CollectionItems.Add(new CollectionItemViewModel(r, collection.BaseUrl));
+            }
+
+            if (collection.Headers is { } inheritedHeaders)
+            {
+                foreach (var inheritedHeader in inheritedHeaders)
+                {
+                    CollectionInheritedHeaders.Add(new RequestHeaderViewModel
+                    {
+                        Name = inheritedHeader.Name,
+                        Value = inheritedHeader.Value,
+                        IsEnabled = inheritedHeader.IsEnabled
+                    });
+                }
             }
         }
 
@@ -658,6 +672,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         History = [];
         Collections = [];
         CollectionItems = [];
+        CollectionInheritedHeaders = [];
         FilteredCollectionItems = [];
         CollectionGroups = [];
         ScheduledJobs = [];
@@ -685,6 +700,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public ObservableCollection<SavedRequest> History { get; }
     public ObservableCollection<Collection> Collections { get; }
     public ObservableCollection<CollectionItemViewModel> CollectionItems { get; }
+    public ObservableCollection<RequestHeaderViewModel> CollectionInheritedHeaders { get; }
 
     /// <summary>Filtered and sorted flat list of collection requests, bound in the Collections panel.</summary>
     public ObservableCollection<CollectionItemViewModel> FilteredCollectionItems { get; }
@@ -1740,6 +1756,46 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
+    private void AddCollectionInheritedHeader()
+    {
+        CollectionInheritedHeaders.Add(new RequestHeaderViewModel());
+    }
+
+    [RelayCommand]
+    private void RemoveCollectionInheritedHeader(RequestHeaderViewModel? header)
+    {
+        if (header is null)
+        {
+            return;
+        }
+
+        CollectionInheritedHeaders.Remove(header);
+    }
+
+    [RelayCommand]
+    private async Task SaveCollectionInheritedHeadersAsync(CancellationToken cancellationToken)
+    {
+        if (SelectedCollection is not { } collection)
+        {
+            return;
+        }
+
+        var inheritedHeaders = BuildCollectionInheritedHeaders(CollectionInheritedHeaders);
+        await _collectionRepository.UpdateAsync(
+            collection.Id,
+            collection.Name,
+            collection.SourcePath,
+            collection.BaseUrl,
+            collection.Requests,
+            inheritedHeaders,
+            cancellationToken);
+
+        await LoadCollectionsAsync(cancellationToken);
+        SelectedCollection = Collections.FirstOrDefault(c => c.Id == collection.Id);
+        _debugLogger.Information("Updated inherited headers for collection {CollectionName}", collection.Name);
+    }
+
+    [RelayCommand]
     private void SetCollectionSortBy(string? sortBy) =>
         CollectionSortBy = sortBy ?? "Default";
 
@@ -1798,6 +1854,20 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             CollectionGroups.Add(groupVm);
         }
+    }
+
+    private static IReadOnlyList<RequestHeader>? BuildCollectionInheritedHeaders(
+        IEnumerable<RequestHeaderViewModel> headerViewModels)
+    {
+        var headers = headerViewModels
+            .Where(headerViewModel => !string.IsNullOrWhiteSpace(headerViewModel.Name))
+            .Select(headerViewModel => new RequestHeader(
+                headerViewModel.Name.Trim(),
+                headerViewModel.Value,
+                headerViewModel.IsEnabled))
+            .ToList();
+
+        return headers.Count > 0 ? headers : null;
     }
 
     [RelayCommand]
