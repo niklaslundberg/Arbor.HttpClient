@@ -64,32 +64,40 @@ Each extracted unit should own:
 
 ## Phased execution plan
 
-### Phase 1 — Define boundaries and contracts (small PR)
+### Phase 1 — Define boundaries and contracts ✅ Implemented
+
+> Implemented in this PR — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/IResponseActionsContext.cs`
 
 - Introduce focused interfaces for each extraction candidate where needed.
 - Keep existing behavior paths unchanged.
 - Add adapter/proxy members in `MainWindowViewModel` to avoid XAML churn in the same PR.
 
-**Exit criteria:** boundaries compile, no UX changes, tests unchanged.
+**Exit criteria:** boundaries compile, no UX changes, tests unchanged. ✅
 
 ### Phase 2 — Extract one vertical slice at a time (repeated small PRs)
 
 Recommended extraction order (lowest coupling first):
 
-1. Response actions (copy/save/open external)
+1. ✅ Response actions (copy/save/open external) — see below
 2. Demo server lifecycle
 3. Collections workflows
 4. Scheduled jobs workflows
 5. Request execution orchestration
 6. Draft/options autosave orchestration
 
-For each slice:
+#### Phase 2 Slice 1 — Response actions ✅ Implemented
 
-- Move logic to a feature VM/coordinator
-- Keep old member signatures in `MainWindowViewModel` delegating to the new unit
-- Add/adjust focused tests for the extracted unit
+> Implemented in this PR — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/ResponseActionsViewModel.cs`
 
-**Exit criteria per slice:** behavior parity, targeted tests pass, no unrelated file churn.
+- `ResponseActionsViewModel` created, owning:
+  - `CopyResponseBodyAsync`, `SaveResponseBodyAsFileAsync`, `OpenResponseBodyInExternalEditorAsync`
+  - `SaveBinaryResponseAndOpenAsync`, `CopyHistoryItemAsCurlAsync`, `CopyCurrentRequestAsCurlAsync`
+  - `TryGetSaveableResponseContent`, `ExtensionFromContentType`, `DetectExtensionFromContent`, `OpenWithShell`
+- `MainWindowViewModel` implements `IResponseActionsContext` and delegates all response-action `[RelayCommand]` methods
+- Static helpers kept on `MainWindowViewModel` via delegation for backward-compat
+- 22 new focused tests in `ResponseActionsViewModelTests.cs`
+
+**Exit criteria per slice:** behavior parity ✅, targeted tests pass ✅, no unrelated file churn ✅
 
 ### Phase 3 — Remove temporary delegation surface
 
@@ -167,5 +175,6 @@ Split `RequestEditorViewModelTests` by behavior area, for example:
 
 ## Definition of done for this issue
 
-- This plan is persisted in the repository.
-- Future implementation PRs should reference this document and execute it incrementally.
+- ✅ This plan is persisted in the repository.
+- ✅ Phase 1 (contracts) and Phase 2 Slice 1 (response actions) implemented in the first PR.
+- Future implementation PRs should reference this document and execute the remaining slices incrementally.
