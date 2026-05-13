@@ -10,8 +10,8 @@ public class LogWindowViewModelTests
     [AvaloniaFact(Timeout = 10_000)]
     public void Constructor_ShouldRouteExistingEntriesToMatchingTabs()
     {
-        var sink = new InMemorySink();
-        var logger = new LoggerConfiguration().WriteTo.Sink(sink).CreateLogger();
+        using var sink = new InMemorySink();
+        using var logger = new LoggerConfiguration().WriteTo.Sink(sink).CreateLogger();
 
         logger.ForContext("LogTab", LogTab.ScheduledLive).Information("scheduled");
         logger.ForContext("LogTab", LogTab.HttpDiagnostics).Information("diagnostics");
@@ -29,8 +29,8 @@ public class LogWindowViewModelTests
     [AvaloniaFact(Timeout = 10_000)]
     public async Task Emit_ShouldPublishToEventAndObservableEndpoints()
     {
-        var sink = new InMemorySink();
-        var logger = new LoggerConfiguration().WriteTo.Sink(sink).CreateLogger();
+        using var sink = new InMemorySink();
+        using var logger = new LoggerConfiguration().WriteTo.Sink(sink).CreateLogger();
 
         LogEntry? eventEntry = null;
         sink.EntryAdded += (_, entry) => eventEntry = entry;
@@ -51,8 +51,8 @@ public class LogWindowViewModelTests
     [AvaloniaFact(Timeout = 10_000)]
     public async Task Constructor_WhenNewEntryIsEmitted_ShouldRouteViaObservableEndpoint()
     {
-        var sink = new InMemorySink();
-        var logger = new LoggerConfiguration().WriteTo.Sink(sink).CreateLogger();
+        using var sink = new InMemorySink();
+        using var logger = new LoggerConfiguration().WriteTo.Sink(sink).CreateLogger();
         using var viewModel = new LogWindowViewModel(sink);
 
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

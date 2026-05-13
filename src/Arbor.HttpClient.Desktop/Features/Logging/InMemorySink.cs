@@ -1,6 +1,7 @@
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Formatting.Display;
+using System.Reactive.Linq;
 using System.Reactive.Subjects;
 
 namespace Arbor.HttpClient.Desktop.Features.Logging;
@@ -19,9 +20,11 @@ public sealed class InMemorySink : ILogEventSink, IDisposable
     private readonly Queue<LogEntry> _entries = new();
     private readonly Subject<LogEntry> _entryAddedSubject = new();
     private readonly object _lock = new();
+    private readonly object _subjectLock = new();
+    private bool _isDisposed;
 
     public event EventHandler<LogEntry>? EntryAdded;
-    public IObservable<LogEntry> EntryAddedObservable => _entryAddedSubject;
+    public IObservable<LogEntry> EntryAddedObservable => _entryAddedSubject.AsObservable();
 
     public IReadOnlyList<LogEntry> GetSnapshot()
     {
@@ -45,6 +48,11 @@ public sealed class InMemorySink : ILogEventSink, IDisposable
 
         lock (_lock)
         {
+            if (_isDisposed)
+            {
+                return;
+            }
+
             if (_entries.Count >= Capacity)
             {
                 _entries.Dequeue();
@@ -53,13 +61,36 @@ public sealed class InMemorySink : ILogEventSink, IDisposable
             _entries.Enqueue(entry);
         }
 
-        _entryAddedSubject.OnNext(entry);
+        lock (_subjectLock)
+        {
+            if (_isDisposed)
+            {
+                return;
+            }
+
+            _entryAddedSubject.OnNext(entry);
+        }
+
         EntryAdded?.Invoke(this, entry);
     }
 
     public void Dispose()
     {
-        _entryAddedSubject.OnCompleted();
+        lock (_lock)
+        {
+            if (_isDisposed)
+            {
+                return;
+            }
+
+            _isDisposed = true;
+        }
+
+        lock (_subjectLock)
+        {
+            _entryAddedSubject.OnCompleted();
+        }
+
         _entryAddedSubject.Dispose();
     }
 

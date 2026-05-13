@@ -33,10 +33,17 @@ public sealed partial class LogWindowViewModel : ViewModelBase, IDisposable
 
         _entryAddedSubscription = _sink.EntryAddedObservable.Subscribe(entry =>
         {
-            Dispatcher.UIThread.Post(() =>
+            if (Dispatcher.UIThread.CheckAccess())
             {
                 AddEntry(entry);
-            });
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    AddEntry(entry);
+                });
+            }
         });
     }
 
