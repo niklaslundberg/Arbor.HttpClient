@@ -122,3 +122,4 @@ Shared/                   — ViewModelBase, NotNullConverter, StringEqualityCon
 2. Refactor `DockFactory` to consume feature registrations and stop requiring a `MainWindowViewModel` reference.
 3. Evaluate whether a mediator/event-bus is needed after 1–2 successful slice extractions.
 4. Introduce a DI container (e.g., `Microsoft.Extensions.DependencyInjection`) only when constructor/composition friction remains significant after slice extraction.
+5. Consider RX.NET (`System.Reactive`) as an additive communication channel (Option E) for cross-feature notifications, scheduler-controlled async, and collection transforms — see [`docs/architecture/rx-reactive-evaluation.md`](rx-reactive-evaluation.md) for a full trade-off analysis.

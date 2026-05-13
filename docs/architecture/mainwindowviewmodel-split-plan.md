@@ -152,11 +152,13 @@ Split `RequestEditorViewModelTests` by behavior area, for example:
 | B. Domain events / event aggregator | Features publish events (`RequestSent`, `EnvironmentChanged`) consumed by subscribers | Decouples producers/consumers, good for cross-feature notifications | Harder tracing, risk of hidden flows, ordering complexity | Medium cost, medium risk | Use only where multiple subscribers exist |
 | C. Shared state store (single source of truth) | Central immutable-ish state + reducers/actions | Predictable state transitions, easier time-travel/debug tooling | Higher conceptual overhead, boilerplate, broad migration | High cost, medium risk | Not needed now |
 | D. Mediator/command bus | Commands routed through mediator handlers | Strong separation, extensible for plugins/modules | Indirection, can hide ownership, overkill early | Medium-high cost | Re-evaluate after 1–2 successful extractions |
+| E. RX.NET observable streams | Feature VMs expose `IObservable<T>` endpoints; consumers subscribe with composable operators | Composable fan-out (throttle, filter, combine), `IScheduler` enables time-travel unit tests, pairs with DynamicData for collection transforms | Medium-high learning curve, subscription lifetime management, debugging stream chains | Low if additive alongside CommunityToolkit.Mvvm; high if replacing it | Use selectively for time-dependent features and cross-feature notifications once ≥ 2 features are extracted; see [`docs/architecture/rx-reactive-evaluation.md`](rx-reactive-evaluation.md) |
 
 ### Practical recommendation
 
 - Use **Option A** as baseline for first extractions.
-- Introduce **Option B** only for true fan-out notifications.
+- Introduce **Option B** only for true fan-out notifications with no composition needs.
+- Introduce **Option E** where throttling, scheduling, or combining multiple streams adds clear value over raw C# events.
 - Reassess mediator/event-bus only if direct contracts start causing clear composition friction.
 
 ## Risk controls
