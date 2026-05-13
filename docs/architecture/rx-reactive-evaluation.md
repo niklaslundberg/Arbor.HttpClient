@@ -43,30 +43,41 @@ The project currently uses **CommunityToolkit.Mvvm** with `[ObservableProperty]`
 
 #### 1. Cross-feature notifications (replaces/complements Option B)
 
-Features such as **Environments**, **Collections**, and **HttpRequest** need to react when shared state changes (e.g., a selected environment changes → variable substitution must re-run). With raw `INotifyPropertyChanged` this requires property watchers or shared mutable state. With RX.NET it becomes:
+Features such as **Environments**, **Collections**, and **HttpRequest** need to react when shared state changes (e.g., a selected environment changes → variable substitution must re-run). With raw `INotifyPropertyChanged` this requires property watchers or shared mutable state. With pure `System.Reactive` it becomes:
 
 ```csharp
 // EnvironmentsViewModel exposes an observable
 public IObservable<RequestEnvironment?> SelectedEnvironmentChanged { get; }
 
 // RequestEditorViewModel subscribes without coupling to MainWindowViewModel
+environmentsVm.SelectedEnvironmentChanged
+    .Subscribe(env => SelectedEnvironment = env)
+    .DisposeWith(_disposables);
+```
+
+If ReactiveUI is also adopted, `ObservableAsPropertyHelper<T>` can replace the manual setter:
+
+```csharp
+// ReactiveUI-specific variant (requires ReactiveObject base)
 _selectedEnvironment = environmentsVm.SelectedEnvironmentChanged
     .ToProperty(this, x => x.SelectedEnvironment);
 ```
 
 This is more composable than a raw C# event and more traceable than an opaque event bus.
 
-#### 2. Scheduled jobs / timers (replaces System.Threading.Timer)
+#### 2. Scheduled jobs / timers (replaces PeriodicTimer)
 
-`ScheduledJobService` currently uses `System.Threading.Timer`. `Observable.Interval` and `Observable.Timer` produce the same pulses but through `IScheduler`, which can be replaced by `TestScheduler` in unit tests:
+`ScheduledJobService` currently uses `PeriodicTimer` (see `src/Arbor.HttpClient.Desktop/Features/ScheduledJobs/ScheduledJobService.cs`). `Observable.Interval` and `Observable.Timer` produce the same pulses but through `IScheduler`, which can be replaced by `TestScheduler` in unit tests:
 
 ```csharp
-// Production
-_scheduler = SchedulerProvider.Default; // wraps TaskPoolScheduler
+// Production — inject TaskPoolScheduler.Default (or a wrapper interface)
+Observable.Interval(_interval, _scheduler)
+    .SelectMany(_ => RunJobAsync(CancellationToken.None))
+    .Subscribe();
 
-// Test
-_scheduler = new TestScheduler();
-_scheduler.AdvanceBy(TimeSpan.FromSeconds(30).Ticks);
+// Test — advance virtual time without Task.Delay pauses
+var testScheduler = new TestScheduler();
+testScheduler.AdvanceBy(_interval.Ticks);
 ```
 
 This makes scheduled-job tests deterministic without `Task.Delay` pauses.
@@ -86,7 +97,7 @@ SendRequest.ThrownExceptions.Subscribe(ex => Log.Error(ex, "Request failed"));
 
 #### 4. Throttled search / auto-complete
 
-The variable completion engine and history search already debounce user input manually. `Throttle` / `Debounce` operators on a `Subject<string>` simplify this:
+The variable completion engine and history search already debounce user input manually. The `Throttle` operator on a `Subject<string>` simplifies this (Rx.NET's `Throttle` implements the debounce semantic — it emits a value only after the source has been silent for the given duration):
 
 ```csharp
 _searchSubject
@@ -99,7 +110,7 @@ _searchSubject
 
 #### 5. Observable collections (DynamicData)
 
-`LeftPanelViewModel` manages request collections via `ObservableCollection<CollectionGroupViewModel>`. Filtering, sorting, and live-updating lists become declarative with DynamicData:
+`MainWindowViewModel` currently manages request collections via `CollectionGroups : ObservableCollection<CollectionGroupViewModel>`. Once the Collections slice is extracted to a dedicated `CollectionsWorkflowViewModel`, filtering, sorting, and live-updating the list become declarative with DynamicData:
 
 ```csharp
 _collectionSource.Connect()
@@ -164,6 +175,7 @@ Given the current phased split plan and the team's use of CommunityToolkit.Mvvm,
 |---|---|
 | **A. Direct interface calls** | Default for all new slices; low risk, fully explicit |
 | **B. Domain events (C# events / delegates)** | Fan-out notifications where ≥ 2 features subscribe to the same event |
+| **C. Shared state store** | Not recommended now — high conceptual overhead and migration cost for the current stage |
 | **E. RX.NET observable streams** | Fan-out with composition needs (throttle, filter, combine), scheduler-controlled async, or rich collection transforms |
 | **D. Mediator/command bus** | Re-evaluate if Options A + B + E still produce clear composition friction |
 
