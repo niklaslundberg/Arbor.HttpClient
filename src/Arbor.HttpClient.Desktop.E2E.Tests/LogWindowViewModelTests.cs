@@ -1,6 +1,7 @@
 using Arbor.HttpClient.Desktop.Features.Logging;
 using Avalonia.Threading;
 using Serilog;
+using System.Collections.Specialized;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
@@ -34,12 +35,12 @@ public class LogWindowViewModelTests
         LogEntry? eventEntry = null;
         sink.EntryAdded += (_, entry) => eventEntry = entry;
 
-        var observableEntryCompletion = new TaskCompletionSource<LogEntry>(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var subscription = sink.EntryAddedObservable.Subscribe(entry => observableEntryCompletion.TrySetResult(entry));
+        var observableEntryReceived = new TaskCompletionSource<LogEntry>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var subscription = sink.EntryAddedObservable.Subscribe(entry => observableEntryReceived.TrySetResult(entry));
 
         logger.ForContext("LogTab", LogTab.HttpRequests).Information("reactive");
 
-        var observableEntry = await observableEntryCompletion.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var observableEntry = await observableEntryReceived.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         eventEntry.Should().NotBeNull();
         eventEntry!.Tab.Should().Be(LogTab.HttpRequests);
@@ -54,14 +55,26 @@ public class LogWindowViewModelTests
         var logger = new LoggerConfiguration().WriteTo.Sink(sink).CreateLogger();
         using var viewModel = new LogWindowViewModel(sink);
 
-        logger.ForContext("LogTab", LogTab.HttpDiagnostics).Information("diagnostics-rx");
-
-        var deadline = DateTimeOffset.UtcNow.AddSeconds(2);
-        while (DateTimeOffset.UtcNow < deadline &&
-               !viewModel.HttpDiagnosticsEntries.Any(entry => entry.Message.Contains("diagnostics-rx", StringComparison.Ordinal)))
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        NotifyCollectionChangedEventHandler handler = (_, _) =>
         {
-            await Dispatcher.UIThread.InvokeAsync(() => { });
-            await Task.Delay(10);
+            if (viewModel.HttpDiagnosticsEntries.Any(entry =>
+                    entry.Message.Contains("diagnostics-rx", StringComparison.Ordinal)))
+            {
+                completion.TrySetResult();
+            }
+        };
+        viewModel.HttpDiagnosticsEntries.CollectionChanged += handler;
+
+        logger.ForContext("LogTab", LogTab.HttpDiagnostics).Information("diagnostics-rx");
+        await Dispatcher.UIThread.InvokeAsync(() => { });
+        try
+        {
+            await completion.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        }
+        finally
+        {
+            viewModel.HttpDiagnosticsEntries.CollectionChanged -= handler;
         }
 
         viewModel.HttpDiagnosticsEntries.Should().ContainSingle(entry => entry.Message.Contains("diagnostics-rx"));
