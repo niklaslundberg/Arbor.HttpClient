@@ -53,7 +53,7 @@ using Arbor.HttpClient.Desktop.Features.Scripting;
 
 namespace Arbor.HttpClient.Desktop.Features.Main;
 
-public partial class MainWindowViewModel : ViewModelBase, IDisposable
+public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponseActionsContext
 {
     private readonly HttpRequestService _httpRequestService;
     private readonly IRequestHistoryRepository _requestHistoryRepository;
@@ -97,11 +97,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly UnhandledExceptionCollector? _unhandledExceptionCollector;
     private readonly IScriptRunner _scriptRunner = new RoslynScriptRunner();
     private readonly ScriptViewModel _scriptViewModel = new();
-    private const int ResponseBodyTabIndex = 0;
-    private const int ResponseBodyRawTabIndex = 1;
-    private const int ResponseHeadersTabIndex = 2;
-    private const int ResponseRawTabIndex = 3;
-    private const int ResponseWebViewTabIndex = 4;
+    private readonly ResponseActionsViewModel _responseActions = null!;
     private const string DefaultContentTypeCustomOption = "Custom...";
 
     [ObservableProperty]
@@ -129,6 +125,36 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     // Needed for clipboard (e.g. "Copy as cURL" on history items) – set by the view
     public IClipboard? Clipboard { get; set; }
+
+    /// <summary>
+    /// Exposes the extracted response-actions coordinator.
+    /// XAML bindings currently resolve commands via delegation on <see cref="MainWindowViewModel"/>
+    /// (Phase 2). In a future Phase 3 cleanup the bindings can point directly to this property.
+    /// </summary>
+    public ResponseActionsViewModel ResponseActions => _responseActions;
+
+    // ── IResponseActionsContext explicit implementations ──────────────────────
+
+    IReadOnlyList<string> IResponseActionsContext.ResponseHeaders => ResponseHeaders;
+
+    byte[] IResponseActionsContext.GetLastResponseBodyBytes() => _lastResponseBodyBytes;
+
+    string IResponseActionsContext.SelectedCollectionName => SelectedCollection?.Name ?? string.Empty;
+
+    string IResponseActionsContext.RequestEditorResolvedUrl => _requestEditor.GetResolvedUrl();
+
+    string IResponseActionsContext.RequestEditorRequestName => _requestEditor.RequestName;
+
+    string IResponseActionsContext.RequestEditorContentType => _requestEditor.ContentType;
+
+    HttpRequestDraft IResponseActionsContext.BuildRequestDraft() => _requestEditor.BuildDraft();
+
+    void IResponseActionsContext.RecordTempFile(string path) => _tempFiles.Add(path);
+
+    void IResponseActionsContext.SetResponseSaveFileNamePatternValidationError(string error) =>
+        ResponseSaveFileNamePatternValidationError = error;
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>The collector used for unhandled exceptions; may be null when not configured.</summary>
     public UnhandledExceptionCollector? UnhandledExceptionCollector => _unhandledExceptionCollector;
@@ -695,6 +721,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _suppressLayoutRestore = false;
         _httpRequestService.SetDefaultRequestTimeout(TimeSpan.FromSeconds(DefaultRequestTimeoutSeconds));
         _requestEditor.RefreshRequestPreview();
+        _responseActions = new ResponseActionsViewModel(this);
     }
 
     public ObservableCollection<SavedRequest> History { get; }
@@ -2061,51 +2088,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         watcher.Changed += OnRequestBodyFileChanged;
         _requestBodyWatcher = watcher;
 
-        OpenWithShell(path);
+        ResponseActionsViewModel.OpenWithShell(path);
     }
 
     // CommunityToolkit.Mvvm strips the "Async" suffix when generating command properties,
     // so the XAML binding target is OpenResponseBodyInExternalEditorCommand (not OpenResponseBodyInExternalEditorAsyncCommand).
     [RelayCommand]
-    private async Task OpenResponseBodyInExternalEditorAsync()
-    {
-        var path = await WriteTempFileAsync("arbor-response", ResponseBody);
-        OpenWithShell(path);
-    }
+    private Task OpenResponseBodyInExternalEditorAsync(CancellationToken cancellationToken) =>
+        _responseActions.OpenResponseBodyInExternalEditorAsync(cancellationToken);
 
     [RelayCommand]
-    private async Task SaveBinaryResponseAndOpenAsync(CancellationToken cancellationToken)
-    {
-        if (!IsBinaryResponse || _lastResponseBodyBytes.Length == 0 || StorageProvider is null)
-        {
-            return;
-        }
-
-        var extension = ExtensionFromContentType(ResponseContentType);
-
-        var suggestedStartLocation = await GetResponseSaveSuggestedStartLocationAsync();
-        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = "Save Response",
-            SuggestedFileName = BuildResponseSaveFileName(extension),
-            SuggestedStartLocation = suggestedStartLocation,
-            FileTypeChoices =
-            [
-                new FilePickerFileType("Response file")
-                {
-                    Patterns = [$"*{extension}"]
-                }
-            ]
-        });
-
-        if (file is null)
-        {
-            return;
-        }
-
-        await File.WriteAllBytesAsync(file.Path.LocalPath, _lastResponseBodyBytes, cancellationToken);
-        OpenWithShell(file.Path.LocalPath);
-    }
+    private Task SaveBinaryResponseAndOpenAsync(CancellationToken cancellationToken) =>
+        _responseActions.SaveBinaryResponseAndOpenAsync(cancellationToken);
 
     /// <summary>
     /// Copies the given history item to the clipboard formatted as a single-line
@@ -2114,31 +2108,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// No-op when the clipboard or request is unavailable.
     /// </summary>
     [RelayCommand]
-    private async Task CopyHistoryItemAsCurlAsync(SavedRequest? request)
-    {
-        if (request is null || Clipboard is null)
-        {
-            return;
-        }
-
-        var command = CurlFormatter.Format(request);
-        await Clipboard.SetTextAsync(command);
-    }
+    private Task CopyHistoryItemAsCurlAsync(SavedRequest? request) =>
+        _responseActions.CopyHistoryItemAsCurlAsync(request);
 
     /// <summary>
     /// Copies the current (pretty-printed) response body text to the clipboard.
     /// No-op when the clipboard is unavailable or the response body is empty.
     /// </summary>
     [RelayCommand]
-    private async Task CopyResponseBodyAsync()
-    {
-        if (Clipboard is null || string.IsNullOrEmpty(ResponseBody))
-        {
-            return;
-        }
-
-        await Clipboard.SetTextAsync(ResponseBody);
-    }
+    private Task CopyResponseBodyAsync() => _responseActions.CopyResponseBodyAsync();
 
     /// <summary>
     /// Opens a save-file dialog and writes the currently selected response tab content to the chosen path.
@@ -2146,35 +2124,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// No-op when the storage provider is unavailable or the selected tab has no saveable text content.
     /// </summary>
     [RelayCommand]
-    private async Task SaveResponseBodyAsFileAsync(CancellationToken cancellationToken)
-    {
-        if (StorageProvider is null || !TryGetSaveableResponseContent(out var contentToSave, out var extension))
-        {
-            return;
-        }
-
-        var suggestedStartLocation = await GetResponseSaveSuggestedStartLocationAsync();
-        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = "Save Response",
-            SuggestedFileName = BuildResponseSaveFileName(extension),
-            SuggestedStartLocation = suggestedStartLocation,
-            FileTypeChoices =
-            [
-                new FilePickerFileType("Response file")
-                {
-                    Patterns = [$"*{extension}"]
-                }
-            ]
-        });
-
-        if (file is null)
-        {
-            return;
-        }
-
-        await File.WriteAllTextAsync(file.Path.LocalPath, contentToSave, Encoding.UTF8, cancellationToken);
-    }
+    private Task SaveResponseBodyAsFileAsync(CancellationToken cancellationToken) =>
+        _responseActions.SaveResponseBodyAsFileAsync(cancellationToken);
 
     /// <summary>
     /// Copies the current request (as configured in the request editor) to the
@@ -2182,17 +2133,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// No-op when the clipboard is unavailable.
     /// </summary>
     [RelayCommand]
-    private async Task CopyCurrentRequestAsCurlAsync()
-    {
-        if (Clipboard is null)
-        {
-            return;
-        }
-
-        var draft = _requestEditor.BuildDraft();
-        var command = CurlFormatter.Format(draft.Method, draft.Url, draft.Body, draft.Headers);
-        await Clipboard.SetTextAsync(command);
-    }
+    private Task CopyCurrentRequestAsCurlAsync() => _responseActions.CopyCurrentRequestAsCurlAsync();
 
     public void Dispose()
     {
@@ -2519,7 +2460,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var ext = !string.IsNullOrEmpty(_requestEditor.ContentType)
             ? ExtensionFromContentType(_requestEditor.ContentType)
             : DetectExtensionFromContent(content);
-        var path = Path.Combine(Path.GetTempPath(), $"{prefix}-{Guid.NewGuid():N}{ext}");
+        var path = Path.Join(Path.GetTempPath(), $"{prefix}-{Guid.NewGuid():N}{ext}");
         await File.WriteAllTextAsync(path, content, cancellationToken).ConfigureAwait(false);
         _tempFiles.Add(path);
         return path;
@@ -2535,113 +2476,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         return await StorageProvider.TryGetFolderFromPathAsync(ResponseSaveDefaultFolder);
     }
 
-    private string BuildResponseSaveFileName(string extension)
-    {
-        var requestPath = "root";
-
-        var resolvedUrl = _requestEditor.GetResolvedUrl();
-        if (Uri.TryCreate(resolvedUrl, UriKind.Absolute, out var uri))
-        {
-            var absolutePath = uri.AbsolutePath.Trim('/');
-            requestPath = string.IsNullOrWhiteSpace(absolutePath) ? "root" : absolutePath.Replace('/', '-');
-        }
-
-        var collectionName = SelectedCollection?.Name ?? "NoCollection";
-        var requestName = string.IsNullOrWhiteSpace(_requestEditor.RequestName) ? "request" : _requestEditor.RequestName;
-        var pattern = string.IsNullOrWhiteSpace(ResponseSaveFileNamePattern)
-            ? ResponseSaveFileNamePatternFormatter.DefaultPattern
-            : ResponseSaveFileNamePattern;
-
-        if (ResponseSaveFileNamePatternFormatter.TryFormat(
-                pattern,
-                collectionName,
-                requestPath,
-                requestName,
-                extension,
-                DateTimeOffset.UtcNow,
-                out var fileName,
-                out var validationError))
-        {
-            ResponseSaveFileNamePatternValidationError = string.Empty;
-            return fileName;
-        }
-
-        ResponseSaveFileNamePatternValidationError = validationError;
-
-        _ = ResponseSaveFileNamePatternFormatter.TryFormat(
-            ResponseSaveFileNamePatternFormatter.DefaultPattern,
-            collectionName,
-            requestPath,
-            requestName,
-            extension,
-            DateTimeOffset.UtcNow,
-            out var defaultFileName,
-            out _);
-
-        return defaultFileName;
-    }
-
-    internal bool TryGetSaveableResponseContent(out string content, out string extension)
-    {
-        content = string.Empty;
-        extension = ".txt";
-
-        if (SelectedResponseTabIndex == ResponseWebViewTabIndex)
-        {
-            return false;
-        }
-
-        if (SelectedResponseTabIndex == ResponseHeadersTabIndex)
-        {
-            if (ResponseHeaders.Count == 0)
-            {
-                return false;
-            }
-
-            content = string.Join(Environment.NewLine, ResponseHeaders);
-            extension = ".txt";
-            return true;
-        }
-
-        if (SelectedResponseTabIndex == ResponseRawTabIndex)
-        {
-            if (string.IsNullOrEmpty(ResponseRawText))
-            {
-                return false;
-            }
-
-            content = ResponseRawText;
-            extension = !string.IsNullOrWhiteSpace(ResponseContentType)
-                ? ExtensionFromContentType(ResponseContentType)
-                : DetectExtensionFromContent(RawResponseBody);
-            return true;
-        }
-
-        if (SelectedResponseTabIndex == ResponseBodyTabIndex && !string.IsNullOrEmpty(ResponseBody))
-        {
-            content = ResponseBody;
-            extension = !string.IsNullOrWhiteSpace(ResponseContentType)
-                ? ExtensionFromContentType(ResponseContentType)
-                : DetectExtensionFromContent(ResponseBody);
-            return true;
-        }
-
-        if (SelectedResponseTabIndex == ResponseBodyRawTabIndex && string.IsNullOrEmpty(RawResponseBody))
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrEmpty(RawResponseBody))
-        {
-            content = RawResponseBody;
-            extension = !string.IsNullOrWhiteSpace(ResponseContentType)
-                ? ExtensionFromContentType(ResponseContentType)
-                : DetectExtensionFromContent(RawResponseBody);
-            return true;
-        }
-
-        return false;
-    }
+    /// <summary>
+    /// Delegates to <see cref="ResponseActionsViewModel.TryGetSaveableResponseContent"/> for
+    /// backward-compatibility with existing tests and XAML bindings (Phase 2 delegation).
+    /// </summary>
+    internal bool TryGetSaveableResponseContent(out string content, out string extension) =>
+        _responseActions.TryGetSaveableResponseContent(out content, out extension);
 
     private void SyncDefaultContentTypeSelection(string value)
     {
@@ -2673,58 +2513,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ResponseRawText = $"{string.Join(Environment.NewLine, ResponseHeaders)}{Environment.NewLine}{Environment.NewLine}{RawResponseBody}";
     }
 
-    internal static string ExtensionFromContentType(string contentType)
-    {
-        if (string.IsNullOrWhiteSpace(contentType))
-        {
-            return ".txt";
-        }
+    /// <summary>
+    /// Delegates to <see cref="ResponseActionsViewModel.ExtensionFromContentType"/> for
+    /// backward-compatibility with existing tests and internal callers (Phase 2 delegation).
+    /// </summary>
+    internal static string ExtensionFromContentType(string contentType) =>
+        ResponseActionsViewModel.ExtensionFromContentType(contentType);
 
-        var mediaType = HttpContentTypeHelper.NormalizeMediaType(contentType);
-        return mediaType switch
-        {
-            "application/json" => ".json",
-            "application/xml" or "text/xml" => ".xml",
-            "text/html" => ".html",
-            "text/markdown" => ".md",
-            "application/pdf" => ".pdf",
-            "application/zip" => ".zip",
-            "image/png" => ".png",
-            "image/jpeg" => ".jpg",
-            "image/gif" => ".gif",
-            _ when HttpContentTypeHelper.IsJsonMediaType(mediaType) => ".json",
-            _ when HttpContentTypeHelper.IsXmlMediaType(mediaType) => ".xml",
-            _ => ".txt"
-        };
-    }
-
-    internal static string DetectExtensionFromContent(string content)
-    {
-        var trimmed = content.TrimStart();
-        if (trimmed.StartsWith('{') || trimmed.StartsWith('['))
-        {
-            return ".json";
-        }
-
-        if (trimmed.StartsWith('<'))
-        {
-            return ".xml";
-        }
-
-        return ".txt";
-    }
-
-    private static void OpenWithShell(string path)
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
-        }
-        catch
-        {
-            // no associated application – silently ignore
-        }
-    }
+    /// <summary>
+    /// Delegates to <see cref="ResponseActionsViewModel.DetectExtensionFromContent"/> for
+    /// backward-compatibility with existing tests and internal callers (Phase 2 delegation).
+    /// </summary>
+    internal static string DetectExtensionFromContent(string content) =>
+        ResponseActionsViewModel.DetectExtensionFromContent(content);
 
     private LayoutOptions BuildLayoutOptions() =>
         new()

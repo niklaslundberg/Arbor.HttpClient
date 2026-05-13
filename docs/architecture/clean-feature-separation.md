@@ -86,6 +86,7 @@ Features/
   Environments/           — EnvironmentsViewModel, EnvironmentVariableViewModel, EnvironmentsView
   GraphQl/                — GraphQlViewModel
   HttpRequest/            — RequestEditorViewModel, RequestViewModel, ResponseViewModel,
+                            ResponseActionsViewModel, IResponseActionsContext,
                             RequestHeaderViewModel, RequestQueryParameterViewModel,
                             RequestView, ResponseView, MethodToColorConverter, StatusCodeToColorConverter
   Layout/                 — DockFactory, DockLayoutSnapshot, FloatingWindowSnapshot, LayoutManagementViewModel,
