@@ -1,12 +1,14 @@
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Formatting.Display;
+using System.Reactive.Subjects;
 
 namespace Arbor.HttpClient.Desktop.Features.Logging;
 
 /// <summary>
 /// Serilog sink that stores the last <see cref="Capacity"/> log events in memory
-/// and raises <see cref="EntryAdded"/> when a new one arrives.
+/// and publishes new entries through both <see cref="EntryAddedObservable"/> and
+/// <see cref="EntryAdded"/> for gradual migration.
 /// Thread-safe.
 /// </summary>
 public sealed class InMemorySink : ILogEventSink, IDisposable
@@ -15,9 +17,11 @@ public sealed class InMemorySink : ILogEventSink, IDisposable
 
     private readonly MessageTemplateTextFormatter _formatter = new("{Message:lj}{NewLine}{Exception}", null);
     private readonly Queue<LogEntry> _entries = new();
+    private readonly Subject<LogEntry> _entryAddedSubject = new();
     private readonly object _lock = new();
 
     public event EventHandler<LogEntry>? EntryAdded;
+    public IObservable<LogEntry> EntryAddedObservable => _entryAddedSubject;
 
     public IReadOnlyList<LogEntry> GetSnapshot()
     {
@@ -49,12 +53,14 @@ public sealed class InMemorySink : ILogEventSink, IDisposable
             _entries.Enqueue(entry);
         }
 
+        _entryAddedSubject.OnNext(entry);
         EntryAdded?.Invoke(this, entry);
     }
 
     public void Dispose()
     {
-        // Nothing to release
+        _entryAddedSubject.OnCompleted();
+        _entryAddedSubject.Dispose();
     }
 
     private static string GetTab(LogEvent logEvent)
