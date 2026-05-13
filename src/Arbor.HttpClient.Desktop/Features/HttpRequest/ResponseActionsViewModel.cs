@@ -95,13 +95,13 @@ public sealed class ResponseActionsViewModel
     /// Writes the current response body to a temporary file and opens it in the default
     /// external editor. The file is registered for cleanup on application exit.
     /// </summary>
-    public async Task OpenResponseBodyInExternalEditorAsync()
+    public async Task OpenResponseBodyInExternalEditorAsync(CancellationToken cancellationToken = default)
     {
         var ext = !string.IsNullOrEmpty(_context.ResponseContentType)
             ? ExtensionFromContentType(_context.ResponseContentType)
             : DetectExtensionFromContent(_context.ResponseBody);
         var path = Path.Join(Path.GetTempPath(), $"arbor-response-{Guid.NewGuid():N}{ext}");
-        await File.WriteAllTextAsync(path, _context.ResponseBody).ConfigureAwait(false);
+        await File.WriteAllTextAsync(path, _context.ResponseBody, cancellationToken).ConfigureAwait(false);
         _context.RecordTempFile(path);
         OpenWithShell(path);
     }

@@ -2094,8 +2094,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     // CommunityToolkit.Mvvm strips the "Async" suffix when generating command properties,
     // so the XAML binding target is OpenResponseBodyInExternalEditorCommand (not OpenResponseBodyInExternalEditorAsyncCommand).
     [RelayCommand]
-    private Task OpenResponseBodyInExternalEditorAsync() =>
-        _responseActions.OpenResponseBodyInExternalEditorAsync();
+    private Task OpenResponseBodyInExternalEditorAsync(CancellationToken cancellationToken) =>
+        _responseActions.OpenResponseBodyInExternalEditorAsync(cancellationToken);
 
     [RelayCommand]
     private Task SaveBinaryResponseAndOpenAsync(CancellationToken cancellationToken) =>

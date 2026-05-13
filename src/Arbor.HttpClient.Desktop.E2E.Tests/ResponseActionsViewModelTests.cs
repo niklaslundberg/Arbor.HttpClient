@@ -16,8 +16,6 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 /// integration tests in <see cref="ResponseShortcutsTests"/> which run via the headless
 /// Avalonia session and the real clipboard.
 /// </summary>
-[Collection("HeadlessAvalonia")]
-[Trait("Category", "Integration")]
 public class ResponseActionsViewModelTests
 {
     // ── ExtensionFromContentType tests ────────────────────────────────────────
