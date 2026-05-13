@@ -97,7 +97,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private readonly UnhandledExceptionCollector? _unhandledExceptionCollector;
     private readonly IScriptRunner _scriptRunner = new RoslynScriptRunner();
     private readonly ScriptViewModel _scriptViewModel = new();
-    private ResponseActionsViewModel _responseActions = null!;
+    private readonly ResponseActionsViewModel _responseActions = null!;
     private const string DefaultContentTypeCustomOption = "Custom...";
 
     [ObservableProperty]
