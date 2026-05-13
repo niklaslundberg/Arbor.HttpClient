@@ -72,7 +72,7 @@ Each extracted unit should own:
 - Keep existing behavior paths unchanged.
 - Add adapter/proxy members in `MainWindowViewModel` to avoid XAML churn in the same PR.
 
-**Exit criteria:** boundaries compile, no UX changes, tests unchanged. ✅
+**Exit criteria:** boundaries compile, no UX changes, no Phase 1-specific test changes required. ✅
 
 ### Phase 2 — Extract one vertical slice at a time (repeated small PRs)
 
