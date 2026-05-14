@@ -22,11 +22,7 @@ public sealed class CollectionItemViewModel(CollectionRequest request, string? b
     /// Absolute paths are returned as-is.
     /// Falls back to <see cref="Path"/> when no base URL is provided.
     /// </summary>
-    public string FullUrl { get; } = Uri.TryCreate(request.Path, UriKind.Absolute, out _)
-        ? request.Path
-        : !string.IsNullOrWhiteSpace(baseUrl)
-            ? JoinBaseUrlAndPath(baseUrl, request.Path)
-            : request.Path;
+    public string FullUrl { get; } = CollectionUrlHelper.BuildFullUrl(baseUrl, request.Path);
 
     /// <summary>
     /// Key used to group requests in the tree view.
@@ -43,28 +39,5 @@ public sealed class CollectionItemViewModel(CollectionRequest request, string? b
         var slashIndex = trimmed.IndexOf('/');
         var segment = slashIndex >= 0 ? trimmed[..slashIndex] : trimmed;
         return string.IsNullOrWhiteSpace(segment) ? "(root)" : segment;
-    }
-
-    private static string JoinBaseUrlAndPath(string baseUrl, string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return baseUrl;
-        }
-
-        var baseEndsWithSlash = baseUrl.EndsWith("/", StringComparison.Ordinal);
-        var pathStartsWithSlash = path.StartsWith("/", StringComparison.Ordinal);
-
-        if (baseEndsWithSlash && pathStartsWithSlash)
-        {
-            return baseUrl + path[1..];
-        }
-
-        if (!baseEndsWithSlash && !pathStartsWithSlash)
-        {
-            return baseUrl + "/" + path;
-        }
-
-        return baseUrl + path;
     }
 }

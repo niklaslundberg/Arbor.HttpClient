@@ -33,7 +33,10 @@
                     Spacing="8"
                     VerticalAlignment="Center"
                     IsVisible="{Binding App.IsRequestInProgress}">
-            <ProgressBar Width="120" IsIndeterminate="True" />
+            <TextBlock Text="Sending request..." AutomationProperties.Name="Request in progress" />
+            <ProgressBar Width="120"
+                         IsIndeterminate="True"
+                         AutomationProperties.Name="Request in progress indicator" />
         </StackPanel>
 
         <Grid Grid.Row="2" RowDefinitions="Auto,Auto,*">

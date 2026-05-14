@@ -10,6 +10,7 @@ using System.Security;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -100,6 +101,22 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private readonly ResponseActionsViewModel _responseActions = null!;
     private const string DefaultContentTypeCustomOption = "Custom...";
     private const string ImplicitCollectionName = "Implicit Requests";
+    private const string ImplicitCollectionSourcePath = "arbor://implicit-requests";
+    private static readonly JsonSerializerOptions GraphQlJsonOptions = new()
+    {
+        WriteIndented = true,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    };
+    private static readonly HashSet<string> SensitiveHeaderNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Authorization",
+        "Proxy-Authorization",
+        "Cookie",
+        "Set-Cookie",
+        "X-Api-Key",
+        "Api-Key",
+        "X-Auth-Token"
+    };
 
     [ObservableProperty]
     private RequestTabViewModel? _activeRequestTab;
@@ -1485,10 +1502,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             // with the collection base URL.  We check the scheme explicitly rather than relying on UriKind.Absolute
             // because Uri.TryCreate("/ws", UriKind.Absolute, …) returns true on Linux (the path is resolved as a
             // file:// URI), which would silently strip the base URL.
-            var resolvedUrl = Uri.TryCreate(item.Path, UriKind.Absolute, out var parsedUri) && parsedUri is { }
-                              && parsedUri.Scheme is "http" or "https" or "ws" or "wss"
+            var resolvedUrl = CollectionUrlHelper.IsAbsoluteWebUrl(item.Path)
                 ? item.Path
-                : JoinBaseUrlAndPath(baseUrl, item.Path);
+                : CollectionUrlHelper.JoinBaseUrlAndPath(baseUrl, item.Path);
 
             // For WebSocket requests, rewrite http:// → ws:// and https:// → wss://.
             if (_requestEditor.SelectedRequestType == RequestType.WebSocket)
@@ -3485,7 +3501,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             _scriptViewModel.SetResult(postResult);
 
             _cookieJarViewModel.RefreshCookies();
-            await SaveRequestToImplicitCollectionAsync(mutatedDraft, cancellationToken);
+            var implicitCollectionRequest = BuildCollectionRequestFromHttpDraft(mutatedDraft);
+            await SaveRequestToImplicitCollectionBestEffortAsync(implicitCollectionRequest, cancellationToken);
             await LoadHistoryAsync();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -3539,7 +3556,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             _httpRequestsLogger.Information("GraphQL request completed: {StatusCode}", response.StatusCode);
 
             _cookieJarViewModel.RefreshCookies();
-            await SaveRequestToImplicitCollectionAsync(_requestEditor.BuildDraft(), cancellationToken);
+            var implicitCollectionRequest = BuildCollectionRequestFromGraphQlState(url, headers);
+            await SaveRequestToImplicitCollectionBestEffortAsync(implicitCollectionRequest, cancellationToken);
             await LoadHistoryAsync();
         }
         catch (Exception exception)
@@ -3643,34 +3661,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         return $"{(byteCount / gigabyte).ToString("0.##", CultureInfo.InvariantCulture)} GB";
     }
 
-    private static string JoinBaseUrlAndPath(string baseUrl, string path)
-    {
-        if (string.IsNullOrWhiteSpace(baseUrl))
-        {
-            return path;
-        }
-
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return baseUrl;
-        }
-
-        var baseEndsWithSlash = baseUrl.EndsWith("/", StringComparison.Ordinal);
-        var pathStartsWithSlash = path.StartsWith("/", StringComparison.Ordinal);
-
-        if (baseEndsWithSlash && pathStartsWithSlash)
-        {
-            return baseUrl + path[1..];
-        }
-
-        if (!baseEndsWithSlash && !pathStartsWithSlash)
-        {
-            return baseUrl + "/" + path;
-        }
-
-        return baseUrl + path;
-    }
-
     private async Task LoadHistoryAsync(CancellationToken cancellationToken = default)
     {
         var requests = (await _requestHistoryRepository.GetRecentAsync(100, cancellationToken))
@@ -3721,7 +3711,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         ResponseHeaders.Clear();
     }
 
-    private async Task SaveRequestToImplicitCollectionAsync(HttpRequestDraft requestDraft, CancellationToken cancellationToken)
+    private CollectionRequest BuildCollectionRequestFromHttpDraft(HttpRequestDraft requestDraft)
     {
         var collectionName = string.IsNullOrWhiteSpace(requestDraft.Name)
             ? $"{requestDraft.Method} {requestDraft.Url}"
@@ -3731,7 +3721,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             collectionName = collectionName[..120];
         }
 
-        var collectionRequest = new CollectionRequest(
+        return new CollectionRequest(
             collectionName,
             requestDraft.Method,
             requestDraft.Url,
@@ -3739,17 +3729,67 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             Notes: _requestEditor.RequestNotes,
             Body: requestDraft.Body,
             ContentType: _requestEditor.ContentType,
-            Headers: requestDraft.Headers);
+            Headers: requestDraft.Headers is { } headers
+                ? headers.Where(header => !IsSensitiveHeaderName(header.Name)).ToList()
+                : null);
+    }
 
+    private CollectionRequest BuildCollectionRequestFromGraphQlState(
+        string url,
+        IReadOnlyList<RequestHeader>? resolvedHeaders)
+    {
+        var collectionName = string.IsNullOrWhiteSpace(_requestEditor.RequestName)
+            ? $"POST {url}"
+            : _requestEditor.RequestName;
+        if (collectionName.Length > 120)
+        {
+            collectionName = collectionName[..120];
+        }
+
+        return new CollectionRequest(
+            collectionName,
+            "POST",
+            url,
+            Description: null,
+            Notes: _requestEditor.RequestNotes,
+            Body: BuildGraphQlRequestBodyJson(),
+            ContentType: "application/json",
+            Headers: resolvedHeaders is { } headers
+                ? headers.Where(header => !IsSensitiveHeaderName(header.Name)).ToList()
+                : null);
+    }
+
+    private async Task SaveRequestToImplicitCollectionBestEffortAsync(
+        CollectionRequest collectionRequest,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await SaveRequestToImplicitCollectionAsync(collectionRequest, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            _debugLogger.Warning(
+                exception,
+                "Failed to persist implicit collection request {RequestName}; request send result remains successful",
+                collectionRequest.Name);
+        }
+    }
+
+    private async Task SaveRequestToImplicitCollectionAsync(CollectionRequest collectionRequest, CancellationToken cancellationToken)
+    {
         var collections = await _collectionRepository.GetAllAsync(cancellationToken);
         var implicitCollection = collections.FirstOrDefault(collection =>
-            string.Equals(collection.Name, ImplicitCollectionName, StringComparison.OrdinalIgnoreCase));
+            string.Equals(collection.SourcePath, ImplicitCollectionSourcePath, StringComparison.Ordinal))
+            ?? collections.FirstOrDefault(collection =>
+                string.Equals(collection.Name, ImplicitCollectionName, StringComparison.OrdinalIgnoreCase)
+                && string.IsNullOrWhiteSpace(collection.SourcePath));
 
         if (implicitCollection is null)
         {
             await _collectionRepository.SaveAsync(
                 ImplicitCollectionName,
-                sourcePath: null,
+                sourcePath: ImplicitCollectionSourcePath,
                 baseUrl: null,
                 requests: [collectionRequest],
                 cancellationToken: cancellationToken);
@@ -3776,7 +3816,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         await _collectionRepository.UpdateAsync(
             implicitCollection.Id,
             implicitCollection.Name,
-            implicitCollection.SourcePath,
+            ImplicitCollectionSourcePath,
             implicitCollection.BaseUrl,
             updatedRequests,
             implicitCollection.Headers,
@@ -3785,14 +3825,58 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         await LoadCollectionsAsync(cancellationToken);
     }
 
+    private static bool IsSensitiveHeaderName(string headerName)
+    {
+        if (SensitiveHeaderNames.Contains(headerName))
+        {
+            return true;
+        }
+
+        return headerName.Contains("token", StringComparison.OrdinalIgnoreCase)
+               || headerName.Contains("secret", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string BuildGraphQlRequestBodyJson()
+    {
+        JsonNode? variables = null;
+        if (!string.IsNullOrWhiteSpace(_graphQlViewModel.VariablesJson))
+        {
+            try
+            {
+                variables = JsonNode.Parse(_graphQlViewModel.VariablesJson);
+            }
+            catch (JsonException)
+            {
+                variables = null;
+            }
+        }
+
+        var requestBody = new
+        {
+            query = _graphQlViewModel.Query,
+            variables,
+            operationName = string.IsNullOrWhiteSpace(_graphQlViewModel.OperationName)
+                ? null
+                : _graphQlViewModel.OperationName
+        };
+
+        return JsonSerializer.Serialize(requestBody, GraphQlJsonOptions);
+    }
+
     private async Task LoadCollectionsAsync(CancellationToken cancellationToken = default)
     {
+        var selectedCollectionId = SelectedCollection?.Id;
         var all = await _collectionRepository.GetAllAsync(cancellationToken);
 
         Collections.Clear();
         foreach (var c in all)
         {
             Collections.Add(c);
+        }
+
+        if (selectedCollectionId.HasValue)
+        {
+            SelectedCollection = Collections.FirstOrDefault(collection => collection.Id == selectedCollectionId.Value);
         }
     }
 

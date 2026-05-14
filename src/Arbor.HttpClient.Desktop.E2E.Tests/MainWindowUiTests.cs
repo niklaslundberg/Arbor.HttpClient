@@ -3,7 +3,9 @@ using System.Net.Sockets;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using Arbor.HttpClient.Desktop;
+using Arbor.HttpClient.Desktop.Demo;
 using Arbor.HttpClient.Desktop.Features.Environments;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.Layout;
@@ -989,6 +991,208 @@ public class MainWindowUiTests
             string.Equals(request.Name, "Implicit Save", StringComparison.Ordinal)
             && string.Equals(request.Method, "GET", StringComparison.Ordinal)
             && string.Equals(request.Path, "http://localhost:5000/implicit", StringComparison.Ordinal));
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task SendRequestAsync_WhenRequestHasSensitiveHeaders_DoesNotPersistSensitiveHeadersInImplicitCollection()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var collectionRepository = new InMemoryCollectionRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
+        });
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            collectionRepository,
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        await viewModel.InitializeAsync();
+
+        viewModel.RequestEditor.RequestName = "Sensitive Header Save";
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/secure";
+        viewModel.RequestEditor.SelectedMethod = "GET";
+        viewModel.RequestEditor.RequestHeaders.Clear();
+        viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+        {
+            Name = "Authorization",
+            Value = "******",
+            IsEnabled = true
+        });
+        viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+        {
+            Name = "X-Correlation-Id",
+            Value = "abc-123",
+            IsEnabled = true
+        });
+        viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+        {
+            Name = "X-Session-Token",
+            Value = "token-value",
+            IsEnabled = true
+        });
+        viewModel.RequestEditor.EnsurePlaceholderRows();
+
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
+
+        var implicitCollection = viewModel.Collections.First(collection =>
+            string.Equals(collection.Name, "Implicit Requests", StringComparison.Ordinal));
+        var savedRequest = implicitCollection.Requests.First(request =>
+            string.Equals(request.Name, "Sensitive Header Save", StringComparison.Ordinal));
+
+        savedRequest.Headers.Should().ContainSingle(header =>
+            string.Equals(header.Name, "X-Correlation-Id", StringComparison.Ordinal)
+            && string.Equals(header.Value, "abc-123", StringComparison.Ordinal));
+        savedRequest.Headers.Should().NotContain(header =>
+            string.Equals(header.Name, "Authorization", StringComparison.OrdinalIgnoreCase));
+        savedRequest.Headers.Should().NotContain(header =>
+            string.Equals(header.Name, "X-Session-Token", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task SendGraphQlRequestAsync_SavesActualGraphQlPayloadInImplicitCollection()
+    {
+        await using var demoServer = new DemoServer();
+        await demoServer.StartAsync();
+
+        var repository = new InMemoryRequestHistoryRepository();
+        var collectionRepository = new InMemoryCollectionRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            collectionRepository,
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        await viewModel.InitializeAsync();
+
+        viewModel.RequestEditor.RequestName = "GraphQL implicit save";
+        viewModel.RequestEditor.RequestUrl = $"http://localhost:{demoServer.Port}/echo";
+        viewModel.RequestEditor.SelectedRequestType = RequestType.GraphQL;
+        viewModel.GraphQlEditor.Query = "query Ping { ping }";
+        viewModel.GraphQlEditor.VariablesJson = "{\"userId\":42}";
+        viewModel.GraphQlEditor.OperationName = "Ping";
+
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
+
+        var implicitCollection = viewModel.Collections.First(collection =>
+            string.Equals(collection.Name, "Implicit Requests", StringComparison.Ordinal));
+        var savedRequest = implicitCollection.Requests.First(request =>
+            string.Equals(request.Name, "GraphQL implicit save", StringComparison.Ordinal));
+
+        savedRequest.Method.Should().Be("POST");
+        savedRequest.ContentType.Should().Be("application/json");
+
+        using var bodyDocument = JsonDocument.Parse(savedRequest.Body!);
+        bodyDocument.RootElement.GetProperty("query").GetString().Should().Be("query Ping { ping }");
+        bodyDocument.RootElement.GetProperty("operationName").GetString().Should().Be("Ping");
+        bodyDocument.RootElement.GetProperty("variables").GetProperty("userId").GetInt32().Should().Be(42);
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task SendGraphQlRequestAsync_WithInvalidVariablesJson_SavesBodyWithNullVariables()
+    {
+        await using var demoServer = new DemoServer();
+        await demoServer.StartAsync();
+
+        var repository = new InMemoryRequestHistoryRepository();
+        var collectionRepository = new InMemoryCollectionRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            collectionRepository,
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        await viewModel.InitializeAsync();
+
+        viewModel.RequestEditor.RequestName = "GraphQL invalid vars";
+        viewModel.RequestEditor.RequestUrl = $"http://localhost:{demoServer.Port}/echo";
+        viewModel.RequestEditor.SelectedRequestType = RequestType.GraphQL;
+        viewModel.GraphQlEditor.Query = "query Ping { ping }";
+        viewModel.GraphQlEditor.VariablesJson = "{bad-json";
+        viewModel.GraphQlEditor.OperationName = "Ping";
+
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
+
+        var implicitCollection = viewModel.Collections.First(collection =>
+            string.Equals(collection.Name, "Implicit Requests", StringComparison.Ordinal));
+        var savedRequest = implicitCollection.Requests.First(request =>
+            string.Equals(request.Name, "GraphQL invalid vars", StringComparison.Ordinal));
+
+        using var bodyDocument = JsonDocument.Parse(savedRequest.Body!);
+        bodyDocument.RootElement.GetProperty("variables").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task SendRequestAsync_WhenImplicitCollectionIsSelected_RefreshesSelectedCollectionItems()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var collectionRepository = new InMemoryCollectionRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
+        });
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            collectionRepository,
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        await viewModel.InitializeAsync();
+
+        viewModel.RequestEditor.RequestName = "Initial implicit request";
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/implicit/one";
+        viewModel.RequestEditor.SelectedMethod = "GET";
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
+
+        var implicitCollection = viewModel.Collections.First(collection =>
+            string.Equals(collection.Name, "Implicit Requests", StringComparison.Ordinal));
+        viewModel.SelectedCollection = implicitCollection;
+
+        viewModel.RequestEditor.RequestName = "Second implicit request";
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/implicit/two";
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
+
+        viewModel.CollectionItems.Should().Contain(item =>
+            string.Equals(item.Name, "Second implicit request", StringComparison.Ordinal));
     }
 
     [AvaloniaFact(Timeout = 10_000)]
