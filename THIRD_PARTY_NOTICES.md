@@ -119,6 +119,16 @@ This project makes use of third-party packages. Their licenses and attribution d
 
 ---
 
+## System.Reactive
+
+**Package:** System.Reactive  
+**Version:** 6.1.0  
+**Authors:** .NET Foundation and Contributors  
+**Project URL:** https://github.com/dotnet/reactive  
+**License:** MIT  
+
+---
+
 ## AwesomeAssertions
 
 **Package:** AwesomeAssertions  

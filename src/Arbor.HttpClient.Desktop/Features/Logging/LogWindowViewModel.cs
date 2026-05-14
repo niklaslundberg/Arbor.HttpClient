@@ -11,6 +11,7 @@ public sealed partial class LogWindowViewModel : ViewModelBase, IDisposable
     private const int MaxDisplayEntries = 1000;
 
     private readonly InMemorySink _sink;
+    private readonly IDisposable _entryAddedSubscription;
 
     [ObservableProperty]
     private bool _autoScroll = true;
@@ -30,20 +31,25 @@ public sealed partial class LogWindowViewModel : ViewModelBase, IDisposable
             AddEntry(entry);
         }
 
-        _sink.EntryAdded += OnEntryAdded;
-    }
-
-    private void OnEntryAdded(object? sender, LogEntry entry)
-    {
-        Dispatcher.UIThread.Post(() =>
+        _entryAddedSubscription = _sink.EntryAddedObservable.Subscribe(entry =>
         {
-            AddEntry(entry);
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                AddEntry(entry);
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    AddEntry(entry);
+                });
+            }
         });
     }
 
     public void Dispose()
     {
-        _sink.EntryAdded -= OnEntryAdded;
+        _entryAddedSubscription.Dispose();
     }
 
     private void AddEntry(LogEntry entry)

@@ -1,12 +1,15 @@
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Formatting.Display;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
 
 namespace Arbor.HttpClient.Desktop.Features.Logging;
 
 /// <summary>
 /// Serilog sink that stores the last <see cref="Capacity"/> log events in memory
-/// and raises <see cref="EntryAdded"/> when a new one arrives.
+/// and publishes new entries through both <see cref="EntryAddedObservable"/> and
+/// <see cref="EntryAdded"/> for gradual migration.
 /// Thread-safe.
 /// </summary>
 public sealed class InMemorySink : ILogEventSink, IDisposable
@@ -15,9 +18,13 @@ public sealed class InMemorySink : ILogEventSink, IDisposable
 
     private readonly MessageTemplateTextFormatter _formatter = new("{Message:lj}{NewLine}{Exception}", null);
     private readonly Queue<LogEntry> _entries = new();
+    private readonly Subject<LogEntry> _entryAddedSubject = new();
     private readonly object _lock = new();
+    private readonly object _subjectLock = new();
+    private bool _isDisposed;
 
     public event EventHandler<LogEntry>? EntryAdded;
+    public IObservable<LogEntry> EntryAddedObservable => _entryAddedSubject.AsObservable();
 
     public IReadOnlyList<LogEntry> GetSnapshot()
     {
@@ -41,6 +48,11 @@ public sealed class InMemorySink : ILogEventSink, IDisposable
 
         lock (_lock)
         {
+            if (_isDisposed)
+            {
+                return;
+            }
+
             if (_entries.Count >= Capacity)
             {
                 _entries.Dequeue();
@@ -49,12 +61,37 @@ public sealed class InMemorySink : ILogEventSink, IDisposable
             _entries.Enqueue(entry);
         }
 
+        lock (_subjectLock)
+        {
+            if (_isDisposed)
+            {
+                return;
+            }
+
+            _entryAddedSubject.OnNext(entry);
+        }
+
         EntryAdded?.Invoke(this, entry);
     }
 
     public void Dispose()
     {
-        // Nothing to release
+        lock (_lock)
+        {
+            if (_isDisposed)
+            {
+                return;
+            }
+
+            _isDisposed = true;
+        }
+
+        lock (_subjectLock)
+        {
+            _entryAddedSubject.OnCompleted();
+        }
+
+        _entryAddedSubject.Dispose();
     }
 
     private static string GetTab(LogEvent logEvent)
