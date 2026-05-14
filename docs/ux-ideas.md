@@ -390,7 +390,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
 
 ### 4.4 "Resend" in history context menu ✅ Implemented
-> Implemented in PR #<CURRENT_PR> (commit `<CURRENT_SHA7>`) — `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Collections/LeftPanelView.axaml`
+> Implemented in PR #208 (commit `a6344d3`) — `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Collections/LeftPanelView.axaml`
 
 **What it means:** Right-click a history entry → "Resend" loads the original request back into the composer and immediately sends it, or just loads it for editing. Already partially available via "Load" but not as a one-click resend.
 

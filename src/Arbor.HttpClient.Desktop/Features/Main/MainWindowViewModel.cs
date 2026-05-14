@@ -3726,6 +3726,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         var collectionName = string.IsNullOrWhiteSpace(requestDraft.Name)
             ? $"{requestDraft.Method} {requestDraft.Url}"
             : requestDraft.Name;
+        if (collectionName.Length > 120)
+        {
+            collectionName = collectionName[..120];
+        }
 
         var collectionRequest = new CollectionRequest(
             collectionName,
@@ -3756,7 +3760,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
         var updatedRequests = implicitCollection.Requests.ToList();
         var existingRequestIndex = updatedRequests.FindIndex(request =>
-            string.Equals(request.Method, collectionRequest.Method, StringComparison.OrdinalIgnoreCase)
+            string.Equals(request.Name, collectionRequest.Name, StringComparison.Ordinal)
+            && string.Equals(request.Method, collectionRequest.Method, StringComparison.OrdinalIgnoreCase)
             && string.Equals(request.Path, collectionRequest.Path, StringComparison.Ordinal));
 
         if (existingRequestIndex >= 0)
