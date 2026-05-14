@@ -241,6 +241,38 @@ public class DemoServerTests
     }
 
     [AvaloniaFact(Timeout = 10_000)]
+    public async Task LoadCollectionRequest_WithVariableBaseUrlAndLeadingSlashPath_JoinsWithoutDoubleSlash()
+    {
+        var collectionRepo = new InMemoryCollectionRepository();
+        var environmentRepo = new InMemoryEnvironmentRepository();
+
+        await environmentRepo.SaveAsync(
+            "Join Env",
+            [new EnvironmentVariable("baseUrl", "http://myserver/", IsEnabled: true)]);
+
+        await collectionRepo.SaveAsync(
+            "Join Test",
+            null,
+            "{{baseUrl}}",
+            [new CollectionRequest("Endpoint", "GET", "/someEndpoint", null)]);
+
+        var viewModel = CreateViewModel(
+            collectionRepository: collectionRepo,
+            environmentRepository: environmentRepo);
+        using var _ = viewModel;
+
+        await viewModel.InitializeAsync();
+        viewModel.ActiveEnvironment = viewModel.Environments.First(environment => environment.Name == "Join Env");
+        viewModel.SelectedCollection = viewModel.Collections.First(collection => collection.Name == "Join Test");
+
+        var item = viewModel.FilteredCollectionItems.First();
+        viewModel.LoadCollectionRequestCore(item);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+
+        viewModel.RequestEditor.RequestUrl.Should().Be("http://myserver/someEndpoint");
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task LoadCollectionRequest_WhenRequestNotOpen_OpensNewTab()
     {
 

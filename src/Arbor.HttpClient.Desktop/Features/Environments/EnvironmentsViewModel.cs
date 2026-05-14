@@ -110,6 +110,11 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
                 {
                     ActiveEnvironment = Environments.FirstOrDefault(environment => environment.Id == previousId.Value);
                 }
+
+                if (ActiveEnvironment is null && Environments.Count > 0)
+                {
+                    ActiveEnvironment = Environments[0];
+                }
             }
             finally
             {

@@ -854,6 +854,219 @@ public class MainWindowUiTests
     }
 
     [AvaloniaFact(Timeout = 10_000)]
+    public async Task SendRequestAsync_WhenStartingNewRequest_ClearsPreviousResponseState()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var requestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowResponse = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using var handler = new AsyncStubHttpMessageHandler(async (_, cancellationToken) =>
+        {
+            requestStarted.TrySetResult();
+            await allowResponse.Task.WaitAsync(cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
+            };
+        });
+
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        viewModel.ResponseBody = "{\"previous\":true}";
+        viewModel.RawResponseBody = "{\"previous\":true}";
+        viewModel.ResponseStatus = "200 OK";
+        viewModel.ResponseHeaders.Add("Content-Type: application/json");
+        viewModel.HasResponseHeaders = true;
+        viewModel.HasTextResponse = true;
+
+        viewModel.RequestEditor.RequestName = "clear response state";
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/slow";
+        viewModel.RequestEditor.SelectedMethod = "GET";
+
+        viewModel.SendRequestCommand.Execute(null);
+        await requestStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(30, TestContext.Current.CancellationToken);
+
+        viewModel.IsRequestInProgress.Should().BeTrue();
+        viewModel.ResponseBody.Should().BeEmpty();
+        viewModel.RawResponseBody.Should().BeEmpty();
+        viewModel.ResponseStatus.Should().BeEmpty();
+        viewModel.ResponseHeaders.Should().BeEmpty();
+        viewModel.HasTextResponse.Should().BeFalse();
+
+        allowResponse.TrySetResult();
+        await viewModel.SendRequestCommand.ExecutionTask!;
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task LoadHistoryRequestCommand_WithSavedRequest_LoadsRequestIntoEditor()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        await repository.SaveAsync(new SavedRequest(
+            Name: "Saved request",
+            Method: "POST",
+            Url: "http://localhost:5000/api/items",
+            Body: "{\"name\":\"item\"}",
+            CreatedAtUtc: DateTimeOffset.UtcNow));
+
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        await viewModel.InitializeAsync();
+
+        var historyItem = viewModel.History.Should().ContainSingle().Subject;
+        viewModel.LoadHistoryRequestCommand.Execute(historyItem);
+
+        viewModel.RequestEditor.SelectedMethod.Should().Be("POST");
+        viewModel.RequestEditor.RequestUrl.Should().Be("http://localhost:5000/api/items");
+        viewModel.RequestEditor.RequestBody.Should().Be("{\"name\":\"item\"}");
+        viewModel.RequestEditor.RequestName.Should().Be("Saved request");
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task SendRequestAsync_WhenNoCollectionSelected_SavesRequestToImplicitCollection()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var collectionRepository = new InMemoryCollectionRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
+        });
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            collectionRepository,
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        await viewModel.InitializeAsync();
+
+        viewModel.RequestEditor.RequestName = "Implicit Save";
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/implicit";
+        viewModel.RequestEditor.SelectedMethod = "GET";
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
+
+        var implicitCollection = viewModel.Collections.FirstOrDefault(collection =>
+            string.Equals(collection.Name, "Implicit Requests", StringComparison.Ordinal));
+
+        implicitCollection.Should().NotBeNull();
+        implicitCollection!.Requests.Should().ContainSingle(request =>
+            string.Equals(request.Name, "Implicit Save", StringComparison.Ordinal)
+            && string.Equals(request.Method, "GET", StringComparison.Ordinal)
+            && string.Equals(request.Path, "http://localhost:5000/implicit", StringComparison.Ordinal));
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task SetCollectionSortByCommand_InTreeView_ChangesGroupOrder()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var collectionRepository = new InMemoryCollectionRepository();
+        await collectionRepository.SaveAsync(
+            "Sort Test",
+            sourcePath: null,
+            baseUrl: null,
+            requests:
+            [
+                new CollectionRequest("Zulu", "GET", "/a/one", null),
+                new CollectionRequest("Alpha", "GET", "/z/two", null)
+            ]);
+
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            collectionRepository,
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        await viewModel.InitializeAsync();
+        viewModel.SelectedCollection = viewModel.Collections.First(collection => collection.Name == "Sort Test");
+        viewModel.IsCollectionTreeView = true;
+
+        viewModel.CollectionGroups.Select(group => group.GroupKey).Should().Equal("a", "z");
+
+        viewModel.SetCollectionSortByCommand.Execute("Name");
+
+        viewModel.CollectionGroups.Select(group => group.GroupKey).Should().Equal("z", "a");
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task LoadEnvironmentsAsync_WhenActiveEnvironmentWasRemoved_SelectsFirstAvailableEnvironment()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var environmentRepository = new InMemoryEnvironmentRepository();
+        var developmentId = await environmentRepository.SaveAsync("Development", [new EnvironmentVariable("key", "dev")]);
+        var productionId = await environmentRepository.SaveAsync("Production", [new EnvironmentVariable("key", "prod")]);
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            environmentRepository,
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        await viewModel.InitializeAsync();
+        viewModel.ActiveEnvironment = viewModel.Environments.First(environment => environment.Id == productionId);
+
+        await environmentRepository.DeleteAsync(productionId);
+        await viewModel.EnvironmentsPanel.LoadEnvironmentsAsync();
+
+        viewModel.ActiveEnvironment.Should().NotBeNull();
+        viewModel.ActiveEnvironment!.Id.Should().Be(developmentId);
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task RequestUrlAndQueryParameters_ShouldStayInSync_AndPreserveFragment()
     {
 

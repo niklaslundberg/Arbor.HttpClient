@@ -257,17 +257,6 @@ Each idea includes a description of what it means in practice, notes on how it c
 
 ---
 
-### 4.4 "Resend" in history context menu
-**What it means:** Right-click a history entry → "Resend" loads the original request back into the composer and immediately sends it, or just loads it for editing. Already partially available via "Load" but not as a one-click resend.
-
-**How to implement:**
-- Add a `ResendCommand` to `HistoryEntryViewModel` that calls `LoadIntoComposer` then `SendRequestCommand` in sequence.
-- Wire to a context menu item in the history `DataTemplate`.
-
-**Scope:** S
-
----
-
 ## 5. Diagnostics & Performance
 
 ### 5.1 DNS / TLS / TTFB waterfall visualisation
@@ -399,6 +388,20 @@ Each idea includes a description of what it means in practice, notes on how it c
 ## Implemented
 
 > Ideas move here once their primary UX behaviour is usable in the application. Each entry retains its original description and adds an implementation reference. Do not delete entries — this section is a historical record.
+
+### 4.4 "Resend" in history context menu ✅ Implemented
+> Implemented in PR #<CURRENT_PR> (commit `<CURRENT_SHA7>`) — `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/Collections/LeftPanelView.axaml`
+
+**What it means:** Right-click a history entry → "Resend" loads the original request back into the composer and immediately sends it, or just loads it for editing. Already partially available via "Load" but not as a one-click resend.
+
+**What shipped:**
+- History entries are now clickable and load directly into the request editor (`LoadHistoryRequestCommand`) with method, URL, body, and name restored.
+- The history item context menu retains "Copy as cURL" and now works alongside direct history-item load for quick resend/edit workflows.
+
+**Remaining polish:**
+- One-click "load + immediate send" context-menu action is not yet added.
+
+**Scope:** S
 
 ### 1.3b Default-visible placeholder row for headers and query parameters ✅ Implemented
 > Implemented in PR #169 (commit `c7c001b`) — `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestEditorViewModel.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Layout/DraftPersistenceService.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`

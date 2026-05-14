@@ -99,6 +99,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private readonly ScriptViewModel _scriptViewModel = new();
     private readonly ResponseActionsViewModel _responseActions = null!;
     private const string DefaultContentTypeCustomOption = "Custom...";
+    private const string ImplicitCollectionName = "Implicit Requests";
 
     [ObservableProperty]
     private RequestTabViewModel? _activeRequestTab;
@@ -891,6 +892,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
     public IAsyncRelayCommand SendRequestCommand { get; }
     public IAsyncRelayCommand LoadHistoryCommand { get; }
+    public bool IsRequestInProgress => SendRequestCommand.IsRunning;
 
     [RelayCommand]
     private void ExecutePrimaryAction()
@@ -930,6 +932,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             || string.Equals(e.PropertyName, nameof(IAsyncRelayCommand.CanBeCanceled), StringComparison.Ordinal))
         {
             OnPropertyChanged(nameof(PrimaryActionLabel));
+            OnPropertyChanged(nameof(IsRequestInProgress));
         }
     }
 
@@ -1485,7 +1488,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             var resolvedUrl = Uri.TryCreate(item.Path, UriKind.Absolute, out var parsedUri) && parsedUri is { }
                               && parsedUri.Scheme is "http" or "https" or "ws" or "wss"
                 ? item.Path
-                : baseUrl.TrimEnd('/') + item.Path;
+                : JoinBaseUrlAndPath(baseUrl, item.Path);
 
             // For WebSocket requests, rewrite http:// → ws:// and https:// → wss://.
             if (_requestEditor.SelectedRequestType == RequestType.WebSocket)
@@ -1870,8 +1873,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
         CollectionGroups.Clear();
         foreach (var group in filteredList
-            .GroupBy(i => i.GroupKey, StringComparer.OrdinalIgnoreCase)
-            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
+            .GroupBy(i => i.GroupKey, StringComparer.OrdinalIgnoreCase))
         {
             var groupVm = new CollectionGroupViewModel(group.Key, group.ToList());
             if (previousExpanded.TryGetValue(group.Key, out var wasExpanded))
@@ -3357,6 +3359,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     {
         ErrorMessage = string.Empty;
 
+        if (_requestEditor.SelectedRequestType is RequestType.Http or RequestType.GraphQL)
+        {
+            ClearResponseState();
+        }
+
         switch (_requestEditor.SelectedRequestType)
         {
             case RequestType.GraphQL:
@@ -3478,6 +3485,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             _scriptViewModel.SetResult(postResult);
 
             _cookieJarViewModel.RefreshCookies();
+            await SaveRequestToImplicitCollectionAsync(mutatedDraft, cancellationToken);
             await LoadHistoryAsync();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -3531,6 +3539,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             _httpRequestsLogger.Information("GraphQL request completed: {StatusCode}", response.StatusCode);
 
             _cookieJarViewModel.RefreshCookies();
+            await SaveRequestToImplicitCollectionAsync(_requestEditor.BuildDraft(), cancellationToken);
             await LoadHistoryAsync();
         }
         catch (Exception exception)
@@ -3634,6 +3643,34 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         return $"{(byteCount / gigabyte).ToString("0.##", CultureInfo.InvariantCulture)} GB";
     }
 
+    private static string JoinBaseUrlAndPath(string baseUrl, string path)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return path;
+        }
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return baseUrl;
+        }
+
+        var baseEndsWithSlash = baseUrl.EndsWith("/", StringComparison.Ordinal);
+        var pathStartsWithSlash = path.StartsWith("/", StringComparison.Ordinal);
+
+        if (baseEndsWithSlash && pathStartsWithSlash)
+        {
+            return baseUrl + path[1..];
+        }
+
+        if (!baseEndsWithSlash && !pathStartsWithSlash)
+        {
+            return baseUrl + "/" + path;
+        }
+
+        return baseUrl + path;
+    }
+
     private async Task LoadHistoryAsync(CancellationToken cancellationToken = default)
     {
         var requests = (await _requestHistoryRepository.GetRecentAsync(100, cancellationToken))
@@ -3644,6 +3681,103 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         _allHistory.AddRange(requests);
 
         ApplyHistoryFilter(HistorySearchQuery);
+    }
+
+    [RelayCommand]
+    private void LoadHistoryRequest(SavedRequest? request)
+    {
+        if (request is null)
+        {
+            return;
+        }
+
+        _requestEditor.SelectedRequestType = RequestType.Http;
+        _requestEditor.SelectedMethod = request.Method;
+        _requestEditor.RequestName = request.Name;
+        _requestEditor.RequestUrl = request.Url;
+        _requestEditor.RequestBody = request.Body ?? string.Empty;
+        _requestEditor.RequestHeaders.Clear();
+        _requestEditor.EnsurePlaceholderRows();
+        LeftPanelTab = "History";
+    }
+
+    private void ClearResponseState()
+    {
+        ResponseStatus = string.Empty;
+        ResponseStatusCode = 0;
+        ResponseTimeDisplay = string.Empty;
+        ResponseSizeDisplay = string.Empty;
+        ResponseBody = string.Empty;
+        RawResponseBody = string.Empty;
+        ResponseRawText = string.Empty;
+        ResponseContentType = string.Empty;
+        ResponseBodyTabLabel = "Body";
+        IsBinaryResponse = false;
+        IsResponseWebViewAvailable = false;
+        ResponseWebViewUri = "about:blank";
+        HasResponseHeaders = false;
+        HasTextResponse = false;
+        _lastResponseBodyBytes = [];
+        ResponseHeaders.Clear();
+    }
+
+    private async Task SaveRequestToImplicitCollectionAsync(HttpRequestDraft requestDraft, CancellationToken cancellationToken)
+    {
+        var collectionName = string.IsNullOrWhiteSpace(requestDraft.Name)
+            ? $"{requestDraft.Method} {requestDraft.Url}"
+            : requestDraft.Name;
+
+        var collectionRequest = new CollectionRequest(
+            collectionName,
+            requestDraft.Method,
+            requestDraft.Url,
+            Description: null,
+            Notes: _requestEditor.RequestNotes,
+            Body: requestDraft.Body,
+            ContentType: _requestEditor.ContentType,
+            Headers: requestDraft.Headers);
+
+        var collections = await _collectionRepository.GetAllAsync(cancellationToken);
+        var implicitCollection = collections.FirstOrDefault(collection =>
+            string.Equals(collection.Name, ImplicitCollectionName, StringComparison.OrdinalIgnoreCase));
+
+        if (implicitCollection is null)
+        {
+            await _collectionRepository.SaveAsync(
+                ImplicitCollectionName,
+                sourcePath: null,
+                baseUrl: null,
+                requests: [collectionRequest],
+                cancellationToken: cancellationToken);
+
+            await LoadCollectionsAsync(cancellationToken);
+            return;
+        }
+
+        var updatedRequests = implicitCollection.Requests.ToList();
+        var existingRequestIndex = updatedRequests.FindIndex(request =>
+            string.Equals(request.Method, collectionRequest.Method, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(request.Path, collectionRequest.Path, StringComparison.Ordinal));
+
+        if (existingRequestIndex >= 0)
+        {
+            updatedRequests[existingRequestIndex] = collectionRequest;
+        }
+        else
+        {
+            updatedRequests.Add(collectionRequest);
+        }
+
+        await _collectionRepository.UpdateAsync(
+            implicitCollection.Id,
+            implicitCollection.Name,
+            implicitCollection.SourcePath,
+            implicitCollection.BaseUrl,
+            updatedRequests,
+            implicitCollection.Headers,
+            cancellationToken);
+
+        await LoadCollectionsAsync(cancellationToken);
     }
 
     private async Task LoadCollectionsAsync(CancellationToken cancellationToken = default)
