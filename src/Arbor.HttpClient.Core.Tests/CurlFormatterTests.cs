@@ -85,16 +85,16 @@ public class CurlFormatterTests
     }
 
     [Fact]
-    public void Format_FromSavedRequest_ShouldUseMethodUrlAndBody()
+    public void Format_FromRequestHistoryEntry_ShouldUseMethodUrlAndBody()
     {
-        var saved = new SavedRequest(
+        var historyEntry = new RequestHistoryEntry(
             Name: "Echo",
             Method: "POST",
             Url: "http://localhost:5000/echo",
             Body: "payload",
             CreatedAtUtc: DateTimeOffset.UnixEpoch);
 
-        var command = CurlFormatter.Format(saved);
+        var command = CurlFormatter.Format(historyEntry);
 
         command.Should().Be("curl -X POST 'http://localhost:5000/echo' --data-raw 'payload'");
     }

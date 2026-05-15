@@ -915,11 +915,11 @@ public class MainWindowUiTests
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public async Task LoadHistoryRequestCommand_WithSavedRequest_LoadsRequestIntoEditor()
+    public async Task LoadHistoryRequestCommand_WithHistoryEntry_LoadsRequestIntoEditor()
     {
         var repository = new InMemoryRequestHistoryRepository();
-        await repository.SaveAsync(new SavedRequest(
-            Name: "Saved request",
+        await repository.SaveAsync(new RequestHistoryEntry(
+            Name: "History entry",
             Method: "POST",
             Url: "http://localhost:5000/api/items",
             Body: "{\"name\":\"item\"}",
@@ -949,7 +949,7 @@ public class MainWindowUiTests
         viewModel.RequestEditor.SelectedMethod.Should().Be("POST");
         viewModel.RequestEditor.RequestUrl.Should().Be("http://localhost:5000/api/items");
         viewModel.RequestEditor.RequestBody.Should().Be("{\"name\":\"item\"}");
-        viewModel.RequestEditor.RequestName.Should().Be("Saved request");
+        viewModel.RequestEditor.RequestName.Should().Be("History entry");
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -1047,15 +1047,15 @@ public class MainWindowUiTests
 
         var implicitCollection = viewModel.Collections.First(collection =>
             string.Equals(collection.Name, "Implicit Requests", StringComparison.Ordinal));
-        var savedRequest = implicitCollection.Requests.First(request =>
+        var collectionRequest = implicitCollection.Requests.First(request =>
             string.Equals(request.Name, "Sensitive Header Save", StringComparison.Ordinal));
 
-        savedRequest.Headers.Should().ContainSingle(header =>
+        collectionRequest.Headers.Should().ContainSingle(header =>
             string.Equals(header.Name, "X-Correlation-Id", StringComparison.Ordinal)
             && string.Equals(header.Value, "abc-123", StringComparison.Ordinal));
-        savedRequest.Headers.Should().NotContain(header =>
+        collectionRequest.Headers.Should().NotContain(header =>
             string.Equals(header.Name, "Authorization", StringComparison.OrdinalIgnoreCase));
-        savedRequest.Headers.Should().NotContain(header =>
+        collectionRequest.Headers.Should().NotContain(header =>
             string.Equals(header.Name, "X-Session-Token", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -1096,13 +1096,13 @@ public class MainWindowUiTests
 
         var implicitCollection = viewModel.Collections.First(collection =>
             string.Equals(collection.Name, "Implicit Requests", StringComparison.Ordinal));
-        var savedRequest = implicitCollection.Requests.First(request =>
+        var collectionRequest = implicitCollection.Requests.First(request =>
             string.Equals(request.Name, "GraphQL implicit save", StringComparison.Ordinal));
 
-        savedRequest.Method.Should().Be("POST");
-        savedRequest.ContentType.Should().Be("application/json");
+        collectionRequest.Method.Should().Be("POST");
+        collectionRequest.ContentType.Should().Be("application/json");
 
-        using var bodyDocument = JsonDocument.Parse(savedRequest.Body!);
+        using var bodyDocument = JsonDocument.Parse(collectionRequest.Body!);
         bodyDocument.RootElement.GetProperty("query").GetString().Should().Be("query Ping { ping }");
         bodyDocument.RootElement.GetProperty("operationName").GetString().Should().Be("Ping");
         bodyDocument.RootElement.GetProperty("variables").GetProperty("userId").GetInt32().Should().Be(42);
@@ -1145,10 +1145,10 @@ public class MainWindowUiTests
 
         var implicitCollection = viewModel.Collections.First(collection =>
             string.Equals(collection.Name, "Implicit Requests", StringComparison.Ordinal));
-        var savedRequest = implicitCollection.Requests.First(request =>
+        var collectionRequest = implicitCollection.Requests.First(request =>
             string.Equals(request.Name, "GraphQL invalid vars", StringComparison.Ordinal));
 
-        using var bodyDocument = JsonDocument.Parse(savedRequest.Body!);
+        using var bodyDocument = JsonDocument.Parse(collectionRequest.Body!);
         bodyDocument.RootElement.GetProperty("variables").ValueKind.Should().Be(JsonValueKind.Null);
     }
 

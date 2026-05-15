@@ -75,7 +75,7 @@ Expected touchpoints:
 - DB schema/migrations for multiple tables in `Sqlite*Repository` implementations.
 - Core repository contracts in `src/Arbor.HttpClient.Core` to accept/propagate profile context.
 - All repository CRUD queries and tests (`*.Storage.Sqlite.Tests`) to enforce profile filter behavior.
-- Potentially request draft/layout/options persistence if those are profile-scoped.
+- Potentially request editor snapshot/layout/options persistence if those are profile-scoped.
 
 ---
 

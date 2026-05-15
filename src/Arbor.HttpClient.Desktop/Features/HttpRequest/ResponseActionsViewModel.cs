@@ -150,7 +150,7 @@ public sealed class ResponseActionsViewModel
     /// <c>curl</c> command.
     /// No-op when the clipboard or request is unavailable.
     /// </summary>
-    public async Task CopyHistoryItemAsCurlAsync(SavedRequest? request)
+    public async Task CopyHistoryItemAsCurlAsync(RequestHistoryEntry? request)
     {
         if (request is null || _context.Clipboard is null)
         {
@@ -173,8 +173,8 @@ public sealed class ResponseActionsViewModel
             return;
         }
 
-        var draft = _context.BuildRequestDraft();
-        var command = CurlFormatter.Format(draft.Method, draft.Url, draft.Body, draft.Headers);
+        var resolvedRequest = _context.BuildResolvedHttpRequestDraft();
+        var command = CurlFormatter.Format(resolvedRequest.Method, resolvedRequest.Url, resolvedRequest.Body, resolvedRequest.Headers);
         await _context.Clipboard.SetTextAsync(command);
     }
 

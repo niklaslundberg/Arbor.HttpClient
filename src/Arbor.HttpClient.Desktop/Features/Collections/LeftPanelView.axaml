@@ -65,7 +65,7 @@
                 <ListBox Grid.Row="1" ItemsSource="{Binding App.History}" Margin="0,6,0,0"
                           Background="{DynamicResource PanelBackgroundBrush}">
                     <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="httpRequest:SavedRequest">
+                        <DataTemplate x:DataType="httpRequest:RequestHistoryEntry">
                             <Button Background="Transparent"
                                     BorderBrush="Transparent"
                                     Padding="4,3"

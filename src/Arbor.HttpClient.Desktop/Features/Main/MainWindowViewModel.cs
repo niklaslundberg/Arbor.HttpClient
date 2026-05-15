@@ -78,7 +78,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private SseViewModel _sseViewModel = null!;
     private CancellationTokenSource? _streamingCts;
     private readonly List<string> _tempFiles = [];
-    private readonly List<SavedRequest> _allHistory = [];
+    private readonly List<RequestHistoryEntry> _allHistory = [];
     private FileSystemWatcher? _requestBodyWatcher;
     private CancellationTokenSource? _fileWatcherCts;
     private int _requestBodyReadPending;
@@ -93,7 +93,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private byte[] _lastResponseBodyBytes = [];
     private readonly DraftPersistenceService? _draftPersistenceService;
     private CancellationTokenSource? _draftAutoSaveCts;
-    private DraftState? _pendingDraft;
+    private RequestEditorSnapshot? _pendingDraft;
     private readonly DemoServer? _demoServer;
     private readonly UnhandledExceptionCollector? _unhandledExceptionCollector;
     private readonly IScriptRunner _scriptRunner = new RoslynScriptRunner();
@@ -165,7 +165,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
     string IResponseActionsContext.RequestEditorContentType => _requestEditor.ContentType;
 
-    HttpRequestDraft IResponseActionsContext.BuildRequestDraft() => _requestEditor.BuildDraft();
+    ResolvedHttpRequestDraft IResponseActionsContext.BuildResolvedHttpRequestDraft() => _requestEditor.BuildResolvedHttpRequestDraft();
 
     void IResponseActionsContext.RecordTempFile(string path) => _tempFiles.Add(path);
 
@@ -742,7 +742,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         _responseActions = new ResponseActionsViewModel(this);
     }
 
-    public ObservableCollection<SavedRequest> History { get; }
+    public ObservableCollection<RequestHistoryEntry> History { get; }
     public ObservableCollection<Collection> Collections { get; }
     public ObservableCollection<CollectionItemViewModel> CollectionItems { get; }
     public ObservableCollection<RequestHeaderViewModel> CollectionInheritedHeaders { get; }
@@ -1754,7 +1754,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             return;
         }
 
-        var draft = _requestEditor.BuildDraft();
+        var draft = _requestEditor.BuildResolvedHttpRequestDraft();
 
         var baseUrl = collection.BaseUrl?.TrimEnd('/');
         string path;
@@ -2126,7 +2126,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     /// No-op when the clipboard or request is unavailable.
     /// </summary>
     [RelayCommand]
-    private Task CopyHistoryItemAsCurlAsync(SavedRequest? request) =>
+    private Task CopyHistoryItemAsCurlAsync(RequestHistoryEntry? request) =>
         _responseActions.CopyHistoryItemAsCurlAsync(request);
 
     /// <summary>
@@ -3408,7 +3408,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     {
         try
         {
-            var draft = _requestEditor.BuildDraft();
+            var draft = _requestEditor.BuildResolvedHttpRequestDraft();
             if (_requestEditor.ValidateUrlBeforeSend && !IsAbsoluteHttpOrHttpsUrl(draft.Url))
             {
                 ErrorMessage = Strings.RequestInvalidResolvedUrlMessage;
@@ -3501,7 +3501,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             _scriptViewModel.SetResult(postResult);
 
             _cookieJarViewModel.RefreshCookies();
-            var implicitCollectionRequest = BuildCollectionRequestFromHttpDraft(mutatedDraft);
+            var implicitCollectionRequest = BuildCollectionRequestFromResolvedHttpDraft(mutatedDraft);
             await SaveRequestToImplicitCollectionBestEffortAsync(implicitCollectionRequest, cancellationToken);
             await LoadHistoryAsync();
         }
@@ -3674,7 +3674,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     }
 
     [RelayCommand]
-    private void LoadHistoryRequest(SavedRequest? request)
+    private void LoadHistoryRequest(RequestHistoryEntry? request)
     {
         if (request is null)
         {
@@ -3711,11 +3711,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         ResponseHeaders.Clear();
     }
 
-    private CollectionRequest BuildCollectionRequestFromHttpDraft(HttpRequestDraft requestDraft)
+    private CollectionRequest BuildCollectionRequestFromResolvedHttpDraft(ResolvedHttpRequestDraft resolvedRequest)
     {
-        var collectionName = string.IsNullOrWhiteSpace(requestDraft.Name)
-            ? $"{requestDraft.Method} {requestDraft.Url}"
-            : requestDraft.Name;
+        var collectionName = string.IsNullOrWhiteSpace(resolvedRequest.Name)
+            ? $"{resolvedRequest.Method} {resolvedRequest.Url}"
+            : resolvedRequest.Name;
         if (collectionName.Length > 120)
         {
             collectionName = collectionName[..120];
@@ -3723,13 +3723,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
         return new CollectionRequest(
             collectionName,
-            requestDraft.Method,
-            requestDraft.Url,
+            resolvedRequest.Method,
+            resolvedRequest.Url,
             Description: null,
             Notes: _requestEditor.RequestNotes,
-            Body: requestDraft.Body,
+            Body: resolvedRequest.Body,
             ContentType: _requestEditor.ContentType,
-            Headers: requestDraft.Headers is { } headers
+            Headers: resolvedRequest.Headers is { } headers
                 ? headers.Where(header => !IsSensitiveHeaderName(header.Name)).ToList()
                 : null);
     }

@@ -8,7 +8,7 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 /// Focused unit tests for <see cref="RequestEditorViewModel"/>.
 /// These tests do NOT require the Avalonia headless session — they exercise
 /// the request-editor logic directly (URL/query-param sync, auth header building,
-/// content-type resolution, request preview, BuildDraft).
+/// content-type resolution, request preview, and resolved HTTP request building).
 /// </summary>
 public class RequestEditorViewModelTests
 {
@@ -319,17 +319,17 @@ public class RequestEditorViewModelTests
         editor.RequestPreview.Should().Contain("https:///items");
     }
 
-    // ── BuildDraft ───────────────────────────────────────────────────────────
+    // ── BuildResolvedHttpRequestDraft ────────────────────────────────────────
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_ReturnsCorrectMethodAndUrl()
+    public void BuildResolvedHttpRequestDraft_ReturnsCorrectMethodAndUrl()
     {
         var editor = CreateEditor();
         editor.SelectedMethod = "POST";
         editor.RequestUrl = "http://localhost:5000/users";
         editor.RequestName = "Create user";
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.Method.Should().Be("POST");
         draft.Url.Should().Be("http://localhost:5000/users");
@@ -337,7 +337,7 @@ public class RequestEditorViewModelTests
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_ResolvesVariables_InUrlAndBody()
+    public void BuildResolvedHttpRequestDraft_ResolvesVariables_InUrlAndBody()
     {
         var variables = new List<EnvironmentVariable>
         {
@@ -347,14 +347,14 @@ public class RequestEditorViewModelTests
         editor.RequestUrl = "{{base}}/items";
         editor.RequestBody = "{\"url\":\"{{base}}\"}";
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.Url.Should().Be("http://localhost:5000/items");
         draft.Body.Should().Be("{\"url\":\"http://localhost:5000\"}");
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_PrettyPrintsJsonBodyWithIndentation_WhenEnabled()
+    public void BuildResolvedHttpRequestDraft_PrettyPrintsJsonBodyWithIndentation_WhenEnabled()
     {
         var editor = CreateEditor();
         editor.SelectedContentTypeOption = "application/json";
@@ -362,13 +362,13 @@ public class RequestEditorViewModelTests
         editor.PrettyPrintRequestBody = true;
         editor.PrettyPrintRequestBodyUseIndentation = true;
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.Body.Should().Be("{\n  \"a\": 1\n}");
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_PrettyPrintsJsonBodyWithoutIndentation_WhenEnabled()
+    public void BuildResolvedHttpRequestDraft_PrettyPrintsJsonBodyWithoutIndentation_WhenEnabled()
     {
         var editor = CreateEditor();
         editor.SelectedContentTypeOption = "application/json";
@@ -376,13 +376,13 @@ public class RequestEditorViewModelTests
         editor.PrettyPrintRequestBody = true;
         editor.PrettyPrintRequestBodyUseIndentation = false;
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.Body.Should().Be("{\"a\":1}");
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_PrettyPrintJson_DoesNotEscapeAngleBracketsOrAmpersands()
+    public void BuildResolvedHttpRequestDraft_PrettyPrintJson_DoesNotEscapeAngleBracketsOrAmpersands()
     {
         var editor = CreateEditor();
         editor.SelectedContentTypeOption = "application/json";
@@ -390,7 +390,7 @@ public class RequestEditorViewModelTests
         editor.PrettyPrintRequestBody = true;
         editor.PrettyPrintRequestBodyUseIndentation = false;
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.Body.Should().Be("{\"html\":\"<div>&</div>\"}");
         draft.Body.Should().NotContain("\\u003c");
@@ -399,7 +399,7 @@ public class RequestEditorViewModelTests
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_PrettyPrintsXmlBodyWithoutIndentation_WhenEnabled()
+    public void BuildResolvedHttpRequestDraft_PrettyPrintsXmlBodyWithoutIndentation_WhenEnabled()
     {
         var editor = CreateEditor();
         editor.SelectedContentTypeOption = "application/xml";
@@ -407,7 +407,7 @@ public class RequestEditorViewModelTests
         editor.PrettyPrintRequestBody = true;
         editor.PrettyPrintRequestBodyUseIndentation = false;
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.Body.Should().Be("<root><item>1</item></root>");
     }
@@ -426,12 +426,12 @@ public class RequestEditorViewModelTests
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_UsesFollowRedirectsForRequest()
+    public void BuildResolvedHttpRequestDraft_UsesFollowRedirectsForRequest()
     {
         var editor = CreateEditor();
         editor.FollowRedirectsForRequest = false;
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.FollowRedirects.Should().BeFalse();
     }
@@ -445,97 +445,97 @@ public class RequestEditorViewModelTests
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_SetsIgnoreCertificateValidation_WhenEnabled()
+    public void BuildResolvedHttpRequestDraft_SetsIgnoreCertificateValidation_WhenEnabled()
     {
         var editor = CreateEditor();
         editor.IgnoreCertificateValidationForRequest = true;
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.IgnoreCertificateValidation.Should().BeTrue();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_LeavesIgnoreCertificateValidationNull_WhenDisabled()
+    public void BuildResolvedHttpRequestDraft_LeavesIgnoreCertificateValidationNull_WhenDisabled()
     {
         var editor = CreateEditor();
         editor.IgnoreCertificateValidationForRequest = false;
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.IgnoreCertificateValidation.Should().BeNull();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_UsesNullTlsVersionOverride_WhenDefaultOptionSelected()
+    public void BuildResolvedHttpRequestDraft_UsesNullTlsVersionOverride_WhenDefaultOptionSelected()
     {
         var editor = CreateEditor();
         editor.SelectedTlsVersionOverrideOption = RequestEditorViewModel.DefaultTlsVersionOverrideOption;
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.TlsVersionOverride.Should().BeNull();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_UsesPerRequestTlsVersionOverride_WhenSpecified()
+    public void BuildResolvedHttpRequestDraft_UsesPerRequestTlsVersionOverride_WhenSpecified()
     {
         var editor = CreateEditor();
         editor.SelectedTlsVersionOverrideOption = "Tls13";
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.TlsVersionOverride.Should().Be("Tls13");
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_UsesPerRequestTimeoutSeconds_WhenProvided()
+    public void BuildResolvedHttpRequestDraft_UsesPerRequestTimeoutSeconds_WhenProvided()
     {
         var editor = CreateEditor();
         editor.RequestTimeoutSecondsText = "12";
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.TimeoutSeconds.Should().Be(12);
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_UsesNoTimeout_WhenPerRequestTimeoutIsZero()
+    public void BuildResolvedHttpRequestDraft_UsesNoTimeout_WhenPerRequestTimeoutIsZero()
     {
         var editor = CreateEditor();
         editor.RequestTimeoutSecondsText = "0";
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.TimeoutSeconds.Should().Be(0);
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_UsesNullTimeout_WhenPerRequestTimeoutIsBlank()
+    public void BuildResolvedHttpRequestDraft_UsesNullTimeout_WhenPerRequestTimeoutIsBlank()
     {
         var editor = CreateEditor();
         editor.RequestTimeoutSecondsText = " ";
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.TimeoutSeconds.Should().BeNull();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_UsesNullTimeout_WhenPerRequestTimeoutContainsNoDigits()
+    public void BuildResolvedHttpRequestDraft_UsesNullTimeout_WhenPerRequestTimeoutContainsNoDigits()
     {
         var editor = CreateEditor();
         editor.RequestTimeoutSecondsText = "abc";
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
         draft.TimeoutSeconds.Should().BeNull();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_ClampsPerRequestTimeoutToMaximum()
+    public void BuildResolvedHttpRequestDraft_ClampsPerRequestTimeoutToMaximum()
     {
         var editor = CreateEditor();
         editor.RequestTimeoutSecondsText = "101";
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
         draft.TimeoutSeconds.Should().Be(100);
     }
 
@@ -558,25 +558,25 @@ public class RequestEditorViewModelTests
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_UsesSelectedHttpVersion()
+    public void BuildResolvedHttpRequestDraft_UsesSelectedHttpVersion()
     {
         var editor = CreateEditor();
         editor.SelectedHttpVersionOption = "2.0";
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.HttpVersion.Should().Be(System.Net.HttpVersion.Version20);
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_IncludesSelectedContentTypeInHeaders_WhenBodyProvided()
+    public void BuildResolvedHttpRequestDraft_IncludesSelectedContentTypeInHeaders_WhenBodyProvided()
     {
         var editor = CreateEditor();
         editor.SelectedContentTypeOption = "application/xml";
         editor.SelectedMethod = "POST";
         editor.RequestBody = "<root/>";
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.Headers.Should().ContainSingle(h =>
             string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase) &&
@@ -584,7 +584,7 @@ public class RequestEditorViewModelTests
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public void BuildDraft_DoesNotDuplicateContentTypeHeader_WhenUserAlsoAddsOneManually()
+    public void BuildResolvedHttpRequestDraft_DoesNotDuplicateContentTypeHeader_WhenUserAlsoAddsOneManually()
     {
         var editor = CreateEditor();
         editor.SelectedContentTypeOption = "application/xml";
@@ -594,7 +594,7 @@ public class RequestEditorViewModelTests
         editor.RequestHeaders[0].Value = "text/plain";
         editor.RequestHeaders[0].IsEnabled = true;
 
-        var draft = editor.BuildDraft();
+        var draft = editor.BuildResolvedHttpRequestDraft();
 
         draft.Headers.Should().ContainSingle(h =>
             string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase));

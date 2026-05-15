@@ -46,6 +46,7 @@ Cross-platform desktop HTTP client built with **.NET 10**, **Avalonia 12**, and 
 ## Architecture
 
 - [`docs/architecture/clean-feature-separation.md`](docs/architecture/clean-feature-separation.md) — current architecture assessment, findings, and ordered next steps for feature isolation
+- [`docs/vocabulary.md`](docs/vocabulary.md) — shared vocabulary for codebase concepts and where they appear in the implementation
 
 ## Code Coverage
 

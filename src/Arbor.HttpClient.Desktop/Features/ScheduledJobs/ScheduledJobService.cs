@@ -104,7 +104,7 @@ public sealed class ScheduledJobService : IDisposable
         CancellationToken cancellationToken)
     {
         var headers = ParseHeaders(config.HeadersJson);
-        var draft = new HttpRequestDraft(config.Name, config.Method, config.Url, config.Body, headers, FollowRedirects: config.FollowRedirects);
+        var resolvedRequest = new ResolvedHttpRequestDraft(config.Name, config.Method, config.Url, config.Body, headers, FollowRedirects: config.FollowRedirects);
 
         _logger.Information(
             "Scheduled job {JobName} executing {Method} {Url}",
@@ -112,7 +112,7 @@ public sealed class ScheduledJobService : IDisposable
 
         try
         {
-            var response = await _httpRequestService.SendAsync(draft, cancellationToken).ConfigureAwait(false);
+            var response = await _httpRequestService.SendAsync(resolvedRequest, cancellationToken).ConfigureAwait(false);
             _logger.Information(
                 "Scheduled job {JobName} completed: {StatusCode} {ReasonPhrase}",
                 config.Name, response.StatusCode, response.ReasonPhrase);

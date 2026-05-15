@@ -533,7 +533,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### 6.6 Auto-save drafts per tab ✅ Implemented
-> Implemented in PR #62 (commit `0feb9e9`) — `src/Arbor.HttpClient.Desktop/Services/DraftPersistenceService.cs`, `src/Arbor.HttpClient.Desktop/Models/DraftState.cs`, `src/Arbor.HttpClient.Desktop/ViewModels/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Views/MainWindow.axaml`
+> Implemented in PR #62 (commit `0feb9e9`) — `src/Arbor.HttpClient.Desktop/Features/Layout/DraftPersistenceService.cs`, `src/Arbor.HttpClient.Desktop/Features/Layout/RequestEditorSnapshot.cs`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Desktop/Views/MainWindow.axaml`
 
 **What it means:** The current in-progress request (URL, headers, body, selected environment) is saved automatically every few seconds so that an unexpected crash does not lose unsaved work.
 
@@ -692,7 +692,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 ---
 
 ### Local Demo Server HTTP/HTTPS ✅ Implemented
-> Implemented in PR #157 (commit `dee60fd`) — `src/Arbor.HttpClient.Desktop/Demo/DemoServer.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/HttpOptions.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/OptionsView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Core/HttpRequest/HttpRequestDraft.cs`, `src/Arbor.HttpClient.Core/HttpRequest/HttpRequestService.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`
+> Implemented in PR #157 (commit `dee60fd`) — `src/Arbor.HttpClient.Desktop/Demo/DemoServer.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/HttpOptions.cs`, `src/Arbor.HttpClient.Desktop/Features/Options/OptionsView.axaml`, `src/Arbor.HttpClient.Desktop/Features/Main/MainWindowViewModel.cs`, `src/Arbor.HttpClient.Core/HttpRequest/ResolvedHttpRequestDraft.cs`, `src/Arbor.HttpClient.Core/HttpRequest/HttpRequestService.cs`, `src/Arbor.HttpClient.Desktop/Features/HttpRequest/RequestView.axaml`
 
 **What it means:** The embedded demo server now supports both HTTP and HTTPS on separate configurable ports. Each protocol can be independently enabled via a checkbox in Options › HTTP › Demo Server. The HTTPS endpoint uses a runtime-generated self-signed certificate. A per-request "⚠ Ignore certificate validation" option is available in the **Request options** tab for connecting to the demo server's HTTPS endpoint (or any other server with a self-signed/untrusted certificate).
 
@@ -701,11 +701,11 @@ Each idea includes a description of what it means in practice, notes on how it c
 - `HttpOptions`: `DemoServerHttpsPort`, `DemoServerHttpEnabled`, `DemoServerHttpsEnabled` fields with sensible defaults (HTTP enabled, HTTPS disabled)
 - `MainWindowViewModel`: `DemoServerHttpsPort`, `IsDemoServerHttpEnabled`, `IsDemoServerHttpsEnabled` observable properties; `StartDemoServerAsync` passes all four params; `IsDemoServerUrl` checks both HTTP and HTTPS ports
 - `OptionsView.axaml`: Demo Server section now shows two rows — HTTP (checkbox + port field) and HTTPS (checkbox + port field) — replacing the single port field
-- `HttpRequestDraft`: `bool? IgnoreCertificateValidation` optional parameter added
+- `ResolvedHttpRequestDraft`: `bool? IgnoreCertificateValidation` optional parameter added
 - `HttpRequestService`: new `SetHttpClientFactory(Func<bool?, bool?, HttpClient>)` overload that takes both `followRedirects` and `ignoreCertificateValidation`; used in `SendAsync` with priority over the single-parameter overload
 - `App.axaml.cs`: four HttpClient variants created (normal, inverse-redirect, ignore-cert, inverse-redirect+ignore-cert); factory wired up with the new two-param overload
 - `RequestEditorViewModel`: `IgnoreCertificateValidationForRequest` observable property; included in `BuildDraft()` (sets `IgnoreCertificateValidation = true` when checked, `null` otherwise)
-- `DraftState` / `DraftPersistenceService`: `IgnoreCertificateValidation` persisted and restored
+- `RequestEditorSnapshot` / `DraftPersistenceService`: `IgnoreCertificateValidation` persisted and restored
 - `RequestView.axaml`: "⚠ Ignore certificate validation" checkbox added in the **Request options** tab below "Follow redirects"; warning text appears when checked
 - 7 new tests: 5 `DemoServerTests` (HTTPS start, both protocols, disabled, stop, echo over HTTPS), 2 `RequestEditorViewModelTests` (BuildDraft with ignore-cert on/off)
 
@@ -768,7 +768,7 @@ Each idea includes a description of what it means in practice, notes on how it c
 - New **Validate URL before send** checkbox in the `RequestView.axaml` **Request options** tab
 - `MainWindowViewModel.SendHttpRequestAsync` now blocks send early with a clear validation message when enabled and the resolved URL is invalid
 - Validation override support: when disabled, fast-feedback validation is skipped and the request flow continues
-- `DraftState` / `DraftPersistenceService` persist and restore the new override
+- `RequestEditorSnapshot` / `DraftPersistenceService` persist and restore the new override
 - New tests for default-on behavior, persistence, and override behavior in `RequestEditorViewModelTests`, `DraftPersistenceServiceTests`, and `MainWindowUiTests`
 
 ---
