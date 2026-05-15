@@ -185,10 +185,6 @@
                                 Content="{x:Static loc:Strings.LeftPanelAddInheritedHeader}"
                                 AutomationProperties.Name="Add inherited collection header"
                                 Command="{Binding App.AddCollectionInheritedHeaderCommand}" />
-                        <Button Classes="compact"
-                                Content="{x:Static loc:Strings.LeftPanelSaveInheritedHeaders}"
-                                AutomationProperties.Name="Save inherited collection headers"
-                                Command="{Binding App.SaveCollectionInheritedHeadersCommand}" />
                     </StackPanel>
                     <ScrollViewer Grid.Row="2" MaxHeight="180">
                         <ItemsControl ItemsSource="{Binding App.CollectionInheritedHeaders}">

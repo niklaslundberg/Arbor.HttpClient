@@ -9,283 +9,286 @@
              x:Class="Arbor.HttpClient.Desktop.Features.Options.OptionsView"
              x:DataType="vm:OptionsViewModel">
 
-    <Grid RowDefinitions="*,Auto">
+  <Grid RowDefinitions="*">
 
-        <!-- Main content: left tree nav + right settings -->
-        <Grid ColumnDefinitions="200,1,*">
+    <!-- Main content: left tree nav + right settings -->
+    <Grid ColumnDefinitions="200,1,*">
 
-            <!-- Left: category tree -->
-            <Border Background="{DynamicResource OptionsNavBackgroundBrush}"
-                    BorderBrush="{DynamicResource PanelBorderBrush}"
-                    BorderThickness="0,0,1,0">
-                <ScrollViewer VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Disabled">
-                    <TreeView x:Name="CategoryTree"
-                              Background="Transparent"
-                              BorderThickness="0"
-                              Margin="0,8,0,8">
-                        <TreeViewItem Header="{x:Static loc:Strings.OptionsNavHttp}" Tag="HTTP" IsSelected="True"
-                                      Padding="16,6,8,6" />
-                        <TreeViewItem Header="{x:Static loc:Strings.OptionsNavScheduledJobs}" Tag="ScheduledJobs"
-                                      Padding="16,6,8,6" />
-                        <TreeViewItem Header="{x:Static loc:Strings.OptionsNavLookAndFeel}" Tag="LookAndFeel"
-                                      Padding="16,6,8,6" />
-                        <TreeViewItem Header="{x:Static loc:Strings.OptionsNavDiagnostics}" Tag="Diagnostics"
-                                      Padding="16,6,8,6" />
-                    </TreeView>
-                </ScrollViewer>
-            </Border>
+      <!-- Left: category tree -->
+      <Border Background="{DynamicResource OptionsNavBackgroundBrush}"
+              BorderBrush="{DynamicResource PanelBorderBrush}"
+              BorderThickness="0,0,1,0">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+          <TreeView x:Name="CategoryTree"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Margin="0,8,0,8">
+            <TreeViewItem Header="{x:Static loc:Strings.OptionsNavHttp}" Tag="HTTP" IsSelected="True"
+                          Padding="16,6,8,6" />
+            <TreeViewItem Header="{x:Static loc:Strings.OptionsNavScheduledJobs}" Tag="ScheduledJobs"
+                          Padding="16,6,8,6" />
+            <TreeViewItem Header="{x:Static loc:Strings.OptionsNavLookAndFeel}" Tag="LookAndFeel"
+                          Padding="16,6,8,6" />
+            <TreeViewItem Header="{x:Static loc:Strings.OptionsNavDiagnostics}" Tag="Diagnostics"
+                          Padding="16,6,8,6" />
+          </TreeView>
+        </ScrollViewer>
+      </Border>
 
-            <!-- 1 px vertical separator -->
-            <Rectangle Grid.Column="1" Fill="{DynamicResource PanelBorderBrush}" />
+      <!-- 1 px vertical separator -->
+      <Rectangle Grid.Column="1" Fill="{DynamicResource PanelBorderBrush}" />
 
-            <!-- Right: page header + scrollable settings -->
-            <Grid Grid.Column="2" RowDefinitions="Auto,*">
+      <!-- Right: page header + scrollable settings -->
+      <Grid Grid.Column="2" RowDefinitions="Auto,*">
 
-                <!-- Breadcrumb + page title -->
-                <Border Padding="24,16,24,12"
-                        BorderBrush="{DynamicResource PanelBorderBrush}"
-                        BorderThickness="0,0,0,1">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="{Binding SelectedOptionsPageBreadcrumb}"
-                                   FontSize="11"
-                                   Opacity="0.55"
-                                   TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="{Binding SelectedOptionsPageTitle}"
-                                   FontSize="16"
-                                   FontWeight="SemiBold" />
+        <!-- Breadcrumb + page title -->
+        <Border Padding="24,16,24,12"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="0,0,0,1">
+          <StackPanel Spacing="4">
+            <TextBlock Text="{Binding SelectedOptionsPageBreadcrumb}"
+                       FontSize="11"
+                       Opacity="0.55"
+                       TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding SelectedOptionsPageTitle}"
+                       FontSize="16"
+                       FontWeight="SemiBold" />
+          </StackPanel>
+        </Border>
+
+        <!-- Settings scroll area -->
+        <ScrollViewer Grid.Row="1"
+                      Padding="24,20,24,24"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Spacing="12">
+            <Grid>
+
+              <!-- HTTP page -->
+              <StackPanel Spacing="20"
+                          IsVisible="{Binding SelectedOptionsPage,
+                          Converter={x:Static conv:StringEqualityConverter.Instance},
+                          ConverterParameter=HTTP}">
+
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{x:Static loc:Strings.OptionsHttpVersionLabel}" FontWeight="SemiBold" />
+                  <ComboBox ItemsSource="{Binding App.RequestEditor.HttpVersionOptions}"
+                            SelectedItem="{Binding App.RequestEditor.SelectedHttpVersionOption, Mode=TwoWay}"
+                            MinWidth="200" HorizontalAlignment="Left" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{x:Static loc:Strings.OptionsTlsVersionLabel}" FontWeight="SemiBold" />
+                  <ComboBox ItemsSource="{Binding App.TlsVersionOptions}"
+                            SelectedItem="{Binding App.SelectedTlsVersionOption, Mode=TwoWay}"
+                            MinWidth="200" HorizontalAlignment="Left" />
+                  <TextBlock Text="{x:Static loc:Strings.OptionsTlsWarning}"
+                             IsVisible="{Binding App.IsInsecureTlsVersionSelected}"
+                             Foreground="{DynamicResource WarningBrush}"
+                             TextWrapping="Wrap"
+                             FontSize="11" />
+                </StackPanel>
+
+                <CheckBox IsChecked="{Binding App.FollowHttpRedirects, Mode=TwoWay}"
+                          Content="{x:Static loc:Strings.OptionsFollowRedirects}" />
+
+                <CheckBox IsChecked="{Binding App.EnableHttpDiagnostics, Mode=TwoWay}"
+                          Content="{x:Static loc:Strings.OptionsEnableHttpDiagnostics}" />
+
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{x:Static loc:Strings.OptionsDefaultContentType}"
+                             FontWeight="SemiBold"
+                             TextWrapping="Wrap" />
+                  <Grid ColumnDefinitions="260,*" ColumnSpacing="8" MaxWidth="560">
+                    <ComboBox Grid.Column="0"
+                              ItemsSource="{Binding App.DefaultContentTypeOptions}"
+                              SelectedItem="{Binding App.SelectedDefaultContentTypeOption, Mode=TwoWay}" />
+                    <TextBox Grid.Column="1"
+                             PlaceholderText="{x:Static loc:Strings.HeadersContentTypePlaceholder}"
+                             Text="{Binding App.CustomDefaultContentType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             IsVisible="{Binding App.IsCustomDefaultContentType}" />
+                  </Grid>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{x:Static loc:Strings.OptionsDefaultUrl}" FontWeight="SemiBold" />
+                  <TextBox Text="{Binding App.DefaultRequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{x:Static loc:Strings.OptionsDefaultRequestTimeoutSeconds}" FontWeight="SemiBold" />
+                  <TextBox Text="{Binding App.DefaultRequestTimeoutSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                           MaxWidth="160" HorizontalAlignment="Left" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{x:Static loc:Strings.OptionsResponseSaveDefaultFolder}" FontWeight="SemiBold" />
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <TextBox Grid.Column="0"
+                             Text="{Binding App.ResponseSaveDefaultFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Grid.Column="1"
+                            Content="{x:Static loc:Strings.OptionsBrowse}"
+                            Command="{Binding App.SelectResponseSaveDefaultFolderCommand}" />
+                  </Grid>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{x:Static loc:Strings.OptionsResponseSaveFileNamePattern}" FontWeight="SemiBold" />
+                  <TextBox Text="{Binding App.ResponseSaveFileNamePattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                  <TextBlock Text="{x:Static loc:Strings.OptionsResponseSaveFileNamePatternHelp}"
+                             TextWrapping="Wrap"
+                             Opacity="0.65"
+                             FontSize="11" />
+                  <TextBlock Text="{Binding App.ResponseSaveFileNamePatternValidationError}"
+                             TextWrapping="Wrap"
+                             Foreground="{DynamicResource WarningBrush}"
+                             FontSize="11"
+                             IsVisible="{Binding App.ResponseSaveFileNamePatternValidationError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </StackPanel>
+
+                <!-- Demo server settings -->
+                <Border BorderBrush="{DynamicResource PanelBorderBrush}"
+                        BorderThickness="0,1,0,0" Margin="0,4,0,0" Padding="0,16,0,0">
+                  <StackPanel Spacing="12">
+                    <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerTitle}" FontWeight="SemiBold" FontSize="14" />
+                    <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerDescription}"
+                               TextWrapping="Wrap" Opacity="0.7" FontSize="11" />
+
+                    <!-- HTTP row -->
+                    <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
+                      <CheckBox Grid.Column="0"
+                                Content="{x:Static loc:Strings.OptionsDemoServerHttpEnabled}"
+                                IsChecked="{Binding App.IsDemoServerHttpEnabled, Mode=TwoWay}"
+                                VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Text="{x:Static loc:Strings.OptionsDemoServerPort}" VerticalAlignment="Center" />
+                      <TextBox Grid.Column="2"
+                               Text="{Binding App.DemoServerPort, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                               MaxWidth="120" HorizontalAlignment="Left"
+                               IsEnabled="{Binding App.IsDemoServerHttpEnabled}" />
+                    </Grid>
+
+                    <!-- HTTPS row -->
+                    <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
+                      <CheckBox Grid.Column="0"
+                                Content="{x:Static loc:Strings.OptionsDemoServerHttpsEnabled}"
+                                IsChecked="{Binding App.IsDemoServerHttpsEnabled, Mode=TwoWay}"
+                                VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Text="{x:Static loc:Strings.OptionsDemoServerHttpsPort}" VerticalAlignment="Center" />
+                      <TextBox Grid.Column="2"
+                               Text="{Binding App.DemoServerHttpsPort, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                               MaxWidth="120" HorizontalAlignment="Left"
+                               IsEnabled="{Binding App.IsDemoServerHttpsEnabled}" />
+                    </Grid>
+
+                    <!-- Start / Stop buttons -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <Button Content="{x:Static loc:Strings.OptionsDemoServerStart}"
+                              AutomationProperties.Name="{x:Static loc:Strings.OptionsDemoServerStartLabel}"
+                              IsEnabled="{Binding !App.IsDemoServerRunning}"
+                              Command="{Binding App.StartDemoServerCommand}" />
+                      <Button Content="{x:Static loc:Strings.OptionsDemoServerStop}"
+                              AutomationProperties.Name="{x:Static loc:Strings.OptionsDemoServerStopLabel}"
+                              IsEnabled="{Binding App.IsDemoServerRunning}"
+                              Command="{Binding App.StopDemoServerCommand}" />
                     </StackPanel>
+                    <StackPanel>
+                      <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerRunning}"
+                                 IsVisible="{Binding App.IsDemoServerRunning}"
+                                 Foreground="{DynamicResource MethodPostBrush}"
+                                 FontWeight="SemiBold" FontSize="11" Padding="0,0,0,15" />
+                      <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerStopped}"
+                                 IsVisible="{Binding !App.IsDemoServerRunning}"
+                                 Opacity="0.55" FontSize="11" Padding="0,0,0,30" />
+                    </StackPanel>
+                  </StackPanel>
                 </Border>
 
-                <!-- Settings scroll area -->
-                <ScrollViewer Grid.Row="1"
-                              Padding="24,20,24,24"
-                              VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Disabled">
-                    <Grid>
+              </StackPanel>
 
-                        <!-- HTTP page -->
-                        <StackPanel Spacing="20"
-                                    IsVisible="{Binding SelectedOptionsPage,
-                                        Converter={x:Static conv:StringEqualityConverter.Instance},
-                                        ConverterParameter=HTTP}">
+              <!-- Scheduled Jobs page -->
+              <StackPanel Spacing="20"
+                          IsVisible="{Binding SelectedOptionsPage,
+                          Converter={x:Static conv:StringEqualityConverter.Instance},
+                          ConverterParameter=ScheduledJobs}">
 
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{x:Static loc:Strings.OptionsHttpVersionLabel}" FontWeight="SemiBold" />
-                                <ComboBox ItemsSource="{Binding App.RequestEditor.HttpVersionOptions}"
-                                          SelectedItem="{Binding App.RequestEditor.SelectedHttpVersionOption, Mode=TwoWay}"
-                                          MinWidth="200" HorizontalAlignment="Left" />
-                            </StackPanel>
+                <CheckBox IsChecked="{Binding App.AutoStartScheduledJobsOnLaunch, Mode=TwoWay}"
+                          Content="{x:Static loc:Strings.OptionsScheduledJobsAutoStart}" />
 
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{x:Static loc:Strings.OptionsTlsVersionLabel}" FontWeight="SemiBold" />
-                                <ComboBox ItemsSource="{Binding App.TlsVersionOptions}"
-                                          SelectedItem="{Binding App.SelectedTlsVersionOption, Mode=TwoWay}"
-                                          MinWidth="200" HorizontalAlignment="Left" />
-                                <TextBlock Text="{x:Static loc:Strings.OptionsTlsWarning}"
-                                           IsVisible="{Binding App.IsInsecureTlsVersionSelected}"
-                                           Foreground="{DynamicResource WarningBrush}"
-                                           TextWrapping="Wrap"
-                                           FontSize="11" />
-                            </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{x:Static loc:Strings.OptionsScheduledJobsDefaultInterval}" FontWeight="SemiBold" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBox Text="{Binding App.DefaultScheduledJobIntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             MinWidth="120" />
+                    <TextBlock Text="{x:Static loc:Strings.OptionsScheduledJobsSeconds}" VerticalAlignment="Center" />
+                  </StackPanel>
+                </StackPanel>
 
-                            <CheckBox IsChecked="{Binding App.FollowHttpRedirects, Mode=TwoWay}"
-                                      Content="{x:Static loc:Strings.OptionsFollowRedirects}" />
+              </StackPanel>
 
-                            <CheckBox IsChecked="{Binding App.EnableHttpDiagnostics, Mode=TwoWay}"
-                                      Content="{x:Static loc:Strings.OptionsEnableHttpDiagnostics}" />
+              <!-- Look & Feel page -->
+              <StackPanel Spacing="20"
+                          IsVisible="{Binding SelectedOptionsPage,
+                          Converter={x:Static conv:StringEqualityConverter.Instance},
+                          ConverterParameter=LookAndFeel}">
 
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{x:Static loc:Strings.OptionsDefaultContentType}"
-                                           FontWeight="SemiBold"
-                                           TextWrapping="Wrap" />
-                                <Grid ColumnDefinitions="260,*" ColumnSpacing="8" MaxWidth="560">
-                                    <ComboBox Grid.Column="0"
-                                              ItemsSource="{Binding App.DefaultContentTypeOptions}"
-                                              SelectedItem="{Binding App.SelectedDefaultContentTypeOption, Mode=TwoWay}" />
-                                    <TextBox Grid.Column="1"
-                                             PlaceholderText="{x:Static loc:Strings.HeadersContentTypePlaceholder}"
-                                             Text="{Binding App.CustomDefaultContentType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                             IsVisible="{Binding App.IsCustomDefaultContentType}" />
-                                </Grid>
-                            </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{x:Static loc:Strings.OptionsTheme}" FontWeight="SemiBold" />
+                  <ComboBox ItemsSource="{Binding App.ThemeOptions}"
+                            SelectedItem="{Binding App.SelectedThemeOption, Mode=TwoWay}"
+                            MinWidth="200" HorizontalAlignment="Left" />
+                </StackPanel>
 
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{x:Static loc:Strings.OptionsDefaultUrl}" FontWeight="SemiBold" />
-                                <TextBox Text="{Binding App.DefaultRequestUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{x:Static loc:Strings.OptionsFontFamily}" FontWeight="SemiBold" />
+                  <ComboBox IsEditable="True"
+                            ItemsSource="{Binding App.FontFamilyOptions}"
+                            SelectedItem="{Binding App.UiFontFamily, Mode=TwoWay}"
+                            HorizontalAlignment="Stretch" />
+                </StackPanel>
 
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{x:Static loc:Strings.OptionsDefaultRequestTimeoutSeconds}" FontWeight="SemiBold" />
-                                <TextBox Text="{Binding App.DefaultRequestTimeoutSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         MaxWidth="160" HorizontalAlignment="Left" />
-                            </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{x:Static loc:Strings.OptionsFontSize}" FontWeight="SemiBold" />
+                  <TextBox Text="{Binding App.UiFontSizeText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                           MinWidth="80" HorizontalAlignment="Left" />
+                </StackPanel>
 
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{x:Static loc:Strings.OptionsResponseSaveDefaultFolder}" FontWeight="SemiBold" />
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                    <TextBox Grid.Column="0"
-                                             Text="{Binding App.ResponseSaveDefaultFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                    <Button Grid.Column="1"
-                                            Content="{x:Static loc:Strings.OptionsBrowse}"
-                                            Command="{Binding App.SelectResponseSaveDefaultFolderCommand}" />
-                                </Grid>
-                            </StackPanel>
+              </StackPanel>
 
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{x:Static loc:Strings.OptionsResponseSaveFileNamePattern}" FontWeight="SemiBold" />
-                                <TextBox Text="{Binding App.ResponseSaveFileNamePattern, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                <TextBlock Text="{x:Static loc:Strings.OptionsResponseSaveFileNamePatternHelp}"
-                                           TextWrapping="Wrap"
-                                           Opacity="0.65"
-                                           FontSize="11" />
-                                <TextBlock Text="{Binding App.ResponseSaveFileNamePatternValidationError}"
-                                            TextWrapping="Wrap"
-                                            Foreground="{DynamicResource WarningBrush}"
-                                            FontSize="11"
-                                            IsVisible="{Binding App.ResponseSaveFileNamePatternValidationError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                            </StackPanel>
+              <!-- Diagnostics page -->
+              <StackPanel Spacing="20"
+                          IsVisible="{Binding SelectedOptionsPage,
+                          Converter={x:Static conv:StringEqualityConverter.Instance},
+                          ConverterParameter=Diagnostics}">
 
-                            <!-- Demo server settings -->
-                            <Border BorderBrush="{DynamicResource PanelBorderBrush}"
-                                    BorderThickness="0,1,0,0" Margin="0,4,0,0" Padding="0,16,0,0">
-                                <StackPanel Spacing="12">
-                                    <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerTitle}" FontWeight="SemiBold" FontSize="14" />
-                                    <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerDescription}"
-                                               TextWrapping="Wrap" Opacity="0.7" FontSize="11" />
+                <CheckBox IsChecked="{Binding App.CollectUnhandledExceptions, Mode=TwoWay}"
+                          Content="{x:Static loc:Strings.OptionsCollectExceptions}" />
 
-                                    <!-- HTTP row -->
-                                    <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
-                                        <CheckBox Grid.Column="0"
-                                                  Content="{x:Static loc:Strings.OptionsDemoServerHttpEnabled}"
-                                                  IsChecked="{Binding App.IsDemoServerHttpEnabled, Mode=TwoWay}"
-                                                  VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="1" Text="{x:Static loc:Strings.OptionsDemoServerPort}" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="2"
-                                                 Text="{Binding App.DemoServerPort, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                 MaxWidth="120" HorizontalAlignment="Left"
-                                                 IsEnabled="{Binding App.IsDemoServerHttpEnabled}" />
-                                    </Grid>
+                <TextBlock Text="{x:Static loc:Strings.OptionsCollectExceptionsDescription}"
+                           TextWrapping="Wrap"
+                           Opacity="0.65"
+                           FontSize="11" />
 
-                                    <!-- HTTPS row -->
-                                    <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
-                                        <CheckBox Grid.Column="0"
-                                                  Content="{x:Static loc:Strings.OptionsDemoServerHttpsEnabled}"
-                                                  IsChecked="{Binding App.IsDemoServerHttpsEnabled, Mode=TwoWay}"
-                                                  VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="1" Text="{x:Static loc:Strings.OptionsDemoServerHttpsPort}" VerticalAlignment="Center" />
-                                        <TextBox Grid.Column="2"
-                                                 Text="{Binding App.DemoServerHttpsPort, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                 MaxWidth="120" HorizontalAlignment="Left"
-                                                 IsEnabled="{Binding App.IsDemoServerHttpsEnabled}" />
-                                    </Grid>
+                <Button Content="{x:Static loc:Strings.OptionsViewCollectedExceptions}"
+                        AutomationProperties.Name="{x:Static loc:Strings.OptionsViewCollectedExceptions}"
+                        Command="{Binding App.OpenDiagnosticsCommand}" />
 
-                                    <!-- Start / Stop buttons -->
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <Button Content="{x:Static loc:Strings.OptionsDemoServerStart}"
-                                                AutomationProperties.Name="{x:Static loc:Strings.OptionsDemoServerStartLabel}"
-                                                IsEnabled="{Binding !App.IsDemoServerRunning}"
-                                                Command="{Binding App.StartDemoServerCommand}" />
-                                        <Button Content="{x:Static loc:Strings.OptionsDemoServerStop}"
-                                                AutomationProperties.Name="{x:Static loc:Strings.OptionsDemoServerStopLabel}"
-                                                IsEnabled="{Binding App.IsDemoServerRunning}"
-                                                Command="{Binding App.StopDemoServerCommand}" />
-                                    </StackPanel>
-                                    <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerRunning}"
-                                               IsVisible="{Binding App.IsDemoServerRunning}"
-                                               Foreground="{DynamicResource MethodPostBrush}"
-                                               FontWeight="SemiBold" FontSize="11" />
-                                    <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerStopped}"
-                                               IsVisible="{Binding !App.IsDemoServerRunning}"
-                                               Opacity="0.55" FontSize="11" />
-                                </StackPanel>
-                            </Border>
+              </StackPanel>
 
-                        </StackPanel>
-
-                        <!-- Scheduled Jobs page -->
-                        <StackPanel Spacing="20"
-                                    IsVisible="{Binding SelectedOptionsPage,
-                                        Converter={x:Static conv:StringEqualityConverter.Instance},
-                                        ConverterParameter=ScheduledJobs}">
-
-                            <CheckBox IsChecked="{Binding App.AutoStartScheduledJobsOnLaunch, Mode=TwoWay}"
-                                      Content="{x:Static loc:Strings.OptionsScheduledJobsAutoStart}" />
-
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{x:Static loc:Strings.OptionsScheduledJobsDefaultInterval}" FontWeight="SemiBold" />
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBox Text="{Binding App.DefaultScheduledJobIntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                             MinWidth="120" />
-                                    <TextBlock Text="{x:Static loc:Strings.OptionsScheduledJobsSeconds}" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </StackPanel>
-
-                        </StackPanel>
-
-                        <!-- Look & Feel page -->
-                        <StackPanel Spacing="20"
-                                    IsVisible="{Binding SelectedOptionsPage,
-                                        Converter={x:Static conv:StringEqualityConverter.Instance},
-                                        ConverterParameter=LookAndFeel}">
-
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{x:Static loc:Strings.OptionsTheme}" FontWeight="SemiBold" />
-                                <ComboBox ItemsSource="{Binding App.ThemeOptions}"
-                                          SelectedItem="{Binding App.SelectedThemeOption, Mode=TwoWay}"
-                                          MinWidth="200" HorizontalAlignment="Left" />
-                            </StackPanel>
-
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{x:Static loc:Strings.OptionsFontFamily}" FontWeight="SemiBold" />
-                                <ComboBox IsEditable="True"
-                                          ItemsSource="{Binding App.FontFamilyOptions}"
-                                          SelectedItem="{Binding App.UiFontFamily, Mode=TwoWay}"
-                                          HorizontalAlignment="Stretch" />
-                            </StackPanel>
-
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{x:Static loc:Strings.OptionsFontSize}" FontWeight="SemiBold" />
-                                <TextBox Text="{Binding App.UiFontSizeText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         MinWidth="80" HorizontalAlignment="Left" />
-                            </StackPanel>
-
-                        </StackPanel>
-
-                        <!-- Diagnostics page -->
-                        <StackPanel Spacing="20"
-                                    IsVisible="{Binding SelectedOptionsPage,
-                                        Converter={x:Static conv:StringEqualityConverter.Instance},
-                                        ConverterParameter=Diagnostics}">
-
-                            <CheckBox IsChecked="{Binding App.CollectUnhandledExceptions, Mode=TwoWay}"
-                                      Content="{x:Static loc:Strings.OptionsCollectExceptions}" />
-
-                            <TextBlock Text="{x:Static loc:Strings.OptionsCollectExceptionsDescription}"
-                                       TextWrapping="Wrap"
-                                       Opacity="0.65"
-                                       FontSize="11" />
-
-                            <Button Content="{x:Static loc:Strings.OptionsViewCollectedExceptions}"
-                                    AutomationProperties.Name="{x:Static loc:Strings.OptionsViewCollectedExceptions}"
-                                    Command="{Binding App.OpenDiagnosticsCommand}" />
-
-                        </StackPanel>
-
-                    </Grid>
-                </ScrollViewer>
             </Grid>
-        </Grid>
 
-        <!-- Bottom action bar -->
-        <Border Grid.Row="1"
-                BorderBrush="{DynamicResource PanelBorderBrush}"
-                BorderThickness="0,1,0,0"
-                Padding="12,8">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
+            <!-- Global action bar (applies to all options pages) -->
+            <Border BorderBrush="{DynamicResource PanelBorderBrush}"
+                    BorderThickness="0,1,0,0"
+                    Padding="12,8">
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
                 <Button Content="{x:Static loc:Strings.OptionsImportJson}" Command="{Binding App.ImportOptionsCommand}" />
                 <Button Content="{x:Static loc:Strings.OptionsExportJson}" Command="{Binding App.ExportOptionsCommand}" />
-            </StackPanel>
-        </Border>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
     </Grid>
+  </Grid>
 </UserControl>

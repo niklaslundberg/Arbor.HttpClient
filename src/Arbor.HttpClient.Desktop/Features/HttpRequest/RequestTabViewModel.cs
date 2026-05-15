@@ -43,6 +43,28 @@ public sealed partial class RequestTabViewModel : ViewModelBase, IDisposable
         && string.Equals(source.Path, path, StringComparison.Ordinal)
         && string.Equals(source.Name, name, StringComparison.Ordinal);
 
+    public bool TryGetCollectionRequestSource(
+        out int collectionId,
+        out string method,
+        out string path,
+        out string name)
+    {
+        if (_collectionRequestSource is { } source)
+        {
+            collectionId = source.CollectionId;
+            method = source.Method;
+            path = source.Path;
+            name = source.Name;
+            return true;
+        }
+
+        collectionId = default;
+        method = string.Empty;
+        path = string.Empty;
+        name = string.Empty;
+        return false;
+    }
+
     private void OnRequestEditorPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (string.Equals(e.PropertyName, nameof(RequestEditorViewModel.RequestName), StringComparison.Ordinal))

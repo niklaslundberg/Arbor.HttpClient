@@ -16,4 +16,7 @@ public sealed partial class RequestHeaderViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _isEnabled = true;
+
+    [ObservableProperty]
+    private bool _isInherited;
 }

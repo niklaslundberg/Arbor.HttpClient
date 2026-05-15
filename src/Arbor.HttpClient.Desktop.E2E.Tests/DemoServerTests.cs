@@ -493,7 +493,7 @@ public class DemoServerTests
         inheritedHeader.Name = "Authorization";
         inheritedHeader.Value = "Bearer {{collectionToken}}";
 
-        await viewModel.SaveCollectionInheritedHeadersCommand.ExecuteAsync(null);
+        await Task.Delay(1200);
 
         var refreshedCollection = viewModel.Collections.First(c => c.Name == "Header Editor");
         refreshedCollection.Headers.Should().ContainSingle(h =>
@@ -529,7 +529,7 @@ public class DemoServerTests
         viewModel.RemoveCollectionInheritedHeaderCommand.Execute(viewModel.CollectionInheritedHeaders[0]);
         viewModel.CollectionInheritedHeaders.Should().BeEmpty();
 
-        await viewModel.SaveCollectionInheritedHeadersCommand.ExecuteAsync(null);
+        await Task.Delay(1200);
 
         var refreshedCollection = viewModel.Collections.First(c => c.Name == "Header Removal");
         refreshedCollection.Headers.Should().BeNull();
