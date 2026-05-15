@@ -71,6 +71,7 @@
                                     Padding="4,3"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Left"
+                                    AutomationProperties.Name="{Binding Name}"
                                     Command="{Binding $parent[UserControl].DataContext.App.LoadHistoryRequestCommand}"
                                     CommandParameter="{Binding}">
                                 <Button.ContextMenu>

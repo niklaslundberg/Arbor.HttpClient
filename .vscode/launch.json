@@ -21,7 +21,7 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build: solution debug",
-      "program": "${workspaceFolder}/artifacts/bin/Arbor.HttpClient.Core.Tests/debug/Arbor.HttpClient.Core.Tests.exe",
+      "program": "${workspaceFolder}/artifacts/bin/Arbor.HttpClient.Core.Tests/debug/Arbor.HttpClient.Core.Tests.dll",
       "args": [],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",

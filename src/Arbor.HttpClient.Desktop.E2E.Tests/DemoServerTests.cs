@@ -273,6 +273,30 @@ public class DemoServerTests
     }
 
     [AvaloniaFact(Timeout = 10_000)]
+    public async Task LoadCollectionRequest_WithBlankCollectionBaseUrl_PreservesRelativePath()
+    {
+        var collectionRepo = new InMemoryCollectionRepository();
+
+        await collectionRepo.SaveAsync(
+            "Relative Path Test",
+            null,
+            string.Empty,
+            [new CollectionRequest("Relative endpoint", "GET", "someEndpoint", null)]);
+
+        var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+        using var _ = viewModel;
+
+        await viewModel.InitializeAsync();
+        viewModel.SelectedCollection = viewModel.Collections.First(collection => collection.Name == "Relative Path Test");
+
+        var item = viewModel.FilteredCollectionItems.First();
+        viewModel.LoadCollectionRequestCore(item);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+
+        viewModel.RequestEditor.RequestUrl.Should().Be("someEndpoint");
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
     public async Task LoadCollectionRequest_WhenRequestNotOpen_OpensNewTab()
     {
 

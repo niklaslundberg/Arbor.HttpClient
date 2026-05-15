@@ -104,8 +104,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private const string ImplicitCollectionSourcePath = "arbor://implicit-requests";
     private static readonly JsonSerializerOptions GraphQlJsonOptions = new()
     {
-        WriteIndented = true,
-        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        WriteIndented = true
     };
     private static readonly HashSet<string> SensitiveHeaderNames = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -1502,9 +1501,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             // with the collection base URL.  We check the scheme explicitly rather than relying on UriKind.Absolute
             // because Uri.TryCreate("/ws", UriKind.Absolute, …) returns true on Linux (the path is resolved as a
             // file:// URI), which would silently strip the base URL.
-            var resolvedUrl = CollectionUrlHelper.IsAbsoluteWebUrl(item.Path)
-                ? item.Path
-                : CollectionUrlHelper.JoinBaseUrlAndPath(baseUrl, item.Path);
+            var resolvedUrl = CollectionUrlHelper.BuildFullUrl(baseUrl, item.Path);
 
             // For WebSocket requests, rewrite http:// → ws:// and https:// → wss://.
             if (_requestEditor.SelectedRequestType == RequestType.WebSocket)
@@ -3851,14 +3848,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             }
         }
 
-        var requestBody = new
+        var requestBody = new JsonObject
         {
-            query = _graphQlViewModel.Query,
-            variables,
-            operationName = string.IsNullOrWhiteSpace(_graphQlViewModel.OperationName)
-                ? null
-                : _graphQlViewModel.OperationName
+            ["query"] = _graphQlViewModel.Query,
+            ["variables"] = variables
         };
+
+        if (!string.IsNullOrWhiteSpace(_graphQlViewModel.OperationName))
+        {
+            requestBody["operationName"] = _graphQlViewModel.OperationName;
+        }
 
         return JsonSerializer.Serialize(requestBody, GraphQlJsonOptions);
     }
