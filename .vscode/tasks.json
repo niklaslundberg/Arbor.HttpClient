@@ -1,0 +1,248 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "restore: solution locked",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "restore",
+        "Arbor.HttpClient.slnx",
+        "--locked-mode"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "build: solution debug",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "Arbor.HttpClient.slnx",
+        "--no-restore",
+        "--configuration",
+        "Debug"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "dependsOn": "restore: solution locked"
+    },
+    {
+      "label": "build: solution release",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "Arbor.HttpClient.slnx",
+        "--no-restore",
+        "--configuration",
+        "Release"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "group": "build",
+      "dependsOn": "restore: solution locked"
+    },
+    {
+      "label": "build: desktop debug",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "src/Arbor.HttpClient.Desktop/Arbor.HttpClient.Desktop.csproj",
+        "--configuration",
+        "Debug"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "run: desktop",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/Arbor.HttpClient.Desktop/Arbor.HttpClient.Desktop.csproj"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "watch: desktop",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "watch",
+        "--project",
+        "src/Arbor.HttpClient.Desktop/Arbor.HttpClient.Desktop.csproj",
+        "run"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "test: all",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "Arbor.HttpClient.slnx",
+        "--no-restore",
+        "--configuration",
+        "Release"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "test: core",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj",
+        "--no-restore",
+        "--configuration",
+        "Release"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    },
+    {
+      "label": "test: core integration",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "src/Arbor.HttpClient.Core.Integration.Tests/Arbor.HttpClient.Core.Integration.Tests.csproj",
+        "--no-restore",
+        "--configuration",
+        "Release"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    },
+    {
+      "label": "test: storage sqlite",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "src/Arbor.HttpClient.Storage.Sqlite.Tests/Arbor.HttpClient.Storage.Sqlite.Tests.csproj",
+        "--no-restore",
+        "--configuration",
+        "Release"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    },
+    {
+      "label": "test: desktop e2e",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj",
+        "--no-restore",
+        "--configuration",
+        "Release"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    },
+    {
+      "label": "test: screenshots",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "./scripts/take-screenshots.sh"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    },
+    {
+      "label": "audit: vulnerable packages",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "list",
+        "Arbor.HttpClient.slnx",
+        "package",
+        "--vulnerable",
+        "--include-transitive"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "clean: solution",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "clean",
+        "Arbor.HttpClient.slnx"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    }
+  ]
+}

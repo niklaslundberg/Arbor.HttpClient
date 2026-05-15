@@ -3,9 +3,9 @@ namespace Arbor.HttpClient.Desktop.Features.Layout;
 /// <summary>
 /// Serialisation model for auto-saved request editor state.
 /// Persisted to the <c>drafts/</c> folder in the application data directory
-/// by <see cref="Services.DraftPersistenceService"/>.
+/// by <see cref="DraftPersistenceService"/>.
 /// </summary>
-public sealed class DraftState
+public sealed class RequestEditorSnapshot
 {
     public const string DefaultTlsVersionOverrideOption = "(default)";
 

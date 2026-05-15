@@ -545,10 +545,10 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Builds the <see cref="HttpRequestDraft"/> representing the current editor state,
+    /// Builds the <see cref="ResolvedHttpRequestDraft"/> representing the current editor state,
     /// ready to be passed to <see cref="HttpRequestService.SendAsync"/>.
     /// </summary>
-    public HttpRequestDraft BuildDraft()
+    public ResolvedHttpRequestDraft BuildResolvedHttpRequestDraft()
     {
         var variables = GetResolvedVariables();
         var resolvedUrl = _variableResolver.Resolve(RequestUrl, variables);
@@ -567,7 +567,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
             timeoutSeconds = parsedTimeoutSeconds;
         }
 
-        return new HttpRequestDraft(
+        return new ResolvedHttpRequestDraft(
             RequestName,
             SelectedMethod,
             resolvedUrl,

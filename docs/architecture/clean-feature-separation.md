@@ -53,7 +53,7 @@ This document answers the architecture questions raised in [issue #33](https://g
 
 5. **Reuse guidelines**
    - Extract reusable UI controls (request headers list, query parameters list, response body viewer) so they consume feature interfaces instead of the whole main VM.
-   - Keep shared models (`SavedRequest`, `RequestEnvironment`, etc.) in `Arbor.HttpClient.Core` so they stay UI-agnostic.
+   - Keep shared models (`RequestHistoryEntry`, `ResolvedHttpRequestDraft`, `RequestEnvironment`, etc.) in `Arbor.HttpClient.Core` so they stay UI-agnostic.
 
 ## Folder structure (feature-centric)
 
@@ -65,7 +65,7 @@ All code is now organized into feature-centric vertical slices rather than type-
 Collections/     — ICollectionRepository, Collection, CollectionRequest
 Environments/    — IEnvironmentRepository, EnvironmentVariable, RequestEnvironment
 GraphQl/         — GraphQlService, GraphQlDraft
-HttpRequest/     — IRequestHistoryRepository, SavedRequest, HttpRequestDraft, HttpResponseDetails,
+HttpRequest/     — IRequestHistoryRepository, RequestHistoryEntry, ResolvedHttpRequestDraft, HttpResponseDetails,
                    HttpRequestDiagnostics, RequestHeader, RequestType, HttpRequestService, CurlFormatter
 OpenApiImport/   — OpenApiImportService
 ScheduledJobs/   — IScheduledJobRepository, ScheduledJobConfig
@@ -91,7 +91,7 @@ Features/
                             RequestView, ResponseView, MethodToColorConverter, StatusCodeToColorConverter
   Layout/                 — DockFactory, DockLayoutSnapshot, FloatingWindowSnapshot, LayoutManagementViewModel,
                             LayoutManagementView, LayoutOptions, NamedDockLayout,
-                            DraftPersistenceService, DraftHeaderDto, DraftState
+                            DraftPersistenceService, DraftHeaderDto, RequestEditorSnapshot
   Logging/                — InMemorySink, LogEntry, LogTab, LogPanelViewModel,
                             LogWindowViewModel, LogPanelView, LogWindow
   Main/                   — MainWindowViewModel, MainWindow

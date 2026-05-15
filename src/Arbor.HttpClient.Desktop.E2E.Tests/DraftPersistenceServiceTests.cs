@@ -54,7 +54,7 @@ public class DraftPersistenceServiceTests
         var service = new DraftPersistenceService(folder);
         var savedAt = DateTimeOffset.UtcNow;
 
-        var draft = new DraftState
+        var draft = new RequestEditorSnapshot
         {
             RequestName = "My Request",
             Method = "POST",
@@ -113,7 +113,7 @@ public class DraftPersistenceServiceTests
     {
         var folder = CreateTempDraftsFolder();
         var service = new DraftPersistenceService(folder);
-        await service.SaveDraftAsync(new DraftState());
+        await service.SaveDraftAsync(new RequestEditorSnapshot());
 
         service.ClearDraft();
 
@@ -171,7 +171,7 @@ public class DraftPersistenceServiceTests
     public void RestoreToEditor_PopulatesAllEditorFields()
     {
         var editor = CreateEditor();
-        var draft = new DraftState
+        var draft = new RequestEditorSnapshot
         {
             RequestName = "Restored",
             Method = "PATCH",
@@ -221,7 +221,7 @@ public class DraftPersistenceServiceTests
     public void RestoreToEditor_IgnoresUnknownRequestType()
     {
         var editor = CreateEditor();
-        var draft = new DraftState { RequestType = "UnknownProtocol" };
+        var draft = new RequestEditorSnapshot { RequestType = "UnknownProtocol" };
 
         // Should not throw; RequestType stays at its default.
         var action = () => DraftPersistenceService.RestoreToEditor(draft, editor);
@@ -234,7 +234,7 @@ public class DraftPersistenceServiceTests
     public void RestoreToEditor_UsesDefaultTlsOverride_WhenSavedValueIsUnknown()
     {
         var editor = CreateEditor();
-        var draft = new DraftState { TlsVersionOverrideOption = "Tls99" };
+        var draft = new RequestEditorSnapshot { TlsVersionOverrideOption = "Tls99" };
 
         DraftPersistenceService.RestoreToEditor(draft, editor);
 
@@ -249,7 +249,7 @@ public class DraftPersistenceServiceTests
         var folder = CreateTempDraftsFolder(); // folder does not exist yet
         var service = new DraftPersistenceService(folder);
 
-        await service.SaveDraftAsync(new DraftState { Url = "http://localhost:5000" });
+        await service.SaveDraftAsync(new RequestEditorSnapshot { Url = "http://localhost:5000" });
 
         Directory.Exists(folder).Should().BeTrue();
         File.Exists(service.DraftFilePath).Should().BeTrue();

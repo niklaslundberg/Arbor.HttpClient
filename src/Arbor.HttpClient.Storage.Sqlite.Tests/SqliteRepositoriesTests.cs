@@ -19,7 +19,7 @@ public class SqliteRepositoriesTests
 
             await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
-            var request = new SavedRequest("Test GET", "GET", "http://localhost:5000/api", null, DateTimeOffset.UtcNow);
+            var request = new RequestHistoryEntry("Test GET", "GET", "http://localhost:5000/api", null, DateTimeOffset.UtcNow);
             await repository.SaveAsync(request, TestContext.Current.CancellationToken);
 
             var recent = await repository.GetRecentAsync(10, TestContext.Current.CancellationToken);
@@ -51,7 +51,7 @@ public class SqliteRepositoriesTests
 
             for (int i = 0; i < 15; i++)
             {
-                await repository.SaveAsync(new SavedRequest($"Request {i}", "GET", $"http://localhost:5000/{i}", null, DateTimeOffset.UtcNow), TestContext.Current.CancellationToken);
+                await repository.SaveAsync(new RequestHistoryEntry($"Request {i}", "GET", $"http://localhost:5000/{i}", null, DateTimeOffset.UtcNow), TestContext.Current.CancellationToken);
             }
 
             var recent = await repository.GetRecentAsync(5, TestContext.Current.CancellationToken);
@@ -1014,7 +1014,7 @@ public class SqliteRepositoriesTests
             var repository = new SqliteRequestHistoryRepository(dbPath);
             await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
-            var request = new SavedRequest("No Body", "GET", "http://localhost:5000/api", null, DateTimeOffset.UtcNow);
+            var request = new RequestHistoryEntry("No Body", "GET", "http://localhost:5000/api", null, DateTimeOffset.UtcNow);
             await repository.SaveAsync(request, TestContext.Current.CancellationToken);
 
             var recent = await repository.GetRecentAsync(10, TestContext.Current.CancellationToken);
@@ -1042,9 +1042,9 @@ public class SqliteRepositoriesTests
             await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
             var base_ = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
-            await repository.SaveAsync(new SavedRequest("First", "GET", "http://localhost/1", null, base_), TestContext.Current.CancellationToken);
-            await repository.SaveAsync(new SavedRequest("Second", "GET", "http://localhost/2", null, base_.AddMinutes(1)), TestContext.Current.CancellationToken);
-            await repository.SaveAsync(new SavedRequest("Third", "GET", "http://localhost/3", null, base_.AddMinutes(2)), TestContext.Current.CancellationToken);
+            await repository.SaveAsync(new RequestHistoryEntry("First", "GET", "http://localhost/1", null, base_), TestContext.Current.CancellationToken);
+            await repository.SaveAsync(new RequestHistoryEntry("Second", "GET", "http://localhost/2", null, base_.AddMinutes(1)), TestContext.Current.CancellationToken);
+            await repository.SaveAsync(new RequestHistoryEntry("Third", "GET", "http://localhost/3", null, base_.AddMinutes(2)), TestContext.Current.CancellationToken);
 
             var recent = await repository.GetRecentAsync(10, TestContext.Current.CancellationToken);
 

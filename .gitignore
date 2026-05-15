@@ -34,7 +34,11 @@ rec-log.txt
 
 # Visual Studio Code
 **/.vscode/*
-# Allow shared Copilot Chat settings so all contributors and agents get the same instructions
+# Allow shared VS Code workspace settings, launch profiles, tasks, and extension recommendations
 !**/.vscode/settings.json
+!**/.vscode/launch.json
+!**/.vscode/tasks.json
+!**/.vscode/extensions.json
 scripts/__pycache__/
 /src/Arbor.HttpClient.Desktop.E2E.Tests/TestResults
+*.lscache

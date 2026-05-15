@@ -313,7 +313,7 @@ public class ResponseActionsViewModelTests
         public string RequestEditorResolvedUrl { get; set; } = string.Empty;
         public string RequestEditorRequestName { get; set; } = string.Empty;
         public string RequestEditorContentType { get; set; } = string.Empty;
-        public HttpRequestDraft? RequestDraft { get; set; }
+        public ResolvedHttpRequestDraft? ResolvedRequest { get; set; }
 
         private byte[] _lastResponseBodyBytes = [];
 
@@ -321,8 +321,8 @@ public class ResponseActionsViewModelTests
 
         public void SetLastResponseBodyBytes(byte[] bytes) => _lastResponseBodyBytes = bytes;
 
-        public HttpRequestDraft BuildRequestDraft() =>
-            RequestDraft ?? new HttpRequestDraft("Request", "GET", RequestEditorResolvedUrl, null, [], null, true, null, null, null);
+        public ResolvedHttpRequestDraft BuildResolvedHttpRequestDraft() =>
+            ResolvedRequest ?? new ResolvedHttpRequestDraft("Request", "GET", RequestEditorResolvedUrl, null, [], null, true, null, null, null);
 
         public void RecordTempFile(string path) => RecordedTempFiles.Add(path);
 

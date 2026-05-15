@@ -63,30 +63,39 @@
                 <TextBox PlaceholderText="{x:Static loc:Strings.LeftPanelSearchHistory}"
                          Text="{Binding App.HistorySearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 <ListBox Grid.Row="1" ItemsSource="{Binding App.History}" Margin="0,6,0,0"
-                         Background="{DynamicResource PanelBackgroundBrush}">
+                          Background="{DynamicResource PanelBackgroundBrush}">
                     <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="httpRequest:SavedRequest">
-                            <StackPanel Margin="0,4">
-                                <StackPanel.ContextMenu>
+                        <DataTemplate x:DataType="httpRequest:RequestHistoryEntry">
+                            <Button Background="Transparent"
+                                    BorderBrush="Transparent"
+                                    Padding="4,3"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Left"
+                                    AutomationProperties.Name="{Binding Name}"
+                                    Command="{Binding $parent[UserControl].DataContext.App.LoadHistoryRequestCommand}"
+                                    CommandParameter="{Binding}">
+                                <Button.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="{x:Static loc:Strings.LeftPanelCopyAsCurl}"
                                                   Command="{Binding $parent[UserControl].DataContext.App.CopyHistoryItemAsCurlCommand}"
                                                   CommandParameter="{Binding}" />
                                     </ContextMenu>
-                                </StackPanel.ContextMenu>
-                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                                    <TextBlock Text="{Binding Method}"
-                                               Foreground="{Binding Method, Converter={StaticResource MethodToColorConverter}}"
-                                               FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="1"
-                                               Text="{Binding CreatedAtLocalDisplay}"
-                                               HorizontalAlignment="Right"
-                                               FontSize="10"
-                                               Opacity="0.65" />
-                                </Grid>
-                                <TextBlock Text="{Binding Url}" TextWrapping="Wrap" FontSize="11" Opacity="0.7" />
-                            </StackPanel>
+                                </Button.ContextMenu>
+                                <StackPanel Margin="0,4">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                        <TextBlock Text="{Binding Method}"
+                                                   Foreground="{Binding Method, Converter={StaticResource MethodToColorConverter}}"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding CreatedAtLocalDisplay}"
+                                                   HorizontalAlignment="Right"
+                                                   FontSize="10"
+                                                   Opacity="0.65" />
+                                    </Grid>
+                                    <TextBlock Text="{Binding Url}" TextWrapping="Wrap" FontSize="11" Opacity="0.7" />
+                                </StackPanel>
+                            </Button>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>

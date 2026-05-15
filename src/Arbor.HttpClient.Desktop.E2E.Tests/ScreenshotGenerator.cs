@@ -671,11 +671,11 @@ public class ScreenshotGenerator
 
     private sealed class InMemoryHistoryRepo : IRequestHistoryRepository
     {
-        private readonly List<SavedRequest> _items = [];
+        private readonly List<RequestHistoryEntry> _items = [];
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task SaveAsync(SavedRequest request, CancellationToken cancellationToken = default) { _items.Add(request); return Task.CompletedTask; }
-        public Task<IReadOnlyList<SavedRequest>> GetRecentAsync(int limit, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<SavedRequest>>(_items.Take(limit).ToList());
+        public Task SaveAsync(RequestHistoryEntry request, CancellationToken cancellationToken = default) { _items.Add(request); return Task.CompletedTask; }
+        public Task<IReadOnlyList<RequestHistoryEntry>> GetRecentAsync(int limit, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<RequestHistoryEntry>>(_items.Take(limit).ToList());
     }
 
     private sealed class InMemoryCollectionRepo : ICollectionRepository

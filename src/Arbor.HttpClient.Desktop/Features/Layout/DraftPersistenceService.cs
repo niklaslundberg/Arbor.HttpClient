@@ -32,7 +32,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
     /// Reads the persisted draft file and returns the deserialised state,
     /// or <see langword="null"/> if the file does not exist or cannot be parsed.
     /// </summary>
-    public async Task<DraftState?> LoadDraftAsync(CancellationToken cancellationToken = default)
+    public async Task<RequestEditorSnapshot?> LoadDraftAsync(CancellationToken cancellationToken = default)
     {
         var path = DraftFilePath;
         if (!File.Exists(path))
@@ -43,7 +43,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
         try
         {
             var json = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Deserialize<DraftState>(json, SerializerOptions);
+            return JsonSerializer.Deserialize<RequestEditorSnapshot>(json, SerializerOptions);
         }
         catch (Exception ex) when (ex is JsonException or ArgumentException)
         {
@@ -60,7 +60,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
     }
 
     /// <summary>Serialises <paramref name="state"/> and writes it to the draft file atomically.</summary>
-    public async Task SaveDraftAsync(DraftState state, CancellationToken cancellationToken = default)
+    public async Task SaveDraftAsync(RequestEditorSnapshot state, CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(draftsFolder);
         var json = JsonSerializer.Serialize(state, SerializerOptions);
@@ -117,10 +117,10 @@ public sealed class DraftPersistenceService(string draftsFolder)
     }
 
     /// <summary>
-    /// Captures the current state of <paramref name="editor"/> into a <see cref="DraftState"/>.
+    /// Captures the current state of <paramref name="editor"/> into a <see cref="RequestEditorSnapshot"/>.
     /// Must be called on the UI thread (or a thread where observable property reads are safe).
     /// </summary>
-    public static DraftState CaptureFromEditor(RequestEditorViewModel editor)
+    public static RequestEditorSnapshot CaptureFromEditor(RequestEditorViewModel editor)
     {
         var headers = editor.RequestHeaders
             .Where(h => !string.IsNullOrWhiteSpace(h.Name))
@@ -132,7 +132,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
             })
             .ToList();
 
-        return new DraftState
+        return new RequestEditorSnapshot
         {
             RequestName = editor.RequestName,
             Method = editor.SelectedMethod,
@@ -165,7 +165,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
     /// Applies the saved <paramref name="state"/> back to <paramref name="editor"/>.
     /// Must be called on the UI thread.
     /// </summary>
-    public static void RestoreToEditor(DraftState state, RequestEditorViewModel editor)
+    public static void RestoreToEditor(RequestEditorSnapshot state, RequestEditorViewModel editor)
     {
         editor.RequestName = state.RequestName;
         editor.SelectedMethod = state.Method;

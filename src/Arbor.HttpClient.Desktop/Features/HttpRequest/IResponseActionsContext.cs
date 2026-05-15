@@ -61,8 +61,8 @@ public interface IResponseActionsContext
     /// <summary>Gets the <c>Content-Type</c> configured in the request editor (for temp-file extension detection).</summary>
     string RequestEditorContentType { get; }
 
-    /// <summary>Builds the current request draft from the request editor state.</summary>
-    HttpRequestDraft BuildRequestDraft();
+    /// <summary>Builds the resolved HTTP request from the request editor state.</summary>
+    ResolvedHttpRequestDraft BuildResolvedHttpRequestDraft();
 
     /// <summary>Registers a temp file path so it is cleaned up when the application closes.</summary>
     void RecordTempFile(string path);

@@ -36,7 +36,7 @@ public sealed class HttpRequestService(System.Net.Http.HttpClient httpClient, IR
 
     /// <summary>
     /// Sets a factory that selects an <see cref="System.Net.Http.HttpClient"/> based on the per-request
-    /// <see cref="HttpRequestDraft.FollowRedirects"/> and <see cref="HttpRequestDraft.IgnoreCertificateValidation"/> overrides.
+    /// <see cref="ResolvedHttpRequestDraft.FollowRedirects"/> and <see cref="ResolvedHttpRequestDraft.IgnoreCertificateValidation"/> overrides.
     /// </summary>
     public void SetHttpClientFactory(Func<bool?, bool?, System.Net.Http.HttpClient> httpClientFactoryWithCertOverride)
     {
@@ -47,8 +47,8 @@ public sealed class HttpRequestService(System.Net.Http.HttpClient httpClient, IR
 
     /// <summary>
     /// Sets a factory that selects an <see cref="System.Net.Http.HttpClient"/> based on the per-request
-    /// <see cref="HttpRequestDraft.FollowRedirects"/>, <see cref="HttpRequestDraft.IgnoreCertificateValidation"/>,
-    /// and <see cref="HttpRequestDraft.TlsVersionOverride"/> overrides.
+    /// <see cref="ResolvedHttpRequestDraft.FollowRedirects"/>, <see cref="ResolvedHttpRequestDraft.IgnoreCertificateValidation"/>,
+    /// and <see cref="ResolvedHttpRequestDraft.TlsVersionOverride"/> overrides.
     /// </summary>
     public void SetHttpClientFactory(Func<bool?, bool?, string?, System.Net.Http.HttpClient> httpClientFactoryWithTlsOverride)
     {
@@ -74,36 +74,36 @@ public sealed class HttpRequestService(System.Net.Http.HttpClient httpClient, IR
         _diagnosticsObserver = diagnosticsObserver ?? throw new ArgumentNullException(nameof(diagnosticsObserver));
     }
 
-    public async Task<HttpResponseDetails> SendAsync(HttpRequestDraft requestDraft, CancellationToken cancellationToken = default)
+    public async Task<HttpResponseDetails> SendAsync(ResolvedHttpRequestDraft resolvedRequest, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(requestDraft.Method))
+        if (string.IsNullOrWhiteSpace(resolvedRequest.Method))
         {
-            throw new ArgumentException("HTTP method is required", nameof(requestDraft));
+            throw new ArgumentException("HTTP method is required", nameof(resolvedRequest));
         }
 
-        if (!Uri.TryCreate(requestDraft.Url, UriKind.Absolute, out var uri) || (uri.Scheme is not ("http" or "https")))
+        if (!Uri.TryCreate(resolvedRequest.Url, UriKind.Absolute, out var uri) || (uri.Scheme is not ("http" or "https")))
         {
-            throw new ArgumentException("URL must be an absolute HTTP or HTTPS URL", nameof(requestDraft));
+            throw new ArgumentException("URL must be an absolute HTTP or HTTPS URL", nameof(resolvedRequest));
         }
 
-        using var requestMessage = new HttpRequestMessage(new HttpMethod(requestDraft.Method), uri);
-        if (requestDraft.HttpVersion is { } httpVersion)
+        using var requestMessage = new HttpRequestMessage(new HttpMethod(resolvedRequest.Method), uri);
+        if (resolvedRequest.HttpVersion is { } httpVersion)
         {
             requestMessage.Version = httpVersion;
             requestMessage.VersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
         }
 
-        var contentTypeHeader = requestDraft.Headers?
+        var contentTypeHeader = resolvedRequest.Headers?
             .FirstOrDefault(h => h.IsEnabled && string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase));
 
-        if (!string.IsNullOrWhiteSpace(requestDraft.Body))
+        if (!string.IsNullOrWhiteSpace(resolvedRequest.Body))
         {
             requestMessage.Content = contentTypeHeader is { } ctHeader
-                ? new StringContent(requestDraft.Body, Encoding.UTF8, ctHeader.Value)
-                : new StringContent(requestDraft.Body);
+            ? new StringContent(resolvedRequest.Body, Encoding.UTF8, ctHeader.Value)
+            : new StringContent(resolvedRequest.Body);
         }
 
-        if (requestDraft.Headers is { } requestHeaders)
+        if (resolvedRequest.Headers is { } requestHeaders)
         {
             foreach (var header in requestHeaders.Where(h => h.IsEnabled
                 && !string.IsNullOrWhiteSpace(h.Name)
@@ -116,15 +116,15 @@ public sealed class HttpRequestService(System.Net.Http.HttpClient httpClient, IR
         // Read the factory once into a local to avoid observing a partially-updated state
         // if another thread calls SetHttpClientFactory concurrently with SendAsync.
         var factory = _httpClientFactory;
-        var activeClient = factory?.Invoke(requestDraft.FollowRedirects, requestDraft.IgnoreCertificateValidation, requestDraft.TlsVersionOverride)
+        var activeClient = factory?.Invoke(resolvedRequest.FollowRedirects, resolvedRequest.IgnoreCertificateValidation, resolvedRequest.TlsVersionOverride)
             ?? _httpClient;
 
         var totalStopwatch = Stopwatch.StartNew();
         var requestedHttpVersion = requestMessage.Version.ToString(2);
 
-        var effectiveTimeout = requestDraft.TimeoutSeconds switch
+        var effectiveTimeout = resolvedRequest.TimeoutSeconds switch
         {
-            > 0 => TimeSpan.FromSeconds(requestDraft.TimeoutSeconds.Value),
+            > 0 => TimeSpan.FromSeconds(resolvedRequest.TimeoutSeconds.Value),
             0 => null,
             _ => _defaultRequestTimeout
         };
@@ -190,11 +190,11 @@ public sealed class HttpRequestService(System.Net.Http.HttpClient httpClient, IR
             .ToList();
 
         await _requestHistoryRepository.SaveAsync(
-            new SavedRequest(
-                string.IsNullOrWhiteSpace(requestDraft.Name) ? requestDraft.Url : requestDraft.Name,
-                requestDraft.Method,
-                requestDraft.Url,
-                requestDraft.Body,
+            new RequestHistoryEntry(
+                string.IsNullOrWhiteSpace(resolvedRequest.Name) ? resolvedRequest.Url : resolvedRequest.Name,
+                resolvedRequest.Method,
+                resolvedRequest.Url,
+                resolvedRequest.Body,
                 _timeProvider.GetUtcNow()),
             cancellationToken).ConfigureAwait(false);
 
@@ -202,8 +202,8 @@ public sealed class HttpRequestService(System.Net.Http.HttpClient httpClient, IR
         {
             totalStopwatch.Stop();
             observer.Invoke(new HttpRequestDiagnostics(
-                requestDraft.Method,
-                requestDraft.Url,
+                resolvedRequest.Method,
+                resolvedRequest.Url,
                 requestedHttpVersion,
                 response.Version.ToString(2),
                 dnsLookupResult,

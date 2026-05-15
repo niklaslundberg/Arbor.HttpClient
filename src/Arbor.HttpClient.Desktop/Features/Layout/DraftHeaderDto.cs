@@ -1,6 +1,6 @@
 namespace Arbor.HttpClient.Desktop.Features.Layout;
 
-/// <summary>Serialisation model for a single request header entry inside a <see cref="DraftState"/>.</summary>
+/// <summary>Serialisation model for a single request header entry inside a <see cref="RequestEditorSnapshot"/>.</summary>
 public sealed class DraftHeaderDto
 {
     public string Name { get; init; } = string.Empty;

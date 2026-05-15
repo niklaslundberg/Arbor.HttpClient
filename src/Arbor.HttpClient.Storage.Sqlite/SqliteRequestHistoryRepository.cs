@@ -31,7 +31,7 @@ public sealed class SqliteRequestHistoryRepository(string databasePath) : IReque
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task SaveAsync(SavedRequest request, CancellationToken cancellationToken = default)
+    public async Task SaveAsync(RequestHistoryEntry request, CancellationToken cancellationToken = default)
     {
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -51,7 +51,7 @@ public sealed class SqliteRequestHistoryRepository(string databasePath) : IReque
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<IReadOnlyList<SavedRequest>> GetRecentAsync(int limit, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<RequestHistoryEntry>> GetRecentAsync(int limit, CancellationToken cancellationToken = default)
     {
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -66,12 +66,12 @@ public sealed class SqliteRequestHistoryRepository(string databasePath) : IReque
             """;
         command.Parameters.AddWithValue("$limit", limit);
 
-        var items = new List<SavedRequest>();
+        var items = new List<RequestHistoryEntry>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            items.Add(new SavedRequest(
+            items.Add(new RequestHistoryEntry(
                 reader.GetString(0),
                 reader.GetString(1),
                 reader.GetString(2),

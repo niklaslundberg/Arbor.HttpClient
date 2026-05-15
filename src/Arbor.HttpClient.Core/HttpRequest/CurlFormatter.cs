@@ -46,7 +46,7 @@ public static class CurlFormatter
         return builder.ToString();
     }
 
-    public static string Format(SavedRequest request, IReadOnlyList<RequestHeader>? headers = null)
+    public static string Format(RequestHistoryEntry request, IReadOnlyList<RequestHeader>? headers = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         return Format(request.Method, request.Url, request.Body, headers);

@@ -7,12 +7,12 @@ namespace Arbor.HttpClient.Testing.Repositories;
 /// </summary>
 public sealed class InMemoryRequestHistoryRepository : IRequestHistoryRepository
 {
-    private readonly List<SavedRequest> _items = [];
+    private readonly List<RequestHistoryEntry> _items = [];
     private readonly object _lock = new();
 
     public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
-    public Task SaveAsync(SavedRequest request, CancellationToken cancellationToken = default)
+    public Task SaveAsync(RequestHistoryEntry request, CancellationToken cancellationToken = default)
     {
         lock (_lock)
         {
@@ -22,16 +22,16 @@ public sealed class InMemoryRequestHistoryRepository : IRequestHistoryRepository
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<SavedRequest>> GetRecentAsync(int limit, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<RequestHistoryEntry>> GetRecentAsync(int limit, CancellationToken cancellationToken = default)
     {
         lock (_lock)
         {
-            return Task.FromResult<IReadOnlyList<SavedRequest>>(_items.Take(limit).ToList());
+            return Task.FromResult<IReadOnlyList<RequestHistoryEntry>>(_items.Take(limit).ToList());
         }
     }
 
-    /// <summary>Gets all saved requests. Useful for test assertions.</summary>
-    public IReadOnlyList<SavedRequest> Items
+    /// <summary>Gets all request history entries. Useful for test assertions.</summary>
+    public IReadOnlyList<RequestHistoryEntry> Items
     {
         get
         {
@@ -42,7 +42,7 @@ public sealed class InMemoryRequestHistoryRepository : IRequestHistoryRepository
         }
     }
 
-    /// <summary>Clears all saved requests. Useful for test cleanup.</summary>
+    /// <summary>Clears all request history entries. Useful for test cleanup.</summary>
     public void Clear()
     {
         lock (_lock)

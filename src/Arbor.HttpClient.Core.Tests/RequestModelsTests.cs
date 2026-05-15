@@ -8,33 +8,33 @@ namespace Arbor.HttpClient.Core.Tests;
 public class RequestModelsTests
 {
     [Fact]
-    public void HttpRequestDraft_ShouldDefaultFollowRedirectsToNull()
+    public void ResolvedHttpRequestDraft_ShouldDefaultFollowRedirectsToNull()
     {
-        var draft = new HttpRequestDraft("name", "GET", "http://localhost:5000", null);
+        var draft = new ResolvedHttpRequestDraft("name", "GET", "http://localhost:5000", null);
 
         draft.FollowRedirects.Should().BeNull();
     }
 
     [Fact]
-    public void HttpRequestDraft_ShouldStoreFollowRedirectOverride()
+    public void ResolvedHttpRequestDraft_ShouldStoreFollowRedirectOverride()
     {
-        var draft = new HttpRequestDraft("name", "GET", "http://localhost:5000", null, FollowRedirects: false);
+        var draft = new ResolvedHttpRequestDraft("name", "GET", "http://localhost:5000", null, FollowRedirects: false);
 
         draft.FollowRedirects.Should().BeFalse();
     }
 
     [Fact]
-    public void HttpRequestDraft_ShouldDefaultTimeoutSecondsToNull()
+    public void ResolvedHttpRequestDraft_ShouldDefaultTimeoutSecondsToNull()
     {
-        var draft = new HttpRequestDraft("name", "GET", "http://localhost:5000", null);
+        var draft = new ResolvedHttpRequestDraft("name", "GET", "http://localhost:5000", null);
 
         draft.TimeoutSeconds.Should().BeNull();
     }
 
     [Fact]
-    public void HttpRequestDraft_ShouldStoreTimeoutSeconds()
+    public void ResolvedHttpRequestDraft_ShouldStoreTimeoutSeconds()
     {
-        var draft = new HttpRequestDraft("name", "GET", "http://localhost:5000", null, TimeoutSeconds: 12);
+        var draft = new ResolvedHttpRequestDraft("name", "GET", "http://localhost:5000", null, TimeoutSeconds: 12);
 
         draft.TimeoutSeconds.Should().Be(12);
     }
@@ -73,10 +73,10 @@ public class RequestModelsTests
     }
 
     [Fact]
-    public void SavedRequest_ShouldStoreAllProperties()
+    public void RequestHistoryEntry_ShouldStoreAllProperties()
     {
         var createdAt = new DateTimeOffset(2026, 4, 23, 14, 30, 0, TimeSpan.Zero);
-        var request = new SavedRequest("My Request", "DELETE", "http://localhost:5000/resource/1", "{\"confirm\":true}", createdAt);
+        var request = new RequestHistoryEntry("My Request", "DELETE", "http://localhost:5000/resource/1", "{\"confirm\":true}", createdAt);
 
         request.Name.Should().Be("My Request");
         request.Method.Should().Be("DELETE");
@@ -86,10 +86,10 @@ public class RequestModelsTests
     }
 
     [Fact]
-    public void SavedRequest_CreatedAtLocalDisplay_ShouldFormatCorrectly()
+    public void RequestHistoryEntry_CreatedAtLocalDisplay_ShouldFormatCorrectly()
     {
         var createdAt = new DateTimeOffset(2026, 4, 23, 14, 30, 45, TimeSpan.Zero);
-        var request = new SavedRequest("Test", "GET", "http://localhost:5000", null, createdAt);
+        var request = new RequestHistoryEntry("Test", "GET", "http://localhost:5000", null, createdAt);
 
         // The display should be in local time with format "yyyy-MM-dd HH:mm:ss"
         request.CreatedAtLocalDisplay.Should().MatchRegex(@"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$");
