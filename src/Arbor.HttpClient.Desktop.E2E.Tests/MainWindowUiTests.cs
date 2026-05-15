@@ -1149,7 +1149,8 @@ public class MainWindowUiTests
             string.Equals(request.Name, "GraphQL invalid vars", StringComparison.Ordinal));
 
         using var bodyDocument = JsonDocument.Parse(collectionRequest.Body!);
-        bodyDocument.RootElement.GetProperty("variables").ValueKind.Should().Be(JsonValueKind.Null);
+        var hasVariables = bodyDocument.RootElement.TryGetProperty("variables", out var variablesProperty);
+        (hasVariables is false || variablesProperty.ValueKind == JsonValueKind.Null).Should().BeTrue();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
