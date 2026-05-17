@@ -1714,14 +1714,14 @@ public class MainWindowUiTests
         var scheduledJobsPage = window.GetVisualDescendants().OfType<ScheduledJobsOptionsPageView>().Single();
         scheduledJobsPage.IsVisible.Should().BeTrue("the extracted Scheduled Jobs page should be visible when the Scheduled Jobs options page is selected");
 
-        var textBlocks = Avalonia.LogicalTree.LogicalExtensions.GetLogicalDescendants((Avalonia.LogicalTree.ILogical)scheduledJobsPage).OfType<TextBlock>().Select(tb => tb.Text).ToList();
+        var textBlocks = Avalonia.LogicalTree.LogicalExtensions.GetLogicalDescendants(scheduledJobsPage).OfType<TextBlock>().Select(tb => tb.Text).ToList();
 
         textBlocks
             .Any(t => string.Equals(t, "Default interval for new jobs", StringComparison.Ordinal))
             .Should()
             .BeTrue("default interval label should be on the Scheduled Jobs page");
 
-        var checkBoxes = Avalonia.LogicalTree.LogicalExtensions.GetLogicalDescendants((Avalonia.LogicalTree.ILogical)scheduledJobsPage).OfType<CheckBox>();
+        var checkBoxes = Avalonia.LogicalTree.LogicalExtensions.GetLogicalDescendants(scheduledJobsPage).OfType<CheckBox>();
         checkBoxes
             .Any(cb => string.Equals(cb.Content?.ToString(), "Auto-start scheduled jobs on launch", StringComparison.Ordinal))
             .Should()
