@@ -104,6 +104,18 @@ public partial class MainWindow : Window
 
     private async Task<bool> ShowPendingInheritedHeadersWarningAsync()
     {
+        var cancelButton = new Button
+        {
+            Content = Strings.PendingInheritedHeadersCloseWarningCancel,
+            MinWidth = 96
+        };
+
+        var closeButton = new Button
+        {
+            Content = Strings.PendingInheritedHeadersCloseWarningClose,
+            MinWidth = 96
+        };
+
         var messageWindow = new Window
         {
             Width = 460,
@@ -131,25 +143,13 @@ public partial class MainWindow : Window
                         [Grid.RowProperty] = 1,
                         Children =
                         {
-                            new Button
-                            {
-                                Content = Strings.PendingInheritedHeadersCloseWarningCancel,
-                                MinWidth = 96
-                            },
-                            new Button
-                            {
-                                Content = Strings.PendingInheritedHeadersCloseWarningClose,
-                                MinWidth = 96
-                            }
+                            cancelButton,
+                            closeButton
                         }
                     }
                 }
             }
         };
-
-        var buttonPanel = ((StackPanel)((Grid)messageWindow.Content!).Children[1]);
-        var cancelButton = (Button)buttonPanel.Children[0];
-        var closeButton = (Button)buttonPanel.Children[1];
 
         cancelButton.Click += (_, _) => messageWindow.Close(false);
         closeButton.Click += (_, _) => messageWindow.Close(true);

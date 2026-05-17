@@ -873,19 +873,20 @@ public class DemoServerTests
     private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
     {
         using var cancellationTokenSource = new CancellationTokenSource(timeout);
-        var stopwatch = Stopwatch.StartNew();
+        var isConditionMet = false;
 
         while (!cancellationTokenSource.IsCancellationRequested)
         {
             if (condition())
             {
-                return;
+                isConditionMet = true;
+                break;
             }
 
             await Task.Delay(50, cancellationTokenSource.Token);
         }
 
-        condition().Should().BeTrue($"the expected state should be observed within {timeout.TotalSeconds:0.##} seconds");
+        isConditionMet.Should().BeTrue($"the expected state should be observed within {timeout.TotalSeconds:0.##} seconds");
     }
 
 
