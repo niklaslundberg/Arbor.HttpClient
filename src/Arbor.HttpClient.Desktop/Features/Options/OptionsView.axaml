@@ -62,10 +62,9 @@
 
         <!-- Settings scroll area -->
         <ScrollViewer Grid.Row="1"
-                      Padding="24,20,24,24"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
-          <StackPanel Spacing="12">
+          <StackPanel Spacing="12" Margin="24,20,24,24">
             <options:HttpOptionsPageView
                 DataContext="{Binding}"
                 IsVisible="{Binding SelectedOptionsPage,

@@ -129,7 +129,7 @@
                      FontWeight="SemiBold" FontSize="11" Padding="0,0,0,15" />
           <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerStopped}"
                      IsVisible="{Binding !App.IsDemoServerRunning}"
-                     Opacity="0.55" FontSize="11" Padding="0,0,0,80" />
+                     Opacity="0.55" FontSize="11" />
         </StackPanel>
       </StackPanel>
     </Border>
