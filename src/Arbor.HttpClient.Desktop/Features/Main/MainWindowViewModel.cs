@@ -94,6 +94,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private bool _suppressCollectionInheritedHeadersAutoSave;
     private bool _suppressCollectionInheritedHeadersLivePreviewSync;
     private CancellationTokenSource? _collectionInheritedHeadersAutoSaveCts;
+    private int _collectionInheritedHeadersAutoSaveVersion;
+    private bool _hasPendingCollectionInheritedHeadersAutoSave;
+    private CollectionInheritedHeadersAutoSaveSnapshot? _pendingCollectionInheritedHeadersAutoSaveSnapshot;
     private DockLayoutSnapshot? _defaultLayout;
     private byte[] _lastResponseBodyBytes = [];
     private readonly DraftPersistenceService? _draftPersistenceService;
@@ -142,11 +145,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     // re-measures with the saved proportions once all visual bindings are in place.
     private DockLayoutSnapshot? _startupLayoutSnapshot;
 
+    private sealed record CollectionInheritedHeadersAutoSaveSnapshot(
+        int CollectionId,
+        string CollectionName,
+        string? CollectionSourcePath,
+        string? CollectionBaseUrl,
+        IReadOnlyList<CollectionRequest> CollectionRequests,
+        IReadOnlyList<RequestHeader>? InheritedHeaders);
+
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
 
     // Needed for clipboard (e.g. "Copy as cURL" on history items) – set by the view
     public IClipboard? Clipboard { get; set; }
+
+    public bool HasPendingCollectionInheritedHeadersAutoSave => _hasPendingCollectionInheritedHeadersAutoSave;
 
     /// <summary>
     /// Exposes the extracted response-actions coordinator.
@@ -1848,7 +1861,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     [RelayCommand]
     private async Task SaveCollectionInheritedHeadersAsync(CancellationToken cancellationToken)
     {
-        await PersistCollectionInheritedHeadersAsync(cancellationToken);
+        if (BuildCollectionInheritedHeadersAutoSaveSnapshot() is { } snapshot)
+        {
+            await PersistCollectionInheritedHeadersSnapshotAsync(snapshot, cancellationToken, selectUpdatedCollection: true);
+            _hasPendingCollectionInheritedHeadersAutoSave = false;
+            _pendingCollectionInheritedHeadersAutoSaveSnapshot = null;
+        }
     }
 
     [RelayCommand]
@@ -1925,31 +1943,55 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         return headers is { Count: > 0 } ? headers : null;
     }
 
-    private async Task PersistCollectionInheritedHeadersAsync(CancellationToken cancellationToken)
+    private CollectionInheritedHeadersAutoSaveSnapshot? BuildCollectionInheritedHeadersAutoSaveSnapshot()
     {
         if (SelectedCollection is not { } collection)
         {
-            return;
+            return null;
         }
 
         var inheritedHeaders = BuildCollectionInheritedHeaders(CollectionInheritedHeaders);
-        if (CollectionHeadersEqual(collection.Headers, inheritedHeaders))
-        {
-            return;
-        }
-
-        await _collectionRepository.UpdateAsync(
+        return new CollectionInheritedHeadersAutoSaveSnapshot(
             collection.Id,
             collection.Name,
             collection.SourcePath,
             collection.BaseUrl,
             collection.Requests,
-            inheritedHeaders,
+            inheritedHeaders);
+    }
+
+    private async Task PersistCollectionInheritedHeadersSnapshotAsync(
+        CollectionInheritedHeadersAutoSaveSnapshot snapshot,
+        CancellationToken cancellationToken,
+        bool selectUpdatedCollection)
+    {
+        var currentCollection = Collections.FirstOrDefault(collection => collection.Id == snapshot.CollectionId);
+        if (currentCollection is not { })
+        {
+            return;
+        }
+
+        if (CollectionHeadersEqual(currentCollection.Headers, snapshot.InheritedHeaders))
+        {
+            return;
+        }
+
+        await _collectionRepository.UpdateAsync(
+            snapshot.CollectionId,
+            snapshot.CollectionName,
+            snapshot.CollectionSourcePath,
+            snapshot.CollectionBaseUrl,
+            snapshot.CollectionRequests,
+            snapshot.InheritedHeaders,
             cancellationToken);
 
         await LoadCollectionsAsync(cancellationToken);
-        SelectedCollection = Collections.FirstOrDefault(candidateCollection => candidateCollection.Id == collection.Id);
-        _debugLogger.Information("Updated inherited headers for collection {CollectionName}", collection.Name);
+        if (selectUpdatedCollection && SelectedCollection?.Id == snapshot.CollectionId)
+        {
+            SelectedCollection = Collections.FirstOrDefault(candidateCollection => candidateCollection.Id == snapshot.CollectionId);
+        }
+
+        _debugLogger.Information("Updated inherited headers for collection {CollectionName}", snapshot.CollectionName);
     }
 
     private void QueueCollectionInheritedHeadersAutoSave()
@@ -1959,25 +2001,64 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             return;
         }
 
+        if (BuildCollectionInheritedHeadersAutoSaveSnapshot() is not { } snapshot)
+        {
+            return;
+        }
+
+        _hasPendingCollectionInheritedHeadersAutoSave = true;
+        _pendingCollectionInheritedHeadersAutoSaveSnapshot = snapshot;
+
+        _collectionInheritedHeadersAutoSaveVersion++;
+        var autoSaveVersion = _collectionInheritedHeadersAutoSaveVersion;
+
         _collectionInheritedHeadersAutoSaveCts?.Cancel();
         _collectionInheritedHeadersAutoSaveCts?.Dispose();
         _collectionInheritedHeadersAutoSaveCts = new CancellationTokenSource();
-        _ = TriggerCollectionInheritedHeadersAutoSaveAsync(_collectionInheritedHeadersAutoSaveCts.Token);
+        _ = TriggerCollectionInheritedHeadersAutoSaveAsync(snapshot, autoSaveVersion, _collectionInheritedHeadersAutoSaveCts.Token);
     }
 
-    private async Task TriggerCollectionInheritedHeadersAutoSaveAsync(CancellationToken cancellationToken)
+    private async Task TriggerCollectionInheritedHeadersAutoSaveAsync(
+        CollectionInheritedHeadersAutoSaveSnapshot snapshot,
+        int autoSaveVersion,
+        CancellationToken cancellationToken)
     {
         try
         {
             await Task.Delay(TimeSpan.FromMilliseconds(1000), cancellationToken).ConfigureAwait(false);
             await Dispatcher.UIThread.InvokeAsync(
-                async () => await PersistCollectionInheritedHeadersAsync(cancellationToken),
+                () => PersistCollectionInheritedHeadersSnapshotAsync(
+                    snapshot,
+                    cancellationToken,
+                    selectUpdatedCollection: false),
                 DispatcherPriority.Background);
+
+            if (autoSaveVersion == _collectionInheritedHeadersAutoSaveVersion)
+            {
+                _hasPendingCollectionInheritedHeadersAutoSave = false;
+                _pendingCollectionInheritedHeadersAutoSaveSnapshot = null;
+            }
         }
         catch (OperationCanceledException)
         {
             // Debounced auto-save was superseded by a newer edit.
         }
+    }
+
+    public async Task FlushPendingCollectionInheritedHeadersAutoSaveAsync()
+    {
+        if (!_hasPendingCollectionInheritedHeadersAutoSave || _pendingCollectionInheritedHeadersAutoSaveSnapshot is not { } snapshot)
+        {
+            return;
+        }
+
+        _collectionInheritedHeadersAutoSaveCts?.Cancel();
+        _collectionInheritedHeadersAutoSaveCts?.Dispose();
+        _collectionInheritedHeadersAutoSaveCts = null;
+
+        await PersistCollectionInheritedHeadersSnapshotAsync(snapshot, CancellationToken.None, selectUpdatedCollection: true);
+        _hasPendingCollectionInheritedHeadersAutoSave = false;
+        _pendingCollectionInheritedHeadersAutoSaveSnapshot = null;
     }
 
     private void OnCollectionInheritedHeadersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -2037,25 +2118,56 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
 
         var inheritedHeaders = BuildCollectionInheritedHeaders(CollectionInheritedHeaders);
-        var mergedHeaders = MergeCollectionAndRequestHeaders(inheritedHeaders, matchingRequest.Headers);
+        var nonInheritedHeaders = _requestEditor.RequestHeaders
+            .Where(header => !header.IsInherited)
+            .ToList();
+
+        var manualHeaders = BuildCollectionInheritedHeaders(nonInheritedHeaders);
+        var mergedHeaders = MergeCollectionAndRequestHeaders(inheritedHeaders, manualHeaders ?? matchingRequest.Headers);
 
         _suppressCollectionInheritedHeadersLivePreviewSync = true;
         try
         {
             _requestEditor.RequestHeaders.Clear();
-            if (mergedHeaders is { })
+            foreach (var nonInheritedHeader in nonInheritedHeaders)
             {
-                foreach (var mergedHeader in mergedHeaders)
+                _requestEditor.RequestHeaders.Add(new RequestHeaderViewModel
                 {
+                    Name = nonInheritedHeader.Name,
+                    Value = nonInheritedHeader.Value,
+                    Description = nonInheritedHeader.Description,
+                    IsEnabled = nonInheritedHeader.IsEnabled,
+                    IsInherited = false
+                });
+            }
+
+            if (mergedHeaders is { } mergedInheritedHeaders)
+            {
+                foreach (var mergedHeader in mergedInheritedHeaders)
+                {
+                    var isInheritedHeader = inheritedHeaders?.Any(inheritedHeader =>
+                        string.Equals(inheritedHeader.Name, mergedHeader.Name, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(inheritedHeader.Value, mergedHeader.Value, StringComparison.Ordinal)
+                        && inheritedHeader.IsEnabled == mergedHeader.IsEnabled) == true;
+
+                    if (!isInheritedHeader)
+                    {
+                        continue;
+                    }
+
+                    var hasManualOverride = nonInheritedHeaders.Any(header =>
+                        string.Equals(header.Name, mergedHeader.Name, StringComparison.OrdinalIgnoreCase));
+                    if (hasManualOverride)
+                    {
+                        continue;
+                    }
+
                     _requestEditor.RequestHeaders.Add(new RequestHeaderViewModel
                     {
                         Name = mergedHeader.Name,
                         Value = mergedHeader.Value,
                         IsEnabled = mergedHeader.IsEnabled,
-                        IsInherited = inheritedHeaders?.Any(inheritedHeader =>
-                            string.Equals(inheritedHeader.Name, mergedHeader.Name, StringComparison.OrdinalIgnoreCase)
-                            && string.Equals(inheritedHeader.Value, mergedHeader.Value, StringComparison.Ordinal)
-                            && inheritedHeader.IsEnabled == mergedHeader.IsEnabled) == true
+                        IsInherited = true
                     });
                 }
             }

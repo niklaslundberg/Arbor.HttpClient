@@ -470,25 +470,27 @@
                                         <views:VariableTextBox Grid.Column="2" PlaceholderText="{x:Static loc:Strings.HeadersValuePlaceholder}"
                                                  AppViewModel="{Binding $parent[UserControl].DataContext.App}"
                                                  Text="{Binding Value, Mode=TwoWay}" />
-                                        <Border Grid.Column="3"
-                                                Background="{DynamicResource SurfaceBackgroundBrush}"
-                                                BorderBrush="{DynamicResource PanelBorderBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="3"
-                                                Padding="6,2"
-                                                VerticalAlignment="Center"
-                                                IsVisible="{Binding IsInherited}">
-                                            <TextBlock Text="Inherited"
-                                                       FontSize="10"
-                                                       Opacity="0.8" />
-                                        </Border>
-                                        <TextBox Grid.Column="4" PlaceholderText="{x:Static loc:Strings.HeadersDescriptionPlaceholder}"
-                                                 Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <Button Grid.Column="5" Content="✕"
-                                                Command="{Binding $parent[UserControl].DataContext.RemoveHeaderCommand}"
-                                                CommandParameter="{Binding}" />
-                                    </Grid>
-                                </DataTemplate>
+                                         <Border Grid.Column="3"
+                                                 Background="{DynamicResource SurfaceBackgroundBrush}"
+                                                 BorderBrush="{DynamicResource PanelBorderBrush}"
+                                                 BorderThickness="1"
+                                                 CornerRadius="3"
+                                                 Padding="6,2"
+                                                 VerticalAlignment="Center"
+                                                 IsVisible="{Binding IsInherited}">
+                                            <TextBlock Text="{x:Static loc:Strings.HeadersInheritedBadge}"
+                                                        FontSize="10"
+                                                        Opacity="0.8" />
+                                         </Border>
+                                         <TextBox Grid.Column="4" PlaceholderText="{x:Static loc:Strings.HeadersDescriptionPlaceholder}"
+                                                  Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                         <Button Grid.Column="5" Content="✕"
+                                                 ToolTip.Tip="{x:Static loc:Strings.HeadersRemoveButton}"
+                                                 AutomationProperties.Name="{x:Static loc:Strings.HeadersRemoveButton}"
+                                                 Command="{Binding $parent[UserControl].DataContext.RemoveHeaderCommand}"
+                                                 CommandParameter="{Binding}" />
+                                     </Grid>
+                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>

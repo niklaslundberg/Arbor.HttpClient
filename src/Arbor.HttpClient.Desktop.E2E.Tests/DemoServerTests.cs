@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using Arbor.HttpClient.Desktop.Demo;
 using Arbor.HttpClient.Desktop.Features.Logging;
@@ -493,7 +494,16 @@ public class DemoServerTests
         inheritedHeader.Name = "Authorization";
         inheritedHeader.Value = "Bearer {{collectionToken}}";
 
-        await Task.Delay(1200);
+        await WaitUntilAsync(
+            condition: () =>
+            {
+                var refreshedCollection = viewModel.Collections.First(c => c.Name == "Header Editor");
+                return refreshedCollection.Headers?.Any(header =>
+                    header.Name == "Authorization"
+                    && header.Value == "Bearer {{collectionToken}}"
+                    && header.IsEnabled) == true;
+            },
+            timeout: TimeSpan.FromSeconds(5));
 
         var refreshedCollection = viewModel.Collections.First(c => c.Name == "Header Editor");
         refreshedCollection.Headers.Should().ContainSingle(h =>
@@ -505,6 +515,49 @@ public class DemoServerTests
 
         viewModel.RequestEditor.GetResolvedHeaders().Should().ContainSingle(header =>
             header.Name == "Authorization" && header.Value == "Bearer token-from-editor");
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task SaveCollectionInheritedHeaders_WhenSwitchingCollectionsBeforeDebounce_PersistsEditedCollection()
+    {
+        var collectionRepo = new InMemoryCollectionRepository();
+
+        await collectionRepo.SaveAsync(
+            "Collection A",
+            null,
+            $"http://localhost:{DemoServer.DefaultPort}",
+            [new CollectionRequest("A request", "GET", "/echo", null)]);
+
+        await collectionRepo.SaveAsync(
+            "Collection B",
+            null,
+            $"http://localhost:{DemoServer.DefaultPort}",
+            [new CollectionRequest("B request", "GET", "/echo", null)]);
+
+        var viewModel = CreateViewModel(collectionRepository: collectionRepo);
+        using var _ = viewModel;
+
+        await viewModel.InitializeAsync();
+        var collectionA = viewModel.Collections.First(c => c.Name == "Collection A");
+        var collectionB = viewModel.Collections.First(c => c.Name == "Collection B");
+
+        viewModel.SelectedCollection = collectionA;
+        viewModel.AddCollectionInheritedHeaderCommand.Execute(null);
+        viewModel.CollectionInheritedHeaders[0].Name = "X-Tenant";
+        viewModel.CollectionInheritedHeaders[0].Value = "team-a";
+
+        viewModel.SelectedCollection = collectionB;
+
+        await WaitUntilAsync(
+            condition: () =>
+            {
+                var refreshedCollectionA = viewModel.Collections.First(c => c.Name == "Collection A");
+                return refreshedCollectionA.Headers?.Any(header =>
+                    header.Name == "X-Tenant"
+                    && header.Value == "team-a"
+                    && header.IsEnabled) == true;
+            },
+            timeout: TimeSpan.FromSeconds(5));
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -529,7 +582,13 @@ public class DemoServerTests
         viewModel.RemoveCollectionInheritedHeaderCommand.Execute(viewModel.CollectionInheritedHeaders[0]);
         viewModel.CollectionInheritedHeaders.Should().BeEmpty();
 
-        await Task.Delay(1200);
+        await WaitUntilAsync(
+            condition: () =>
+            {
+                var refreshedCollection = viewModel.Collections.First(c => c.Name == "Header Removal");
+                return refreshedCollection.Headers is null;
+            },
+            timeout: TimeSpan.FromSeconds(5));
 
         var refreshedCollection = viewModel.Collections.First(c => c.Name == "Header Removal");
         refreshedCollection.Headers.Should().BeNull();
@@ -809,6 +868,24 @@ public class DemoServerTests
             scheduledJobService,
             logWindowViewModel,
             demoServer: demoServer);
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        using var cancellationTokenSource = new CancellationTokenSource(timeout);
+        var stopwatch = Stopwatch.StartNew();
+
+        while (!cancellationTokenSource.IsCancellationRequested)
+        {
+            if (condition())
+            {
+                return;
+            }
+
+            await Task.Delay(50, cancellationTokenSource.Token);
+        }
+
+        condition().Should().BeTrue($"the expected state should be observed within {timeout.TotalSeconds:0.##} seconds");
     }
 
 

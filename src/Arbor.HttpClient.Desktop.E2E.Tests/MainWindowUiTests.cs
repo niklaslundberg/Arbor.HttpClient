@@ -14,6 +14,7 @@ using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Options;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Desktop.Features.Variables;
+using Arbor.HttpClient.Desktop.Localization;
 using Arbor.HttpClient.Testing.Fakes;
 using Arbor.HttpClient.Testing.Repositories;
 using Avalonia;
@@ -1730,6 +1731,47 @@ public class MainWindowUiTests
         var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
         var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-options-view.png");
         screenshot?.Save(screenshotPath);
+
+        window.Close();
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task OptionsView_ShouldDisplayManageOptionsPage_WithImportAndExportButtons()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var httpRequestService = new HttpRequestService(new System.Net.Http.HttpClient(handler), repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        var optionsVm = new OptionsViewModel(viewModel);
+        var window = new Window { Width = 820, Height = 560, DataContext = optionsVm, Content = new OptionsView() };
+        window.Show();
+
+        optionsVm.SelectedOptionsPage = "ManageOptions";
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(4);
+
+        var manageOptionsPage = window.GetVisualDescendants().OfType<ManageOptionsPageView>().Single();
+        manageOptionsPage.IsVisible.Should().BeTrue("the Manage Options page should be visible when selected");
+
+        var buttons = Avalonia.LogicalTree.LogicalExtensions.GetLogicalDescendants(manageOptionsPage).OfType<Button>().ToList();
+        buttons.Any(button => string.Equals(button.Content?.ToString(), Strings.OptionsImportJson, StringComparison.Ordinal))
+            .Should()
+            .BeTrue("import button should be present on the Manage Options page");
+        buttons.Any(button => string.Equals(button.Content?.ToString(), Strings.OptionsExportJson, StringComparison.Ordinal))
+            .Should()
+            .BeTrue("export button should be present on the Manage Options page");
 
         window.Close();
     }

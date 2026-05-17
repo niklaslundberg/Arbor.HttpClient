@@ -122,6 +122,18 @@ public static class Strings
     /// <summary>Discard</summary>
     public static string DraftDiscard => Get(nameof(DraftDiscard));
 
+    /// <summary>Unsaved inherited headers</summary>
+    public static string PendingInheritedHeadersCloseWarningTitle => Get(nameof(PendingInheritedHeadersCloseWarningTitle));
+
+    /// <summary>There are pending inherited-header changes that have not been saved yet. Closing now may lose those changes. Do you want to close anyway?</summary>
+    public static string PendingInheritedHeadersCloseWarningMessage => Get(nameof(PendingInheritedHeadersCloseWarningMessage));
+
+    /// <summary>Cancel</summary>
+    public static string PendingInheritedHeadersCloseWarningCancel => Get(nameof(PendingInheritedHeadersCloseWarningCancel));
+
+    /// <summary>Close anyway</summary>
+    public static string PendingInheritedHeadersCloseWarningClose => Get(nameof(PendingInheritedHeadersCloseWarningClose));
+
     // ═══════════════════════════════ Activity Bar ═══════════════════════════════
 
     /// <summary>Collections</summary>
@@ -368,6 +380,12 @@ public static class Strings
 
     /// <summary>Description</summary>
     public static string HeadersDescriptionPlaceholder => Get(nameof(HeadersDescriptionPlaceholder));
+
+    /// <summary>Inherited</summary>
+    public static string HeadersInheritedBadge => Get(nameof(HeadersInheritedBadge));
+
+    /// <summary>Remove header</summary>
+    public static string HeadersRemoveButton => Get(nameof(HeadersRemoveButton));
 
     // Auth tab
 
