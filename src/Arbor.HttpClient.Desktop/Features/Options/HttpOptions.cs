@@ -13,6 +13,8 @@ public sealed class HttpOptions
 
     public bool FollowRedirects { get; init; } = true;
 
+    public bool ShowRequestPreviewByDefault { get; init; } = true;
+
     public string DefaultRequestUrl { get; init; } = "http://localhost:5000/echo";
 
     public string ResponseSaveDefaultFolder { get; init; } = string.Empty;

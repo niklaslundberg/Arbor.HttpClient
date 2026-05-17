@@ -208,6 +208,9 @@
   <data name="RequestPrettyPrintBodyUseIndentation" xml:space="preserve">
     <value>Use indentation when pretty-printing request body</value>
   </data>
+  <data name="RequestShowPreview" xml:space="preserve">
+    <value>Show request preview</value>
+  </data>
   <data name="RequestIgnoreCertificateValidation" xml:space="preserve">
     <value>⚠ Ignore certificate validation</value>
   </data>
@@ -228,6 +231,9 @@
   </data>
   <data name="RequestPrimaryActionTooltip" xml:space="preserve">
     <value>Send / Connect / Cancel (Ctrl+Enter)</value>
+  </data>
+  <data name="RequestPreviewPanelHeader" xml:space="preserve">
+    <value>Request preview</value>
   </data>
   <data name="RequestInvalidResolvedUrlMessage" xml:space="preserve">
     <value>Resolved URL must be an absolute HTTP or HTTPS URL. Disable "Validate URL before send" in Options to skip this pre-send check and continue to a send attempt.</value>
@@ -518,6 +524,9 @@
   </data>
   <data name="OptionsFollowRedirects" xml:space="preserve">
     <value>Follow redirects</value>
+  </data>
+  <data name="OptionsShowRequestPreviewByDefault" xml:space="preserve">
+    <value>Show request preview by default</value>
   </data>
   <data name="OptionsEnableHttpDiagnostics" xml:space="preserve">
     <value>Enable HTTP diagnostics</value>

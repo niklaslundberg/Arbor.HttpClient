@@ -196,40 +196,47 @@
 
         <TextBlock Grid.Row="4" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
 
-        <!-- Row 5: Type-specific editor tabs -->
-        <TabControl Grid.Row="5">
+        <!-- Row 5: Type-specific editor tabs + full-width preview with adjustable split -->
+        <Grid x:Name="RequestDraftGrid" Grid.Row="5" RowSpacing="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="3*" MinHeight="140" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="2*" MinHeight="100" />
+            </Grid.RowDefinitions>
 
-            <!-- ═══════════════════════════════ HTTP-only tabs ═══════════════════════════════ -->
-            <TabItem Header="{x:Static loc:Strings.TabQuery}" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
-                <Grid Margin="0,8,0,0" RowDefinitions="Auto,*" RowSpacing="6">
-                    <TextBlock Text="{x:Static loc:Strings.QueryParametersLabel}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TabControl Grid.Row="0" ClipToBounds="True">
 
-                    <ScrollViewer Grid.Row="1">
-                        <ItemsControl ItemsSource="{Binding App.RequestEditor.RequestQueryParameters}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:RequestQueryParameterViewModel">
-                                    <Grid ColumnDefinitions="Auto,*,*,*,Auto" ColumnSpacing="6" Margin="0,2,0,0">
-                                        <CheckBox Grid.Column="0"
-                                                  IsChecked="{Binding IsEnabled, Mode=TwoWay}"
-                                                  VerticalAlignment="Center" />
-                                        <views:VariableTextBox Grid.Column="1" PlaceholderText="{x:Static loc:Strings.QueryKeyPlaceholder}"
-                                                 AppViewModel="{Binding $parent[UserControl].DataContext.App}"
-                                                 Text="{Binding Key, Mode=TwoWay}" />
-                                        <views:VariableTextBox Grid.Column="2" PlaceholderText="{x:Static loc:Strings.QueryValuePlaceholder}"
-                                                 AppViewModel="{Binding $parent[UserControl].DataContext.App}"
-                                                 Text="{Binding Value, Mode=TwoWay}" />
-                                        <TextBox Grid.Column="3" PlaceholderText="{x:Static loc:Strings.QueryDescriptionPlaceholder}"
-                                                 Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <Button Grid.Column="4" Content="✕"
-                                                Command="{Binding $parent[UserControl].DataContext.RemoveQueryParameterCommand}"
-                                                CommandParameter="{Binding}" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                </Grid>
-            </TabItem>
+                <!-- ═══════════════════════════════ HTTP-only tabs ═══════════════════════════════ -->
+                <TabItem Header="{x:Static loc:Strings.TabQuery}" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
+                    <Grid Margin="0,8,0,0" RowDefinitions="Auto,*" RowSpacing="6">
+                        <TextBlock Text="{x:Static loc:Strings.QueryParametersLabel}" FontWeight="SemiBold" VerticalAlignment="Center" />
+
+                        <ScrollViewer Grid.Row="1">
+                            <ItemsControl ItemsSource="{Binding App.RequestEditor.RequestQueryParameters}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:RequestQueryParameterViewModel">
+                                        <Grid ColumnDefinitions="Auto,*,*,*,Auto" ColumnSpacing="6" Margin="0,2,0,0">
+                                            <CheckBox Grid.Column="0"
+                                                      IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                                      VerticalAlignment="Center" />
+                                            <views:VariableTextBox Grid.Column="1" PlaceholderText="{x:Static loc:Strings.QueryKeyPlaceholder}"
+                                                     AppViewModel="{Binding $parent[UserControl].DataContext.App}"
+                                                     Text="{Binding Key, Mode=TwoWay}" />
+                                            <views:VariableTextBox Grid.Column="2" PlaceholderText="{x:Static loc:Strings.QueryValuePlaceholder}"
+                                                     AppViewModel="{Binding $parent[UserControl].DataContext.App}"
+                                                     Text="{Binding Value, Mode=TwoWay}" />
+                                            <TextBox Grid.Column="3" PlaceholderText="{x:Static loc:Strings.QueryDescriptionPlaceholder}"
+                                                     Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                            <Button Grid.Column="4" Content="✕"
+                                                    Command="{Binding $parent[UserControl].DataContext.RemoveQueryParameterCommand}"
+                                                    CommandParameter="{Binding}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </TabItem>
 
             <!-- ─────────────────────── Body (HTTP) ─────────────────────────────────────────── -->
             <TabItem Header="{x:Static loc:Strings.TabBody}" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
@@ -241,11 +248,10 @@
                         <Button Grid.Column="2" Content="{x:Static loc:Strings.RequestBodyOpenInEditor}"
                                 Command="{Binding App.OpenRequestBodyInExternalEditorCommand}" />
                     </Grid>
-                    <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
+                    <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
                         <aedit:TextEditor x:Name="RequestBodyEditor"
                                           ShowLineNumbers="True"
-                                          WordWrap="True"
-                                          MinHeight="150" />
+                                          WordWrap="True" />
                     </Border>
                 </Grid>
             </TabItem>
@@ -549,20 +555,6 @@
                 </Grid>
             </TabItem>
 
-            <!-- ═══════════════════════════════ Preview tab (HTTP only) ════════════════════════ -->
-            <TabItem Header="{x:Static loc:Strings.TabPreview}" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
-                <Grid Margin="0,8,0,0" RowDefinitions="Auto,*">
-                    <TextBlock Text="{x:Static loc:Strings.PreviewLabel}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
-                        <aedit:TextEditor x:Name="RequestPreviewEditor"
-                                          IsReadOnly="True"
-                                          ShowLineNumbers="True"
-                                          WordWrap="True"
-                                          MinHeight="150" />
-                    </Border>
-                </Grid>
-            </TabItem>
-
             <!-- ═══════════════════════════════ Notes tab (all types) ═════════════════════════ -->
             <TabItem Header="{x:Static loc:Strings.TabNotes}">
                 <Grid Margin="0,8,0,0" RowDefinitions="Auto,*" RowSpacing="6">
@@ -663,38 +655,66 @@
 
             <!-- ─────────────────────── Options (HTTP) ───────────────────────────────────────── -->
             <TabItem Header="{x:Static loc:Strings.RequestAdvancedOptionsHeader}" IsVisible="{Binding App.RequestEditor.IsHttpRequest}">
-                <StackPanel Margin="0,8,0,0" Spacing="8">
-                    <CheckBox Content="{x:Static loc:Strings.RequestFollowRedirects}"
-                              IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
-                    <CheckBox Content="{x:Static loc:Strings.RequestValidateUrlBeforeSend}"
-                              IsChecked="{Binding App.RequestEditor.ValidateUrlBeforeSend, Mode=TwoWay}" />
-                    <CheckBox Content="{x:Static loc:Strings.RequestPrettyPrintBody}"
-                              IsChecked="{Binding App.RequestEditor.PrettyPrintRequestBody, Mode=TwoWay}" />
-                    <CheckBox Content="{x:Static loc:Strings.RequestPrettyPrintBodyUseIndentation}"
-                              Margin="16,0,0,0"
-                              IsEnabled="{Binding App.RequestEditor.PrettyPrintRequestBody}"
-                              IsChecked="{Binding App.RequestEditor.PrettyPrintRequestBodyUseIndentation, Mode=TwoWay}" />
-                    <CheckBox Content="{x:Static loc:Strings.RequestIgnoreCertificateValidation}"
-                              IsChecked="{Binding App.RequestEditor.IgnoreCertificateValidationForRequest, Mode=TwoWay}" />
-                    <TextBlock Text="{x:Static loc:Strings.RequestIgnoreCertificateValidationWarning}"
-                               IsVisible="{Binding App.RequestEditor.IgnoreCertificateValidationForRequest}"
-                               Foreground="{DynamicResource WarningBrush}"
-                               TextWrapping="Wrap"
-                               FontSize="11" />
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="{x:Static loc:Strings.RequestTlsVersionOverrideLabel}" VerticalAlignment="Center" Opacity="0.7" />
-                        <ComboBox Width="180"
-                                  ItemsSource="{Binding App.RequestEditor.TlsVersionOverrideOptions}"
-                                  SelectedItem="{Binding App.RequestEditor.SelectedTlsVersionOverrideOption, Mode=TwoWay}" />
+                <ScrollViewer Margin="0,8,0,0" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="8">
+                        <CheckBox Content="{x:Static loc:Strings.RequestFollowRedirects}"
+                                  IsChecked="{Binding App.RequestEditor.FollowRedirectsForRequest, Mode=TwoWay}" />
+                        <CheckBox Content="{x:Static loc:Strings.RequestValidateUrlBeforeSend}"
+                                  IsChecked="{Binding App.RequestEditor.ValidateUrlBeforeSend, Mode=TwoWay}" />
+                        <CheckBox Content="{x:Static loc:Strings.RequestPrettyPrintBody}"
+                                  IsChecked="{Binding App.RequestEditor.PrettyPrintRequestBody, Mode=TwoWay}" />
+                        <CheckBox Content="{x:Static loc:Strings.RequestPrettyPrintBodyUseIndentation}"
+                                  Margin="16,0,0,0"
+                                  IsEnabled="{Binding App.RequestEditor.PrettyPrintRequestBody}"
+                                  IsChecked="{Binding App.RequestEditor.PrettyPrintRequestBodyUseIndentation, Mode=TwoWay}" />
+                        <CheckBox Content="{x:Static loc:Strings.RequestShowPreview}"
+                                  IsChecked="{Binding App.RequestEditor.ShowRequestPreview, Mode=TwoWay}" />
+                        <CheckBox Content="{x:Static loc:Strings.RequestIgnoreCertificateValidation}"
+                                  IsChecked="{Binding App.RequestEditor.IgnoreCertificateValidationForRequest, Mode=TwoWay}" />
+                        <TextBlock Text="{x:Static loc:Strings.RequestIgnoreCertificateValidationWarning}"
+                                   IsVisible="{Binding App.RequestEditor.IgnoreCertificateValidationForRequest}"
+                                   Foreground="{DynamicResource WarningBrush}"
+                                   TextWrapping="Wrap"
+                                   FontSize="11" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{x:Static loc:Strings.RequestTlsVersionOverrideLabel}" VerticalAlignment="Center" Opacity="0.7" />
+                            <ComboBox Width="180"
+                                      ItemsSource="{Binding App.RequestEditor.TlsVersionOverrideOptions}"
+                                      SelectedItem="{Binding App.RequestEditor.SelectedTlsVersionOverrideOption, Mode=TwoWay}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{x:Static loc:Strings.RequestTimeoutSecondsLabel}" VerticalAlignment="Center" Opacity="0.7" />
+                            <TextBox Width="120"
+                                     Text="{Binding App.RequestEditor.RequestTimeoutSecondsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     PlaceholderText="{Binding App.RequestTimeoutDefaultWatermark}" />
+                        </StackPanel>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="{x:Static loc:Strings.RequestTimeoutSecondsLabel}" VerticalAlignment="Center" Opacity="0.7" />
-                        <TextBox Width="120"
-                                 Text="{Binding App.RequestEditor.RequestTimeoutSecondsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 PlaceholderText="{Binding App.RequestTimeoutDefaultWatermark}" />
-                    </StackPanel>
-                </StackPanel>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
+
+        <GridSplitter Grid.Row="1"
+                      Height="6"
+                      Margin="0,6"
+                      HorizontalAlignment="Stretch"
+                      ResizeDirection="Rows"
+                      ResizeBehavior="PreviousAndNext"
+                      Background="{DynamicResource PanelBorderBrush}"
+                      IsVisible="{Binding App.RequestEditor.IsRequestPreviewPanelVisible}" />
+
+        <Grid Grid.Row="2"
+              IsVisible="{Binding App.RequestEditor.IsRequestPreviewPanelVisible}"
+              Margin="0"
+              RowDefinitions="Auto,*"
+              RowSpacing="6">
+            <TextBlock Text="{x:Static loc:Strings.RequestPreviewPanelHeader}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
+                <aedit:TextEditor x:Name="RequestPreviewEditor"
+                                  IsReadOnly="True"
+                                  ShowLineNumbers="True"
+                                  WordWrap="True" />
+            </Border>
+        </Grid>
     </Grid>
+</Grid>
 </UserControl>

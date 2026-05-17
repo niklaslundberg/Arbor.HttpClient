@@ -186,6 +186,9 @@ public static class Strings
     /// <summary>Use indentation when pretty-printing request body</summary>
     public static string RequestPrettyPrintBodyUseIndentation => Get(nameof(RequestPrettyPrintBodyUseIndentation));
 
+    /// <summary>Show request preview</summary>
+    public static string RequestShowPreview => Get(nameof(RequestShowPreview));
+
     /// <summary>⚠ Ignore certificate validation</summary>
     public static string RequestIgnoreCertificateValidation => Get(nameof(RequestIgnoreCertificateValidation));
 
@@ -206,6 +209,9 @@ public static class Strings
 
     /// <summary>Send / Connect / Cancel (Ctrl+Enter)</summary>
     public static string RequestPrimaryActionTooltip => Get(nameof(RequestPrimaryActionTooltip));
+
+    /// <summary>Request preview</summary>
+    public static string RequestPreviewPanelHeader => Get(nameof(RequestPreviewPanelHeader));
 
     /// <summary>Resolved URL must be an absolute HTTP or HTTPS URL. Disable "Validate URL before send" in Options to skip this pre-send check and continue to a send attempt.</summary>
     public static string RequestInvalidResolvedUrlMessage => Get(nameof(RequestInvalidResolvedUrlMessage));
@@ -495,6 +501,9 @@ public static class Strings
 
     /// <summary>Follow redirects</summary>
     public static string OptionsFollowRedirects => Get(nameof(OptionsFollowRedirects));
+
+    /// <summary>Show request preview by default</summary>
+    public static string OptionsShowRequestPreviewByDefault => Get(nameof(OptionsShowRequestPreviewByDefault));
 
     /// <summary>Enable HTTP diagnostics</summary>
     public static string OptionsEnableHttpDiagnostics => Get(nameof(OptionsEnableHttpDiagnostics));

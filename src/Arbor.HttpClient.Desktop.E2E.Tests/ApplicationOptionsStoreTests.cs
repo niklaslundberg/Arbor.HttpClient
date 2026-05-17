@@ -18,6 +18,7 @@ public class ApplicationOptionsStoreTests
 
         options.Http.DefaultContentType.Should().Be("application/json");
         options.Http.EnableHttpDiagnostics.Should().BeFalse();
+        options.Http.ShowRequestPreviewByDefault.Should().BeTrue();
         options.Http.DefaultRequestTimeoutSeconds.Should().Be(100);
         options.Http.ResponseSaveDefaultFolder.Should().BeEmpty();
         options.Http.ResponseSaveFileNamePattern.Should().Be(ResponseSaveFileNamePatternFormatter.DefaultPattern);
@@ -73,6 +74,7 @@ public class ApplicationOptionsStoreTests
                 EnableHttpDiagnostics = true,
                 DefaultContentType = "application/json",
                 FollowRedirects = false,
+                ShowRequestPreviewByDefault = false,
                 DefaultRequestUrl = "http://localhost:5000/echo",
                 ResponseSaveDefaultFolder = Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
                 ResponseSaveFileNamePattern = "{requestName}-{timestamp:yyyyMMddHHmmss}{contentTypeExtension}",
@@ -122,6 +124,7 @@ public class ApplicationOptionsStoreTests
         imported.Http.HttpVersion.Should().Be("2.0");
         imported.Http.EnableHttpDiagnostics.Should().BeTrue();
         imported.Http.FollowRedirects.Should().BeFalse();
+        imported.Http.ShowRequestPreviewByDefault.Should().BeFalse();
         imported.Http.DefaultRequestTimeoutSeconds.Should().Be(15);
         imported.Http.ResponseSaveDefaultFolder.Should().Be(Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         imported.Http.ResponseSaveFileNamePattern.Should().Be("{requestName}-{timestamp:yyyyMMddHHmmss}{contentTypeExtension}");

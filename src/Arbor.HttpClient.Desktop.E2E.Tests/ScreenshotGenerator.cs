@@ -317,10 +317,25 @@ public class ScreenshotGenerator
             viewModel.IsEnvironmentPanelVisible = true;
 
             window.Show();
-            var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
-            if (tabControl is { })
+            var requestTabs = window.GetVisualDescendants()
+                .OfType<TabControl>()
+                .FirstOrDefault(control => control.Items.OfType<TabItem>().Any(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal)));
+            if (requestTabs is { })
             {
-                tabControl.SelectedIndex = 3;
+                var tabItems = requestTabs.Items.OfType<TabItem>().ToList();
+                var queryTab = tabItems.FirstOrDefault(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal));
+                if (queryTab is not null)
+                {
+                    requestTabs.SelectedIndex = tabItems.IndexOf(queryTab);
+                }
+            }
+
+            var requestPreviewExpander = window.GetVisualDescendants()
+                .OfType<Expander>()
+                .FirstOrDefault(expander => string.Equals(expander.Header?.ToString(), "Request preview", StringComparison.Ordinal));
+            if (requestPreviewExpander is not null)
+            {
+                requestPreviewExpander.IsExpanded = true;
             }
 
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);

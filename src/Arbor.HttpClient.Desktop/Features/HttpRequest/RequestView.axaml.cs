@@ -6,6 +6,7 @@ using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Scripting;
 using Arbor.HttpClient.Desktop.Features.Variables;
 using Arbor.HttpClient.Desktop.Shared;
+using Avalonia.Controls.Primitives;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -26,6 +27,10 @@ public partial class RequestView : UserControl
     private TextEditor? _graphQlSchemaEditor;
     private TextEditor? _preRequestScriptEditor;
     private TextEditor? _postResponseScriptEditor;
+    private Grid? _requestDraftGrid;
+    private GridLength _requestDraftTopRowHeightBeforePreviewHidden = new(3, GridUnitType.Star);
+    private GridLength _requestDraftPreviewRowHeightBeforePreviewHidden = new(2, GridUnitType.Star);
+    private double _requestDraftPreviewRowMinHeightBeforePreviewHidden = 100;
     private MainWindowViewModel? _appVm;
     private RequestEditorViewModel? _requestEditorVm;
     private GraphQlViewModel? _graphQlVm;
@@ -126,6 +131,7 @@ public partial class RequestView : UserControl
         _graphQlSchemaEditor = this.FindControl<TextEditor>("GraphQlSchemaEditor");
         _preRequestScriptEditor = this.FindControl<TextEditor>("PreRequestScriptEditor");
         _postResponseScriptEditor = this.FindControl<TextEditor>("PostResponseScriptEditor");
+        _requestDraftGrid = this.FindControl<Grid>("RequestDraftGrid");
 
         _registryOptions ??= new RegistryOptions(ThemeName.DarkPlus);
 
@@ -193,6 +199,8 @@ public partial class RequestView : UserControl
                 ApplyEditorFont(_requestPreviewEditor, _appVm);
                 _requestPreviewEditor.Text = _requestEditorVm?.RequestPreview ?? string.Empty;
             }
+
+            ApplyRequestPreviewSplitLayout();
 
             if (_graphQlQueryEditor is not null)
             {
@@ -412,6 +420,11 @@ public partial class RequestView : UserControl
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 ApplyGrammarForContent(_requestTextMate, bodySnapshot, ref _requestGrammarScope));
         }
+
+        if (e.PropertyName is nameof(RequestEditorViewModel.ShowRequestPreview) or nameof(RequestEditorViewModel.SelectedRequestType))
+        {
+            ApplyRequestPreviewSplitLayout();
+        }
     }
 
     private void OnAppVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -466,6 +479,7 @@ public partial class RequestView : UserControl
                 _requestEditorVm.PropertyChanged += OnRequestEditorVmPropertyChanged;
             }
 
+            ApplyRequestPreviewSplitLayout();
             return;
         }
 
@@ -518,6 +532,49 @@ public partial class RequestView : UserControl
     {
         ApplyTextMateTheme();
         ApplyVariableColorTheme();
+    }
+
+    private void ApplyRequestPreviewSplitLayout()
+    {
+        if (_requestDraftGrid is null || _requestDraftGrid.RowDefinitions.Count < 3)
+        {
+            return;
+        }
+
+        var topRow = _requestDraftGrid.RowDefinitions[0];
+        var splitterRow = _requestDraftGrid.RowDefinitions[1];
+        var previewRow = _requestDraftGrid.RowDefinitions[2];
+
+        var isPreviewVisible = _requestEditorVm?.IsRequestPreviewPanelVisible ?? false;
+        if (isPreviewVisible)
+        {
+            if (_requestDraftTopRowHeightBeforePreviewHidden.Value > 0)
+            {
+                topRow.Height = _requestDraftTopRowHeightBeforePreviewHidden;
+            }
+
+            if (_requestDraftPreviewRowHeightBeforePreviewHidden.Value > 0)
+            {
+                previewRow.Height = _requestDraftPreviewRowHeightBeforePreviewHidden;
+            }
+
+            if (_requestDraftPreviewRowMinHeightBeforePreviewHidden > 0)
+            {
+                previewRow.MinHeight = _requestDraftPreviewRowMinHeightBeforePreviewHidden;
+            }
+
+            splitterRow.Height = GridLength.Auto;
+            return;
+        }
+
+        _requestDraftTopRowHeightBeforePreviewHidden = topRow.Height;
+        _requestDraftPreviewRowHeightBeforePreviewHidden = previewRow.Height;
+        _requestDraftPreviewRowMinHeightBeforePreviewHidden = previewRow.MinHeight;
+
+        topRow.Height = new GridLength(1, GridUnitType.Star);
+        splitterRow.Height = new GridLength(0);
+        previewRow.MinHeight = 0;
+        previewRow.Height = new GridLength(0);
     }
 
     protected override void OnUnloaded(Avalonia.Interactivity.RoutedEventArgs e)

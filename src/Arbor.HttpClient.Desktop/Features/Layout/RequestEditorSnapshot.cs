@@ -17,6 +17,7 @@ public sealed class RequestEditorSnapshot
     public bool ValidateUrlBeforeSend { get; init; } = true;
     public bool PrettyPrintRequestBody { get; init; }
     public bool PrettyPrintRequestBodyUseIndentation { get; init; } = true;
+    public bool ShowRequestPreview { get; init; } = true;
     public bool IgnoreCertificateValidation { get; init; }
     public string TlsVersionOverrideOption { get; init; } = DefaultTlsVersionOverrideOption;
     public string RequestTimeoutSecondsText { get; init; } = string.Empty;

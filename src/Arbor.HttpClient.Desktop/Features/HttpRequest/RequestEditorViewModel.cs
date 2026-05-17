@@ -92,6 +92,10 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     private bool _prettyPrintRequestBodyUseIndentation = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRequestPreviewPanelVisible))]
+    private bool _showRequestPreview = true;
+
+    [ObservableProperty]
     private bool _ignoreCertificateValidationForRequest;
 
     [ObservableProperty]
@@ -132,6 +136,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsHttpRequest))]
+    [NotifyPropertyChangedFor(nameof(IsRequestPreviewPanelVisible))]
     [NotifyPropertyChangedFor(nameof(IsGraphQlRequest))]
     [NotifyPropertyChangedFor(nameof(IsWebSocketRequest))]
     [NotifyPropertyChangedFor(nameof(IsSseRequest))]
@@ -143,6 +148,7 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
     // ── Derived bool properties ───────────────────────────────────────────────
 
     public bool IsHttpRequest => SelectedRequestType == RequestType.Http;
+    public bool IsRequestPreviewPanelVisible => IsHttpRequest && ShowRequestPreview;
     public bool IsGraphQlRequest => SelectedRequestType == RequestType.GraphQL;
     public bool IsWebSocketRequest => SelectedRequestType == RequestType.WebSocket;
     public bool IsSseRequest => SelectedRequestType == RequestType.Sse;

@@ -290,6 +290,15 @@ public class RequestEditorViewModelTests
         editor.RequestPreview.Should().Contain("{\n  \"a\": 1\n}");
     }
 
+    [AvaloniaFact(Timeout = 10_000)]
+    public void ShowRequestPreview_IsEnabledByDefault()
+    {
+        var editor = CreateEditor();
+
+        editor.ShowRequestPreview.Should().BeTrue();
+        editor.IsRequestPreviewPanelVisible.Should().BeTrue();
+    }
+
     // ── Variable resolution in preview ───────────────────────────────────────
 
     [AvaloniaFact(Timeout = 10_000)]
