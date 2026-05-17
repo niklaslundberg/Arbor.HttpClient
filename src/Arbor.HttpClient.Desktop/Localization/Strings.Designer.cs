@@ -463,6 +463,9 @@ public static class Strings
     /// <summary>Diagnostics</summary>
     public static string OptionsNavDiagnostics => Get(nameof(OptionsNavDiagnostics));
 
+    /// <summary>Manage options</summary>
+    public static string OptionsNavManageOptions => Get(nameof(OptionsNavManageOptions));
+
     /// <summary>HTTP version</summary>
     public static string OptionsHttpVersionLabel => Get(nameof(OptionsHttpVersionLabel));
 

@@ -486,6 +486,9 @@
   <data name="OptionsNavDiagnostics" xml:space="preserve">
     <value>Diagnostics</value>
   </data>
+  <data name="OptionsNavManageOptions" xml:space="preserve">
+    <value>Manage options</value>
+  </data>
   <data name="OptionsHttpVersionLabel" xml:space="preserve">
     <value>HTTP version</value>
   </data>

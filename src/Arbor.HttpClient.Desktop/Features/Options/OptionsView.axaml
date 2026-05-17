@@ -32,6 +32,8 @@
                           Padding="16,6,8,6" />
             <TreeViewItem Header="{x:Static loc:Strings.OptionsNavDiagnostics}" Tag="Diagnostics"
                           Padding="16,6,8,6" />
+            <TreeViewItem Header="{x:Static loc:Strings.OptionsNavManageOptions}" Tag="ManageOptions"
+                          Padding="16,6,8,6" />
           </TreeView>
         </ScrollViewer>
       </Border>
@@ -199,7 +201,7 @@
                                  FontWeight="SemiBold" FontSize="11" Padding="0,0,0,15" />
                       <TextBlock Text="{x:Static loc:Strings.OptionsDemoServerStopped}"
                                  IsVisible="{Binding !App.IsDemoServerRunning}"
-                                 Opacity="0.55" FontSize="11" Padding="0,0,0,30" />
+                                 Opacity="0.55" FontSize="11" Padding="0,0,0,70" />
                     </StackPanel>
                   </StackPanel>
                 </Border>
@@ -275,17 +277,20 @@
 
               </StackPanel>
 
-            </Grid>
-
-            <!-- Global action bar (applies to all options pages) -->
-            <Border BorderBrush="{DynamicResource PanelBorderBrush}"
-                    BorderThickness="0,1,0,0"
-                    Padding="12,8">
-              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
-                <Button Content="{x:Static loc:Strings.OptionsImportJson}" Command="{Binding App.ImportOptionsCommand}" />
-                <Button Content="{x:Static loc:Strings.OptionsExportJson}" Command="{Binding App.ExportOptionsCommand}" />
+              <!-- Manage options page -->
+              <StackPanel Spacing="12"
+                          IsVisible="{Binding SelectedOptionsPage,
+                          Converter={x:Static conv:StringEqualityConverter.Instance},
+                          ConverterParameter=ManageOptions}">
+                <Button Content="{x:Static loc:Strings.OptionsImportJson}"
+                        HorizontalAlignment="Left"
+                        Command="{Binding App.ImportOptionsCommand}" />
+                <Button Content="{x:Static loc:Strings.OptionsExportJson}"
+                        HorizontalAlignment="Left"
+                        Command="{Binding App.ExportOptionsCommand}" />
               </StackPanel>
-            </Border>
+
+            </Grid>
           </StackPanel>
         </ScrollViewer>
       </Grid>
