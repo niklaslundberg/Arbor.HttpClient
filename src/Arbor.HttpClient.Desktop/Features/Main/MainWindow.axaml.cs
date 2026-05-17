@@ -1,6 +1,7 @@
 using Arbor.HttpClient.Desktop.Features.About;
 using Arbor.HttpClient.Desktop.Features.Diagnostics;
 using Arbor.HttpClient.Desktop.Features.Main;
+using Arbor.HttpClient.Desktop.Localization;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
 using Dock.Controls.ProportionalStackPanel;
@@ -10,6 +11,9 @@ namespace Arbor.HttpClient.Desktop.Features.Main;
 
 public partial class MainWindow : Window
 {
+    private bool _isCloseConfirmationInProgress;
+    private bool _allowCloseWithPendingInheritedHeaders;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -42,12 +46,24 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
+        if (!e.Cancel
+            && !_allowCloseWithPendingInheritedHeaders
+            && !_isCloseConfirmationInProgress
+            && DataContext is MainWindowViewModel viewModel
+            && viewModel.HasPendingCollectionInheritedHeadersAutoSave)
+        {
+            e.Cancel = true;
+            _isCloseConfirmationInProgress = true;
+            _ = ConfirmCloseWithPendingInheritedHeadersAsync(viewModel);
+            return;
+        }
+
         // Persist the layout snapshot BEFORE any window teardown so floating
         // window positions are captured while they are still alive.  Then close
         // the floating dock windows explicitly so Avalonia doesn't try to close
         // them again as owned windows, which would cause a NullReferenceException
         // inside the Dock factory cleanup.
-        if (!e.Cancel && DataContext is MainWindowViewModel viewModel)
+        if (!e.Cancel && DataContext is MainWindowViewModel currentViewModel)
         {
             // Walk the visual tree and read the actual rendered proportions from
             // ProportionalStackPanel.ProportionProperty, then write them back to
@@ -56,13 +72,89 @@ public partial class MainWindow : Window
             SyncDockProportionsFromVisuals();
 
             // Record window geometry so it can be included in the saved snapshot.
-            viewModel.SetWindowGeometry(Width, Height, Position.X, Position.Y);
+            currentViewModel.SetWindowGeometry(Width, Height, Position.X, Position.Y);
 
-            viewModel.PersistCurrentLayout();
-            viewModel.CloseFloatingWindows();
+            currentViewModel.PersistCurrentLayout();
+            currentViewModel.CloseFloatingWindows();
         }
 
         base.OnClosing(e);
+    }
+
+    private async Task ConfirmCloseWithPendingInheritedHeadersAsync(MainWindowViewModel viewModel)
+    {
+        try
+        {
+            var shouldClose = await ShowPendingInheritedHeadersWarningAsync();
+            if (!shouldClose)
+            {
+                return;
+            }
+
+            await viewModel.FlushPendingCollectionInheritedHeadersAutoSaveAsync();
+            _allowCloseWithPendingInheritedHeaders = true;
+            Close();
+        }
+        finally
+        {
+            _isCloseConfirmationInProgress = false;
+            _allowCloseWithPendingInheritedHeaders = false;
+        }
+    }
+
+    private async Task<bool> ShowPendingInheritedHeadersWarningAsync()
+    {
+        var cancelButton = new Button
+        {
+            Content = Strings.PendingInheritedHeadersCloseWarningCancel,
+            MinWidth = 96
+        };
+
+        var closeButton = new Button
+        {
+            Content = Strings.PendingInheritedHeadersCloseWarningClose,
+            MinWidth = 96
+        };
+
+        var messageWindow = new Window
+        {
+            Width = 460,
+            Height = 180,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Title = Strings.PendingInheritedHeadersCloseWarningTitle,
+            Content = new Grid
+            {
+                Margin = new Avalonia.Thickness(16),
+                RowDefinitions = new RowDefinitions("*,Auto"),
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = Strings.PendingInheritedHeadersCloseWarningMessage,
+                        TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                    },
+                    new StackPanel
+                    {
+                        Orientation = Avalonia.Layout.Orientation.Horizontal,
+                        Spacing = 8,
+                        HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                        Margin = new Avalonia.Thickness(0, 16, 0, 0),
+                        [Grid.RowProperty] = 1,
+                        Children =
+                        {
+                            cancelButton,
+                            closeButton
+                        }
+                    }
+                }
+            }
+        };
+
+        cancelButton.Click += (_, _) => messageWindow.Close(false);
+        closeButton.Click += (_, _) => messageWindow.Close(true);
+
+        return await messageWindow.ShowDialog<bool>(this);
     }
 
     /// <summary>

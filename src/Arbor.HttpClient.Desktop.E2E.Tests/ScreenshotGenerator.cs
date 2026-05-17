@@ -409,20 +409,22 @@ public class ScreenshotGenerator
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-            var (viewModel, _) = CreateWindow(
+            var (viewModel, window) = CreateWindow(
                 BuildHandler("{}"),
                 requestName: "Options demo",
                 method: "POST",
                 url: "http://localhost:5000/echo");
 
-            var optionsWindow = new OptionsWindow { DataContext = viewModel };
-            optionsWindow.Show();
+            // Open the options dockable so it appears in the screenshot
+            viewModel.OpenOptionsCommand.Execute(null);
+
+            window.Show();
 
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = optionsWindow.GetLastRenderedFrame() ?? optionsWindow.CaptureRenderedFrame();
+            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
             frame?.Save(Path.Combine(outputDir, "options-window.png"));
 
-            optionsWindow.Close();
+            window.Close();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -482,7 +484,7 @@ public class ScreenshotGenerator
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-            var (viewModel, _) = CreateWindow(
+            var (viewModel, window) = CreateWindow(
                 BuildHandler("{}"),
                 requestName: "Diagnostics demo",
                 method: "GET",
@@ -491,14 +493,16 @@ public class ScreenshotGenerator
             // Show HTTP options page (includes the new "Enable HTTP diagnostics" checkbox)
             viewModel.OptionsPanel.SelectedOptionsPage = "HTTP";
 
-            var optionsWindow = new OptionsWindow { DataContext = viewModel };
-            optionsWindow.Show();
+            // Open the options dockable so it appears in the screenshot
+            viewModel.OpenOptionsCommand.Execute(null);
+
+            window.Show();
 
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = optionsWindow.GetLastRenderedFrame() ?? optionsWindow.CaptureRenderedFrame();
+            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
             frame?.Save(Path.Combine(outputDir, "options-window-http-diagnostics.png"));
 
-            optionsWindow.Close();
+            window.Close();
     }
 
     [AvaloniaFact(Timeout = 10_000)]

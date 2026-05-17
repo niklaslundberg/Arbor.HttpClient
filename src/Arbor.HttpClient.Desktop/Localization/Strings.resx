@@ -137,6 +137,18 @@
   <data name="DraftDiscard" xml:space="preserve">
     <value>Discard</value>
   </data>
+  <data name="PendingInheritedHeadersCloseWarningTitle" xml:space="preserve">
+    <value>Unsaved inherited headers</value>
+  </data>
+  <data name="PendingInheritedHeadersCloseWarningMessage" xml:space="preserve">
+    <value>There are pending inherited-header changes that have not been saved yet. Closing now may lose those changes. Do you want to close anyway?</value>
+  </data>
+  <data name="PendingInheritedHeadersCloseWarningCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="PendingInheritedHeadersCloseWarningClose" xml:space="preserve">
+    <value>Close anyway</value>
+  </data>
 
   <!-- ═══════════════════════════════ Activity Bar ═══════════════════════════════ -->
   <data name="ActivityBarCollections" xml:space="preserve">
@@ -392,6 +404,12 @@
   <data name="HeadersDescriptionPlaceholder" xml:space="preserve">
     <value>Description</value>
   </data>
+  <data name="HeadersInheritedBadge" xml:space="preserve">
+    <value>Inherited</value>
+  </data>
+  <data name="HeadersRemoveButton" xml:space="preserve">
+    <value>Remove header</value>
+  </data>
 
   <!-- Auth tab -->
   <data name="AuthTypeLabel" xml:space="preserve">
@@ -485,6 +503,9 @@
   </data>
   <data name="OptionsNavDiagnostics" xml:space="preserve">
     <value>Diagnostics</value>
+  </data>
+  <data name="OptionsNavManageOptions" xml:space="preserve">
+    <value>Manage options</value>
   </data>
   <data name="OptionsHttpVersionLabel" xml:space="preserve">
     <value>HTTP version</value>

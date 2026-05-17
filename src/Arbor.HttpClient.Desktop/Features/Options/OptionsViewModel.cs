@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Dock.Model.Mvvm.Controls;
 using Arbor.HttpClient.Desktop.Features.Main;
+using Arbor.HttpClient.Desktop.Localization;
 
 namespace Arbor.HttpClient.Desktop.Features.Options;
 
@@ -28,10 +29,11 @@ public sealed partial class OptionsViewModel : Tool
 
     public string SelectedOptionsPageTitle => SelectedOptionsPage switch
     {
-        "HTTP" => "HTTP",
-        "ScheduledJobs" => "Scheduled Jobs",
-        "LookAndFeel" => "Look & Feel",
-        "Diagnostics" => "Diagnostics",
+        "HTTP" => Strings.OptionsNavHttp,
+        "ScheduledJobs" => Strings.OptionsNavScheduledJobs,
+        "LookAndFeel" => Strings.OptionsNavLookAndFeel,
+        "Diagnostics" => Strings.OptionsNavDiagnostics,
+        "ManageOptions" => Strings.OptionsNavManageOptions,
         _ => SelectedOptionsPage
     };
 

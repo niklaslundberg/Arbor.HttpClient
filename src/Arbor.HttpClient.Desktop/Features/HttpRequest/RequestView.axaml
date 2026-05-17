@@ -12,6 +12,12 @@
         <conv:MethodToColorConverter x:Key="MethodToColorConverter" />
     </UserControl.Resources>
 
+    <UserControl.Styles>
+        <Style Selector="Grid.inheritedHeaderRow">
+            <Setter Property="Background" Value="{DynamicResource PreviewPanelBackgroundBrush}" />
+        </Style>
+    </UserControl.Styles>
+
     <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
 
         <Grid.KeyBindings>
@@ -452,7 +458,8 @@
                         <ItemsControl ItemsSource="{Binding App.RequestEditor.RequestHeaders}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:RequestHeaderViewModel">
-                                    <Grid ColumnDefinitions="Auto,*,*,*,Auto" ColumnSpacing="6" Margin="0,2,0,0">
+                                    <Grid ColumnDefinitions="Auto,*,*,Auto,*,Auto" ColumnSpacing="6" Margin="0,2,0,0"
+                                          Classes.inheritedHeaderRow="{Binding IsInherited}">
                                         <CheckBox Grid.Column="0"
                                                   IsChecked="{Binding IsEnabled, Mode=TwoWay}"
                                                   VerticalAlignment="Center" />
@@ -463,13 +470,27 @@
                                         <views:VariableTextBox Grid.Column="2" PlaceholderText="{x:Static loc:Strings.HeadersValuePlaceholder}"
                                                  AppViewModel="{Binding $parent[UserControl].DataContext.App}"
                                                  Text="{Binding Value, Mode=TwoWay}" />
-                                        <TextBox Grid.Column="3" PlaceholderText="{x:Static loc:Strings.HeadersDescriptionPlaceholder}"
-                                                 Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <Button Grid.Column="4" Content="✕"
-                                                Command="{Binding $parent[UserControl].DataContext.RemoveHeaderCommand}"
-                                                CommandParameter="{Binding}" />
-                                    </Grid>
-                                </DataTemplate>
+                                         <Border Grid.Column="3"
+                                                 Background="{DynamicResource SurfaceBackgroundBrush}"
+                                                 BorderBrush="{DynamicResource PanelBorderBrush}"
+                                                 BorderThickness="1"
+                                                 CornerRadius="3"
+                                                 Padding="6,2"
+                                                 VerticalAlignment="Center"
+                                                 IsVisible="{Binding IsInherited}">
+                                            <TextBlock Text="{x:Static loc:Strings.HeadersInheritedBadge}"
+                                                        FontSize="10"
+                                                        Opacity="0.8" />
+                                         </Border>
+                                         <TextBox Grid.Column="4" PlaceholderText="{x:Static loc:Strings.HeadersDescriptionPlaceholder}"
+                                                  Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                         <Button Grid.Column="5" Content="✕"
+                                                 ToolTip.Tip="{x:Static loc:Strings.HeadersRemoveButton}"
+                                                 AutomationProperties.Name="{x:Static loc:Strings.HeadersRemoveButton}"
+                                                 Command="{Binding $parent[UserControl].DataContext.RemoveHeaderCommand}"
+                                                 CommandParameter="{Binding}" />
+                                     </Grid>
+                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
