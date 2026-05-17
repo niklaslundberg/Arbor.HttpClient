@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Arbor.HttpClient.Desktop.Features.Options"
+             xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
+             x:Class="Arbor.HttpClient.Desktop.Features.Options.ScheduledJobsOptionsPageView"
+             x:DataType="vm:OptionsViewModel">
+  <StackPanel Spacing="20">
+    <CheckBox IsChecked="{Binding App.AutoStartScheduledJobsOnLaunch, Mode=TwoWay}"
+              Content="{x:Static loc:Strings.OptionsScheduledJobsAutoStart}" />
+
+    <StackPanel Spacing="4">
+      <TextBlock Text="{x:Static loc:Strings.OptionsScheduledJobsDefaultInterval}" FontWeight="SemiBold" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBox Text="{Binding App.DefaultScheduledJobIntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                 MinWidth="120" />
+        <TextBlock Text="{x:Static loc:Strings.OptionsScheduledJobsSeconds}" VerticalAlignment="Center" />
+      </StackPanel>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

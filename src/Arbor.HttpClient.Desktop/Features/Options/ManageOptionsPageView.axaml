@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Arbor.HttpClient.Desktop.Features.Options"
+             xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
+             x:Class="Arbor.HttpClient.Desktop.Features.Options.ManageOptionsPageView"
+             x:DataType="vm:OptionsViewModel">
+  <StackPanel Spacing="12">
+    <Button Content="{x:Static loc:Strings.OptionsImportJson}"
+            HorizontalAlignment="Left"
+            Command="{Binding App.ImportOptionsCommand}" />
+    <Button Content="{x:Static loc:Strings.OptionsExportJson}"
+            HorizontalAlignment="Left"
+            Command="{Binding App.ExportOptionsCommand}" />
+  </StackPanel>
+</UserControl>

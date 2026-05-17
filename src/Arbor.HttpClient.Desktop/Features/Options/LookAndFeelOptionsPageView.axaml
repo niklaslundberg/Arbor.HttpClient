@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Arbor.HttpClient.Desktop.Features.Options"
+             xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
+             x:Class="Arbor.HttpClient.Desktop.Features.Options.LookAndFeelOptionsPageView"
+             x:DataType="vm:OptionsViewModel">
+  <StackPanel Spacing="20">
+    <StackPanel Spacing="4">
+      <TextBlock Text="{x:Static loc:Strings.OptionsTheme}" FontWeight="SemiBold" />
+      <ComboBox ItemsSource="{Binding App.ThemeOptions}"
+                SelectedItem="{Binding App.SelectedThemeOption, Mode=TwoWay}"
+                MinWidth="200" HorizontalAlignment="Left" />
+    </StackPanel>
+
+    <StackPanel Spacing="4">
+      <TextBlock Text="{x:Static loc:Strings.OptionsFontFamily}" FontWeight="SemiBold" />
+      <ComboBox IsEditable="True"
+                ItemsSource="{Binding App.FontFamilyOptions}"
+                SelectedItem="{Binding App.UiFontFamily, Mode=TwoWay}"
+                HorizontalAlignment="Stretch" />
+    </StackPanel>
+
+    <StackPanel Spacing="4">
+      <TextBlock Text="{x:Static loc:Strings.OptionsFontSize}" FontWeight="SemiBold" />
+      <TextBox Text="{Binding App.UiFontSizeText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+               MinWidth="80" HorizontalAlignment="Left" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>
