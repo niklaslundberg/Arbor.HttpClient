@@ -17,6 +17,10 @@ using Dock.Model.Mvvm.Controls;
 using Serilog;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Core.Environments;
+using System.Reactive;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
 
 namespace Arbor.HttpClient.Desktop.Features.Environments;
 
@@ -29,6 +33,8 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
     private bool _suppressEnvironmentAutoSave;
     private bool _isSavingEnvironment;
     private bool _preserveFormStateOnSave;
+    private readonly Subject<Unit> _autoSaveRequestedSubject = new();
+    private readonly CompositeDisposable _disposables = new();
     private CancellationTokenSource? _environmentAutoSaveCts;
     private sealed record ExportEnvironmentVariable(string Key, string Value, bool Enabled, bool IsSensitive, string? ExpiresAtUtc);
     private sealed record ExportEnvironment(string Name, IReadOnlyList<ExportEnvironmentVariable> Variables, string? AccentColor, bool ShowWarningBanner);
@@ -51,6 +57,10 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         ActiveEnvironmentVariables = [];
 
         ActiveEnvironmentVariables.CollectionChanged += OnActiveEnvironmentVariablesCollectionChanged;
+
+        _disposables.Add(_autoSaveRequestedSubject
+            .Throttle(TimeSpan.FromSeconds(1))
+            .Subscribe(_ => TriggerEnvironmentAutoSave()));
     }
 
     public ObservableCollection<RequestEnvironment> Environments { get; }
@@ -415,9 +425,15 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
             return;
         }
 
+        _autoSaveRequestedSubject.OnNext(Unit.Default);
+    }
+
+    private void TriggerEnvironmentAutoSave()
+    {
         _environmentAutoSaveCts?.Cancel();
         _environmentAutoSaveCts?.Dispose();
         _environmentAutoSaveCts = new CancellationTokenSource();
+
         _ = TriggerEnvironmentAutoSaveAsync(_environmentAutoSaveCts.Token);
     }
 
@@ -425,7 +441,6 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
     {
         try
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(1000), cancellationToken).ConfigureAwait(false);
             // Avalonia's InvokeAsync(Func<Task>) properly awaits the returned Task, so the outer
             // await here waits for the full save (including the DB write and list reload) to finish.
             await Dispatcher.UIThread.InvokeAsync(async () => await SaveEnvironmentCoreAsync(closeEnvironmentPanel: false, cancellationToken));
@@ -469,5 +484,8 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         _environmentAutoSaveCts?.Cancel();
         _environmentAutoSaveCts?.Dispose();
         _environmentAutoSaveCts = null;
+
+        _autoSaveRequestedSubject.OnCompleted();
+        _disposables.Dispose();
     }
 }

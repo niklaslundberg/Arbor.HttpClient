@@ -65,6 +65,8 @@ public class ScheduledJobServiceTests
         jobService.Start(config);
         await Task.Delay(1500, TestContext.Current.CancellationToken);
         jobService.Stop(1);
+
+        jobService.IsRunning(1).Should().BeFalse();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -223,5 +225,100 @@ public class ScheduledJobServiceTests
         jobService.Stop(4);
 
         sendCount.Should().Be(1);
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task Start_WithRxInterval_ShouldTriggerExecutionAfterConfiguredDelay()
+    {
+        var sendCount = 0;
+        var handler = new StubHttpMessageHandler(_ =>
+        {
+            Interlocked.Increment(ref sendCount);
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent("ok"),
+                ReasonPhrase = "OK"
+            };
+        });
+
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, new InMemoryRequestHistoryRepository());
+        var logger = new LoggerConfiguration().CreateLogger();
+
+        using var jobService = new ScheduledJobService(httpRequestService, logger);
+
+        var config = new ScheduledJobConfig(
+            Id: 5,
+            Name: "Rx Interval Job",
+            Method: "GET",
+            Url: "http://localhost:5000/test",
+            Body: null,
+            HeadersJson: null,
+            IntervalSeconds: 1,
+            AutoStart: false);
+
+        jobService.Start(config);
+
+        var invoked = SpinWait.SpinUntil(() => Volatile.Read(ref sendCount) > 0, TimeSpan.FromSeconds(3));
+
+        jobService.Stop(5);
+
+        invoked.Should().BeTrue();
+        sendCount.Should().Be(1);
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task Stop_WhenCallbackRegistersCancellation_DoesNotThrowObjectDisposedException()
+    {
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent("ok"),
+            ReasonPhrase = "OK"
+        });
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, new InMemoryRequestHistoryRepository());
+        var logger = new LoggerConfiguration().CreateLogger();
+
+        using var jobService = new ScheduledJobService(httpRequestService, logger);
+        var callbackStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var objectDisposedExceptionSeen = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var config = new ScheduledJobConfig(
+            Id: 6,
+            Name: "Stop Race Guard Job",
+            Method: "GET",
+            Url: "http://localhost:5000/test",
+            Body: null,
+            HeadersJson: null,
+            IntervalSeconds: 1,
+            AutoStart: false);
+
+        jobService.Start(config, async (_, cancellationToken) =>
+        {
+            callbackStarted.TrySetResult(true);
+
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    using var registration = cancellationToken.Register(static () => { });
+                    await Task.Delay(10, cancellationToken);
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                objectDisposedExceptionSeen.TrySetResult(true);
+            }
+            catch (OperationCanceledException)
+            {
+                // Normal stop.
+            }
+        });
+
+        await callbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+        jobService.Stop(6);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
+
+        objectDisposedExceptionSeen.Task.IsCompleted.Should().BeFalse();
     }
 }

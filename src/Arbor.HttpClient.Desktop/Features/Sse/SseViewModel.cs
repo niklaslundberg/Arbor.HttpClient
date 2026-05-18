@@ -1,9 +1,13 @@
 using System.Collections.ObjectModel;
 using System.Net.Http;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serilog;
 using Arbor.HttpClient.Desktop.Shared;
+using Avalonia.Threading;
 using Arbor.HttpClient.Core.HttpRequest;
 using Arbor.HttpClient.Core.Sse;
 
@@ -17,6 +21,8 @@ public sealed partial class SseViewModel : ViewModelBase, IDisposable
 {
     private readonly SseService _service;
     private readonly ILogger _logger;
+    private readonly Subject<SseEvent> _eventReceivedSubject = new();
+    private readonly CompositeDisposable _subscriptions = new();
     private CancellationTokenSource? _connectionCts;
     private bool _disposed;
 
@@ -32,6 +38,7 @@ public sealed partial class SseViewModel : ViewModelBase, IDisposable
 
     /// <summary>All SSE events received in the current session, newest last.</summary>
     public ObservableCollection<SseEvent> Events { get; } = [];
+    public IObservable<SseEvent> EventReceivedObservable => _eventReceivedSubject.AsObservable();
 
     public string ConnectButtonLabel => IsConnected ? "Disconnect" : "Connect";
 
@@ -39,6 +46,9 @@ public sealed partial class SseViewModel : ViewModelBase, IDisposable
     {
         _service = new SseService(httpClient);
         _logger = logger.ForContext<SseViewModel>();
+
+        _subscriptions.Add(EventReceivedObservable.Subscribe(
+            sseEvent => Dispatcher.UIThread.Post(() => Events.Add(sseEvent))));
     }
 
     /// <summary>Opens an SSE stream to the supplied URL with optional extra headers.</summary>
@@ -68,7 +78,7 @@ public sealed partial class SseViewModel : ViewModelBase, IDisposable
 
             await _service.ConnectAsync(
                 url,
-                evt => Avalonia.Threading.Dispatcher.UIThread.Post(() => Events.Add(evt)),
+                evt => _eventReceivedSubject.OnNext(evt),
                 headers,
                 _connectionCts.Token).ConfigureAwait(false);
         }
@@ -135,5 +145,7 @@ public sealed partial class SseViewModel : ViewModelBase, IDisposable
         _connectionCts?.Cancel();
         _connectionCts?.Dispose();
         _connectionCts = null;
+        _eventReceivedSubject.OnCompleted();
+        _subscriptions.Dispose();
     }
 }

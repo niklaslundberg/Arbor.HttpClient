@@ -17,6 +17,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
+using System.Reactive;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using Arbor.HttpClient.Desktop.Demo;
 using Arbor.HttpClient.Desktop.Features.Collections;
 using Arbor.HttpClient.Desktop.Features.Cookies;
@@ -84,16 +88,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private FileSystemWatcher? _requestBodyWatcher;
     private CancellationTokenSource? _fileWatcherCts;
     private int _requestBodyReadPending;
+    private readonly Subject<string> _historyFilterRequestedSubject = new();
+    private readonly CompositeDisposable _historyFilterDisposables = new();
+    private readonly Subject<string> _collectionSearchFilterRequestedSubject = new();
+    private readonly CompositeDisposable _collectionSearchFilterDisposables = new();
     private DockFactory? _dockFactory;
     private ApplicationOptions _applicationOptions = new();
     private readonly Dictionary<string, DockLayoutSnapshot> _savedLayouts = new(StringComparer.OrdinalIgnoreCase);
     private int _layoutNameCounter = 1;
     private bool _suppressLayoutRestore;
     private bool _suppressOptionsAutoSave;
-    private CancellationTokenSource? _optionsAutoSaveCts;
+    private readonly Subject<Unit> _optionsAutoSaveRequestedSubject = new();
+    private readonly CompositeDisposable _optionsAutoSaveDisposables = new();
     private bool _suppressCollectionInheritedHeadersAutoSave;
     private bool _suppressCollectionInheritedHeadersLivePreviewSync;
-    private CancellationTokenSource? _collectionInheritedHeadersAutoSaveCts;
+    private readonly Subject<CollectionInheritedHeadersAutoSaveSnapshot> _collectionInheritedHeadersAutoSaveRequestedSubject = new();
+    private readonly CompositeDisposable _collectionInheritedHeadersAutoSaveDisposables = new();
+    private readonly CompositeDisposable _crossFeatureDisposables = new();
+    private Task? _collectionInheritedHeadersAutoSaveTask;
     private int _collectionInheritedHeadersAutoSaveVersion;
     private bool _hasPendingCollectionInheritedHeadersAutoSave;
     private CollectionInheritedHeadersAutoSaveSnapshot? _pendingCollectionInheritedHeadersAutoSaveSnapshot;
@@ -123,6 +135,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         "X-Api-Key",
         "Api-Key",
         "X-Auth-Token"
+    };
+
+    private static readonly HashSet<string> AutoSaveOnlyOptionPropertyNames = new(StringComparer.Ordinal)
+    {
+        nameof(DefaultRequestUrl),
+        nameof(ResponseSaveDefaultFolder),
+        nameof(AutoStartScheduledJobsOnLaunch),
+        nameof(DefaultScheduledJobIntervalSeconds),
+        nameof(DemoServerPort),
+        nameof(DemoServerHttpsPort),
+        nameof(IsDemoServerHttpEnabled),
+        nameof(IsDemoServerHttpsEnabled)
     };
 
     [ObservableProperty]
@@ -454,61 +478,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     [ObservableProperty]
     private bool _isDemoServerBannerVisible;
 
-    partial void OnSelectedTlsVersionOptionChanged(string value)
-    {
-        LogAndQueueOptionsAutoSave("Selected TLS version changed to {TlsVersion}", value);
-        if (InsecureTlsVersions.Contains(value))
-        {
-            _debugLogger.Warning("TLS version {TlsVersion} is cryptographically broken and should only be used for testing against legacy servers", value);
-        }
-    }
-
-    partial void OnFollowHttpRedirectsChanged(bool value) =>
-        LogAndQueueOptionsAutoSave("Follow redirects changed to {FollowRedirects}", value);
-
-    partial void OnShowRequestPreviewByDefaultChanged(bool value)
-    {
-        _requestEditor.ShowRequestPreview = value;
-        QueueOptionsAutoSave();
-    }
-
-    partial void OnDefaultContentTypeChanged(string value)
-    {
-        _debugLogger.Information("Default content type changed to {ContentType}", value);
-        _requestEditor.DefaultContentType = value;
-        SyncDefaultContentTypeSelection(value);
-        QueueOptionsAutoSave();
-    }
-
-    partial void OnSelectedDefaultContentTypeOptionChanged(string value)
-    {
-        if (string.Equals(value, DefaultContentTypeCustomOption, StringComparison.Ordinal))
-        {
-            if (!string.IsNullOrWhiteSpace(CustomDefaultContentType))
-            {
-                DefaultContentType = CustomDefaultContentType;
-            }
-
-            return;
-        }
-
-        CustomDefaultContentType = string.Empty;
-        DefaultContentType = value;
-    }
-
-    partial void OnCustomDefaultContentTypeChanged(string value)
-    {
-        if (!IsCustomDefaultContentType)
-        {
-            return;
-        }
-
-        DefaultContentType = value;
-    }
-
-    partial void OnResponseSaveDefaultFolderChanged(string value) =>
-        QueueOptionsAutoSave();
-
     [RelayCommand]
     private async Task SelectResponseSaveDefaultFolderAsync()
     {
@@ -533,41 +502,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         ResponseSaveDefaultFolder = folders[0].Path.LocalPath;
     }
 
-    partial void OnResponseSaveFileNamePatternChanged(string value)
-    {
-        if (ResponseSaveFileNamePatternFormatter.TryValidatePattern(value, out var error))
-        {
-            ResponseSaveFileNamePatternValidationError = string.Empty;
-            QueueOptionsAutoSave();
-            return;
-        }
-
-        ResponseSaveFileNamePatternValidationError = error;
-    }
-
-    partial void OnUiFontSizeTextChanged(string value) =>
-        OnUiFontSizeTextChangedCore();
-
-    partial void OnUiFontFamilyChanged(string value)
-    {
-        if (Application.Current is { } currentApp)
-        {
-            // Split on ',' with count=2 to avoid allocating a large array for long CSS font
-            // stacks (e.g. "Cascadia Code,Consolas,Menlo,monospace") — only [0] is used.
-            var firstFamily = value.Split(',', 2, StringSplitOptions.TrimEntries)[0];
-            var fontFamily = string.IsNullOrEmpty(firstFamily)
-                ? FontFamily.Default
-                : new FontFamily(firstFamily);
-            currentApp.Resources["AppFontFamily"] = fontFamily;
-        }
-
-        QueueOptionsAutoSave();
-    }
-
-    partial void OnEnableHttpDiagnosticsChanged(bool value) =>
-        LogAndQueueOptionsAutoSave("HTTP diagnostics enabled changed to {IsEnabled}", value);
-
-    partial void OnSelectedCollectionChanged(Collection? value)
+    private void ApplySelectedCollection()
     {
         IsRenameCollectionFormVisible = false;
         RenameCollectionName = string.Empty;
@@ -578,7 +513,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         {
             CollectionItems.Clear();
             CollectionInheritedHeaders.Clear();
-            if (value is { } collection)
+            if (SelectedCollection is { } collection)
             {
                 foreach (var request in collection.Requests)
                 {
@@ -607,22 +542,94 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         ApplyCollectionFilter();
     }
 
-    partial void OnCollectionSearchQueryChanged(string value) => ApplyCollectionFilter();
-
-    partial void OnCollectionSortByChanged(string value) => ApplyCollectionFilter();
-
-    partial void OnIsCollectionTreeViewChanged(bool value) => ApplyCollectionFilter();
-
-    partial void OnSelectedThemeOptionChanged(string value)
+    private void OnUiFontSizeTextChangedCore()
     {
-        _debugLogger.Information("Theme changed to {Theme}", value);
+        OnPropertyChanged(nameof(UiFontSize));
+        QueueOptionsAutoSave();
+    }
+
+    private void ApplyDefaultContentType()
+    {
+        _debugLogger.Information("Default content type changed to {ContentType}", DefaultContentType);
+        _requestEditor.DefaultContentType = DefaultContentType;
+        SyncDefaultContentTypeSelection(DefaultContentType);
+        QueueOptionsAutoSave();
+    }
+
+    private void ApplySelectedDefaultContentTypeOption()
+    {
+        if (string.Equals(SelectedDefaultContentTypeOption, DefaultContentTypeCustomOption, StringComparison.Ordinal))
+        {
+            if (!string.IsNullOrWhiteSpace(CustomDefaultContentType))
+            {
+                DefaultContentType = CustomDefaultContentType;
+            }
+
+            return;
+        }
+
+        CustomDefaultContentType = string.Empty;
+        DefaultContentType = SelectedDefaultContentTypeOption;
+    }
+
+    private void ApplyCustomDefaultContentType()
+    {
+        if (!IsCustomDefaultContentType)
+        {
+            return;
+        }
+
+        DefaultContentType = CustomDefaultContentType;
+    }
+
+    private void ApplyResponseSaveFileNamePattern()
+    {
+        if (ResponseSaveFileNamePatternFormatter.TryValidatePattern(ResponseSaveFileNamePattern, out var error))
+        {
+            ResponseSaveFileNamePatternValidationError = string.Empty;
+            QueueOptionsAutoSave();
+            return;
+        }
+
+        ResponseSaveFileNamePatternValidationError = error;
+    }
+
+    private void ApplyUiFontFamily()
+    {
+        if (Application.Current is { } currentApp)
+        {
+            var firstFamily = UiFontFamily.Split(',', 2, StringSplitOptions.TrimEntries)[0];
+            var fontFamily = string.IsNullOrEmpty(firstFamily)
+                ? FontFamily.Default
+                : new FontFamily(firstFamily);
+            currentApp.Resources["AppFontFamily"] = fontFamily;
+        }
+
+        QueueOptionsAutoSave();
+    }
+
+    private void ApplyDefaultRequestTimeoutSeconds()
+    {
+        if (DefaultRequestTimeoutSeconds < 1)
+        {
+            DefaultRequestTimeoutSeconds = 1;
+            return;
+        }
+
+        _httpRequestService.SetDefaultRequestTimeout(TimeSpan.FromSeconds(DefaultRequestTimeoutSeconds));
+        QueueOptionsAutoSave();
+    }
+
+    private void ApplyThemeOption()
+    {
+        _debugLogger.Information("Theme changed to {Theme}", SelectedThemeOption);
 
         if (Application.Current is null)
         {
             return;
         }
 
-        Application.Current.RequestedThemeVariant = value switch
+        Application.Current.RequestedThemeVariant = SelectedThemeOption switch
         {
             DarkThemeOption => ThemeVariant.Dark,
             LightThemeOption => ThemeVariant.Light,
@@ -632,52 +639,28 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         QueueOptionsAutoSave();
     }
 
-    partial void OnDefaultRequestUrlChanged(string value) =>
-        QueueOptionsAutoSave();
-
-    partial void OnDefaultRequestTimeoutSecondsChanged(int value)
-    {
-        if (value < 1)
-        {
-            DefaultRequestTimeoutSeconds = 1;
-            return;
-        }
-
-        _httpRequestService.SetDefaultRequestTimeout(TimeSpan.FromSeconds(value));
-        QueueOptionsAutoSave();
-    }
-
-    partial void OnAutoStartScheduledJobsOnLaunchChanged(bool value) =>
-        QueueOptionsAutoSave();
-
-    partial void OnDefaultScheduledJobIntervalSecondsChanged(int value) =>
-        QueueOptionsAutoSave();
-
-    partial void OnCollectUnhandledExceptionsChanged(bool value)
+    private void ApplyUnhandledExceptionCollectionSetting()
     {
         if (_unhandledExceptionCollector is { } collector)
         {
-            collector.IsCollecting = value;
+            collector.IsCollecting = CollectUnhandledExceptions;
         }
 
         QueueOptionsAutoSave();
     }
 
-    partial void OnDemoServerPortChanged(int value) =>
-        QueueOptionsAutoSave();
-
-    partial void OnDemoServerHttpsPortChanged(int value) =>
-        QueueOptionsAutoSave();
-
-    partial void OnIsDemoServerHttpEnabledChanged(bool value) =>
-        QueueOptionsAutoSave();
-
-    partial void OnIsDemoServerHttpsEnabledChanged(bool value) =>
-        QueueOptionsAutoSave();
-
-    private void OnUiFontSizeTextChangedCore()
+    private void ApplySelectedTlsVersionOption()
     {
-        OnPropertyChanged(nameof(UiFontSize));
+        LogAndQueueOptionsAutoSave("Selected TLS version changed to {TlsVersion}", SelectedTlsVersionOption);
+        if (InsecureTlsVersions.Contains(SelectedTlsVersionOption))
+        {
+            _debugLogger.Warning("TLS version {TlsVersion} is cryptographically broken and should only be used for testing against legacy servers", SelectedTlsVersionOption);
+        }
+    }
+
+    private void ApplyShowRequestPreviewByDefault()
+    {
+        _requestEditor.ShowRequestPreview = ShowRequestPreviewByDefault;
         QueueOptionsAutoSave();
     }
 
@@ -721,6 +704,185 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         _debugLogger = appLogger.ForContext("LogTab", LogTab.Debug);
         _httpRequestsLogger = appLogger.ForContext("LogTab", LogTab.HttpRequests);
 
+        _collectionInheritedHeadersAutoSaveDisposables.Add(_collectionInheritedHeadersAutoSaveRequestedSubject
+            .Throttle(TimeSpan.FromSeconds(1))
+            .Subscribe(snapshot => Dispatcher.UIThread.Post(() => TriggerCollectionInheritedHeadersAutoSave(snapshot))));
+
+        _optionsAutoSaveDisposables.Add(_optionsAutoSaveRequestedSubject
+            .Throttle(TimeSpan.FromSeconds(1))
+            .Subscribe(_ => Dispatcher.UIThread.Post(SaveOptions)));
+
+        _optionsAutoSaveDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => propertyName is not null && AutoSaveOnlyOptionPropertyNames.Contains(propertyName))
+            .Subscribe(_ => QueueOptionsAutoSave()));
+
+        _optionsAutoSaveDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(FollowHttpRedirects), StringComparison.Ordinal))
+            .Subscribe(_ => LogAndQueueOptionsAutoSave("Follow redirects changed to {FollowRedirects}", FollowHttpRedirects)));
+
+        _optionsAutoSaveDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(EnableHttpDiagnostics), StringComparison.Ordinal))
+            .Subscribe(_ => LogAndQueueOptionsAutoSave("HTTP diagnostics enabled changed to {IsEnabled}", EnableHttpDiagnostics)));
+
+        _optionsAutoSaveDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(SelectedThemeOption), StringComparison.Ordinal))
+            .Subscribe(_ => ApplyThemeOption()));
+
+        _optionsAutoSaveDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(CollectUnhandledExceptions), StringComparison.Ordinal))
+            .Subscribe(_ => ApplyUnhandledExceptionCollectionSetting()));
+
+        _optionsAutoSaveDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(SelectedTlsVersionOption), StringComparison.Ordinal))
+            .Subscribe(_ => ApplySelectedTlsVersionOption()));
+
+        _optionsAutoSaveDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(ShowRequestPreviewByDefault), StringComparison.Ordinal))
+            .Subscribe(_ => ApplyShowRequestPreviewByDefault()));
+
+        _optionsAutoSaveDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(DefaultContentType), StringComparison.Ordinal))
+            .Subscribe(_ => ApplyDefaultContentType()));
+
+        _optionsAutoSaveDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(SelectedDefaultContentTypeOption), StringComparison.Ordinal))
+            .Subscribe(_ => ApplySelectedDefaultContentTypeOption()));
+
+        _optionsAutoSaveDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(CustomDefaultContentType), StringComparison.Ordinal))
+            .Subscribe(_ => ApplyCustomDefaultContentType()));
+
+        _optionsAutoSaveDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(ResponseSaveFileNamePattern), StringComparison.Ordinal))
+            .Subscribe(_ => ApplyResponseSaveFileNamePattern()));
+
+        _optionsAutoSaveDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(UiFontFamily), StringComparison.Ordinal))
+            .Subscribe(_ => ApplyUiFontFamily()));
+
+        _optionsAutoSaveDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(UiFontSizeText), StringComparison.Ordinal))
+            .Subscribe(_ => OnUiFontSizeTextChangedCore()));
+
+        _optionsAutoSaveDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(DefaultRequestTimeoutSeconds), StringComparison.Ordinal))
+            .Subscribe(_ => ApplyDefaultRequestTimeoutSeconds()));
+
+        _historyFilterDisposables.Add(_historyFilterRequestedSubject
+            .Throttle(TimeSpan.FromMilliseconds(150))
+            .DistinctUntilChanged(StringComparer.Ordinal)
+            .Subscribe(query => ApplyHistoryFilter(query)));
+
+        _collectionSearchFilterDisposables.Add(_collectionSearchFilterRequestedSubject
+            .Throttle(TimeSpan.FromMilliseconds(150))
+            .DistinctUntilChanged(StringComparer.Ordinal)
+            .Subscribe(_ => ApplyCollectionFilter()));
+
+        _collectionSearchFilterDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(SelectedCollection), StringComparison.Ordinal))
+            .Subscribe(_ => ApplySelectedCollection()));
+
+        _collectionSearchFilterDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(CollectionSearchQuery), StringComparison.Ordinal))
+            .Subscribe(_ => _collectionSearchFilterRequestedSubject.OnNext(CollectionSearchQuery)));
+
+        _collectionSearchFilterDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => propertyName is nameof(CollectionSortBy)
+                or nameof(IsCollectionTreeView))
+            .Subscribe(_ => ApplyCollectionFilter()));
+
+        _historyFilterDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(HistorySearchQuery), StringComparison.Ordinal))
+            .Subscribe(_ => _historyFilterRequestedSubject.OnNext(HistorySearchQuery)));
+
+        _crossFeatureDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(ActiveRequestTab), StringComparison.Ordinal))
+            .Subscribe(_ => ApplyActiveRequestTab()));
+
+        _crossFeatureDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(SelectedLayoutName), StringComparison.Ordinal))
+            .Subscribe(_ => ApplySelectedLayoutName()));
+
         _requestEditor = new RequestEditorViewModel(
             _variableResolver,
             GetActiveVariablesForEditor,
@@ -743,24 +905,106 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         _graphQlViewModel = new GraphQlViewModel(_protocolHttpClient, appLogger);
         _webSocketViewModel = new WebSocketViewModel(appLogger);
         _sseViewModel = new SseViewModel(_protocolHttpClient, appLogger);
-        _environmentsViewModel.PropertyChanged += OnEnvironmentsViewModelPropertyChanged;
-        _webSocketViewModel.PropertyChanged += OnStreamingViewModelPropertyChanged;
-        _sseViewModel.PropertyChanged += OnStreamingViewModelPropertyChanged;
-        _requestEditor.PropertyChanged += OnRequestEditorPropertyChanged;
 
         History = [];
         Collections = [];
         CollectionItems = [];
         CollectionInheritedHeaders = [];
-        CollectionInheritedHeaders.CollectionChanged += OnCollectionInheritedHeadersCollectionChanged;
         FilteredCollectionItems = [];
         CollectionGroups = [];
         ScheduledJobs = [];
         SavedLayoutNames = [];
 
         SendRequestCommand = new AsyncRelayCommand(SendRequestAsync);
-        SendRequestCommand.PropertyChanged += OnSendRequestCommandPropertyChanged;
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
+
+        _crossFeatureDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => _environmentsViewModel.PropertyChanged += handler,
+                handler => _environmentsViewModel.PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(EnvironmentsViewModel.ActiveEnvironment), StringComparison.Ordinal))
+            .Subscribe(_ =>
+            {
+                OnPropertyChanged(nameof(ActiveEnvironment));
+                OnPropertyChanged(nameof(ActiveEnvironmentAccentColor));
+                OnPropertyChanged(nameof(ActiveEnvironmentHasColor));
+                OnPropertyChanged(nameof(ActiveEnvironmentShowWarningBanner));
+            }));
+
+        _crossFeatureDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => _environmentsViewModel.PropertyChanged += handler,
+                handler => _environmentsViewModel.PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(EnvironmentsViewModel.NewEnvironmentName), StringComparison.Ordinal))
+            .Subscribe(_ => OnPropertyChanged(nameof(NewEnvironmentName))));
+
+        _crossFeatureDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => _environmentsViewModel.PropertyChanged += handler,
+                handler => _environmentsViewModel.PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(EnvironmentsViewModel.IsEnvironmentPanelVisible), StringComparison.Ordinal))
+            .Subscribe(_ => OnPropertyChanged(nameof(IsEnvironmentPanelVisible))));
+
+        _crossFeatureDisposables.Add(Observable.Merge(
+                _webSocketViewModel.PropertyChangedObservable,
+                _sseViewModel.PropertyChangedObservable)
+            .Where(eventArgs => eventArgs.PropertyName is nameof(WebSocketViewModel.IsConnected)
+                or nameof(SseViewModel.IsConnected))
+            .Subscribe(_ => OnPropertyChanged(nameof(PrimaryActionLabel))));
+
+        _crossFeatureDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => SendRequestCommand.PropertyChanged += handler,
+                handler => SendRequestCommand.PropertyChanged -= handler)
+            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
+            .Where(propertyName => propertyName is nameof(IAsyncRelayCommand.IsRunning)
+                or nameof(IAsyncRelayCommand.CanBeCanceled))
+            .Subscribe(_ =>
+            {
+                OnPropertyChanged(nameof(PrimaryActionLabel));
+                OnPropertyChanged(nameof(IsRequestInProgress));
+            }));
+
+        _crossFeatureDisposables.Add(Observable
+            .FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
+                handler => CollectionInheritedHeaders.CollectionChanged += handler,
+                handler => CollectionInheritedHeaders.CollectionChanged -= handler)
+            .Subscribe(_ =>
+            {
+                SyncActiveCollectionRequestInheritedHeaders();
+                QueueCollectionInheritedHeadersAutoSave();
+            }));
+
+        _crossFeatureDisposables.Add(Observable
+            .FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
+                handler => CollectionInheritedHeaders.CollectionChanged += handler,
+                handler => CollectionInheritedHeaders.CollectionChanged -= handler)
+            .Select(_ => ObserveCollectionInheritedHeaderPropertyChanges())
+            .StartWith(ObserveCollectionInheritedHeaderPropertyChanges())
+            .Switch()
+            .Where(eventArgs => eventArgs.PropertyName is nameof(RequestHeaderViewModel.Name)
+                or nameof(RequestHeaderViewModel.Value)
+                or nameof(RequestHeaderViewModel.IsEnabled))
+            .Subscribe(_ =>
+            {
+                SyncActiveCollectionRequestInheritedHeaders();
+                QueueCollectionInheritedHeadersAutoSave();
+            }));
+
+        _crossFeatureDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => PropertyChanged += handler,
+                handler => PropertyChanged -= handler)
+            .Where(eventPattern => string.Equals(eventPattern.EventArgs.PropertyName, nameof(ActiveRequestTab), StringComparison.Ordinal))
+            .Select(_ => ActiveRequestTab?.RequestEditor)
+            .StartWith(ActiveRequestTab?.RequestEditor)
+            .Select(editor => editor?.PropertyChangedObservable ?? Observable.Empty<PropertyChangedEventArgs>())
+            .Switch()
+            .Where(eventArgs => string.Equals(eventArgs.PropertyName, nameof(RequestEditorViewModel.SelectedRequestType), StringComparison.Ordinal))
+            .Subscribe(_ => OnPropertyChanged(nameof(PrimaryActionLabel))));
 
         _dockFactory = new DockFactory(this, _environmentsViewModel, _optionsViewModel, _cookieJarViewModel);
         Layout = _dockFactory.CreateLayout();
@@ -809,30 +1053,26 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     /// </summary>
     public ObservableCollection<RequestTabViewModel> RequestTabs { get; }
 
-    partial void OnActiveRequestTabChanged(RequestTabViewModel? oldValue, RequestTabViewModel? newValue)
+    private void ApplyActiveRequestTab()
     {
-        if (oldValue is not null)
+        if (ActiveRequestTab is not { } newValue)
         {
-            oldValue.RequestEditor.PropertyChanged -= OnRequestEditorPropertyChanged;
+            return;
         }
 
-        if (newValue is not null)
-        {
-            _requestEditor = newValue.RequestEditor;
-            // Capture the editor in a local so the dispatcher callback always targets
-            // the same instance even if ActiveRequestTab changes again before it runs.
-            var editorForThisTab = _requestEditor;
-            // Suppress refreshes while Avalonia's TwoWay bindings re-subscribe to the new
-            // editor and fire current ComboBox/TextBox values back as if they changed.
-            // Avalonia processes PropertyChanged notifications synchronously within the
-            // current dispatcher frame, so a Post at default priority is guaranteed to run
-            // after all binding subscriptions have settled for the current frame.
-            editorForThisTab.BeginBulkUpdate();
-            editorForThisTab.PropertyChanged += OnRequestEditorPropertyChanged;
-            OnPropertyChanged(nameof(RequestEditor));
-            OnPropertyChanged(nameof(PrimaryActionLabel));
-            Dispatcher.UIThread.Post(() => editorForThisTab.EndBulkUpdate());
-        }
+        _requestEditor = newValue.RequestEditor;
+        // Capture the editor in a local so the dispatcher callback always targets
+        // the same instance even if ActiveRequestTab changes again before it runs.
+        var editorForThisTab = _requestEditor;
+        // Suppress refreshes while Avalonia's TwoWay bindings re-subscribe to the new
+        // editor and fire current ComboBox/TextBox values back as if they changed.
+        // Avalonia processes PropertyChanged notifications synchronously within the
+        // current dispatcher frame, so a Post at default priority is guaranteed to run
+        // after all binding subscriptions have settled for the current frame.
+        editorForThisTab.BeginBulkUpdate();
+        OnPropertyChanged(nameof(RequestEditor));
+        OnPropertyChanged(nameof(PrimaryActionLabel));
+        Dispatcher.UIThread.Post(() => editorForThisTab.EndBulkUpdate());
     }
 
     [RelayCommand]
@@ -970,55 +1210,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     public IRelayCommand<RequestEnvironment?> EditEnvironmentCommand => _environmentsViewModel.EditEnvironmentCommand;
     public IRelayCommand NewEnvironmentCommand => _environmentsViewModel.NewEnvironmentCommand;
     public IAsyncRelayCommand ExportEnvironmentsCommand => _environmentsViewModel.ExportEnvironmentsCommand;
-
-    private void OnStreamingViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (string.Equals(e.PropertyName, nameof(WebSocketViewModel.IsConnected), StringComparison.Ordinal)
-            || string.Equals(e.PropertyName, nameof(SseViewModel.IsConnected), StringComparison.Ordinal))
-        {
-            OnPropertyChanged(nameof(PrimaryActionLabel));
-        }
-    }
-
-    private void OnSendRequestCommandPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (string.Equals(e.PropertyName, nameof(IAsyncRelayCommand.IsRunning), StringComparison.Ordinal)
-            || string.Equals(e.PropertyName, nameof(IAsyncRelayCommand.CanBeCanceled), StringComparison.Ordinal))
-        {
-            OnPropertyChanged(nameof(PrimaryActionLabel));
-            OnPropertyChanged(nameof(IsRequestInProgress));
-        }
-    }
-
-    private void OnRequestEditorPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (string.Equals(e.PropertyName, nameof(RequestEditorViewModel.SelectedRequestType), StringComparison.Ordinal))
-        {
-            OnPropertyChanged(nameof(PrimaryActionLabel));
-        }
-    }
-
-    private void OnEnvironmentsViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)    {
-        if (string.Equals(e.PropertyName, nameof(EnvironmentsViewModel.ActiveEnvironment), StringComparison.Ordinal))
-        {
-            OnPropertyChanged(nameof(ActiveEnvironment));
-            OnPropertyChanged(nameof(ActiveEnvironmentAccentColor));
-            OnPropertyChanged(nameof(ActiveEnvironmentHasColor));
-            OnPropertyChanged(nameof(ActiveEnvironmentShowWarningBanner));
-            return;
-        }
-
-        if (string.Equals(e.PropertyName, nameof(EnvironmentsViewModel.NewEnvironmentName), StringComparison.Ordinal))
-        {
-            OnPropertyChanged(nameof(NewEnvironmentName));
-            return;
-        }
-
-        if (string.Equals(e.PropertyName, nameof(EnvironmentsViewModel.IsEnvironmentPanelVisible), StringComparison.Ordinal))
-        {
-            OnPropertyChanged(nameof(IsEnvironmentPanelVisible));
-        }
-    }
 
     private ApplicationOptions BuildOptionsFromCurrentState()
     {
@@ -1305,9 +1496,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
 
         ScheduledJobs.Remove(job);
+        job.Dispose();
     }
-
-    partial void OnHistorySearchQueryChanged(string value) => ApplyHistoryFilter(value);
 
     [RelayCommand]
     private void ShowHistoryTab()
@@ -1402,14 +1592,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    partial void OnSelectedLayoutNameChanged(string? value)
+    private void ApplySelectedLayoutName()
     {
-        if (_suppressLayoutRestore || string.IsNullOrWhiteSpace(value))
+        if (_suppressLayoutRestore || string.IsNullOrWhiteSpace(SelectedLayoutName))
         {
             return;
         }
 
-        if (_savedLayouts.TryGetValue(value, out var snapshot))
+        if (_savedLayouts.TryGetValue(SelectedLayoutName, out var snapshot))
         {
             ApplyLayoutSnapshot(snapshot);
             PersistLayoutOptions();
@@ -1855,7 +2045,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private void AddCollectionInheritedHeader()
     {
         CollectionInheritedHeaders.Add(new RequestHeaderViewModel());
-        SyncActiveCollectionRequestInheritedHeaders();
     }
 
     [RelayCommand]
@@ -1867,7 +2056,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
 
         CollectionInheritedHeaders.Remove(header);
-        SyncActiveCollectionRequestInheritedHeaders();
     }
 
     [RelayCommand]
@@ -2021,26 +2209,25 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         _pendingCollectionInheritedHeadersAutoSaveSnapshot = snapshot;
 
         _collectionInheritedHeadersAutoSaveVersion++;
-        var autoSaveVersion = _collectionInheritedHeadersAutoSaveVersion;
+        _collectionInheritedHeadersAutoSaveRequestedSubject.OnNext(snapshot);
+    }
 
-        _collectionInheritedHeadersAutoSaveCts?.Cancel();
-        _collectionInheritedHeadersAutoSaveCts?.Dispose();
-        _collectionInheritedHeadersAutoSaveCts = new CancellationTokenSource();
-        _ = TriggerCollectionInheritedHeadersAutoSaveAsync(snapshot, autoSaveVersion, _collectionInheritedHeadersAutoSaveCts.Token);
+    private void TriggerCollectionInheritedHeadersAutoSave(CollectionInheritedHeadersAutoSaveSnapshot snapshot)
+    {
+        var autoSaveVersion = _collectionInheritedHeadersAutoSaveVersion;
+        _collectionInheritedHeadersAutoSaveTask = TriggerCollectionInheritedHeadersAutoSaveAsync(snapshot, autoSaveVersion);
     }
 
     private async Task TriggerCollectionInheritedHeadersAutoSaveAsync(
         CollectionInheritedHeadersAutoSaveSnapshot snapshot,
-        int autoSaveVersion,
-        CancellationToken cancellationToken)
+        int autoSaveVersion)
     {
         try
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(1000), cancellationToken).ConfigureAwait(false);
             await Dispatcher.UIThread.InvokeAsync(
                 async () => await PersistCollectionInheritedHeadersSnapshotAsync(
                     snapshot,
-                    cancellationToken,
+                    CancellationToken.None,
                     selectUpdatedCollection: false),
                 DispatcherPriority.Background);
 
@@ -2049,9 +2236,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
                 ClearPendingCollectionInheritedHeadersAutoSaveState();
             }
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Debounced auto-save was superseded by a newer edit.
+            _debugLogger.Warning(ex, "Collection inherited headers auto-save failed");
         }
     }
 
@@ -2062,9 +2249,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             return;
         }
 
-        _collectionInheritedHeadersAutoSaveCts?.Cancel();
-        _collectionInheritedHeadersAutoSaveCts?.Dispose();
-        _collectionInheritedHeadersAutoSaveCts = null;
+        if (_collectionInheritedHeadersAutoSaveTask is { } autoSaveTask)
+        {
+            await autoSaveTask.ConfigureAwait(false);
+        }
 
         await PersistCollectionInheritedHeadersSnapshotAsync(snapshot, CancellationToken.None, selectUpdatedCollection: true);
         ClearPendingCollectionInheritedHeadersAutoSaveState();
@@ -2076,36 +2264,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         _pendingCollectionInheritedHeadersAutoSaveSnapshot = null;
     }
 
-    private void OnCollectionInheritedHeadersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    private IObservable<PropertyChangedEventArgs> ObserveCollectionInheritedHeaderPropertyChanges()
     {
-        if (e.OldItems is { })
-        {
-            foreach (var oldItem in e.OldItems.OfType<RequestHeaderViewModel>())
-            {
-                oldItem.PropertyChanged -= OnCollectionInheritedHeaderPropertyChanged;
-            }
-        }
+        var itemStreams = CollectionInheritedHeaders
+            .Select(header => header.PropertyChangedObservable)
+            .ToArray();
 
-        if (e.NewItems is { })
-        {
-            foreach (var newItem in e.NewItems.OfType<RequestHeaderViewModel>())
-            {
-                newItem.PropertyChanged += OnCollectionInheritedHeaderPropertyChanged;
-            }
-        }
-
-        QueueCollectionInheritedHeadersAutoSave();
-    }
-
-    private void OnCollectionInheritedHeaderPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is nameof(RequestHeaderViewModel.Name)
-            or nameof(RequestHeaderViewModel.Value)
-            or nameof(RequestHeaderViewModel.IsEnabled))
-        {
-            SyncActiveCollectionRequestInheritedHeaders();
-            QueueCollectionInheritedHeadersAutoSave();
-        }
+        return itemStreams.Length == 0
+            ? Observable.Empty<PropertyChangedEventArgs>()
+            : Observable.Merge(itemStreams);
     }
 
     private void SyncActiveCollectionRequestInheritedHeaders()
@@ -2462,26 +2629,25 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
     public void Dispose()
     {
-        CollectionInheritedHeaders.CollectionChanged -= OnCollectionInheritedHeadersCollectionChanged;
-        foreach (var header in CollectionInheritedHeaders)
-        {
-            header.PropertyChanged -= OnCollectionInheritedHeaderPropertyChanged;
-        }
+        _crossFeatureDisposables.Dispose();
 
-        _environmentsViewModel.PropertyChanged -= OnEnvironmentsViewModelPropertyChanged;
-        _webSocketViewModel.PropertyChanged -= OnStreamingViewModelPropertyChanged;
-        _sseViewModel.PropertyChanged -= OnStreamingViewModelPropertyChanged;
-        _requestEditor.PropertyChanged -= OnRequestEditorPropertyChanged;
-        SendRequestCommand.PropertyChanged -= OnSendRequestCommandPropertyChanged;
         _environmentsViewModel.Dispose();
-        _optionsAutoSaveCts?.Cancel();
-        _optionsAutoSaveCts?.Dispose();
-        _collectionInheritedHeadersAutoSaveCts?.Cancel();
-        _collectionInheritedHeadersAutoSaveCts?.Dispose();
+        _historyFilterRequestedSubject.OnCompleted();
+        _historyFilterDisposables.Dispose();
+        _collectionSearchFilterRequestedSubject.OnCompleted();
+        _collectionSearchFilterDisposables.Dispose();
+        _optionsAutoSaveRequestedSubject.OnCompleted();
+        _optionsAutoSaveDisposables.Dispose();
+        _collectionInheritedHeadersAutoSaveRequestedSubject.OnCompleted();
+        _collectionInheritedHeadersAutoSaveDisposables.Dispose();
         _draftAutoSaveCts?.Cancel();
         _draftAutoSaveCts?.Dispose();
         _draftPersistenceService?.ClearDraft();
         _scheduledJobService.Dispose();
+        foreach (var scheduledJobViewModel in ScheduledJobs)
+        {
+            scheduledJobViewModel.Dispose();
+        }
         _fileWatcherCts?.Cancel();
         _fileWatcherCts?.Dispose();
         _requestBodyWatcher?.Dispose();
@@ -4204,28 +4370,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             return;
         }
 
-        _optionsAutoSaveCts?.Cancel();
-        _optionsAutoSaveCts?.Dispose();
-        _optionsAutoSaveCts = new CancellationTokenSource();
-        _ = TriggerOptionsAutoSaveAsync(_optionsAutoSaveCts.Token);
+        _optionsAutoSaveRequestedSubject.OnNext(Unit.Default);
     }
 
-    private async Task TriggerOptionsAutoSaveAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(1000), cancellationToken).ConfigureAwait(false);
-            await Dispatcher.UIThread.InvokeAsync(SaveOptions);
-        }
-        catch (OperationCanceledException)
-        {
-            // Debounced auto-save was superseded by a newer edit.
-        }
-    }
 
     private async Task LoadScheduledJobsAsync(CancellationToken cancellationToken = default)
     {
         var all = await _scheduledJobRepository.GetAllAsync(cancellationToken);
+
+        foreach (var scheduledJobViewModel in ScheduledJobs)
+        {
+            scheduledJobViewModel.Dispose();
+        }
 
         ScheduledJobs.Clear();
         foreach (var config in all)
@@ -4290,27 +4446,42 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             return;
         }
 
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using var cancellationRegistration = cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
+        using var subscription = Observable.Interval(TimeSpan.FromSeconds(30))
+            .Subscribe(_tick =>
+            {
+                _ = SaveDraftTickAsync(cancellationToken);
+            });
+
         try
         {
-            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
-            {
-                try
-                {
-                    var state = await Dispatcher.UIThread.InvokeAsync(
-                        () => DraftPersistenceService.CaptureFromEditor(_requestEditor));
-                    cancellationToken.ThrowIfCancellationRequested();
-                    await _draftPersistenceService.SaveDraftAsync(state, cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    _debugLogger.Warning(ex, "Auto-save draft failed");
-                }
-            }
+            await completion.Task.ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Normal shutdown — timer cancelled.
+            // Normal shutdown — auto-save subscription cancelled.
+        }
+    }
+
+    private async Task SaveDraftTickAsync(CancellationToken cancellationToken)
+    {
+        if (_draftPersistenceService is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var state = await Dispatcher.UIThread.InvokeAsync(
+                () => DraftPersistenceService.CaptureFromEditor(_requestEditor));
+            cancellationToken.ThrowIfCancellationRequested();
+            await _draftPersistenceService.SaveDraftAsync(state, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _debugLogger.Warning(ex, "Auto-save draft failed");
         }
     }
 }

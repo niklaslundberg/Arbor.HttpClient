@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Reactive.Concurrency;
+using System.Reactive.Linq;
 using System.Text.Json;
 using Arbor.HttpClient.Desktop.Features.Diagnostics;
 using Arbor.HttpClient.Desktop.Features.Logging;
@@ -10,25 +12,31 @@ using Arbor.HttpClient.Core.ScheduledJobs;
 namespace Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 
 /// <summary>
-/// Runs scheduled HTTP request jobs using <see cref="PeriodicTimer"/>.
+/// Runs scheduled HTTP request jobs using RX.NET <see cref="Observable.Interval(TimeSpan, IScheduler)"/>.
 /// Each job fires an <see cref="HttpRequestService.SendAsync"/> call on its configured interval,
 /// logging each invocation (and any failures) through Serilog.
-    /// When an optional <paramref name="onResponseAsync"/> callback is supplied to <see cref="Start"/>,
-    /// it is awaited after each successful response so that callers can safely marshal UI updates.
+/// When an optional <paramref name="onResponseAsync"/> callback is supplied to <see cref="Start"/>,
+/// it is awaited after each successful response so that callers can safely marshal UI updates.
 /// </summary>
 public sealed class ScheduledJobService : IDisposable
 {
     private readonly HttpRequestService _httpRequestService;
     private readonly ILogger _logger;
     private readonly UnhandledExceptionCollector? _exceptionCollector;
+    private readonly IScheduler _scheduler;
     private readonly object _gate = new();
     private readonly ConcurrentDictionary<int, JobHandle> _handles = new();
 
-    public ScheduledJobService(HttpRequestService httpRequestService, ILogger logger, UnhandledExceptionCollector? exceptionCollector = null)
+    public ScheduledJobService(
+        HttpRequestService httpRequestService,
+        ILogger logger,
+        UnhandledExceptionCollector? exceptionCollector = null,
+        IScheduler? scheduler = null)
     {
         _httpRequestService = httpRequestService;
         _logger = logger.ForContext<ScheduledJobService>().ForContext("LogTab", LogTab.ScheduledLive);
         _exceptionCollector = exceptionCollector;
+        _scheduler = scheduler ?? DefaultScheduler.Instance;
     }
 
     public bool IsRunning(int jobId) => _handles.ContainsKey(jobId);
@@ -53,14 +61,28 @@ public sealed class ScheduledJobService : IDisposable
                 return;
             }
 
-            var cts = new CancellationTokenSource();
-            var handle = new JobHandle(cts);
-            _handles[config.Id] = handle;
-            handle.Task = RunAsync(config, onResponseAsync, cts.Token);
+            var cancellationTokenSource = new CancellationTokenSource();
+            var jobHandle = new JobHandle(cancellationTokenSource);
+
+            var interval = TimeSpan.FromSeconds(Math.Max(1, config.IntervalSeconds));
+            var subscription = Observable
+                .Interval(interval, _scheduler)
+                .Subscribe(
+                    _tick =>
+                    {
+                        _ = ExecuteScheduledTickAsync(config, onResponseAsync, jobHandle);
+                    },
+                    ex => _logger.Error(ex, "Scheduled job {JobName} stream terminated unexpectedly", config.Name));
+
+            jobHandle.Subscription = subscription;
+            _handles[config.Id] = jobHandle;
         }
 
-        _logger.Information("Scheduled job {JobName} (id={JobId}) started with interval {IntervalSeconds}s",
-            config.Name, config.Id, config.IntervalSeconds);
+        _logger.Information(
+            "Scheduled job {JobName} (id={JobId}) started with interval {IntervalSeconds}s",
+            config.Name,
+            config.Id,
+            config.IntervalSeconds);
     }
 
     public void Stop(int jobId)
@@ -74,27 +96,32 @@ public sealed class ScheduledJobService : IDisposable
         if (handle is { })
         {
             handle.Cts.Cancel();
+            handle.Subscription?.Dispose();
             _logger.Information("Scheduled job id={JobId} stopped", jobId);
         }
     }
 
-    private async Task RunAsync(
+    private async Task ExecuteScheduledTickAsync(
         ScheduledJobConfig config,
         Func<HttpResponseDetails, CancellationToken, Task>? onResponseAsync,
-        CancellationToken cancellationToken)
+        JobHandle jobHandle)
     {
-        var interval = TimeSpan.FromSeconds(Math.Max(1, config.IntervalSeconds));
-        using var timer = new PeriodicTimer(interval);
+        if (Interlocked.CompareExchange(ref jobHandle.IsExecuting, 1, 0) != 0)
+        {
+            return;
+        }
+
         try
         {
-            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
-            {
-                await ExecuteJobAsync(config, onResponseAsync, cancellationToken).ConfigureAwait(false);
-            }
+            await ExecuteJobAsync(config, onResponseAsync, jobHandle.Cts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
             // normal stop
+        }
+        finally
+        {
+            Interlocked.Exchange(ref jobHandle.IsExecuting, 0);
         }
     }
 
@@ -158,6 +185,16 @@ public sealed class ScheduledJobService : IDisposable
         foreach (var handle in handles)
         {
             handle.Cts.Cancel();
+            handle.Subscription?.Dispose();
+        }
+
+        foreach (var handle in handles)
+        {
+            var isIdle = SpinWait.SpinUntil(() => Volatile.Read(ref handle.IsExecuting) == 0, TimeSpan.FromSeconds(1));
+            if (isIdle)
+            {
+                handle.Cts.Dispose();
+            }
         }
     }
 
@@ -165,6 +202,8 @@ public sealed class ScheduledJobService : IDisposable
     {
         public CancellationTokenSource Cts { get; } = cts;
 
-        public Task? Task { get; set; }
+        public IDisposable? Subscription { get; set; }
+
+        public int IsExecuting;
     }
 }
