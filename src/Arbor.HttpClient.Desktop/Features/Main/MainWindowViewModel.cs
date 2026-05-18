@@ -89,6 +89,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private FileSystemWatcher? _requestBodyWatcher;
     private CancellationTokenSource? _fileWatcherCts;
     private int _requestBodyReadPending;
+    private readonly Subject<string> _historyFilterRequestedSubject = new();
+    private readonly CompositeDisposable _historyFilterDisposables = new();
+    private readonly Subject<string> _collectionSearchFilterRequestedSubject = new();
+    private readonly CompositeDisposable _collectionSearchFilterDisposables = new();
     private DockFactory? _dockFactory;
     private ApplicationOptions _applicationOptions = new();
     private readonly Dictionary<string, DockLayoutSnapshot> _savedLayouts = new(StringComparer.OrdinalIgnoreCase);
@@ -101,6 +105,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private bool _suppressCollectionInheritedHeadersLivePreviewSync;
     private readonly Subject<CollectionInheritedHeadersAutoSaveSnapshot> _collectionInheritedHeadersAutoSaveRequestedSubject = new();
     private readonly CompositeDisposable _collectionInheritedHeadersAutoSaveDisposables = new();
+    private readonly CompositeDisposable _crossFeatureDisposables = new();
     private Task? _collectionInheritedHeadersAutoSaveTask;
     private int _collectionInheritedHeadersAutoSaveVersion;
     private bool _hasPendingCollectionInheritedHeadersAutoSave;
@@ -615,7 +620,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         ApplyCollectionFilter();
     }
 
-    partial void OnCollectionSearchQueryChanged(string value) => ApplyCollectionFilter();
+    partial void OnCollectionSearchQueryChanged(string value)
+    {
+        _collectionSearchFilterRequestedSubject.OnNext(value);
+    }
 
     partial void OnCollectionSortByChanged(string value) => ApplyCollectionFilter();
 
@@ -739,6 +747,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             .ObserveOn(TaskPoolScheduler.Default)
             .Subscribe(_ => SaveOptions()));
 
+        _historyFilterDisposables.Add(_historyFilterRequestedSubject
+            .Throttle(TimeSpan.FromMilliseconds(150))
+            .DistinctUntilChanged(StringComparer.Ordinal)
+            .Subscribe(query => ApplyHistoryFilter(query)));
+
+        _collectionSearchFilterDisposables.Add(_collectionSearchFilterRequestedSubject
+            .Throttle(TimeSpan.FromMilliseconds(150))
+            .DistinctUntilChanged(StringComparer.Ordinal)
+            .Subscribe(_ => ApplyCollectionFilter()));
+
         _requestEditor = new RequestEditorViewModel(
             _variableResolver,
             GetActiveVariablesForEditor,
@@ -761,9 +779,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         _graphQlViewModel = new GraphQlViewModel(_protocolHttpClient, appLogger);
         _webSocketViewModel = new WebSocketViewModel(appLogger);
         _sseViewModel = new SseViewModel(_protocolHttpClient, appLogger);
-        _environmentsViewModel.PropertyChanged += OnEnvironmentsViewModelPropertyChanged;
-        _webSocketViewModel.PropertyChanged += OnStreamingViewModelPropertyChanged;
-        _sseViewModel.PropertyChanged += OnStreamingViewModelPropertyChanged;
         _requestEditor.PropertyChanged += OnRequestEditorPropertyChanged;
 
         History = [];
@@ -777,8 +792,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         SavedLayoutNames = [];
 
         SendRequestCommand = new AsyncRelayCommand(SendRequestAsync);
-        SendRequestCommand.PropertyChanged += OnSendRequestCommandPropertyChanged;
         LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
+
+        _crossFeatureDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => _environmentsViewModel.PropertyChanged += handler,
+                handler => _environmentsViewModel.PropertyChanged -= handler)
+            .Subscribe(eventPattern => OnEnvironmentsViewModelPropertyChanged(this, eventPattern.EventArgs)));
+
+        _crossFeatureDisposables.Add(Observable.Merge(
+                _webSocketViewModel.PropertyChangedObservable,
+                _sseViewModel.PropertyChangedObservable)
+            .Subscribe(eventArgs => OnStreamingViewModelPropertyChanged(this, eventArgs)));
+
+        _crossFeatureDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => SendRequestCommand.PropertyChanged += handler,
+                handler => SendRequestCommand.PropertyChanged -= handler)
+            .Subscribe(eventPattern => OnSendRequestCommandPropertyChanged(this, eventPattern.EventArgs)));
 
         _dockFactory = new DockFactory(this, _environmentsViewModel, _optionsViewModel, _cookieJarViewModel);
         Layout = _dockFactory.CreateLayout();
@@ -1325,7 +1356,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         ScheduledJobs.Remove(job);
     }
 
-    partial void OnHistorySearchQueryChanged(string value) => ApplyHistoryFilter(value);
+    partial void OnHistorySearchQueryChanged(string value)
+    {
+        _historyFilterRequestedSubject.OnNext(value);
+    }
 
     [RelayCommand]
     private void ShowHistoryTab()
@@ -2486,12 +2520,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             header.PropertyChanged -= OnCollectionInheritedHeaderPropertyChanged;
         }
 
-        _environmentsViewModel.PropertyChanged -= OnEnvironmentsViewModelPropertyChanged;
-        _webSocketViewModel.PropertyChanged -= OnStreamingViewModelPropertyChanged;
-        _sseViewModel.PropertyChanged -= OnStreamingViewModelPropertyChanged;
         _requestEditor.PropertyChanged -= OnRequestEditorPropertyChanged;
-        SendRequestCommand.PropertyChanged -= OnSendRequestCommandPropertyChanged;
+        _crossFeatureDisposables.Dispose();
+
         _environmentsViewModel.Dispose();
+        _historyFilterRequestedSubject.OnCompleted();
+        _historyFilterDisposables.Dispose();
+        _collectionSearchFilterRequestedSubject.OnCompleted();
+        _collectionSearchFilterDisposables.Dispose();
         _optionsAutoSaveRequestedSubject.OnCompleted();
         _optionsAutoSaveDisposables.Dispose();
         _collectionInheritedHeadersAutoSaveRequestedSubject.OnCompleted();
