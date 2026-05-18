@@ -66,10 +66,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 {
     private readonly HttpRequestService _httpRequestService;
     private HttpRequestWorkflow _httpRequestWorkflow = null!;
+    private ManualHttpRequestCoordinator _manualHttpRequestCoordinator = null!;
+    private readonly HttpResponseProjectionWorkflow _httpResponseProjectionWorkflow = new();
     private readonly IRequestHistoryRepository _requestHistoryRepository;
     private readonly ICollectionRepository _collectionRepository;
     private readonly IScheduledJobRepository _scheduledJobRepository;
     private CollectionsWorkflow _collectionsWorkflow = null!;
+    private CollectionsManagementCoordinator _collectionsManagementCoordinator = null!;
     private readonly ScheduledJobService _scheduledJobService;
     private readonly LogWindowViewModel _logWindowViewModel;
     private readonly OpenApiImportService _openApiImportService;
@@ -85,7 +88,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private CookieJarViewModel _cookieJarViewModel = null!;
     private GraphQlViewModel _graphQlViewModel = null!;
     private GraphQlRequestWorkflow _graphQlRequestWorkflow = null!;
+    private ManualGraphQlRequestCoordinator _manualGraphQlRequestCoordinator = null!;
     private DemoDataWorkflow _demoDataWorkflow = null!;
+    private DemoServerLifecycleCoordinator _demoServerLifecycleCoordinator = null!;
     private StreamingConnectionWorkflow _streamingConnectionWorkflow = null!;
     private WebSocketViewModel _webSocketViewModel = null!;
     private SseViewModel _sseViewModel = null!;
@@ -896,20 +901,45 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         _optionsViewModel = new OptionsViewModel(this);
         _cookieJarViewModel = new CookieJarViewModel(cookieContainer);
         _collectionsWorkflow = new CollectionsWorkflow(_collectionRepository, _debugLogger);
+        _collectionsManagementCoordinator = new CollectionsManagementCoordinator(
+            _collectionRepository,
+            LoadCollectionsAsync,
+            () => Collections?.ToList() ?? [],
+            () => SelectedCollection,
+            _requestEditor.BuildResolvedHttpRequestDraft,
+            _debugLogger);
         _graphQlViewModel = new GraphQlViewModel(_protocolHttpClient, appLogger);
         _graphQlRequestWorkflow = new GraphQlRequestWorkflow(_requestEditor, _graphQlViewModel, _httpRequestsLogger);
+        _manualGraphQlRequestCoordinator = new ManualGraphQlRequestCoordinator(
+            _graphQlRequestWorkflow,
+            _collectionsWorkflow,
+            LoadCollectionsAsync,
+            LoadHistoryAsync,
+            () => new GraphQlRequestCollectionState(
+                _requestEditor.RequestName,
+                _requestEditor.RequestNotes,
+                _graphQlViewModel.BuildRequestBodyJson()),
+            _httpRequestsLogger);
         _demoDataWorkflow = new DemoDataWorkflow(
             _collectionRepository,
             cancellationToken => _environmentsViewModel.GetAllEnvironmentsAsync(cancellationToken),
             (environmentName, variables, cancellationToken) => _environmentsViewModel.SeedEnvironmentAsync(environmentName, variables, cancellationToken),
             () => DemoServerPort,
             _debugLogger);
+        _demoServerLifecycleCoordinator = new DemoServerLifecycleCoordinator(_demoServer, _debugLogger);
         _httpRequestWorkflow = new HttpRequestWorkflow(
             _httpRequestService,
             _requestEditor,
             GetActiveVariablesForEditor,
             _scriptRunner,
             _scriptViewModel,
+            _httpRequestsLogger);
+        _manualHttpRequestCoordinator = new ManualHttpRequestCoordinator(
+            _httpRequestWorkflow,
+            _requestEditor,
+            _collectionsWorkflow,
+            LoadCollectionsAsync,
+            LoadHistoryAsync,
             _httpRequestsLogger);
         _webSocketViewModel = new WebSocketViewModel(appLogger);
         _sseViewModel = new SseViewModel(_protocolHttpClient, appLogger);
@@ -1339,145 +1369,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         UpdateLayoutNameCounter();
     }
 
-    private void UpdateResponsePresentation(string responseBody, IReadOnlyList<(string Name, string Value)> headers)
-    {
-        ResponseContentType = GetResponseContentType(headers);
-        var mediaType = HttpContentTypeHelper.NormalizeMediaType(ResponseContentType);
-        var isJson = HttpContentTypeHelper.IsJsonMediaType(mediaType);
-        var isXml = HttpContentTypeHelper.IsXmlMediaType(mediaType);
-        var isHtml = HttpContentTypeHelper.IsHtmlMediaType(mediaType);
-
-        IsBinaryResponse = IsBinaryMediaType(mediaType);
-        if (isJson)
-        {
-            ResponseBodyTabLabel = "JSON";
-        }
-        else if (isXml)
-        {
-            ResponseBodyTabLabel = "XML";
-        }
-        else
-        {
-            ResponseBodyTabLabel = "Body";
-        }
-
-        IsResponseWebViewAvailable = false;
-        ResponseWebViewUri = "about:blank";
-
-        if (IsBinaryResponse)
-        {
-            ResponseBody = $"Binary response ({mediaType}). Use \"Save and Open\" to inspect the content.";
-            RawResponseBody = ResponseBody;
-            return;
-        }
-
-        if (isJson && TryFormatJson(responseBody, out var formattedJson))
-        {
-            ResponseBody = formattedJson;
-            return;
-        }
-
-        if ((isXml || isHtml) && TryFormatXml(responseBody, out var formattedXml))
-        {
-            ResponseBody = formattedXml;
-            if (isHtml && TryBuildResponseWebViewUri(responseBody, out var webViewUri))
-            {
-                IsResponseWebViewAvailable = true;
-                ResponseWebViewUri = webViewUri;
-            }
-
-            return;
-        }
-
-        ResponseBody = responseBody;
-        if (isHtml && TryBuildResponseWebViewUri(responseBody, out var fallbackWebViewUri))
-        {
-            IsResponseWebViewAvailable = true;
-            ResponseWebViewUri = fallbackWebViewUri;
-        }
-    }
-
-    private static string GetResponseContentType(IReadOnlyList<(string Name, string Value)> headers) =>
-        headers.FirstOrDefault(h => string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase)).Value ?? string.Empty;
-
-    private static bool IsBinaryMediaType(string mediaType)
-    {
-        if (string.IsNullOrWhiteSpace(mediaType))
-        {
-            return false;
-        }
-
-        if (mediaType.StartsWith("text/", StringComparison.Ordinal)
-            || HttpContentTypeHelper.IsJsonMediaType(mediaType)
-            || HttpContentTypeHelper.IsXmlMediaType(mediaType)
-            || HttpContentTypeHelper.IsHtmlMediaType(mediaType))
-        {
-            return false;
-        }
-
-        return mediaType.StartsWith("image/", StringComparison.Ordinal)
-               || mediaType.StartsWith("audio/", StringComparison.Ordinal)
-               || mediaType.StartsWith("video/", StringComparison.Ordinal)
-               || mediaType is "application/octet-stream"
-               || mediaType is "application/zip"
-               || mediaType is "application/pdf"
-               || mediaType is "application/msword"
-               || mediaType is "application/vnd.ms-excel"
-               || mediaType is "application/vnd.ms-powerpoint"
-               || mediaType.StartsWith("application/vnd.openxmlformats-officedocument.", StringComparison.Ordinal);
-    }
-
-    private static bool TryFormatJson(string input, out string formatted)
-    {
-        try
-        {
-            using var jsonDocument = JsonDocument.Parse(input);
-            formatted = JsonSerializer.Serialize(jsonDocument, new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
-            return true;
-        }
-        catch (JsonException)
-        {
-            formatted = string.Empty;
-            return false;
-        }
-    }
-
-    private static bool TryFormatXml(string input, out string formatted)
-    {
-        try
-        {
-            var document = XDocument.Parse(input, LoadOptions.PreserveWhitespace);
-            using var writer = new StringWriter();
-            using var xmlWriter = XmlWriter.Create(writer, new XmlWriterSettings
-            {
-                OmitXmlDeclaration = false,
-                Indent = true,
-                NewLineOnAttributes = false
-            });
-            document.Save(xmlWriter);
-            xmlWriter.Flush();
-            formatted = writer.ToString();
-            return true;
-        }
-        catch (XmlException)
-        {
-            formatted = string.Empty;
-            return false;
-        }
-    }
-
-    private static bool TryBuildResponseWebViewUri(string htmlResponseBody, out string uri)
-    {
-        if (string.IsNullOrWhiteSpace(htmlResponseBody))
-        {
-            uri = string.Empty;
-            return false;
-        }
-
-        var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(htmlResponseBody));
-        uri = $"data:text/html;charset=utf-8;base64,{encoded}";
-        return true;
-    }
     [RelayCommand]
     private void AddScheduledJob()
     {
@@ -1870,48 +1761,39 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     [RelayCommand]
     private async Task StartDemoServerAsync()
     {
-        if (_demoServer is null || _demoServer.IsRunning)
+        var outcome = await _demoServerLifecycleCoordinator.StartAsync(
+            DemoServerPort,
+            DemoServerHttpsPort,
+            IsDemoServerHttpEnabled,
+            IsDemoServerHttpsEnabled);
+
+        if (outcome.ErrorMessage is { } errorMessage)
+        {
+            ErrorMessage = errorMessage;
+            return;
+        }
+
+        if (!outcome.Changed)
         {
             return;
         }
 
-        if (!IsDemoServerHttpEnabled && !IsDemoServerHttpsEnabled)
-        {
-            ErrorMessage = "Enable at least one of HTTP or HTTPS before starting the demo server.";
-            return;
-        }
-
-        try
-        {
-            await _demoServer.StartAsync(DemoServerPort, DemoServerHttpsPort, IsDemoServerHttpEnabled, IsDemoServerHttpsEnabled);
-            IsDemoServerRunning = true;
-            IsDemoServerBannerVisible = false;
-            _debugLogger.Information(
-                "Demo server started — HTTP: {HttpEnabled} port {HttpPort}, HTTPS: {HttpsEnabled} port {HttpsPort}",
-                IsDemoServerHttpEnabled,
-                DemoServerPort,
-                IsDemoServerHttpsEnabled,
-                DemoServerHttpsPort);
-        }
-        catch (Exception ex) when (ex is IOException or InvalidOperationException)
-        {
-            ErrorMessage = $"Failed to start demo server: {ex.Message}";
-            _debugLogger.Error(ex, "Failed to start demo server on port {Port}/{HttpsPort}", DemoServerPort, DemoServerHttpsPort);
-        }
+        ErrorMessage = string.Empty;
+        IsDemoServerRunning = outcome.IsRunning;
+        IsDemoServerBannerVisible = false;
     }
 
     /// <summary>Stops the embedded demo server.</summary>
     [RelayCommand]
     private async Task StopDemoServerAsync()
     {
-        if (_demoServer is null || !_demoServer.IsRunning)
+        var outcome = await _demoServerLifecycleCoordinator.StopAsync();
+        if (!outcome.Changed)
         {
             return;
         }
 
-        await _demoServer.StopAsync();
-        IsDemoServerRunning = false;
-        _debugLogger.Information("Demo server stopped");
+        IsDemoServerRunning = outcome.IsRunning;
     }
 
     /// <summary>Dismisses the "demo server not running" banner without starting the server.</summary>
@@ -1935,27 +1817,23 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     [RelayCommand]
     private async Task CreateCollectionAsync(CancellationToken cancellationToken)
     {
-        var name = NewCollectionName.Trim();
-        if (string.IsNullOrWhiteSpace(name))
+        var outcome = await _collectionsManagementCoordinator.CreateCollectionAsync(NewCollectionName, cancellationToken);
+        if (outcome.ErrorMessage is { } errorMessage)
         {
+            ErrorMessage = errorMessage;
             return;
         }
 
-        if (Collections.Any(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase)))
+        if (!outcome.Changed)
         {
-            ErrorMessage = $"A collection named \"{name}\" already exists. Choose a different name.";
             return;
         }
 
         ErrorMessage = string.Empty;
-        var id = await _collectionRepository.SaveAsync(name, null, null, [], cancellationToken: cancellationToken);
         IsNewCollectionFormVisible = false;
         NewCollectionName = string.Empty;
-
-        await LoadCollectionsAsync(cancellationToken);
-        SelectedCollection = Collections.FirstOrDefault(c => c.Id == id);
+        SelectedCollection = Collections.FirstOrDefault(collection => collection.Id == outcome.SelectedCollectionId);
         LeftPanelTab = "Collections";
-        _debugLogger.Information("Created new collection {CollectionName}", name);
     }
 
     [RelayCommand]
@@ -1980,86 +1858,34 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     [RelayCommand]
     private async Task ConfirmRenameCollectionAsync(CancellationToken cancellationToken)
     {
-        if (SelectedCollection is not { } collection)
+        var outcome = await _collectionsManagementCoordinator.RenameSelectedCollectionAsync(RenameCollectionName, cancellationToken);
+        if (outcome.ErrorMessage is { } errorMessage)
         {
+            ErrorMessage = errorMessage;
             return;
         }
 
-        var newName = RenameCollectionName.Trim();
-        if (string.IsNullOrWhiteSpace(newName))
+        if (!outcome.Changed)
         {
-            return;
-        }
-
-        if (Collections.Any(c => c.Id != collection.Id && string.Equals(c.Name, newName, StringComparison.OrdinalIgnoreCase)))
-        {
-            ErrorMessage = $"A collection named \"{newName}\" already exists. Choose a different name.";
             return;
         }
 
         ErrorMessage = string.Empty;
-        await _collectionRepository.UpdateAsync(collection.Id, newName, collection.SourcePath, collection.BaseUrl, collection.Requests, collection.Headers, cancellationToken);
         IsRenameCollectionFormVisible = false;
         RenameCollectionName = string.Empty;
-        _debugLogger.Information("Renamed collection {OldName} to {NewName}", collection.Name, newName);
-
-        await LoadCollectionsAsync(cancellationToken);
-        SelectedCollection = Collections.FirstOrDefault(candidateCollection => candidateCollection.Id == collection.Id);
+        SelectedCollection = Collections.FirstOrDefault(collection => collection.Id == outcome.SelectedCollectionId);
     }
 
     [RelayCommand]
     private async Task AddRequestToCollectionAsync()
     {
-        if (SelectedCollection is not { } collection)
+        var outcome = await _collectionsManagementCoordinator.AddCurrentRequestToSelectedCollectionAsync();
+        if (!outcome.Changed)
         {
             return;
         }
 
-        var draft = _requestEditor.BuildResolvedHttpRequestDraft();
-
-        var baseUrl = collection.BaseUrl?.TrimEnd('/');
-        string path;
-
-        if (string.IsNullOrWhiteSpace(baseUrl))
-        {
-            path = draft.Url;
-        }
-        else if (draft.Url.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase))
-        {
-            path = draft.Url[baseUrl.Length..];
-        }
-        else if (Uri.TryCreate(draft.Url, UriKind.Absolute, out var absoluteUri))
-        {
-            path = absoluteUri.PathAndQuery + absoluteUri.Fragment;
-        }
-        else
-        {
-            path = draft.Url;
-        }
-
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            path = "/";
-        }
-
-        var newRequest = new CollectionRequest(
-            string.IsNullOrWhiteSpace(draft.Name) ? draft.Method + " " + path : draft.Name,
-            draft.Method,
-            path,
-            null);
-
-        var updatedRequests = collection.Requests.Append(newRequest).ToList();
-        await _collectionRepository.UpdateAsync(
-            collection.Id,
-            collection.Name,
-            collection.SourcePath,
-            collection.BaseUrl,
-            updatedRequests,
-            collection.Headers);
-
-        await LoadCollectionsAsync();
-        SelectedCollection = Collections.FirstOrDefault(c => c.Id == collection.Id);
-        _debugLogger.Information("Added request {RequestName} to collection {CollectionName}", newRequest.Name, collection.Name);
+        SelectedCollection = Collections.FirstOrDefault(collection => collection.Id == outcome.SelectedCollectionId);
     }
 
     [RelayCommand]
@@ -2938,9 +2764,33 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             string.Equals(uri.Host, "127.0.0.1", StringComparison.Ordinal))
         && uri.Port == port;
 
-    private static bool IsAbsoluteHttpOrHttpsUrl(string url) =>
-        Uri.TryCreate(url, UriKind.Absolute, out var uri)
-        && uri.Scheme is "http" or "https";
+    private void ApplyHttpResponseProjection(HttpResponseDetails response)
+    {
+        var projection = _httpResponseProjectionWorkflow.BuildProjection(response);
+
+        ResponseStatus = projection.ResponseStatus;
+        ResponseStatusCode = projection.ResponseStatusCode;
+        ResponseTimeDisplay = projection.ResponseTimeDisplay;
+        ResponseSizeDisplay = projection.ResponseSizeDisplay;
+        _lastResponseBodyBytes = projection.LastResponseBodyBytes;
+        RawResponseBody = projection.RawResponseBody;
+
+        ResponseHeaders.Clear();
+        foreach (var responseHeader in projection.ResponseHeaders)
+        {
+            ResponseHeaders.Add(responseHeader);
+        }
+
+        HasResponseHeaders = projection.HasResponseHeaders;
+        ResponseContentType = projection.ResponseContentType;
+        ResponseBodyTabLabel = projection.ResponseBodyTabLabel;
+        IsBinaryResponse = projection.IsBinaryResponse;
+        ResponseBody = projection.ResponseBody;
+        IsResponseWebViewAvailable = projection.IsResponseWebViewAvailable;
+        ResponseWebViewUri = projection.ResponseWebViewUri;
+        ResponseRawText = projection.ResponseRawText;
+        HasTextResponse = projection.HasTextResponse;
+    }
 
     private void OnRequestBodyFileChanged(object sender, FileSystemEventArgs e)
     {
@@ -3022,23 +2872,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
         SelectedDefaultContentTypeOption = DefaultContentTypeCustomOption;
         CustomDefaultContentType = value;
-    }
-
-    private void UpdateResponseRawText()
-    {
-        if (string.IsNullOrEmpty(RawResponseBody))
-        {
-            ResponseRawText = string.Empty;
-            return;
-        }
-
-        if (ResponseHeaders.Count == 0)
-        {
-            ResponseRawText = RawResponseBody;
-            return;
-        }
-
-        ResponseRawText = $"{string.Join(Environment.NewLine, ResponseHeaders)}{Environment.NewLine}{Environment.NewLine}{RawResponseBody}";
     }
 
     /// <summary>
@@ -3218,124 +3051,54 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
     private async Task SendHttpRequestAsync(CancellationToken cancellationToken)
     {
-        try
+        var outcome = await _manualHttpRequestCoordinator.SendAsync(cancellationToken);
+        if (!outcome.IsSuccessful)
         {
-            var executionResult = await _httpRequestWorkflow.SendAsync(cancellationToken);
-            if (!executionResult.IsSuccessful)
+            ErrorMessage = outcome.ErrorMessage;
+            if (outcome.ClearResponseMetadata)
             {
-                ErrorMessage = executionResult.ErrorMessage ?? string.Empty;
-                return;
+                ResponseStatusCode = 0;
+                ResponseTimeDisplay = string.Empty;
+                ResponseSizeDisplay = string.Empty;
             }
 
-            var mutatedDraft = executionResult.RequestDraft;
-            var response = executionResult.Response;
-            if (mutatedDraft is null || response is null)
-            {
-                ErrorMessage = string.Empty;
-                return;
-            }
-
-            if (_requestEditor.ValidateUrlBeforeSend && !IsAbsoluteHttpOrHttpsUrl(mutatedDraft.Url))
-            {
-                ErrorMessage = Strings.RequestInvalidResolvedUrlMessage;
-                return;
-            }
-
-            ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
-            ResponseStatusCode = response.StatusCode;
-            ResponseTimeDisplay = FormatElapsedMilliseconds(response.ElapsedMilliseconds);
-            ResponseSizeDisplay = FormatByteSize(response.BodyBytes?.LongLength ?? 0);
-            _lastResponseBodyBytes = response.BodyBytes ?? [];
-            RawResponseBody = response.Body;
-
-            ResponseHeaders.Clear();
-            foreach (var (name, value) in response.Headers)
-            {
-                ResponseHeaders.Add($"{name}: {value}");
-            }
-
-            HasResponseHeaders = ResponseHeaders.Count > 0;
-            UpdateResponsePresentation(response.Body, response.Headers);
-            UpdateResponseRawText();
-            HasTextResponse = HasResponseHeaders && !IsBinaryResponse;
-
-            _cookieJarViewModel.RefreshCookies();
-            var implicitCollectionRequest = _collectionsWorkflow.BuildCollectionRequestFromResolvedHttpDraft(
-                mutatedDraft,
-                _requestEditor.RequestNotes,
-                _requestEditor.ContentType);
-            await _collectionsWorkflow.SaveRequestToImplicitCollectionBestEffortAsync(
-                implicitCollectionRequest,
-                LoadCollectionsAsync,
-                cancellationToken);
-            await LoadHistoryAsync();
+            return;
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+
+        if (outcome.Response is not { } response)
         {
-            _httpRequestsLogger.Information("Manual request cancelled by user");
-            ErrorMessage = "Request cancelled.";
+            ErrorMessage = string.Empty;
+            return;
         }
-        catch (OperationCanceledException)
-        {
-            _httpRequestsLogger.Warning("Manual request timed out");
-            ErrorMessage = "Request timed out.";
-        }
-        catch (Exception exception)
-        {
-            _httpRequestsLogger.Error(exception, "Manual request failed");
-            ErrorMessage = exception.Message;
-            ResponseStatusCode = 0;
-            ResponseTimeDisplay = string.Empty;
-            ResponseSizeDisplay = string.Empty;
-        }
+
+        ApplyHttpResponseProjection(response);
+        _cookieJarViewModel.RefreshCookies();
     }
 
     private async Task SendGraphQlRequestAsync(CancellationToken cancellationToken = default)
     {
-        try
+        var outcome = await _manualGraphQlRequestCoordinator.SendAsync(cancellationToken);
+        if (!outcome.IsSuccessful)
         {
-            var executionResult = await _graphQlRequestWorkflow.SendAsync(cancellationToken);
-            var response = executionResult.Response;
-
-            ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
-            ResponseStatusCode = response.StatusCode;
-            ResponseTimeDisplay = FormatElapsedMilliseconds(response.ElapsedMilliseconds);
-            ResponseSizeDisplay = FormatByteSize(response.BodyBytes?.LongLength ?? 0);
-            _lastResponseBodyBytes = response.BodyBytes ?? [];
-            RawResponseBody = response.Body;
-
-            ResponseHeaders.Clear();
-            foreach (var (name, value) in response.Headers)
+            ErrorMessage = outcome.ErrorMessage;
+            if (outcome.ClearResponseMetadata)
             {
-                ResponseHeaders.Add($"{name}: {value}");
+                ResponseStatusCode = 0;
+                ResponseTimeDisplay = string.Empty;
+                ResponseSizeDisplay = string.Empty;
             }
 
-            HasResponseHeaders = ResponseHeaders.Count > 0;
-            UpdateResponsePresentation(response.Body, response.Headers);
-            UpdateResponseRawText();
-            HasTextResponse = HasResponseHeaders && !IsBinaryResponse;
+            return;
+        }
 
-            _cookieJarViewModel.RefreshCookies();
-            var implicitCollectionRequest = _collectionsWorkflow.BuildCollectionRequestFromGraphQlState(
-                executionResult.Url,
-                _requestEditor.RequestName,
-                _requestEditor.RequestNotes,
-                _graphQlViewModel.BuildRequestBodyJson(),
-                executionResult.Headers);
-            await _collectionsWorkflow.SaveRequestToImplicitCollectionBestEffortAsync(
-                implicitCollectionRequest,
-                LoadCollectionsAsync,
-                cancellationToken);
-            await LoadHistoryAsync();
-        }
-        catch (Exception exception)
+        if (outcome.Response is not { } response)
         {
-            _httpRequestsLogger.Error(exception, "GraphQL request failed");
-            ErrorMessage = exception.Message;
-            ResponseStatusCode = 0;
-            ResponseTimeDisplay = string.Empty;
-            ResponseSizeDisplay = string.Empty;
+            ErrorMessage = string.Empty;
+            return;
         }
+
+        ApplyHttpResponseProjection(response);
+        _cookieJarViewModel.RefreshCookies();
     }
 
     private async Task ToggleWebSocketConnectionAsync() =>
@@ -3344,49 +3107,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private async Task ToggleSseConnectionAsync() =>
         _streamingCts = await _streamingConnectionWorkflow.ToggleSseConnectionAsync(_streamingCts);
 
-    public static string FormatElapsedMilliseconds(double milliseconds)
-    {
-        if (milliseconds < 0)
-        {
-            milliseconds = 0;
-        }
+    public static string FormatElapsedMilliseconds(double milliseconds) =>
+        HttpResponseProjectionWorkflow.FormatElapsedMilliseconds(milliseconds);
 
-        if (milliseconds < 1000)
-        {
-            return $"{Math.Round(milliseconds)} ms";
-        }
-
-        var seconds = milliseconds / 1000.0;
-        return seconds < 60
-            ? $"{seconds.ToString("0.00", CultureInfo.InvariantCulture)} s"
-            : $"{((long)seconds) / 60} min {((long)seconds) % 60} s";
-    }
-
-    public static string FormatByteSize(long byteCount)
-    {
-        if (byteCount < 0)
-        {
-            byteCount = 0;
-        }
-
-        const double kilobyte = 1024.0;
-        const double megabyte = kilobyte * 1024.0;
-        const double gigabyte = megabyte * 1024.0;
-
-        if (byteCount < kilobyte)
-        {
-            return $"{byteCount} B";
-        }
-        if (byteCount < megabyte)
-        {
-            return $"{(byteCount / kilobyte).ToString("0.##", CultureInfo.InvariantCulture)} KB";
-        }
-        if (byteCount < gigabyte)
-        {
-            return $"{(byteCount / megabyte).ToString("0.##", CultureInfo.InvariantCulture)} MB";
-        }
-        return $"{(byteCount / gigabyte).ToString("0.##", CultureInfo.InvariantCulture)} GB";
-    }
+    public static string FormatByteSize(long byteCount) =>
+        HttpResponseProjectionWorkflow.FormatByteSize(byteCount);
 
     private async Task LoadHistoryAsync(CancellationToken cancellationToken = default)
     {
