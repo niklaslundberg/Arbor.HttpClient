@@ -6,7 +6,6 @@ using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Scripting;
 using Arbor.HttpClient.Desktop.Features.Variables;
 using Arbor.HttpClient.Desktop.Shared;
-using Avalonia.Controls.Primitives;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -567,9 +566,16 @@ public partial class RequestView : UserControl
             return;
         }
 
-        _requestDraftTopRowHeightBeforePreviewHidden = topRow.Height;
-        _requestDraftPreviewRowHeightBeforePreviewHidden = previewRow.Height;
-        _requestDraftPreviewRowMinHeightBeforePreviewHidden = previewRow.MinHeight;
+        var isPreviewRowCollapsed =
+            splitterRow.Height.IsAbsolute && splitterRow.Height.Value == 0 &&
+            previewRow.Height.IsAbsolute && previewRow.Height.Value == 0 &&
+            previewRow.MinHeight == 0;
+        if (!isPreviewRowCollapsed)
+        {
+            _requestDraftTopRowHeightBeforePreviewHidden = topRow.Height;
+            _requestDraftPreviewRowHeightBeforePreviewHidden = previewRow.Height;
+            _requestDraftPreviewRowMinHeightBeforePreviewHidden = previewRow.MinHeight;
+        }
 
         topRow.Height = new GridLength(1, GridUnitType.Star);
         splitterRow.Height = new GridLength(0);
@@ -803,4 +809,3 @@ public partial class RequestView : UserControl
     private static IReadOnlyList<string> GetEnvVariableNames() =>
         VariableNameHelper.GetSystemEnvironmentVariableNames();
 }
-
