@@ -55,7 +55,7 @@ public sealed class ManualGraphQlRequestCoordinator
 
             return ManualGraphQlRequestOutcome.Success(executionResult.Response);
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             _httpRequestsLogger.Error(exception, "GraphQL request failed");
             return ManualGraphQlRequestOutcome.Failed(exception.Message, clearResponseMetadata: true);

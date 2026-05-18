@@ -3,6 +3,7 @@ using Arbor.HttpClient.Core.HttpRequest;
 using Arbor.HttpClient.Core.Scripting;
 using Arbor.HttpClient.Core.Variables;
 using Arbor.HttpClient.Desktop.Features.Scripting;
+using Arbor.HttpClient.Desktop.Localization;
 using Serilog;
 
 namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
@@ -76,6 +77,11 @@ public sealed class HttpRequestWorkflow
             Headers = mutatedHeaders.Count > 0 ? mutatedHeaders : draft.Headers
         };
 
+        if (_requestEditor.ValidateUrlBeforeSend && !IsAbsoluteHttpOrHttpsUrl(mutatedDraft.Url))
+        {
+            return HttpRequestExecutionResult.PreRequestFailed(Strings.RequestInvalidResolvedUrlMessage);
+        }
+
         var response = await _httpRequestService.SendAsync(mutatedDraft, cancellationToken);
 
         _httpRequestsLogger.Information("Manual request completed: {StatusCode} {ReasonPhrase}", response.StatusCode, response.ReasonPhrase);
@@ -94,6 +100,10 @@ public sealed class HttpRequestWorkflow
 
         return HttpRequestExecutionResult.Success(mutatedDraft, response);
     }
+
+    private static bool IsAbsoluteHttpOrHttpsUrl(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && uri.Scheme is "http" or "https";
 }
 
 public sealed record HttpRequestExecutionResult

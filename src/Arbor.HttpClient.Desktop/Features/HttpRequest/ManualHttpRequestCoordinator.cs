@@ -1,6 +1,5 @@
 using Arbor.HttpClient.Core.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.Collections;
-using Arbor.HttpClient.Desktop.Localization;
 using Serilog;
 
 namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
@@ -50,11 +49,6 @@ public sealed class ManualHttpRequestCoordinator
                 return ManualHttpRequestOutcome.Failed(string.Empty);
             }
 
-            if (_requestEditor.ValidateUrlBeforeSend && !IsAbsoluteHttpOrHttpsUrl(mutatedDraft.Url))
-            {
-                return ManualHttpRequestOutcome.Failed(Strings.RequestInvalidResolvedUrlMessage);
-            }
-
             var implicitCollectionRequest = _collectionsWorkflow.BuildCollectionRequestFromResolvedHttpDraft(
                 mutatedDraft,
                 _requestEditor.RequestNotes,
@@ -77,16 +71,12 @@ public sealed class ManualHttpRequestCoordinator
             _httpRequestsLogger.Warning("Manual request timed out");
             return ManualHttpRequestOutcome.Failed("Request timed out.");
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             _httpRequestsLogger.Error(exception, "Manual request failed");
             return ManualHttpRequestOutcome.Failed(exception.Message, clearResponseMetadata: true);
         }
     }
-
-    private static bool IsAbsoluteHttpOrHttpsUrl(string url) =>
-        Uri.TryCreate(url, UriKind.Absolute, out var uri)
-        && uri.Scheme is "http" or "https";
 }
 
 public sealed record ManualHttpRequestOutcome

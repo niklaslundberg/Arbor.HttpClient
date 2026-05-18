@@ -190,7 +190,7 @@ public sealed class LayoutTreeWorkflow
             floatingLayoutWindow.Width = floatingWindow.Width;
             floatingLayoutWindow.Height = floatingWindow.Height;
 
-            if (floatingLayoutWindow.Layout is IDock floatDock)
+            if (floatingLayoutWindow.Layout is { } floatDock)
             {
                 for (var i = 1; i < floatingWindow.DockableIds.Count; i++)
                 {
@@ -572,21 +572,12 @@ public sealed class LayoutTreeWorkflow
             .ToDictionary(dockable => dockable.Id, StringComparer.OrdinalIgnoreCase);
 
         var reordered = new List<IDockable>(visibleDockables.Count);
-        foreach (var id in orderedDockableIds)
-        {
-            if (byId.TryGetValue(id, out var dockable) && !reordered.Contains(dockable))
-            {
-                reordered.Add(dockable);
-            }
-        }
+        reordered.AddRange(orderedDockableIds
+            .Where(byId.ContainsKey)
+            .Select(id => byId[id])
+            .Where(dockable => !reordered.Contains(dockable)));
 
-        foreach (var dockable in visibleDockables)
-        {
-            if (!reordered.Contains(dockable))
-            {
-                reordered.Add(dockable);
-            }
-        }
+        reordered.AddRange(visibleDockables.Where(dockable => !reordered.Contains(dockable)));
 
         visibleDockables.Clear();
         foreach (var dockable in reordered)
@@ -618,14 +609,9 @@ public sealed class LayoutTreeWorkflow
 
         if (dockable is IDock dock && dock.VisibleDockables is { } childDockables)
         {
-            foreach (var child in childDockables)
-            {
-                var childDock = FindDockById<T>(child, id);
-                if (childDock is { } found)
-                {
-                    return found;
-                }
-            }
+            return childDockables
+                .Select(child => FindDockById<T>(child, id))
+                .FirstOrDefault(childDock => childDock is not null);
         }
 
         return null;
