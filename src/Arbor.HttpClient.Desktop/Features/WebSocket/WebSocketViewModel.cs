@@ -1,4 +1,8 @@
 using System.Collections.ObjectModel;
+using System.Reactive;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using Arbor.HttpClient.Desktop.Shared;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -16,6 +20,9 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
 {
     private readonly WebSocketService _service = new();
     private readonly ILogger _logger;
+    private readonly Subject<WebSocketMessage> _messageReceivedSubject = new();
+    private readonly Subject<Unit> _disconnectedSubject = new();
+    private readonly CompositeDisposable _subscriptions = new();
     private CancellationTokenSource? _connectionCts;
     private bool _disposed;
 
@@ -31,12 +38,38 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
 
     /// <summary>All frames exchanged in the current session, newest last.</summary>
     public ObservableCollection<WebSocketMessage> Messages { get; } = [];
+    public IObservable<WebSocketMessage> MessageReceivedObservable => _messageReceivedSubject.AsObservable();
+    public IObservable<Unit> DisconnectedObservable => _disconnectedSubject.AsObservable();
 
     public string ConnectButtonLabel => IsConnected ? "Disconnect" : "Connect";
 
     public WebSocketViewModel(ILogger logger)
     {
         _logger = logger.ForContext<WebSocketViewModel>();
+
+        _subscriptions.Add(MessageReceivedObservable.Subscribe(msg =>
+        {
+            if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+            {
+                Messages.Add(msg);
+            }
+            else
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => Messages.Add(msg));
+            }
+        }));
+
+        _subscriptions.Add(DisconnectedObservable.Subscribe(_ =>
+        {
+            if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+            {
+                IsConnected = false;
+            }
+            else
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => IsConnected = false);
+            }
+        }));
     }
 
     /// <summary>Connects to the supplied WebSocket URL with optional extra headers.</summary>
@@ -62,10 +95,10 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
 
             await _service.ConnectAsync(
                 url,
-                msg => Avalonia.Threading.Dispatcher.UIThread.Post(() => Messages.Add(msg)),
-                () => Avalonia.Threading.Dispatcher.UIThread.Post(() => IsConnected = false),
-                headers,
-                _connectionCts.Token).ConfigureAwait(false);
+                msg => _messageReceivedSubject.OnNext(msg),
+                onDisconnected: () => _disconnectedSubject.OnNext(Unit.Default),
+                additionalHeaders: headers,
+                cancellationToken: _connectionCts.Token).ConfigureAwait(false);
 
             Avalonia.Threading.Dispatcher.UIThread.Post(() => IsConnected = true);
             _logger.Information("WebSocket connected to {Url}", url);
@@ -160,6 +193,9 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
         }
 
         _disposed = true;
+        _messageReceivedSubject.OnCompleted();
+        _disconnectedSubject.OnCompleted();
+        _subscriptions.Dispose();
         _connectionCts?.Cancel();
         _connectionCts?.Dispose();
         _connectionCts = null;
