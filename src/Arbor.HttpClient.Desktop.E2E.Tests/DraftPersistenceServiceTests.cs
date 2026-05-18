@@ -64,6 +64,7 @@ public class DraftPersistenceServiceTests
             ValidateUrlBeforeSend = false,
             PrettyPrintRequestBody = true,
             PrettyPrintRequestBodyUseIndentation = false,
+            ShowRequestPreview = false,
             TlsVersionOverrideOption = "Tls12",
             HttpVersion = "2.0",
             ContentTypeOption = "application/json",
@@ -92,6 +93,7 @@ public class DraftPersistenceServiceTests
         loaded.ValidateUrlBeforeSend.Should().BeFalse();
         loaded.PrettyPrintRequestBody.Should().BeTrue();
         loaded.PrettyPrintRequestBodyUseIndentation.Should().BeFalse();
+        loaded.ShowRequestPreview.Should().BeFalse();
         loaded.TlsVersionOverrideOption.Should().Be("Tls12");
         loaded.HttpVersion.Should().Be("2.0");
         loaded.ContentTypeOption.Should().Be("application/json");
@@ -147,6 +149,7 @@ public class DraftPersistenceServiceTests
         editor.ValidateUrlBeforeSend = false;
         editor.PrettyPrintRequestBody = true;
         editor.PrettyPrintRequestBodyUseIndentation = false;
+        editor.ShowRequestPreview = false;
         editor.SelectedTlsVersionOverrideOption = "Tls13";
         editor.RequestNotes = "my note";
         editor.RequestHeaders.Add(new RequestHeaderViewModel { Name = "Accept", Value = "application/json", IsEnabled = true });
@@ -159,6 +162,7 @@ public class DraftPersistenceServiceTests
         draft.ValidateUrlBeforeSend.Should().BeFalse();
         draft.PrettyPrintRequestBody.Should().BeTrue();
         draft.PrettyPrintRequestBodyUseIndentation.Should().BeFalse();
+        draft.ShowRequestPreview.Should().BeFalse();
         draft.TlsVersionOverrideOption.Should().Be("Tls13");
         draft.RequestNotes.Should().Be("my note");
         draft.Headers.Should().ContainSingle(h => h.Name == "Accept" && h.Value == "application/json");
@@ -181,6 +185,7 @@ public class DraftPersistenceServiceTests
             ValidateUrlBeforeSend = false,
             PrettyPrintRequestBody = true,
             PrettyPrintRequestBodyUseIndentation = false,
+            ShowRequestPreview = false,
             TlsVersionOverrideOption = "Tls12",
             HttpVersion = "2.0",
             ContentTypeOption = "application/xml",
@@ -206,6 +211,7 @@ public class DraftPersistenceServiceTests
         editor.ValidateUrlBeforeSend.Should().BeFalse();
         editor.PrettyPrintRequestBody.Should().BeTrue();
         editor.PrettyPrintRequestBodyUseIndentation.Should().BeFalse();
+        editor.ShowRequestPreview.Should().BeFalse();
         editor.SelectedTlsVersionOverrideOption.Should().Be("Tls12");
         editor.SelectedHttpVersionOption.Should().Be("2.0");
         editor.SelectedContentTypeOption.Should().Be("application/xml");
@@ -267,6 +273,7 @@ public class DraftPersistenceServiceTests
         original.RequestBody = "{}";
         original.PrettyPrintRequestBody = true;
         original.PrettyPrintRequestBodyUseIndentation = false;
+        original.ShowRequestPreview = false;
         original.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
         original.AuthBearerToken = "tok123";
         original.RequestHeaders.Add(new RequestHeaderViewModel { Name = "X-Foo", Value = "bar", IsEnabled = true });
@@ -282,6 +289,7 @@ public class DraftPersistenceServiceTests
         restored.RequestBody.Should().Be(original.RequestBody);
         restored.PrettyPrintRequestBody.Should().BeTrue();
         restored.PrettyPrintRequestBodyUseIndentation.Should().BeFalse();
+        restored.ShowRequestPreview.Should().BeFalse();
         restored.SelectedAuthModeOption.Should().Be(original.SelectedAuthModeOption);
         restored.AuthBearerToken.Should().Be(original.AuthBearerToken);
         restored.RequestHeaders.Should().ContainSingle(h => h.Name == "X-Foo" && h.Value == "bar");

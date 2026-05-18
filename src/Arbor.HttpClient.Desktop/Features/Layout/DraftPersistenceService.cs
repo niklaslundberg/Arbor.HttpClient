@@ -142,6 +142,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
             ValidateUrlBeforeSend = editor.ValidateUrlBeforeSend,
             PrettyPrintRequestBody = editor.PrettyPrintRequestBody,
             PrettyPrintRequestBodyUseIndentation = editor.PrettyPrintRequestBodyUseIndentation,
+            ShowRequestPreview = editor.ShowRequestPreview,
             IgnoreCertificateValidation = editor.IgnoreCertificateValidationForRequest,
             TlsVersionOverrideOption = editor.SelectedTlsVersionOverrideOption,
             RequestTimeoutSecondsText = editor.RequestTimeoutSecondsText,
@@ -175,6 +176,7 @@ public sealed class DraftPersistenceService(string draftsFolder)
         editor.ValidateUrlBeforeSend = state.ValidateUrlBeforeSend;
         editor.PrettyPrintRequestBody = state.PrettyPrintRequestBody;
         editor.PrettyPrintRequestBodyUseIndentation = state.PrettyPrintRequestBodyUseIndentation;
+        editor.ShowRequestPreview = state.ShowRequestPreview;
         editor.IgnoreCertificateValidationForRequest = state.IgnoreCertificateValidation;
         editor.SelectedTlsVersionOverrideOption = editor.TlsVersionOverrideOptions.Contains(state.TlsVersionOverrideOption)
             ? state.TlsVersionOverrideOption

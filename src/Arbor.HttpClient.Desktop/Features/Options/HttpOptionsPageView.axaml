@@ -27,6 +27,9 @@
     <CheckBox IsChecked="{Binding App.FollowHttpRedirects, Mode=TwoWay}"
               Content="{x:Static loc:Strings.OptionsFollowRedirects}" />
 
+    <CheckBox IsChecked="{Binding App.ShowRequestPreviewByDefault, Mode=TwoWay}"
+              Content="{x:Static loc:Strings.OptionsShowRequestPreviewByDefault}" />
+
     <CheckBox IsChecked="{Binding App.EnableHttpDiagnostics, Mode=TwoWay}"
               Content="{x:Static loc:Strings.OptionsEnableHttpDiagnostics}" />
 

@@ -333,6 +333,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private bool _followHttpRedirects = true;
 
     [ObservableProperty]
+    private bool _showRequestPreviewByDefault = true;
+
+    [ObservableProperty]
     private bool _enableHttpDiagnostics;
 
     [ObservableProperty]
@@ -462,6 +465,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
     partial void OnFollowHttpRedirectsChanged(bool value) =>
         LogAndQueueOptionsAutoSave("Follow redirects changed to {FollowRedirects}", value);
+
+    partial void OnShowRequestPreviewByDefaultChanged(bool value)
+    {
+        _requestEditor.ShowRequestPreview = value;
+        QueueOptionsAutoSave();
+    }
 
     partial void OnDefaultContentTypeChanged(string value)
     {
@@ -872,6 +881,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             RequestUrl = _applicationOptions.Http.DefaultRequestUrl,
             DefaultContentType = _applicationOptions.Http.DefaultContentType,
             FollowRedirectsForRequest = _applicationOptions.Http.FollowRedirects,
+            ShowRequestPreview = _applicationOptions.Http.ShowRequestPreviewByDefault,
             SelectedHttpVersionOption = _applicationOptions.Http.HttpVersion
         };
 
@@ -1026,6 +1036,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
                 EnableHttpDiagnostics = EnableHttpDiagnostics,
                 DefaultContentType = DefaultContentType,
                 FollowRedirects = FollowHttpRedirects,
+                ShowRequestPreviewByDefault = ShowRequestPreviewByDefault,
                 DefaultRequestUrl = DefaultRequestUrl,
                 ResponseSaveDefaultFolder = ResponseSaveDefaultFolder,
                 ResponseSaveFileNamePattern = ResponseSaveFileNamePattern,
@@ -1073,6 +1084,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             SelectedTlsVersionOption = options.Http.TlsVersion;
             EnableHttpDiagnostics = options.Http.EnableHttpDiagnostics;
             FollowHttpRedirects = options.Http.FollowRedirects;
+            ShowRequestPreviewByDefault = options.Http.ShowRequestPreviewByDefault;
             DefaultRequestUrl = options.Http.DefaultRequestUrl;
             DefaultContentType = options.Http.DefaultContentType;
             DefaultRequestTimeoutSeconds = options.Http.DefaultRequestTimeoutSeconds;

@@ -315,12 +315,20 @@ public class ScreenshotGenerator
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
             viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerValue", "blue"));
             viewModel.IsEnvironmentPanelVisible = true;
+            viewModel.RequestEditor.ShowRequestPreview = true;
 
             window.Show();
-            var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
-            if (tabControl is { })
+            var requestTabs = window.GetVisualDescendants()
+                .OfType<TabControl>()
+                .FirstOrDefault(control => control.Items.OfType<TabItem>().Any(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal)));
+            if (requestTabs is { })
             {
-                tabControl.SelectedIndex = 3;
+                var tabItems = requestTabs.Items.OfType<TabItem>().ToList();
+                var queryTab = tabItems.FirstOrDefault(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal));
+                if (queryTab is not null)
+                {
+                    requestTabs.SelectedIndex = tabItems.IndexOf(queryTab);
+                }
             }
 
             AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
@@ -732,4 +740,3 @@ public class ScreenshotGenerator
 
 
 }
-
