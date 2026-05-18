@@ -25,6 +25,7 @@ using Arbor.HttpClient.Desktop.Demo;
 using Arbor.HttpClient.Desktop.Features.Collections;
 using Arbor.HttpClient.Desktop.Features.Cookies;
 using Arbor.HttpClient.Desktop.Features.Diagnostics;
+using Arbor.HttpClient.Desktop.Features.Demo;
 using Arbor.HttpClient.Desktop.Features.Environments;
 using Arbor.HttpClient.Desktop.Features.GraphQl;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
@@ -35,6 +36,7 @@ using Arbor.HttpClient.Desktop.Features.Options;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Desktop.Features.Sse;
 using Arbor.HttpClient.Desktop.Features.WebSocket;
+using Arbor.HttpClient.Desktop.Features.Streaming;
 using Arbor.HttpClient.Desktop.Localization;
 using Arbor.HttpClient.Desktop.Shared;
 using Avalonia;
@@ -63,9 +65,11 @@ namespace Arbor.HttpClient.Desktop.Features.Main;
 public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponseActionsContext
 {
     private readonly HttpRequestService _httpRequestService;
+    private HttpRequestWorkflow _httpRequestWorkflow = null!;
     private readonly IRequestHistoryRepository _requestHistoryRepository;
     private readonly ICollectionRepository _collectionRepository;
     private readonly IScheduledJobRepository _scheduledJobRepository;
+    private CollectionsWorkflow _collectionsWorkflow = null!;
     private readonly ScheduledJobService _scheduledJobService;
     private readonly LogWindowViewModel _logWindowViewModel;
     private readonly OpenApiImportService _openApiImportService;
@@ -80,6 +84,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private OptionsViewModel _optionsViewModel = null!;
     private CookieJarViewModel _cookieJarViewModel = null!;
     private GraphQlViewModel _graphQlViewModel = null!;
+    private GraphQlRequestWorkflow _graphQlRequestWorkflow = null!;
+    private DemoDataWorkflow _demoDataWorkflow = null!;
+    private StreamingConnectionWorkflow _streamingConnectionWorkflow = null!;
     private WebSocketViewModel _webSocketViewModel = null!;
     private SseViewModel _sseViewModel = null!;
     private CancellationTokenSource? _streamingCts;
@@ -93,6 +100,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private readonly Subject<string> _collectionSearchFilterRequestedSubject = new();
     private readonly CompositeDisposable _collectionSearchFilterDisposables = new();
     private DockFactory? _dockFactory;
+    private readonly LayoutWorkflow _layoutWorkflow = new();
+    private readonly LayoutTreeWorkflow _layoutTreeWorkflow = new();
     private ApplicationOptions _applicationOptions = new();
     private readonly Dictionary<string, DockLayoutSnapshot> _savedLayouts = new(StringComparer.OrdinalIgnoreCase);
     private int _layoutNameCounter = 1;
@@ -120,22 +129,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private readonly ScriptViewModel _scriptViewModel = new();
     private readonly ResponseActionsViewModel _responseActions = null!;
     private const string DefaultContentTypeCustomOption = "Custom...";
-    private const string ImplicitCollectionName = "Implicit Requests";
-    private const string ImplicitCollectionSourcePath = "arbor://implicit-requests";
-    private static readonly JsonSerializerOptions GraphQlJsonOptions = new()
-    {
-        WriteIndented = true
-    };
-    private static readonly HashSet<string> SensitiveHeaderNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Authorization",
-        "Proxy-Authorization",
-        "Cookie",
-        "Set-Cookie",
-        "X-Api-Key",
-        "Api-Key",
-        "X-Auth-Token"
-    };
 
     private static readonly HashSet<string> AutoSaveOnlyOptionPropertyNames = new(StringComparer.Ordinal)
     {
@@ -902,9 +895,25 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             _debugLogger);
         _optionsViewModel = new OptionsViewModel(this);
         _cookieJarViewModel = new CookieJarViewModel(cookieContainer);
+        _collectionsWorkflow = new CollectionsWorkflow(_collectionRepository, _debugLogger);
         _graphQlViewModel = new GraphQlViewModel(_protocolHttpClient, appLogger);
+        _graphQlRequestWorkflow = new GraphQlRequestWorkflow(_requestEditor, _graphQlViewModel, _httpRequestsLogger);
+        _demoDataWorkflow = new DemoDataWorkflow(
+            _collectionRepository,
+            cancellationToken => _environmentsViewModel.GetAllEnvironmentsAsync(cancellationToken),
+            (environmentName, variables, cancellationToken) => _environmentsViewModel.SeedEnvironmentAsync(environmentName, variables, cancellationToken),
+            () => DemoServerPort,
+            _debugLogger);
+        _httpRequestWorkflow = new HttpRequestWorkflow(
+            _httpRequestService,
+            _requestEditor,
+            GetActiveVariablesForEditor,
+            _scriptRunner,
+            _scriptViewModel,
+            _httpRequestsLogger);
         _webSocketViewModel = new WebSocketViewModel(appLogger);
         _sseViewModel = new SseViewModel(_protocolHttpClient, appLogger);
+        _streamingConnectionWorkflow = new StreamingConnectionWorkflow(_requestEditor, _webSocketViewModel, _sseViewModel);
 
         History = [];
         Collections = [];
@@ -1610,17 +1619,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private void SaveLayoutAsNew()
     {
         RefreshDockTreeCache();
-        var layoutSnapshot = CaptureLayoutSnapshot();
-        if (layoutSnapshot is null)
+        var savedLayoutName = _layoutWorkflow.SaveLayoutAsNew(CaptureLayoutSnapshot, GenerateNextLayoutName, _savedLayouts);
+        if (string.IsNullOrWhiteSpace(savedLayoutName))
         {
             return;
         }
 
-        var name = GenerateNextLayoutName();
-        _savedLayouts[name] = layoutSnapshot;
         _suppressLayoutRestore = true;
         RefreshSavedLayoutNames();
-        SelectedLayoutName = name;
+        SelectedLayoutName = savedLayoutName;
         _suppressLayoutRestore = false;
         PersistLayoutOptions();
     }
@@ -1628,19 +1635,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     [RelayCommand]
     private void SaveLayoutToExisting(string? layoutName)
     {
-        if (string.IsNullOrWhiteSpace(layoutName))
-        {
-            return;
-        }
-
         RefreshDockTreeCache();
-        var layoutSnapshot = CaptureLayoutSnapshot();
-        if (layoutSnapshot is null)
+        if (!_layoutWorkflow.SaveLayoutToExisting(layoutName, CaptureLayoutSnapshot, _savedLayouts))
         {
             return;
         }
 
-        _savedLayouts[layoutName] = layoutSnapshot;
         _suppressLayoutRestore = true;
         RefreshSavedLayoutNames();
         SelectedLayoutName = layoutName;
@@ -1651,35 +1651,31 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     [RelayCommand]
     private void RestoreDefaultLayout()
     {
-        if (_defaultLayout is { } defaultLayout)
+        if (!_layoutWorkflow.RestoreDefaultLayout(_defaultLayout, ApplyLayoutSnapshot))
         {
-            ApplyLayoutSnapshot(defaultLayout);
-            _suppressLayoutRestore = true;
-            SelectedLayoutName = null;
-            _suppressLayoutRestore = false;
-            PersistLayoutOptions();
+            return;
         }
+
+        _suppressLayoutRestore = true;
+        SelectedLayoutName = null;
+        _suppressLayoutRestore = false;
+        PersistLayoutOptions();
     }
 
     [RelayCommand]
     private void RemoveLayout(string? layoutName)
     {
-        if (string.IsNullOrWhiteSpace(layoutName))
+        var removeLayoutResult = _layoutWorkflow.RemoveLayout(layoutName, _savedLayouts, SelectedLayoutName);
+        if (!removeLayoutResult.Removed)
         {
             return;
         }
 
-        if (_savedLayouts.Remove(layoutName))
-        {
-            _suppressLayoutRestore = true;
-            RefreshSavedLayoutNames();
-            if (string.Equals(SelectedLayoutName, layoutName, StringComparison.OrdinalIgnoreCase))
-            {
-                SelectedLayoutName = SavedLayoutNames.FirstOrDefault();
-            }
-            _suppressLayoutRestore = false;
-            PersistLayoutOptions();
-        }
+        _suppressLayoutRestore = true;
+        RefreshSavedLayoutNames();
+        SelectedLayoutName = removeLayoutResult.SelectedLayoutName;
+        _suppressLayoutRestore = false;
+        PersistLayoutOptions();
     }
 
     [RelayCommand]
@@ -1692,124 +1688,149 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             return;
         }
 
-        var collectionId = SelectedCollection?.Id ?? 0;
-        var existingTab = RequestTabs.FirstOrDefault(tab =>
-            tab.MatchesCollectionRequest(collectionId, item.Method, item.Path, item.Name));
-        if (existingTab is { })
+        if (TryActivateExistingCollectionRequestTab(item))
         {
-            ActiveRequestTab = existingTab;
             SyncActiveCollectionRequestInheritedHeaders();
             return;
         }
 
         NewRequestTab();
+        ApplyCollectionRequestToEditor(item);
+        SyncActiveCollectionRequestInheritedHeaders();
+    }
 
-        // Suppress intermediate refreshes while populating the new editor; a single
-        // refresh fires when the handle is disposed at the end of this block.
+    private bool TryActivateExistingCollectionRequestTab(CollectionItemViewModel item)
+    {
+        var collectionId = SelectedCollection?.Id ?? 0;
+        var existingTab = RequestTabs.FirstOrDefault(tab =>
+            tab.MatchesCollectionRequest(collectionId, item.Method, item.Path, item.Name));
+        if (existingTab is null)
+        {
+            return false;
+        }
+
+        ActiveRequestTab = existingTab;
+        return true;
+    }
+
+    private void ApplyCollectionRequestToEditor(CollectionItemViewModel item)
+    {
         using (_requestEditor.BeginBulkUpdate())
         {
-            // Detect special protocol methods used in demo collections.
-            _requestEditor.SelectedRequestType = item.Method switch
-            {
-                "WS" or "WSS" => RequestType.WebSocket,
-                "SSE" => RequestType.Sse,
-                _ => RequestType.Http
-            };
-
-            if (_requestEditor.SelectedRequestType == RequestType.Http)
+            var requestType = ResolveCollectionRequestType(item.Method);
+            _requestEditor.SelectedRequestType = requestType;
+            if (requestType == RequestType.Http)
             {
                 _requestEditor.SelectedMethod = item.Method;
             }
 
-            var collectionBaseUrl = SelectedCollection?.BaseUrl;
-            var activeEnv = ActiveEnvironment;
-
-            var baseUrl = activeEnv is { }
-                ? _variableResolver.Resolve(collectionBaseUrl ?? string.Empty, _requestEditor.GetResolvedVariables())
-                : (collectionBaseUrl ?? string.Empty);
-
-            // If item.Path is already an absolute web URL (http/https/ws/wss), use it directly; otherwise prefix
-            // with the collection base URL.  We check the scheme explicitly rather than relying on UriKind.Absolute
-            // because Uri.TryCreate("/ws", UriKind.Absolute, …) returns true on Linux (the path is resolved as a
-            // file:// URI), which would silently strip the base URL.
-            var resolvedUrl = CollectionUrlHelper.BuildFullUrl(baseUrl, item.Path);
-
-            // For WebSocket requests, rewrite http:// → ws:// and https:// → wss://.
-            if (_requestEditor.SelectedRequestType == RequestType.WebSocket)
-            {
-                resolvedUrl = resolvedUrl
-                    .Replace("https://", "wss://", StringComparison.OrdinalIgnoreCase)
-                    .Replace("http://", "ws://", StringComparison.OrdinalIgnoreCase);
-            }
-
+            var resolvedUrl = BuildCollectionRequestUrl(item.Path, requestType);
             _requestEditor.RequestUrl = resolvedUrl;
             _requestEditor.RequestName = item.Name;
             _requestEditor.RequestNotes = item.Notes ?? string.Empty;
 
-            // Populate headers from collection defaults, then apply request-level overrides.
-            _requestEditor.RequestHeaders.Clear();
-            var mergedHeaders = MergeCollectionAndRequestHeaders(SelectedCollection?.Headers, item.Headers);
-            if (mergedHeaders is { })
-            {
-                var inheritedHeaders = SelectedCollection?.Headers;
-                foreach (var mergedHeader in mergedHeaders)
-                {
-                    _requestEditor.RequestHeaders.Add(new RequestHeaderViewModel
-                    {
-                        Name = mergedHeader.Name,
-                        Value = mergedHeader.Value,
-                        IsEnabled = mergedHeader.IsEnabled,
-                        IsInherited = inheritedHeaders?.Any(inheritedHeader =>
-                            string.Equals(inheritedHeader.Name, mergedHeader.Name, StringComparison.OrdinalIgnoreCase)
-                            && string.Equals(inheritedHeader.Value, mergedHeader.Value, StringComparison.Ordinal)
-                            && inheritedHeader.IsEnabled == mergedHeader.IsEnabled) == true
-                    });
-                }
-            }
+            ApplyCollectionRequestHeaders(item);
+            ApplyCollectionRequestContent(item);
+            IsDemoServerBannerVisible = ShouldShowDemoServerBanner(resolvedUrl);
 
-            _requestEditor.EnsurePlaceholderRows();
-
-            // Populate content type from the collection request; always reset to avoid leaking a previous request's value
-            if (string.IsNullOrEmpty(item.ContentType))
-            {
-                _requestEditor.SelectedContentTypeOption = RequestEditorViewModel.NoneContentTypeOption;
-                _requestEditor.CustomContentType = string.Empty;
-            }
-            else if (_requestEditor.ContentTypeOptions.Contains(item.ContentType))
-            {
-                _requestEditor.SelectedContentTypeOption = item.ContentType;
-                _requestEditor.CustomContentType = string.Empty;
-            }
-            else
-            {
-                _requestEditor.SelectedContentTypeOption = RequestEditorViewModel.CustomContentTypeOption;
-                _requestEditor.CustomContentType = item.ContentType;
-            }
-
-            // Populate body: prefer stored body over the generic "{}" placeholder
-            if (!string.IsNullOrEmpty(item.Body))
-            {
-                _requestEditor.RequestBody = item.Body;
-            }
-            else if (item.Method is "POST" or "PUT" or "PATCH")
-            {
-                _requestEditor.RequestBody = "{}";
-            }
-            else
-            {
-                _requestEditor.RequestBody = string.Empty;
-            }
-
-            // Show a banner if this request targets the local demo server and it is not running.
-            IsDemoServerBannerVisible = _demoServer is { } server
-                && !server.IsRunning
-                && (IsDemoServerUrl(resolvedUrl, server.Port) || IsDemoServerUrl(resolvedUrl, server.HttpsPort));
-
+            var collectionId = SelectedCollection?.Id ?? 0;
             ActiveRequestTab?.SetCollectionRequestSource(collectionId, item.Method, item.Path, item.Name);
-        } // end BulkUpdateHandle — fires exactly one RefreshRequestDerivedViews
-
-        SyncActiveCollectionRequestInheritedHeaders();
+        }
     }
+
+    private static RequestType ResolveCollectionRequestType(string method) =>
+        method switch
+        {
+            "WS" or "WSS" => RequestType.WebSocket,
+            "SSE" => RequestType.Sse,
+            _ => RequestType.Http
+        };
+
+    private string BuildCollectionRequestUrl(string path, RequestType requestType)
+    {
+        var collectionBaseUrl = SelectedCollection?.BaseUrl;
+        var activeEnvironment = ActiveEnvironment;
+
+        var baseUrl = activeEnvironment is { }
+            ? _variableResolver.Resolve(collectionBaseUrl ?? string.Empty, _requestEditor.GetResolvedVariables())
+            : (collectionBaseUrl ?? string.Empty);
+
+        var resolvedUrl = CollectionUrlHelper.BuildFullUrl(baseUrl, path);
+        if (requestType == RequestType.WebSocket)
+        {
+            resolvedUrl = resolvedUrl
+                .Replace("https://", "wss://", StringComparison.OrdinalIgnoreCase)
+                .Replace("http://", "ws://", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return resolvedUrl;
+    }
+
+    private void ApplyCollectionRequestHeaders(CollectionItemViewModel item)
+    {
+        _requestEditor.RequestHeaders.Clear();
+
+        var inheritedHeaders = SelectedCollection?.Headers;
+        var mergedHeaders = MergeCollectionAndRequestHeaders(inheritedHeaders, item.Headers);
+        if (mergedHeaders is null)
+        {
+            _requestEditor.EnsurePlaceholderRows();
+            return;
+        }
+
+        foreach (var mergedHeader in mergedHeaders)
+        {
+            _requestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+            {
+                Name = mergedHeader.Name,
+                Value = mergedHeader.Value,
+                IsEnabled = mergedHeader.IsEnabled,
+                IsInherited = inheritedHeaders?.Any(inheritedHeader =>
+                    string.Equals(inheritedHeader.Name, mergedHeader.Name, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(inheritedHeader.Value, mergedHeader.Value, StringComparison.Ordinal)
+                    && inheritedHeader.IsEnabled == mergedHeader.IsEnabled) == true
+            });
+        }
+
+        _requestEditor.EnsurePlaceholderRows();
+    }
+
+    private void ApplyCollectionRequestContent(CollectionItemViewModel item)
+    {
+        if (string.IsNullOrEmpty(item.ContentType))
+        {
+            _requestEditor.SelectedContentTypeOption = RequestEditorViewModel.NoneContentTypeOption;
+            _requestEditor.CustomContentType = string.Empty;
+        }
+        else if (_requestEditor.ContentTypeOptions.Contains(item.ContentType))
+        {
+            _requestEditor.SelectedContentTypeOption = item.ContentType;
+            _requestEditor.CustomContentType = string.Empty;
+        }
+        else
+        {
+            _requestEditor.SelectedContentTypeOption = RequestEditorViewModel.CustomContentTypeOption;
+            _requestEditor.CustomContentType = item.ContentType;
+        }
+
+        if (!string.IsNullOrEmpty(item.Body))
+        {
+            _requestEditor.RequestBody = item.Body;
+        }
+        else if (item.Method is "POST" or "PUT" or "PATCH")
+        {
+            _requestEditor.RequestBody = "{}";
+        }
+        else
+        {
+            _requestEditor.RequestBody = string.Empty;
+        }
+    }
+
+    private bool ShouldShowDemoServerBanner(string resolvedUrl) =>
+        _demoServer is { } server
+        && !server.IsRunning
+        && (IsDemoServerUrl(resolvedUrl, server.Port) || IsDemoServerUrl(resolvedUrl, server.HttpsPort));
 
     private static IReadOnlyList<RequestHeader>? MergeCollectionAndRequestHeaders(
         IReadOnlyList<RequestHeader>? collectionHeaders,
@@ -2277,24 +2298,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
     private void SyncActiveCollectionRequestInheritedHeaders()
     {
-        if (_suppressCollectionInheritedHeadersLivePreviewSync || _suppressCollectionInheritedHeadersAutoSave)
+        if (ShouldSkipInheritedHeaderSync())
         {
             return;
         }
 
-        if (SelectedCollection is not { } selectedCollection
-            || ActiveRequestTab is not { } activeTab
-            || !activeTab.TryGetCollectionRequestSource(out var collectionId, out var method, out var path, out var name)
-            || selectedCollection.Id != collectionId)
-        {
-            return;
-        }
-
-        var matchingRequest = selectedCollection.Requests.FirstOrDefault(request =>
-            string.Equals(request.Method, method, StringComparison.Ordinal)
-            && string.Equals(request.Path, path, StringComparison.Ordinal)
-            && string.Equals(request.Name, name, StringComparison.Ordinal));
-        if (matchingRequest is null)
+        if (!TryGetActiveCollectionRequestContext(out var selectedCollection, out var matchingRequest))
         {
             return;
         }
@@ -2307,6 +2316,49 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         var manualHeaders = BuildCollectionInheritedHeaders(manualRequestHeaders);
         var mergedHeaders = MergeCollectionAndRequestHeaders(inheritedHeaders, manualHeaders ?? matchingRequest.Headers);
 
+        ApplyInheritedHeaderPreview(manualRequestHeaders, inheritedHeaders, mergedHeaders);
+    }
+
+    private bool ShouldSkipInheritedHeaderSync() =>
+        _suppressCollectionInheritedHeadersLivePreviewSync || _suppressCollectionInheritedHeadersAutoSave;
+
+    private bool TryGetActiveCollectionRequestContext(
+        out Collection selectedCollection,
+        out CollectionRequest matchingRequest)
+    {
+        selectedCollection = null!;
+        matchingRequest = null!;
+
+        if (SelectedCollection is not { } activeCollection || ActiveRequestTab is not { } activeTab)
+        {
+            return false;
+        }
+
+        if (!activeTab.TryGetCollectionRequestSource(out var collectionId, out var method, out var path, out var name)
+            || activeCollection.Id != collectionId)
+        {
+            return false;
+        }
+
+        var request = activeCollection.Requests.FirstOrDefault(collectionRequest =>
+            string.Equals(collectionRequest.Method, method, StringComparison.Ordinal)
+            && string.Equals(collectionRequest.Path, path, StringComparison.Ordinal)
+            && string.Equals(collectionRequest.Name, name, StringComparison.Ordinal));
+        if (request is null)
+        {
+            return false;
+        }
+
+        selectedCollection = activeCollection;
+        matchingRequest = request;
+        return true;
+    }
+
+    private void ApplyInheritedHeaderPreview(
+        IReadOnlyList<RequestHeaderViewModel> manualRequestHeaders,
+        IReadOnlyList<RequestHeader>? inheritedHeaders,
+        IReadOnlyList<RequestHeader>? mergedHeaders)
+    {
         _suppressCollectionInheritedHeadersLivePreviewSync = true;
         try
         {
@@ -2325,33 +2377,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
             if (mergedHeaders is { } mergedInheritedHeaders)
             {
-                foreach (var mergedHeader in mergedInheritedHeaders)
-                {
-                    var isInheritedHeader = inheritedHeaders?.Any(inheritedHeader =>
-                        string.Equals(inheritedHeader.Name, mergedHeader.Name, StringComparison.OrdinalIgnoreCase)
-                        && string.Equals(inheritedHeader.Value, mergedHeader.Value, StringComparison.Ordinal)
-                        && inheritedHeader.IsEnabled == mergedHeader.IsEnabled) == true;
-
-                    if (!isInheritedHeader)
-                    {
-                        continue;
-                    }
-
-                    var hasManualOverride = manualRequestHeaders.Any(header =>
-                        string.Equals(header.Name, mergedHeader.Name, StringComparison.OrdinalIgnoreCase));
-                    if (hasManualOverride)
-                    {
-                        continue;
-                    }
-
-                    _requestEditor.RequestHeaders.Add(new RequestHeaderViewModel
-                    {
-                        Name = mergedHeader.Name,
-                        Value = mergedHeader.Value,
-                        IsEnabled = mergedHeader.IsEnabled,
-                        IsInherited = true
-                    });
-                }
+                AppendInheritedHeadersWithoutManualOverrides(mergedInheritedHeaders, inheritedHeaders, manualRequestHeaders);
             }
 
             _requestEditor.EnsurePlaceholderRows();
@@ -2361,6 +2387,37 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             _suppressCollectionInheritedHeadersLivePreviewSync = false;
         }
     }
+
+    private void AppendInheritedHeadersWithoutManualOverrides(
+        IReadOnlyList<RequestHeader> mergedHeaders,
+        IReadOnlyList<RequestHeader>? inheritedHeaders,
+        IReadOnlyList<RequestHeaderViewModel> manualRequestHeaders)
+    {
+        foreach (var mergedHeader in mergedHeaders)
+        {
+            if (!IsInheritedHeader(mergedHeader, inheritedHeaders) || HasManualHeaderOverride(mergedHeader.Name, manualRequestHeaders))
+            {
+                continue;
+            }
+
+            _requestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+            {
+                Name = mergedHeader.Name,
+                Value = mergedHeader.Value,
+                IsEnabled = mergedHeader.IsEnabled,
+                IsInherited = true
+            });
+        }
+    }
+
+    private static bool IsInheritedHeader(RequestHeader header, IReadOnlyList<RequestHeader>? inheritedHeaders) =>
+        inheritedHeaders?.Any(inheritedHeader =>
+            string.Equals(inheritedHeader.Name, header.Name, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(inheritedHeader.Value, header.Value, StringComparison.Ordinal)
+            && inheritedHeader.IsEnabled == header.IsEnabled) == true;
+
+    private static bool HasManualHeaderOverride(string headerName, IReadOnlyList<RequestHeaderViewModel> manualRequestHeaders) =>
+        manualRequestHeaders.Any(header => string.Equals(header.Name, headerName, StringComparison.OrdinalIgnoreCase));
 
     private static bool CollectionHeadersEqual(IReadOnlyList<RequestHeader>? left, IReadOnlyList<RequestHeader>? right)
     {
@@ -2776,6 +2833,28 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
+    private static T? FindDockById<T>(IDockable dockable, string id) where T : class, IDockable
+    {
+        if (dockable is T foundDockable && string.Equals(foundDockable.Id, id, StringComparison.OrdinalIgnoreCase))
+        {
+            return foundDockable;
+        }
+
+        if (dockable is IDock dock && dock.VisibleDockables is { } childDockables)
+        {
+            foreach (var child in childDockables)
+            {
+                var childDock = FindDockById<T>(child, id);
+                if (childDock is { } found)
+                {
+                    return found;
+                }
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Returns a snapshot of the current layout options (including floating windows).
     /// Exposed for testing the save/restore cycle without a real ApplicationOptionsStore.
@@ -2817,7 +2896,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             _environmentsViewModel.LoadEnvironmentsAsync(cancellationToken),
             LoadScheduledJobsAsync(cancellationToken)).ConfigureAwait(false);
 
-        await SeedDemoDataAsync(cancellationToken).ConfigureAwait(false);
+        var demoSeedResult = await SeedDemoDataAsync(cancellationToken).ConfigureAwait(false);
+        if (demoSeedResult.SeededCollectionId is { } newCollectionId)
+        {
+            await LoadCollectionsAsync(cancellationToken).ConfigureAwait(false);
+            SelectedCollection = Collections.FirstOrDefault(collection => collection.Id == newCollectionId);
+            LeftPanelTab = "Collections";
+        }
 
         var savedDraft = _draftPersistenceService is { } draftService
             ? await draftService.LoadDraftAsync(cancellationToken).ConfigureAwait(false)
@@ -2840,64 +2925,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    /// <summary>
-    /// Seeds the "Localhost Demo" collection and "Demo (localhost)" environment the first
-    /// time the application starts.  Subsequent starts are no-ops (the data already exists).
-    /// </summary>
-    private async Task SeedDemoDataAsync(CancellationToken cancellationToken = default)
-    {
-        const string demoCollectionName = "Localhost Demo";
-        const string demoEnvironmentName = "Demo (localhost)";
-
-        var existingCollections = await _collectionRepository.GetAllAsync(cancellationToken).ConfigureAwait(false);
-        if (!existingCollections.Any(c => string.Equals(c.Name, demoCollectionName, StringComparison.Ordinal)))
-        {
-            var demoRequests = new List<CollectionRequest>
-            {
-                new("Documentation", "GET", "/docs.html",
-                    "Read endpoint docs and sample usage for the local demo server."),
-                new("Echo GET", "GET", "/echo",
-                    "Simple HTTP GET — returns request info as JSON when no body is present."),
-                new("Echo POST", "POST", "/echo",
-                    "HTTP POST — your JSON body is echoed back in the response."),
-                new("Echo PUT", "PUT", "/echo",
-                    "HTTP PUT — your JSON body is echoed back in the response."),
-                new("Echo DELETE", "DELETE", "/echo",
-                    "HTTP DELETE — returns request info as JSON."),
-                new("Server status", "GET", "/status",
-                    "Returns a JSON summary of the demo server (version, port, endpoints)."),
-                new("Server-Sent Events", "SSE", "/sse",
-                    "Streams five numbered SSE events, one every 500 ms. Request type is set to SSE automatically."),
-                new("WebSocket echo", "WS", "/ws",
-                    "WebSocket echo server — every message you send is reflected back. Request type is set to WebSocket automatically.")
-            };
-
-            var newId = await _collectionRepository.SaveAsync(
-                demoCollectionName,
-                null,
-                "{{baseUrl}}",
-                demoRequests,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-
-            // Reload collections and select the newly seeded demo collection.
-            await LoadCollectionsAsync(cancellationToken).ConfigureAwait(false);
-            SelectedCollection = Collections.FirstOrDefault(c => c.Id == newId);
-            LeftPanelTab = "Collections";
-
-            _debugLogger.Information("Seeded demo collection '{Name}'", demoCollectionName);
-        }
-
-        var existingEnvironments = await _environmentsViewModel.GetAllEnvironmentsAsync(cancellationToken).ConfigureAwait(false);
-        if (!existingEnvironments.Any(e => string.Equals(e.Name, demoEnvironmentName, StringComparison.Ordinal)))
-        {
-            await _environmentsViewModel.SeedEnvironmentAsync(
-                demoEnvironmentName,
-                [new EnvironmentVariable("baseUrl", $"http://localhost:{DemoServerPort}", true)],
-                cancellationToken).ConfigureAwait(false);
-
-            _debugLogger.Information("Seeded demo environment '{Name}'", demoEnvironmentName);
-        }
-    }
+    private Task<DemoDataSeedResult> SeedDemoDataAsync(CancellationToken cancellationToken = default) =>
+        _demoDataWorkflow.SeedDemoDataAsync(cancellationToken);
 
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="url"/> targets the local demo
@@ -3066,71 +3095,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    private DockLayoutSnapshot? CaptureLayoutSnapshot()
-    {
-        var root = Layout;
-        if (root is null)
-        {
-            return null;
-        }
-
-        // Also capture well-known dock values for backward-compatible restore fallback.
-        var leftToolDock = FindDockById<ToolDock>(root, "left-tool-dock");
-        var documentLayout = FindDockById<ProportionalDock>(root, "document-layout");
-        var requestDock = FindDockById<DocumentDock>(root, "request-dock");
-        var responseDock = FindDockById<DocumentDock>(root, "response-dock");
-        if (leftToolDock is null || documentLayout is null || requestDock is null || responseDock is null)
-        {
-            return null;
-        }
-
-        var floatingWindows = new List<FloatingWindowSnapshot>();
-        if (root.Windows is { } windows)
-        {
-            foreach (var window in windows)
-            {
-                var floatRoot = window.Layout;
-                if (floatRoot is null)
-                {
-                    continue;
-                }
-
-                var ids = new List<string>();
-                CollectDockableIds(floatRoot, ids);
-
-                floatingWindows.Add(new FloatingWindowSnapshot
-                {
-                    X = window.X,
-                    Y = window.Y,
-                    Width = window.Width > 0 ? window.Width : 300,
-                    Height = window.Height > 0 ? window.Height : 400,
-                    DockableIds = ids,
-                    ActiveDockableId = floatRoot.ActiveDockable?.Id
-                });
-            }
-        }
-
-        return new DockLayoutSnapshot
-        {
-            LeftToolProportion = SanitizeProportion(leftToolDock.Proportion, 0.25),
-            DocumentProportion = SanitizeProportion(documentLayout.Proportion, 0.75),
-            RequestDockProportion = SanitizeOptionalProportion(requestDock.Proportion),
-            ResponseDockProportion = SanitizeOptionalProportion(responseDock.Proportion),
-            ActiveToolDockableId = leftToolDock.ActiveDockable?.Id,
-            LeftToolDockableOrder = GetDockableOrder(leftToolDock.VisibleDockables),
-            FloatingWindows = floatingWindows,
-            // Use the cached tree so that CaptureDockNode is never called inside SaveOptions,
-            // which would reset the auto-save debounce timer.  The cache is refreshed
-            // by RefreshDockTreeCache() whenever the layout structure actually changes
-            // (window close, explicit layout save, post-startup apply).
-            DockTree = _cachedDockTree,
-            WindowWidth = _windowWidthAtClose > 0 ? _windowWidthAtClose : 0,
-            WindowHeight = _windowHeightAtClose > 0 ? _windowHeightAtClose : 0,
-            WindowX = _windowXAtClose,
-            WindowY = _windowYAtClose,
-            HasWindowPosition = _windowPositionCaptured
-        };
-    }
+    private DockLayoutSnapshot? CaptureLayoutSnapshot() =>
+        _layoutTreeWorkflow.CaptureLayoutSnapshot(
+            Layout,
+            _cachedDockTree,
+            _windowWidthAtClose,
+            _windowHeightAtClose,
+            _windowXAtClose,
+            _windowYAtClose,
+            _windowPositionCaptured);
 
     /// <summary>
     /// Rebuilds <see cref="_cachedDockTree"/> from the current <see cref="Layout"/>.
@@ -3138,665 +3111,23 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     /// after applying a saved layout, or just before persisting on window close)
     /// so that the cached tree is up-to-date.
     /// </summary>
-    private void RefreshDockTreeCache()
-    {
-        if (Layout is { } root)
-        {
-            _cachedDockTree = CaptureDockNode(root);
-        }
-    }
-
-    /// <summary>
-    /// Returns <paramref name="value"/> when it is a finite, strictly-positive number;
-    /// otherwise returns <paramref name="fallback"/>. Zero is treated as "not set" and
-    /// triggers the fallback because the layout proportions that use this helper
-    /// (<see cref="DockLayoutSnapshot.LeftToolProportion"/> and
-    /// <see cref="DockLayoutSnapshot.DocumentProportion"/>) must be positive.
-    /// </summary>
-    private static double SanitizeProportion(double value, double fallback) =>
-        double.IsFinite(value) && value > 0 ? value : fallback;
-
-    /// <summary>
-    /// Returns <paramref name="value"/> when it is a finite, non-negative number;
-    /// otherwise returns 0 (meaning "use default"). Used for optional dock
-    /// proportions where 0 is a valid sentinel for "not set".
-    /// </summary>
-    private static double SanitizeOptionalProportion(double value) =>
-        double.IsFinite(value) && value >= 0 ? value : 0;
-
-    /// <summary>
-    /// Recursively captures a dock tree node and all its structural children.
-    /// Returns <see langword="null"/> for node types that are not recognized or
-    /// should not be included in the serialized tree.
-    /// </summary>
-    private static DockTreeNode? CaptureDockNode(IDockable dockable)
-    {
-        if (dockable is IRootDock root)
-        {
-            var children = (root.VisibleDockables ?? [])
-                .Select(CaptureDockNode)
-                .OfType<DockTreeNode>()
-                .ToList();
-
-            return new DockTreeNode
-            {
-                Type = "Root",
-                Id = root.Id,
-                Proportion = SanitizeOptionalProportion(root.Proportion),
-                Children = children
-            };
-        }
-
-        if (dockable is IProportionalDock proportional)
-        {
-            var children = (proportional.VisibleDockables ?? [])
-                .Select(CaptureDockNode)
-                .OfType<DockTreeNode>()
-                .ToList();
-
-            return new DockTreeNode
-            {
-                Type = "Proportional",
-                Id = proportional.Id,
-                Proportion = SanitizeOptionalProportion(proportional.Proportion),
-                Orientation = proportional.Orientation.ToString(),
-                Children = children
-            };
-        }
-
-        if (dockable is IProportionalDockSplitter splitter)
-        {
-            return new DockTreeNode
-            {
-                Type = "Splitter",
-                Id = splitter.Id,
-                Proportion = SanitizeOptionalProportion(splitter.Proportion)
-            };
-        }
-
-        if (dockable is IToolDock toolDock)
-        {
-            var contentIds = (toolDock.VisibleDockables ?? [])
-                .Where(c => !string.IsNullOrWhiteSpace(c.Id))
-                .Select(c => c.Id)
-                .ToList();
-
-            return new DockTreeNode
-            {
-                Type = "Tool",
-                Id = toolDock.Id,
-                Proportion = SanitizeOptionalProportion(toolDock.Proportion),
-                Alignment = toolDock.Alignment.ToString(),
-                GripMode = toolDock.GripMode.ToString(),
-                IsCollapsable = toolDock.IsCollapsable,
-                ContentIds = contentIds,
-                ActiveContentId = toolDock.ActiveDockable?.Id
-            };
-        }
-
-        if (dockable is IDocumentDock documentDock)
-        {
-            var contentIds = (documentDock.VisibleDockables ?? [])
-                .Where(c => !string.IsNullOrWhiteSpace(c.Id))
-                .Select(c => c.Id)
-                .ToList();
-
-            return new DockTreeNode
-            {
-                Type = "Document",
-                Id = documentDock.Id,
-                Proportion = SanitizeOptionalProportion(documentDock.Proportion),
-                IsCollapsable = documentDock.IsCollapsable,
-                ContentIds = contentIds,
-                ActiveContentId = documentDock.ActiveDockable?.Id
-            };
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Collects all leaf content dockables (tool/document view-models, NOT structural
-    /// dock containers) from the given dock tree into <paramref name="result"/>.
-    /// Structural nodes (ProportionalDock, ToolDock, DocumentDock, RootDock,
-    /// ProportionalDockSplitter) are not added to the dictionary; their children are
-    /// recursed into instead.
-    /// </summary>
-    private static void CollectLeafDockables(IDockable dockable, Dictionary<string, IDockable> result)
-    {
-        // Skip splitters – they are not re-usable content dockables.
-        if (dockable is IProportionalDockSplitter)
-        {
-            return;
-        }
-
-        if (dockable is IDock dock && dock.VisibleDockables is { } dockables)
-        {
-            foreach (var child in dockables)
-            {
-                CollectLeafDockables(child, result);
-            }
-        }
-        else if (!string.IsNullOrWhiteSpace(dockable.Id))
-        {
-            result[dockable.Id] = dockable;
-        }
-    }
-
-    /// <summary>
-    /// Recursively builds a dock tree node from a <see cref="DockTreeNode"/> snapshot,
-    /// placing content dockables (looked up by ID in <paramref name="contentDockables"/>)
-    /// in their saved positions.
-    /// Returns <see langword="null"/> when a "Tool" or "Document" node has no resolvable
-    /// content dockables (safe to skip such an empty node).
-    /// </summary>
-    private IDockable? BuildDockNode(DockTreeNode node, IReadOnlyDictionary<string, IDockable> contentDockables)
-    {
-        switch (node.Type)
-        {
-            case "Root":
-            {
-                var children = _dockFactory!.CreateList<IDockable>();
-                foreach (var child in node.Children
-                    .Select(childNode => BuildDockNode(childNode, contentDockables))
-                    .Where(c => c is not null))
-                {
-                    children.Add(child!);
-                }
-
-                var rootDock = new RootDock
-                {
-                    Id = node.Id ?? "root",
-                    IsCollapsable = false,
-                    VisibleDockables = children,
-                    Windows = _dockFactory.CreateList<IDockWindow>()
-                };
-                rootDock.ActiveDockable = rootDock.DefaultDockable = children.FirstOrDefault();
-                return rootDock;
-            }
-
-            case "Proportional":
-            {
-                var children = _dockFactory!.CreateList<IDockable>();
-                foreach (var child in node.Children
-                    .Select(childNode => BuildDockNode(childNode, contentDockables))
-                    .Where(c => c is not null))
-                {
-                    children.Add(child!);
-                }
-
-                var propDock = new ProportionalDock
-                {
-                    Id = node.Id ?? Guid.NewGuid().ToString("D"),
-                    Proportion = node.Proportion,
-                    Orientation = string.Equals(node.Orientation, "Vertical", StringComparison.OrdinalIgnoreCase)
-                        ? Orientation.Vertical
-                        : Orientation.Horizontal,
-                    VisibleDockables = children
-                };
-                // Set the first non-splitter child as the active dockable.
-                propDock.ActiveDockable = children.FirstOrDefault(d => d is not IProportionalDockSplitter);
-                return propDock;
-            }
-
-            case "Splitter":
-                return new ProportionalDockSplitter
-                {
-                    Id = node.Id ?? Guid.NewGuid().ToString("D"),
-                    Proportion = node.Proportion
-                };
-
-            case "Tool":
-            {
-                var contents = _dockFactory!.CreateList<IDockable>();
-                foreach (var content in node.ContentIds
-                    .Where(id => contentDockables.ContainsKey(id))
-                    .Select(id => contentDockables[id]))
-                {
-                    contents.Add(content);
-                }
-
-                if (contents.Count == 0)
-                {
-                    // All content dockables are unresolvable — skip this dock node.
-                    return null;
-                }
-
-                IDockable? active = null;
-                if (node.ActiveContentId is { } activeId)
-                {
-                    contentDockables.TryGetValue(activeId, out active);
-                }
-
-                active ??= contents.FirstOrDefault();
-
-                return new ToolDock
-                {
-                    Id = node.Id ?? Guid.NewGuid().ToString("D"),
-                    Proportion = node.Proportion,
-                    Alignment = ParseAlignment(node.Alignment),
-                    GripMode = ParseGripMode(node.GripMode),
-                    IsCollapsable = node.IsCollapsable,
-                    VisibleDockables = contents,
-                    ActiveDockable = active
-                };
-            }
-
-            case "Document":
-            {
-                var contents = _dockFactory!.CreateList<IDockable>();
-                foreach (var content in node.ContentIds
-                    .Where(id => contentDockables.ContainsKey(id))
-                    .Select(id => contentDockables[id]))
-                {
-                    contents.Add(content);
-                }
-
-                if (contents.Count == 0)
-                {
-                    return null;
-                }
-
-                IDockable? active = null;
-                if (node.ActiveContentId is { } activeId)
-                {
-                    contentDockables.TryGetValue(activeId, out active);
-                }
-
-                active ??= contents.FirstOrDefault();
-
-                return new DocumentDock
-                {
-                    Id = node.Id ?? Guid.NewGuid().ToString("D"),
-                    Proportion = node.Proportion,
-                    IsCollapsable = node.IsCollapsable,
-                    VisibleDockables = contents,
-                    ActiveDockable = active
-                };
-            }
-
-            default:
-                return null;
-        }
-    }
-
-    private static Alignment ParseAlignment(string? value) =>
-        value switch
-        {
-            "Left" => Alignment.Left,
-            "Right" => Alignment.Right,
-            "Top" => Alignment.Top,
-            "Bottom" => Alignment.Bottom,
-            _ => Alignment.Unset
-        };
-
-    private static GripMode ParseGripMode(string? value) =>
-        value switch
-        {
-            "Visible" => GripMode.Visible,
-            "AutoHide" => GripMode.AutoHide,
-            "Hidden" => GripMode.Hidden,
-            _ => GripMode.Visible
-        };
-
-    private static void CollectDockableIds(IDockable dockable, ICollection<string> ids)
-    {
-        if (!string.IsNullOrWhiteSpace(dockable.Id))
-        {
-            ids.Add(dockable.Id);
-        }
-
-        if (dockable is IDock dock && dock.VisibleDockables is { } dockables)
-        {
-            foreach (var child in dockables)
-            {
-                CollectDockableIds(child, ids);
-            }
-        }
-    }
+    private void RefreshDockTreeCache() =>
+        _cachedDockTree = _layoutTreeWorkflow.CaptureDockTree(Layout);
 
     private void ApplyLayoutSnapshot(DockLayoutSnapshot? snapshot)
     {
-        if (snapshot is null || Layout is null || _dockFactory is null)
+        var applyResult = _layoutTreeWorkflow.ApplyLayoutSnapshot(snapshot, Layout, _dockFactory);
+        if (!ReferenceEquals(Layout, applyResult.Layout))
         {
-            return;
+            Layout = applyResult.Layout;
+            OnPropertyChanged(nameof(Layout));
         }
 
-        if (snapshot.DockTree is { } treeNode)
+        if (applyResult.Applied)
         {
-            // Determine whether a full tree rebuild is needed.
-            // A rebuild is required when:
-            //   (a) floating windows are open (dockables have been moved out of the main layout), OR
-            //   (b) the DockTree captures a different structural layout than the current one
-            //       (e.g. a panel was docked to a new position, creating new ToolDock nodes).
-            // When neither condition applies the tree structure is identical and we can apply
-            // proportions and active-dockable selections in-place, which preserves existing
-            // dock object references (important for callers that hold a reference to a dock).
-            if (Layout.Windows is { Count: > 0 } || DockTreeRequiresRebuild(treeNode))
-            {
-                // Full tree rebuild: re-instantiate the layout from the saved DockTree.
-                // We create a fresh default layout to get all view-model instances, collect
-                // the leaf dockables, then re-assemble them according to the saved tree.
-                var defaultLayout = _dockFactory.CreateLayout();
-                _dockFactory.InitLayout(defaultLayout);
-
-                var leafDockables = new Dictionary<string, IDockable>(StringComparer.OrdinalIgnoreCase);
-                CollectLeafDockables(defaultLayout, leafDockables);
-
-                var newRoot = BuildDockNode(treeNode, leafDockables) as RootDock;
-                if (newRoot is { })
-                {
-                    _dockFactory.InitLayout(newRoot);
-                    Layout = newRoot;
-                    OnPropertyChanged(nameof(Layout));
-                    // Update LeftToolDock reference so that programmatic panel activations
-                    // (OpenOptions, OpenLogWindow, etc.) continue to work after the tree
-                    // has been reconstructed with a potentially different structure.
-                    _dockFactory.UpdateLeftToolDock();
-                }
-            }
-            else
-            {
-                // In-place update: the tree structure is the same as the current layout.
-                // Just apply the saved proportions, dockable order, and active selections.
-                ApplyDockTreeInPlace(Layout, treeNode);
-            }
-
-            // Fall through to restore any floating windows saved alongside the tree.
-        }
-        else
-        {
-            // Legacy path: the snapshot does not have a full DockTree.
-            // Close any floating windows first so all dockables are back in the main
-            // layout before we re-apply proportions and order.
-            if (Layout.Windows is { Count: > 0 })
-            {
-                Layout = _dockFactory.CreateLayout();
-                _dockFactory.InitLayout(Layout);
-                OnPropertyChanged(nameof(Layout));
-            }
-
-            var leftToolDock = FindDockById<ToolDock>(Layout, "left-tool-dock");
-            var documentLayout = FindDockById<ProportionalDock>(Layout, "document-layout");
-            var requestDock = FindDockById<DocumentDock>(Layout, "request-dock");
-            var responseDock = FindDockById<DocumentDock>(Layout, "response-dock");
-            if (leftToolDock is null || documentLayout is null || requestDock is null || responseDock is null)
-            {
-                return;
-            }
-
-            if (snapshot.LeftToolProportion > 0)
-            {
-                leftToolDock.Proportion = snapshot.LeftToolProportion;
-            }
-
-            if (snapshot.DocumentProportion > 0)
-            {
-                documentLayout.Proportion = snapshot.DocumentProportion;
-            }
-
-            if (snapshot.RequestDockProportion > 0)
-            {
-                requestDock.Proportion = snapshot.RequestDockProportion;
-            }
-
-            if (snapshot.ResponseDockProportion > 0)
-            {
-                responseDock.Proportion = snapshot.ResponseDockProportion;
-            }
-
-            ApplyDockOrder(leftToolDock, snapshot.LeftToolDockableOrder);
-            SetActiveDockable(leftToolDock, snapshot.ActiveToolDockableId);
-        }
-
-        // Restore floating windows (applies to both DockTree and legacy paths).
-        foreach (var fw in snapshot.FloatingWindows)
-        {
-            if (fw.DockableIds.Count == 0)
-            {
-                continue;
-            }
-
-            // Search the entire main-layout tree rather than only specific known docks
-            // so that dockables moved to new positions via DockTree are still found.
-            IDockable? primary = null;
-            foreach (var id in fw.DockableIds)
-            {
-                primary = FindDockById<IDockable>(Layout, id);
-                if (primary is { })
-                {
-                    break;
-                }
-            }
-
-            if (primary is null)
-            {
-                continue;
-            }
-
-            var countBefore = Layout.Windows?.Count ?? 0;
-            _dockFactory.FloatDockable(primary);
-
-            // FloatDockable may not have created a window (e.g. if already floating), so guard
-            if (Layout.Windows is null || Layout.Windows.Count <= countBefore)
-            {
-                continue;
-            }
-
-            var floatWin = Layout.Windows[^1];
-            floatWin.X = fw.X;
-            floatWin.Y = fw.Y;
-            floatWin.Width = fw.Width;
-            floatWin.Height = fw.Height;
-
-            // Move remaining dockables into the same floating window
-            if (floatWin.Layout is IDock floatDock)
-            {
-                for (var i = 1; i < fw.DockableIds.Count; i++)
-                {
-                    var extra = FindDockById<IDockable>(Layout, fw.DockableIds[i]);
-                    if (extra?.Owner is IDock sourceOwner)
-                    {
-                        _dockFactory.MoveDockable(sourceOwner, floatDock, extra, null);
-                    }
-                }
-
-                SetActiveDockable(floatDock, fw.ActiveDockableId);
-            }
-        }
-
-        // Refresh the cached DockTree so that subsequent auto-saves include the restored
-        // layout structure without needing to call CaptureDockNode inside SaveOptions.
-        RefreshDockTreeCache();
-    }
-
-    /// <summary>
-    /// Returns <see langword="true"/> when the <paramref name="node"/> tree contains
-    /// structural differences from the current <see cref="Layout"/> that require a full
-    /// tree rebuild rather than an in-place proportion update.
-    /// <para>
-    /// A rebuild is required when any "Tool" or "Document" node in the tree:
-    /// <list type="bullet">
-    ///   <item>has no ID (auto-generated dock from user drag-and-drop), or</item>
-    ///   <item>has an ID that is not found in the current layout, or</item>
-    ///   <item>has an ID that is found but with different content dockables (a panel was moved
-    ///         in or out of that dock).</item>
-    /// </list>
-    /// </para>
-    /// </summary>
-    private bool DockTreeRequiresRebuild(DockTreeNode node)
-    {
-        if (Layout is null)
-        {
-            return true;
-        }
-
-        return DockTreeNodeRequiresRebuild(node, Layout);
-    }
-
-    private static bool DockTreeNodeRequiresRebuild(DockTreeNode node, IDockable currentRoot)
-    {
-        if (node.Type is "Tool" or "Document")
-        {
-            // A node with no ID is an auto-generated dock created by a user drag-and-drop
-            // operation — it cannot be matched to an existing node → rebuild required.
-            if (string.IsNullOrWhiteSpace(node.Id))
-            {
-                return true;
-            }
-
-            // If the dock ID is not present in the current layout, the structure changed.
-            if (FindDockById<IDock>(currentRoot, node.Id) is not { } existing)
-            {
-                return true;
-            }
-
-            // If content dockables differ (panel moved in or out), the structure changed.
-            var currentIds = GetDockableOrder(existing.VisibleDockables);
-            if (!currentIds.SequenceEqual(node.ContentIds, StringComparer.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            // If a ToolDock's alignment has changed the panel now lives on a different side —
-            // that requires a full rebuild because Dock.NET ties the visual position to the
-            // Alignment value set at construction time.
-            if (node.Type is "Tool" && existing is ToolDock existingToolDock && existingToolDock.Alignment != ParseAlignment(node.Alignment))
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        // For Root and Proportional nodes: recurse into children.
-        return node.Children.Any(child => DockTreeNodeRequiresRebuild(child, currentRoot));
-    }
-
-    /// <summary>
-    /// Applies the proportions, dockable order, and active-dockable selections from
-    /// <paramref name="node"/> to the matching docks in the current layout (found by
-    /// node ID). Does NOT create any new dock objects; the current layout structure
-    /// remains unchanged.
-    /// </summary>
-    private void ApplyDockTreeInPlace(IDockable currentRoot, DockTreeNode node)
-    {
-        if (!string.IsNullOrWhiteSpace(node.Id) && node.Proportion > 0)
-        {
-            var dockable = FindDockById<IDockable>(currentRoot, node.Id);
-            if (dockable is { })
-            {
-                dockable.Proportion = node.Proportion;
-            }
-        }
-
-        if (node.Type is "Tool" or "Document" && !string.IsNullOrWhiteSpace(node.Id))
-        {
-            var dock = FindDockById<IDock>(currentRoot, node.Id);
-            if (dock is { })
-            {
-                if (node.ContentIds.Count > 0)
-                {
-                    ApplyDockOrder(dock, node.ContentIds);
-                }
-
-                if (!string.IsNullOrWhiteSpace(node.ActiveContentId))
-                {
-                    SetActiveDockable(dock, node.ActiveContentId);
-                }
-
-                // Apply non-structural properties that do not require a tree rebuild.
-                if (node.Type is "Tool" && dock is ToolDock toolDock)
-                {
-                    toolDock.GripMode = ParseGripMode(node.GripMode);
-                }
-            }
-        }
-
-        foreach (var child in node.Children)
-        {
-            ApplyDockTreeInPlace(currentRoot, child);
+            RefreshDockTreeCache();
         }
     }
-
-    private static void ApplyDockOrder(IDock dock, IReadOnlyList<string> orderedDockableIds)
-    {
-        var visibleDockables = dock.VisibleDockables;
-        if (visibleDockables is null || orderedDockableIds.Count == 0)
-        {
-            return;
-        }
-
-        var byId = visibleDockables
-            .Where(d => !string.IsNullOrWhiteSpace(d.Id))
-            .ToDictionary(d => d.Id, StringComparer.OrdinalIgnoreCase);
-
-        var reordered = new List<IDockable>(visibleDockables.Count);
-        foreach (var id in orderedDockableIds)
-        {
-            if (byId.TryGetValue(id, out var dockable) && !reordered.Contains(dockable))
-            {
-                reordered.Add(dockable);
-            }
-        }
-
-        foreach (var dockable in visibleDockables)
-        {
-            if (!reordered.Contains(dockable))
-            {
-                reordered.Add(dockable);
-            }
-        }
-
-        visibleDockables.Clear();
-        foreach (var dockable in reordered)
-        {
-            visibleDockables.Add(dockable);
-        }
-    }
-
-    private static void SetActiveDockable(IDock dock, string? dockableId)
-    {
-        if (string.IsNullOrWhiteSpace(dockableId) || dock.VisibleDockables is null)
-        {
-            return;
-        }
-
-        var activeDockable = dock.VisibleDockables.FirstOrDefault(item => string.Equals(item.Id, dockableId, StringComparison.OrdinalIgnoreCase));
-        if (activeDockable is { } active)
-        {
-            dock.ActiveDockable = active;
-        }
-    }
-
-    private static T? FindDockById<T>(IDockable dockable, string id) where T : class, IDockable
-    {
-        if (dockable is T foundDockable && string.Equals(foundDockable.Id, id, StringComparison.OrdinalIgnoreCase))
-        {
-            return foundDockable;
-        }
-
-        if (dockable is IDock dock && dock.VisibleDockables is { } childDockables)
-        {
-            foreach (var child in childDockables)
-            {
-                var childDock = FindDockById<T>(child, id);
-                if (childDock is { } found)
-                {
-                    return found;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static List<string> GetDockableOrder(IList<IDockable>? dockables) =>
-        dockables?
-            .Select(d => d.Id)
-            .Where(id => !string.IsNullOrWhiteSpace(id))
-            .Cast<string>()
-            .ToList() ?? [];
 
     private string GenerateNextLayoutName()
     {
@@ -3889,63 +3220,26 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     {
         try
         {
-            var draft = _requestEditor.BuildResolvedHttpRequestDraft();
-            if (_requestEditor.ValidateUrlBeforeSend && !IsAbsoluteHttpOrHttpsUrl(draft.Url))
+            var executionResult = await _httpRequestWorkflow.SendAsync(cancellationToken);
+            if (!executionResult.IsSuccessful)
             {
-                ErrorMessage = Strings.RequestInvalidResolvedUrlMessage;
+                ErrorMessage = executionResult.ErrorMessage ?? string.Empty;
                 return;
             }
 
-            _httpRequestsLogger.Information("Manual request started: {Method} {Url}", draft.Method, draft.Url);
-
-            // Build a mutable headers dict for the script context.
-            // Use the first value when duplicate header names exist (case-insensitive).
-            var resolvedHeaders = _requestEditor.GetResolvedHeaders()
-                .GroupBy(h => h.Name, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
-            var envVars = GetActiveVariablesForEditor()
-                .GroupBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
-
-            var scriptCtx = new ScriptContext(
-                draft.Method,
-                draft.Url,
-                resolvedHeaders,
-                draft.Body,
-                envVars);
-
-            // Pre-request script
-            _scriptViewModel.ClearPreviousRun();
-            var preResult = await _scriptRunner.RunPreRequestAsync(
-                _scriptViewModel.PreRequestScript,
-                scriptCtx);
-            _scriptViewModel.SetResult(preResult);
-
-            if (!preResult.Success)
+            var mutatedDraft = executionResult.RequestDraft;
+            var response = executionResult.Response;
+            if (mutatedDraft is null || response is null)
             {
-                ErrorMessage = string.Join(Environment.NewLine, preResult.Errors);
+                ErrorMessage = string.Empty;
                 return;
             }
-
-            // Rebuild draft with any script mutations (Method, Url, Body, Headers).
-            var mutatedHeaders = scriptCtx.Headers
-                .Select(kvp => new RequestHeader(kvp.Key, kvp.Value))
-                .ToList();
-            var mutatedDraft = draft with
-            {
-                Method = scriptCtx.Method,
-                Url = scriptCtx.Url,
-                Body = scriptCtx.Body,
-                Headers = mutatedHeaders.Count > 0 ? mutatedHeaders : draft.Headers
-            };
 
             if (_requestEditor.ValidateUrlBeforeSend && !IsAbsoluteHttpOrHttpsUrl(mutatedDraft.Url))
             {
                 ErrorMessage = Strings.RequestInvalidResolvedUrlMessage;
                 return;
             }
-
-            var response = await _httpRequestService.SendAsync(mutatedDraft, cancellationToken);
 
             ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
             ResponseStatusCode = response.StatusCode;
@@ -3964,26 +3258,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             UpdateResponsePresentation(response.Body, response.Headers);
             UpdateResponseRawText();
             HasTextResponse = HasResponseHeaders && !IsBinaryResponse;
-            _httpRequestsLogger.Information("Manual request completed: {StatusCode} {ReasonPhrase}", response.StatusCode, response.ReasonPhrase);
-
-            // Post-response script — build response headers dict, keeping first value for duplicates.
-            var responseHeadersDict = response.Headers
-                .GroupBy(h => h.Name, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
-            scriptCtx.Response = new ScriptResponse(
-                response.StatusCode,
-                response.ReasonPhrase,
-                response.Body,
-                responseHeadersDict);
-
-            var postResult = await _scriptRunner.RunPostResponseAsync(
-                _scriptViewModel.PostResponseScript,
-                scriptCtx);
-            _scriptViewModel.SetResult(postResult);
 
             _cookieJarViewModel.RefreshCookies();
-            var implicitCollectionRequest = BuildCollectionRequestFromResolvedHttpDraft(mutatedDraft);
-            await SaveRequestToImplicitCollectionBestEffortAsync(implicitCollectionRequest, cancellationToken);
+            var implicitCollectionRequest = _collectionsWorkflow.BuildCollectionRequestFromResolvedHttpDraft(
+                mutatedDraft,
+                _requestEditor.RequestNotes,
+                _requestEditor.ContentType);
+            await _collectionsWorkflow.SaveRequestToImplicitCollectionBestEffortAsync(
+                implicitCollectionRequest,
+                LoadCollectionsAsync,
+                cancellationToken);
             await LoadHistoryAsync();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -4010,12 +3294,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     {
         try
         {
-            var url = _requestEditor.GetResolvedUrl();
-            var headers = _requestEditor.GetResolvedHeaders();
-
-            _httpRequestsLogger.Information("GraphQL request started: {Url}", url);
-
-            var response = await _graphQlViewModel.SendQueryAsync(url, headers, cancellationToken);
+            var executionResult = await _graphQlRequestWorkflow.SendAsync(cancellationToken);
+            var response = executionResult.Response;
 
             ResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}";
             ResponseStatusCode = response.StatusCode;
@@ -4034,11 +3314,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             UpdateResponsePresentation(response.Body, response.Headers);
             UpdateResponseRawText();
             HasTextResponse = HasResponseHeaders && !IsBinaryResponse;
-            _httpRequestsLogger.Information("GraphQL request completed: {StatusCode}", response.StatusCode);
 
             _cookieJarViewModel.RefreshCookies();
-            var implicitCollectionRequest = BuildCollectionRequestFromGraphQlState(url, headers);
-            await SaveRequestToImplicitCollectionBestEffortAsync(implicitCollectionRequest, cancellationToken);
+            var implicitCollectionRequest = _collectionsWorkflow.BuildCollectionRequestFromGraphQlState(
+                executionResult.Url,
+                _requestEditor.RequestName,
+                _requestEditor.RequestNotes,
+                _graphQlViewModel.BuildRequestBodyJson(),
+                executionResult.Headers);
+            await _collectionsWorkflow.SaveRequestToImplicitCollectionBestEffortAsync(
+                implicitCollectionRequest,
+                LoadCollectionsAsync,
+                cancellationToken);
             await LoadHistoryAsync();
         }
         catch (Exception exception)
@@ -4051,52 +3338,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    private async Task ToggleWebSocketConnectionAsync()
-    {
-        if (_webSocketViewModel.IsConnected)
-        {
-            await _webSocketViewModel.DisconnectCommand.ExecuteAsync(null);
-            if (_streamingCts is { })
-            {
-                await _streamingCts.CancelAsync();
-            }
+    private async Task ToggleWebSocketConnectionAsync() =>
+        _streamingCts = await _streamingConnectionWorkflow.ToggleWebSocketConnectionAsync(_streamingCts);
 
-            _streamingCts = null;
-            return;
-        }
-
-        var url = _requestEditor.GetResolvedUrl();
-        var headers = _requestEditor.GetResolvedHeaders();
-
-        _streamingCts?.Dispose();
-        _streamingCts = new CancellationTokenSource();
-
-        // Fire-and-forget: the receive loop runs until the connection is closed or the token is cancelled.
-        // The WebSocketViewModel updates IsConnected on the UI thread via Dispatcher.UIThread.Post.
-        _ = _webSocketViewModel.ConnectAsync(url, headers, _streamingCts.Token);
-    }
-
-    private Task ToggleSseConnectionAsync()
-    {
-        if (_sseViewModel.IsConnected)
-        {
-            _sseViewModel.DisconnectCommand.Execute(null);
-            _streamingCts?.Cancel();
-            _streamingCts = null;
-            return Task.CompletedTask;
-        }
-
-        var url = _requestEditor.GetResolvedUrl();
-        var headers = _requestEditor.GetResolvedHeaders();
-
-        _streamingCts?.Dispose();
-        _streamingCts = new CancellationTokenSource();
-
-        // Fire-and-forget: the SSE loop runs until the stream ends or the token is cancelled.
-        // The SseViewModel updates IsConnected on the UI thread via Dispatcher.UIThread.Post.
-        _ = _sseViewModel.ConnectAsync(url, headers, _streamingCts.Token);
-        return Task.CompletedTask;
-    }
+    private async Task ToggleSseConnectionAsync() =>
+        _streamingCts = await _streamingConnectionWorkflow.ToggleSseConnectionAsync(_streamingCts);
 
     public static string FormatElapsedMilliseconds(double milliseconds)
     {
@@ -4190,160 +3436,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         HasTextResponse = false;
         _lastResponseBodyBytes = [];
         ResponseHeaders.Clear();
-    }
-
-    private CollectionRequest BuildCollectionRequestFromResolvedHttpDraft(ResolvedHttpRequestDraft resolvedRequest)
-    {
-        var collectionName = string.IsNullOrWhiteSpace(resolvedRequest.Name)
-            ? $"{resolvedRequest.Method} {resolvedRequest.Url}"
-            : resolvedRequest.Name;
-        if (collectionName.Length > 120)
-        {
-            collectionName = collectionName[..120];
-        }
-
-        return new CollectionRequest(
-            collectionName,
-            resolvedRequest.Method,
-            resolvedRequest.Url,
-            Description: null,
-            Notes: _requestEditor.RequestNotes,
-            Body: resolvedRequest.Body,
-            ContentType: _requestEditor.ContentType,
-            Headers: resolvedRequest.Headers is { } headers
-                ? headers.Where(header => !IsSensitiveHeaderName(header.Name)).ToList()
-                : null);
-    }
-
-    private CollectionRequest BuildCollectionRequestFromGraphQlState(
-        string url,
-        IReadOnlyList<RequestHeader>? resolvedHeaders)
-    {
-        var collectionName = string.IsNullOrWhiteSpace(_requestEditor.RequestName)
-            ? $"POST {url}"
-            : _requestEditor.RequestName;
-        if (collectionName.Length > 120)
-        {
-            collectionName = collectionName[..120];
-        }
-
-        return new CollectionRequest(
-            collectionName,
-            "POST",
-            url,
-            Description: null,
-            Notes: _requestEditor.RequestNotes,
-            Body: BuildGraphQlRequestBodyJson(),
-            ContentType: "application/json",
-            Headers: resolvedHeaders is { } headers
-                ? headers.Where(header => !IsSensitiveHeaderName(header.Name)).ToList()
-                : null);
-    }
-
-    private async Task SaveRequestToImplicitCollectionBestEffortAsync(
-        CollectionRequest collectionRequest,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            await SaveRequestToImplicitCollectionAsync(collectionRequest, cancellationToken);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            _debugLogger.Warning(
-                exception,
-                "Failed to persist implicit collection request {RequestName}; request send result remains successful",
-                collectionRequest.Name);
-        }
-    }
-
-    private async Task SaveRequestToImplicitCollectionAsync(CollectionRequest collectionRequest, CancellationToken cancellationToken)
-    {
-        var collections = await _collectionRepository.GetAllAsync(cancellationToken);
-        var implicitCollection = collections.FirstOrDefault(collection =>
-            string.Equals(collection.SourcePath, ImplicitCollectionSourcePath, StringComparison.Ordinal))
-            ?? collections.FirstOrDefault(collection =>
-                string.Equals(collection.Name, ImplicitCollectionName, StringComparison.OrdinalIgnoreCase)
-                && string.IsNullOrWhiteSpace(collection.SourcePath));
-
-        if (implicitCollection is null)
-        {
-            await _collectionRepository.SaveAsync(
-                ImplicitCollectionName,
-                sourcePath: ImplicitCollectionSourcePath,
-                baseUrl: null,
-                requests: [collectionRequest],
-                cancellationToken: cancellationToken);
-
-            await LoadCollectionsAsync(cancellationToken);
-            return;
-        }
-
-        var updatedRequests = implicitCollection.Requests.ToList();
-        var existingRequestIndex = updatedRequests.FindIndex(request =>
-            string.Equals(request.Name, collectionRequest.Name, StringComparison.Ordinal)
-            && string.Equals(request.Method, collectionRequest.Method, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(request.Path, collectionRequest.Path, StringComparison.Ordinal));
-
-        if (existingRequestIndex >= 0)
-        {
-            updatedRequests[existingRequestIndex] = collectionRequest;
-        }
-        else
-        {
-            updatedRequests.Add(collectionRequest);
-        }
-
-        await _collectionRepository.UpdateAsync(
-            implicitCollection.Id,
-            implicitCollection.Name,
-            ImplicitCollectionSourcePath,
-            implicitCollection.BaseUrl,
-            updatedRequests,
-            implicitCollection.Headers,
-            cancellationToken);
-
-        await LoadCollectionsAsync(cancellationToken);
-    }
-
-    private static bool IsSensitiveHeaderName(string headerName)
-    {
-        if (SensitiveHeaderNames.Contains(headerName))
-        {
-            return true;
-        }
-
-        return headerName.Contains("token", StringComparison.OrdinalIgnoreCase)
-               || headerName.Contains("secret", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private string BuildGraphQlRequestBodyJson()
-    {
-        JsonNode? variables = null;
-        if (!string.IsNullOrWhiteSpace(_graphQlViewModel.VariablesJson))
-        {
-            try
-            {
-                variables = JsonNode.Parse(_graphQlViewModel.VariablesJson);
-            }
-            catch (JsonException)
-            {
-                variables = null;
-            }
-        }
-
-        var requestBody = new JsonObject
-        {
-            ["query"] = _graphQlViewModel.Query,
-            ["variables"] = variables
-        };
-
-        if (!string.IsNullOrWhiteSpace(_graphQlViewModel.OperationName))
-        {
-            requestBody["operationName"] = _graphQlViewModel.OperationName;
-        }
-
-        return JsonSerializer.Serialize(requestBody, GraphQlJsonOptions);
     }
 
     private async Task LoadCollectionsAsync(CancellationToken cancellationToken = default)
