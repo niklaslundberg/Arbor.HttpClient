@@ -97,7 +97,6 @@ public sealed class ScheduledJobService : IDisposable
         {
             handle.Cts.Cancel();
             handle.Subscription?.Dispose();
-            handle.Cts.Dispose();
             _logger.Information("Scheduled job id={JobId} stopped", jobId);
         }
     }
@@ -119,11 +118,6 @@ public sealed class ScheduledJobService : IDisposable
         catch (OperationCanceledException)
         {
             // normal stop
-        }
-        catch (Exception ex)
-        {
-            _logger.Error(ex, "Scheduled job {JobName} tick failed", config.Name);
-            _exceptionCollector?.Add(ex);
         }
         finally
         {
@@ -192,7 +186,15 @@ public sealed class ScheduledJobService : IDisposable
         {
             handle.Cts.Cancel();
             handle.Subscription?.Dispose();
-            handle.Cts.Dispose();
+        }
+
+        foreach (var handle in handles)
+        {
+            var isIdle = SpinWait.SpinUntil(() => Volatile.Read(ref handle.IsExecuting) == 0, TimeSpan.FromSeconds(1));
+            if (isIdle)
+            {
+                handle.Cts.Dispose();
+            }
         }
     }
 

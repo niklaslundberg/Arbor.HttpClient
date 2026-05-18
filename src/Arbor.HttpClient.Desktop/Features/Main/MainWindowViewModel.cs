@@ -18,7 +18,6 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using System.Reactive;
-using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
@@ -707,13 +706,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
         _collectionInheritedHeadersAutoSaveDisposables.Add(_collectionInheritedHeadersAutoSaveRequestedSubject
             .Throttle(TimeSpan.FromSeconds(1))
-            .ObserveOn(TaskPoolScheduler.Default)
-            .Subscribe(snapshot => TriggerCollectionInheritedHeadersAutoSave(snapshot)));
+            .Subscribe(snapshot => Dispatcher.UIThread.Post(() => TriggerCollectionInheritedHeadersAutoSave(snapshot))));
 
         _optionsAutoSaveDisposables.Add(_optionsAutoSaveRequestedSubject
             .Throttle(TimeSpan.FromSeconds(1))
-            .ObserveOn(TaskPoolScheduler.Default)
-            .Subscribe(_ => SaveOptions()));
+            .Subscribe(_ => Dispatcher.UIThread.Post(SaveOptions)));
 
         _optionsAutoSaveDisposables.Add(Observable
             .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
@@ -1499,6 +1496,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
 
         ScheduledJobs.Remove(job);
+        job.Dispose();
     }
 
     [RelayCommand]
@@ -2646,6 +2644,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         _draftAutoSaveCts?.Dispose();
         _draftPersistenceService?.ClearDraft();
         _scheduledJobService.Dispose();
+        foreach (var scheduledJobViewModel in ScheduledJobs)
+        {
+            scheduledJobViewModel.Dispose();
+        }
         _fileWatcherCts?.Cancel();
         _fileWatcherCts?.Dispose();
         _requestBodyWatcher?.Dispose();
@@ -4375,6 +4377,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private async Task LoadScheduledJobsAsync(CancellationToken cancellationToken = default)
     {
         var all = await _scheduledJobRepository.GetAllAsync(cancellationToken);
+
+        foreach (var scheduledJobViewModel in ScheduledJobs)
+        {
+            scheduledJobViewModel.Dispose();
+        }
 
         ScheduledJobs.Clear();
         foreach (var config in all)

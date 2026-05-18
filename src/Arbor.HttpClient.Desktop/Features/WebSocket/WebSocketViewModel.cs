@@ -4,6 +4,7 @@ using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using Arbor.HttpClient.Desktop.Shared;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serilog;
@@ -47,29 +48,11 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
     {
         _logger = logger.ForContext<WebSocketViewModel>();
 
-        _subscriptions.Add(MessageReceivedObservable.Subscribe(msg =>
-        {
-            if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-            {
-                Messages.Add(msg);
-            }
-            else
-            {
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => Messages.Add(msg));
-            }
-        }));
+        _subscriptions.Add(MessageReceivedObservable.Subscribe(
+            message => Dispatcher.UIThread.Post(() => Messages.Add(message))));
 
-        _subscriptions.Add(DisconnectedObservable.Subscribe(_ =>
-        {
-            if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-            {
-                IsConnected = false;
-            }
-            else
-            {
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => IsConnected = false);
-            }
-        }));
+        _subscriptions.Add(DisconnectedObservable.Subscribe(
+            _ => Dispatcher.UIThread.Post(() => IsConnected = false)));
     }
 
     /// <summary>Connects to the supplied WebSocket URL with optional extra headers.</summary>

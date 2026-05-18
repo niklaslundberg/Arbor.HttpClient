@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serilog;
 using Arbor.HttpClient.Desktop.Shared;
+using Avalonia.Threading;
 using Arbor.HttpClient.Core.HttpRequest;
 using Arbor.HttpClient.Core.Sse;
 
@@ -46,17 +47,8 @@ public sealed partial class SseViewModel : ViewModelBase, IDisposable
         _service = new SseService(httpClient);
         _logger = logger.ForContext<SseViewModel>();
 
-        _subscriptions.Add(EventReceivedObservable.Subscribe(evt =>
-        {
-            if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-            {
-                Events.Add(evt);
-            }
-            else
-            {
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => Events.Add(evt));
-            }
-        }));
+        _subscriptions.Add(EventReceivedObservable.Subscribe(
+            sseEvent => Dispatcher.UIThread.Post(() => Events.Add(sseEvent))));
     }
 
     /// <summary>Opens an SSE stream to the supplied URL with optional extra headers.</summary>
