@@ -65,6 +65,8 @@ public class ScheduledJobServiceTests
         jobService.Start(config);
         await Task.Delay(1500, TestContext.Current.CancellationToken);
         jobService.Stop(1);
+
+        jobService.IsRunning(1).Should().BeFalse();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -222,6 +224,46 @@ public class ScheduledJobServiceTests
         await Task.Delay(250, TestContext.Current.CancellationToken);
         jobService.Stop(4);
 
+        sendCount.Should().Be(1);
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task Start_WithRxInterval_ShouldTriggerExecutionAfterConfiguredDelay()
+    {
+        var sendCount = 0;
+        var handler = new StubHttpMessageHandler(_ =>
+        {
+            Interlocked.Increment(ref sendCount);
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent("ok"),
+                ReasonPhrase = "OK"
+            };
+        });
+
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, new InMemoryRequestHistoryRepository());
+        var logger = new LoggerConfiguration().CreateLogger();
+
+        using var jobService = new ScheduledJobService(httpRequestService, logger);
+
+        var config = new ScheduledJobConfig(
+            Id: 5,
+            Name: "Rx Interval Job",
+            Method: "GET",
+            Url: "http://localhost:5000/test",
+            Body: null,
+            HeadersJson: null,
+            IntervalSeconds: 1,
+            AutoStart: false);
+
+        jobService.Start(config);
+
+        var invoked = SpinWait.SpinUntil(() => Volatile.Read(ref sendCount) > 0, TimeSpan.FromSeconds(3));
+
+        jobService.Stop(5);
+
+        invoked.Should().BeTrue();
         sendCount.Should().Be(1);
     }
 }

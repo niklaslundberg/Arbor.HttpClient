@@ -17,6 +17,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
+using System.Reactive;
+using System.Reactive.Concurrency;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using Arbor.HttpClient.Desktop.Demo;
 using Arbor.HttpClient.Desktop.Features.Collections;
 using Arbor.HttpClient.Desktop.Features.Cookies;
@@ -90,10 +95,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private int _layoutNameCounter = 1;
     private bool _suppressLayoutRestore;
     private bool _suppressOptionsAutoSave;
-    private CancellationTokenSource? _optionsAutoSaveCts;
+    private readonly Subject<Unit> _optionsAutoSaveRequestedSubject = new();
+    private readonly CompositeDisposable _optionsAutoSaveDisposables = new();
     private bool _suppressCollectionInheritedHeadersAutoSave;
     private bool _suppressCollectionInheritedHeadersLivePreviewSync;
-    private CancellationTokenSource? _collectionInheritedHeadersAutoSaveCts;
+    private readonly Subject<CollectionInheritedHeadersAutoSaveSnapshot> _collectionInheritedHeadersAutoSaveRequestedSubject = new();
+    private readonly CompositeDisposable _collectionInheritedHeadersAutoSaveDisposables = new();
+    private Task? _collectionInheritedHeadersAutoSaveTask;
     private int _collectionInheritedHeadersAutoSaveVersion;
     private bool _hasPendingCollectionInheritedHeadersAutoSave;
     private CollectionInheritedHeadersAutoSaveSnapshot? _pendingCollectionInheritedHeadersAutoSaveSnapshot;
@@ -720,6 +728,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         var appLogger = (logger ?? Log.Logger).ForContext<MainWindowViewModel>();
         _debugLogger = appLogger.ForContext("LogTab", LogTab.Debug);
         _httpRequestsLogger = appLogger.ForContext("LogTab", LogTab.HttpRequests);
+
+        _collectionInheritedHeadersAutoSaveDisposables.Add(_collectionInheritedHeadersAutoSaveRequestedSubject
+            .Throttle(TimeSpan.FromSeconds(1))
+            .ObserveOn(TaskPoolScheduler.Default)
+            .Subscribe(snapshot => TriggerCollectionInheritedHeadersAutoSave(snapshot)));
+
+        _optionsAutoSaveDisposables.Add(_optionsAutoSaveRequestedSubject
+            .Throttle(TimeSpan.FromSeconds(1))
+            .ObserveOn(TaskPoolScheduler.Default)
+            .Subscribe(_ => SaveOptions()));
 
         _requestEditor = new RequestEditorViewModel(
             _variableResolver,
@@ -2021,26 +2039,25 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         _pendingCollectionInheritedHeadersAutoSaveSnapshot = snapshot;
 
         _collectionInheritedHeadersAutoSaveVersion++;
-        var autoSaveVersion = _collectionInheritedHeadersAutoSaveVersion;
+        _collectionInheritedHeadersAutoSaveRequestedSubject.OnNext(snapshot);
+    }
 
-        _collectionInheritedHeadersAutoSaveCts?.Cancel();
-        _collectionInheritedHeadersAutoSaveCts?.Dispose();
-        _collectionInheritedHeadersAutoSaveCts = new CancellationTokenSource();
-        _ = TriggerCollectionInheritedHeadersAutoSaveAsync(snapshot, autoSaveVersion, _collectionInheritedHeadersAutoSaveCts.Token);
+    private void TriggerCollectionInheritedHeadersAutoSave(CollectionInheritedHeadersAutoSaveSnapshot snapshot)
+    {
+        var autoSaveVersion = _collectionInheritedHeadersAutoSaveVersion;
+        _collectionInheritedHeadersAutoSaveTask = TriggerCollectionInheritedHeadersAutoSaveAsync(snapshot, autoSaveVersion);
     }
 
     private async Task TriggerCollectionInheritedHeadersAutoSaveAsync(
         CollectionInheritedHeadersAutoSaveSnapshot snapshot,
-        int autoSaveVersion,
-        CancellationToken cancellationToken)
+        int autoSaveVersion)
     {
         try
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(1000), cancellationToken).ConfigureAwait(false);
             await Dispatcher.UIThread.InvokeAsync(
                 async () => await PersistCollectionInheritedHeadersSnapshotAsync(
                     snapshot,
-                    cancellationToken,
+                    CancellationToken.None,
                     selectUpdatedCollection: false),
                 DispatcherPriority.Background);
 
@@ -2049,9 +2066,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
                 ClearPendingCollectionInheritedHeadersAutoSaveState();
             }
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Debounced auto-save was superseded by a newer edit.
+            _debugLogger.Warning(ex, "Collection inherited headers auto-save failed");
         }
     }
 
@@ -2062,9 +2079,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             return;
         }
 
-        _collectionInheritedHeadersAutoSaveCts?.Cancel();
-        _collectionInheritedHeadersAutoSaveCts?.Dispose();
-        _collectionInheritedHeadersAutoSaveCts = null;
+        if (_collectionInheritedHeadersAutoSaveTask is { } autoSaveTask)
+        {
+            await autoSaveTask.ConfigureAwait(false);
+        }
 
         await PersistCollectionInheritedHeadersSnapshotAsync(snapshot, CancellationToken.None, selectUpdatedCollection: true);
         ClearPendingCollectionInheritedHeadersAutoSaveState();
@@ -2474,10 +2492,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         _requestEditor.PropertyChanged -= OnRequestEditorPropertyChanged;
         SendRequestCommand.PropertyChanged -= OnSendRequestCommandPropertyChanged;
         _environmentsViewModel.Dispose();
-        _optionsAutoSaveCts?.Cancel();
-        _optionsAutoSaveCts?.Dispose();
-        _collectionInheritedHeadersAutoSaveCts?.Cancel();
-        _collectionInheritedHeadersAutoSaveCts?.Dispose();
+        _optionsAutoSaveRequestedSubject.OnCompleted();
+        _optionsAutoSaveDisposables.Dispose();
+        _collectionInheritedHeadersAutoSaveRequestedSubject.OnCompleted();
+        _collectionInheritedHeadersAutoSaveDisposables.Dispose();
         _draftAutoSaveCts?.Cancel();
         _draftAutoSaveCts?.Dispose();
         _draftPersistenceService?.ClearDraft();
@@ -4204,24 +4222,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             return;
         }
 
-        _optionsAutoSaveCts?.Cancel();
-        _optionsAutoSaveCts?.Dispose();
-        _optionsAutoSaveCts = new CancellationTokenSource();
-        _ = TriggerOptionsAutoSaveAsync(_optionsAutoSaveCts.Token);
+        _optionsAutoSaveRequestedSubject.OnNext(Unit.Default);
     }
 
-    private async Task TriggerOptionsAutoSaveAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(1000), cancellationToken).ConfigureAwait(false);
-            await Dispatcher.UIThread.InvokeAsync(SaveOptions);
-        }
-        catch (OperationCanceledException)
-        {
-            // Debounced auto-save was superseded by a newer edit.
-        }
-    }
 
     private async Task LoadScheduledJobsAsync(CancellationToken cancellationToken = default)
     {
@@ -4290,27 +4293,42 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             return;
         }
 
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using var cancellationRegistration = cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
+        using var subscription = Observable.Interval(TimeSpan.FromSeconds(30))
+            .Subscribe(_tick =>
+            {
+                _ = SaveDraftTickAsync(cancellationToken);
+            });
+
         try
         {
-            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
-            {
-                try
-                {
-                    var state = await Dispatcher.UIThread.InvokeAsync(
-                        () => DraftPersistenceService.CaptureFromEditor(_requestEditor));
-                    cancellationToken.ThrowIfCancellationRequested();
-                    await _draftPersistenceService.SaveDraftAsync(state, cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    _debugLogger.Warning(ex, "Auto-save draft failed");
-                }
-            }
+            await completion.Task.ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Normal shutdown — timer cancelled.
+            // Normal shutdown — auto-save subscription cancelled.
+        }
+    }
+
+    private async Task SaveDraftTickAsync(CancellationToken cancellationToken)
+    {
+        if (_draftPersistenceService is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var state = await Dispatcher.UIThread.InvokeAsync(
+                () => DraftPersistenceService.CaptureFromEditor(_requestEditor));
+            cancellationToken.ThrowIfCancellationRequested();
+            await _draftPersistenceService.SaveDraftAsync(state, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _debugLogger.Warning(ex, "Auto-save draft failed");
         }
     }
 }

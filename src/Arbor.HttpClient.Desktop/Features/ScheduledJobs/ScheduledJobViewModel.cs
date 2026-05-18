@@ -9,13 +9,19 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Arbor.HttpClient.Core.HttpRequest;
 using Arbor.HttpClient.Core.ScheduledJobs;
+using System.Reactive;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
 
 namespace Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 
-public sealed partial class ScheduledJobViewModel : ViewModelBase
+public sealed partial class ScheduledJobViewModel : ViewModelBase, IDisposable
 {
     private readonly IScheduledJobRepository _repository;
     private readonly ScheduledJobService _jobService;
+    private readonly Subject<Unit> _autoSaveRequestedSubject = new();
+    private readonly CompositeDisposable _disposables = new();
     private bool _suppressAutoSave;
     private bool _isSaving;
     private CancellationTokenSource? _autoSaveCancellationTokenSource;
@@ -89,6 +95,10 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     {
         _repository = repository;
         _jobService = jobService;
+
+        _disposables.Add(_autoSaveRequestedSubject
+            .Throttle(TimeSpan.FromSeconds(1))
+            .Subscribe(_ => TriggerAutoSave()));
     }
 
     public static ScheduledJobViewModel FromConfig(
@@ -241,9 +251,15 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
             return;
         }
 
+        _autoSaveRequestedSubject.OnNext(Unit.Default);
+    }
+
+    private void TriggerAutoSave()
+    {
         _autoSaveCancellationTokenSource?.Cancel();
         _autoSaveCancellationTokenSource?.Dispose();
         _autoSaveCancellationTokenSource = new CancellationTokenSource();
+
         _ = TriggerAutoSaveAsync(_autoSaveCancellationTokenSource.Token);
     }
 
@@ -251,7 +267,6 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
     {
         try
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(1000), cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             if (Dispatcher.UIThread.CheckAccess())
             {
@@ -266,5 +281,15 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase
         {
             // Debounced auto-save was superseded by a newer edit.
         }
+    }
+
+    public void Dispose()
+    {
+        _autoSaveCancellationTokenSource?.Cancel();
+        _autoSaveCancellationTokenSource?.Dispose();
+        _autoSaveCancellationTokenSource = null;
+
+        _autoSaveRequestedSubject.OnCompleted();
+        _disposables.Dispose();
     }
 }
