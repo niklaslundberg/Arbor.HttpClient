@@ -566,10 +566,11 @@ public partial class RequestView : UserControl
             return;
         }
 
+        const double zeroTolerance = 0.0001;
         var isPreviewRowCollapsed =
-            splitterRow.Height.IsAbsolute && splitterRow.Height.Value == 0 &&
-            previewRow.Height.IsAbsolute && previewRow.Height.Value == 0 &&
-            previewRow.MinHeight == 0;
+            splitterRow.Height.IsAbsolute && Math.Abs(splitterRow.Height.Value) < zeroTolerance &&
+            previewRow.Height.IsAbsolute && Math.Abs(previewRow.Height.Value) < zeroTolerance &&
+            Math.Abs(previewRow.MinHeight) < zeroTolerance;
         if (!isPreviewRowCollapsed)
         {
             _requestDraftTopRowHeightBeforePreviewHidden = topRow.Height;
