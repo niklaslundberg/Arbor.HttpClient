@@ -1,5 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Net.Http;
+using System.Reactive.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serilog;
@@ -16,6 +19,11 @@ namespace Arbor.HttpClient.Desktop.Features.GraphQl;
 /// </summary>
 public sealed partial class GraphQlViewModel : ViewModelBase
 {
+    private static readonly JsonSerializerOptions GraphQlJsonOptions = new()
+    {
+        WriteIndented = true
+    };
+
     private readonly GraphQlService _service;
     private readonly ILogger _logger;
 
@@ -41,6 +49,24 @@ public sealed partial class GraphQlViewModel : ViewModelBase
     {
         _service = new GraphQlService(httpClient);
         _logger = logger.ForContext<GraphQlViewModel>();
+
+        PropertyChangedObservable
+            .Select(args => args.PropertyName)
+            .Where(propertyName => propertyName is nameof(Query) or nameof(VariablesJson) or nameof(OperationName))
+            .Subscribe(_ => ClearIntrospectionOutcome());
+    }
+
+    private void ClearIntrospectionOutcome()
+    {
+        if (IsIntrospecting)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(IntrospectionError))
+        {
+            IntrospectionError = string.Empty;
+        }
     }
 
     /// <summary>Builds a <see cref="GraphQlDraft"/> from the current editor state.</summary>
@@ -49,6 +75,36 @@ public sealed partial class GraphQlViewModel : ViewModelBase
         IReadOnlyList<RequestHeader>? headers = null)
     {
         return new GraphQlDraft(url, Query, VariablesJson, OperationName, headers);
+    }
+
+    /// <summary>Builds the serialized GraphQL request JSON payload from current editor values.</summary>
+    public string BuildRequestBodyJson()
+    {
+        JsonNode? variables = null;
+        if (!string.IsNullOrWhiteSpace(VariablesJson))
+        {
+            try
+            {
+                variables = JsonNode.Parse(VariablesJson);
+            }
+            catch (JsonException)
+            {
+                variables = null;
+            }
+        }
+
+        var requestBody = new JsonObject
+        {
+            ["query"] = Query,
+            ["variables"] = variables
+        };
+
+        if (!string.IsNullOrWhiteSpace(OperationName))
+        {
+            requestBody["operationName"] = OperationName;
+        }
+
+        return JsonSerializer.Serialize(requestBody, GraphQlJsonOptions);
     }
 
     /// <summary>

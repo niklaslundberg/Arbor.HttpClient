@@ -11,6 +11,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
+using System.Reactive.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serilog;
@@ -308,6 +309,10 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Creates a request editor that resolves environment variables, tracks editable request state,
+    /// and produces preview/send-ready request drafts.
+    /// </summary>
     /// <param name="variableResolver">Resolves <c>{{variable}}</c> tokens in URL/body/headers.</param>
     /// <param name="getActiveVariables">
     /// Callback that returns the current active environment variables. Typically
@@ -344,50 +349,104 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
         RequestHeaders.CollectionChanged += OnRequestHeadersCollectionChanged;
         RequestQueryParameters.CollectionChanged += OnRequestQueryParametersCollectionChanged;
+
+        RegisterPropertyChangeSubscriptions();
     }
 
-    // ── Property-change hooks ─────────────────────────────────────────────────
-
-    partial void OnSelectedMethodChanged(string value) => RefreshRequestPreview();
-
-    partial void OnSelectedHttpVersionOptionChanged(string value)
+    private void RegisterPropertyChangeSubscriptions()
     {
-        _logger.Information("Selected HTTP version changed to {Value}", value);
+        PropertyChangedObservable
+            .Select(args => args.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(SelectedMethod), StringComparison.Ordinal))
+            .Subscribe(_ => RefreshRequestPreview());
+
+        PropertyChangedObservable
+            .Select(args => args.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(SelectedHttpVersionOption), StringComparison.Ordinal))
+            .Subscribe(_ => ApplySelectedHttpVersionOption());
+
+        PropertyChangedObservable
+            .Select(args => args.PropertyName)
+            .Where(propertyName => propertyName is nameof(RequestBody) or nameof(PrettyPrintRequestBody))
+            .Subscribe(_ => RefreshRequestDerivedViews());
+
+        PropertyChangedObservable
+            .Select(args => args.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(PrettyPrintRequestBodyUseIndentation), StringComparison.Ordinal))
+            .Subscribe(_ =>
+            {
+                if (PrettyPrintRequestBody)
+                {
+                    RefreshRequestDerivedViews();
+                }
+            });
+
+        PropertyChangedObservable
+            .Select(args => args.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(RequestUrl), StringComparison.Ordinal))
+            .Subscribe(_ => ApplyRequestUrlChanged());
+
+        PropertyChangedObservable
+            .Select(args => args.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(SelectedContentTypeOption), StringComparison.Ordinal))
+            .Subscribe(_ => ApplySelectedContentTypeOption());
+
+        PropertyChangedObservable
+            .Select(args => args.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(SelectedAuthModeOption), StringComparison.Ordinal))
+            .Subscribe(_ => ApplySelectedAuthModeOption());
+
+        PropertyChangedObservable
+            .Select(args => args.PropertyName)
+            .Where(propertyName => propertyName is nameof(AuthBearerToken)
+                or nameof(AuthBasicUsername)
+                or nameof(AuthBasicPassword)
+                or nameof(AuthApiKey)
+                or nameof(AuthOAuth2AccessToken))
+            .Subscribe(propertyName => ApplyAuthFieldChanged(propertyName));
+
+        PropertyChangedObservable
+            .Select(args => args.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(CustomContentType), StringComparison.Ordinal))
+            .Subscribe(_ => ApplyCustomContentType());
+
+        PropertyChangedObservable
+            .Select(args => args.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(IsRequestHeadersPreviewVisible), StringComparison.Ordinal))
+            .Subscribe(_ => OnPropertyChanged(nameof(RequestHeadersPreviewLabel)));
+
+        PropertyChangedObservable
+            .Select(args => args.PropertyName)
+            .Where(propertyName => string.Equals(propertyName, nameof(RequestTimeoutSecondsText), StringComparison.Ordinal))
+            .Subscribe(_ => ApplyRequestTimeoutSecondsText());
+    }
+
+    private void ApplySelectedHttpVersionOption()
+    {
+        _logger.Information("Selected HTTP version changed to {Value}", SelectedHttpVersionOption);
         RefreshRequestPreview();
         _onOptionsAffectingPropertyChanged?.Invoke();
     }
 
-    partial void OnRequestBodyChanged(string value) => RefreshRequestDerivedViews();
-
-    partial void OnPrettyPrintRequestBodyChanged(bool value) => RefreshRequestDerivedViews();
-
-    partial void OnPrettyPrintRequestBodyUseIndentationChanged(bool value)
-    {
-        if (PrettyPrintRequestBody)
-        {
-            RefreshRequestDerivedViews();
-        }
-    }
-
-    partial void OnRequestUrlChanged(string value)
+    private void ApplyRequestUrlChanged()
     {
         if (_isUpdatingRequestUrlFromQueryParameters)
         {
             return;
         }
 
-        SyncQueryParametersFromRequestUrl(value);
+        SyncQueryParametersFromRequestUrl(RequestUrl);
         RefreshRequestPreview();
     }
 
-    partial void OnSelectedContentTypeOptionChanged(string value)
+    private void ApplySelectedContentTypeOption()
     {
         OnPropertyChanged(nameof(IsCustomContentType));
         OnPropertyChanged(nameof(ContentType));
         RefreshRequestDerivedViews();
     }
 
-    partial void OnSelectedAuthModeOptionChanged(string value)
+    private void ApplySelectedAuthModeOption()
     {
         OnPropertyChanged(nameof(IsBearerAuthMode));
         OnPropertyChanged(nameof(IsBasicAuthMode));
@@ -396,76 +455,57 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         RefreshRequestDerivedViews();
     }
 
-    partial void OnAuthBearerTokenChanged(string value)
+    private void ApplyAuthFieldChanged(string? propertyName)
     {
-        if (IsBearerAuthMode)
-        {
-            RefreshRequestDerivedViews();
-        }
-    }
-
-    partial void OnAuthBasicUsernameChanged(string value)
-    {
-        if (IsBasicAuthMode)
-        {
-            RefreshRequestDerivedViews();
-        }
-    }
-
-    partial void OnAuthBasicPasswordChanged(string value)
-    {
-        if (IsBasicAuthMode)
-        {
-            RefreshRequestDerivedViews();
-        }
-    }
-
-    partial void OnAuthApiKeyChanged(string value)
-    {
-        if (IsApiKeyAuthMode)
-        {
-            RefreshRequestDerivedViews();
-        }
-    }
-
-    partial void OnAuthOAuth2AccessTokenChanged(string value)
-    {
-        if (IsOAuth2ClientCredentialsAuthMode)
-        {
-            RefreshRequestDerivedViews();
-        }
-    }
-
-    partial void OnCustomContentTypeChanged(string value)
-    {
-        if (IsCustomContentType)
-        {
-            OnPropertyChanged(nameof(ContentType));
-            RefreshRequestDerivedViews();
-        }
-    }
-
-    partial void OnIsRequestHeadersPreviewVisibleChanged(bool value) =>
-        OnPropertyChanged(nameof(RequestHeadersPreviewLabel));
-
-    partial void OnRequestTimeoutSecondsTextChanged(string value)
-    {
-        if (string.IsNullOrEmpty(value))
+        if (propertyName is null)
         {
             return;
         }
 
-        if (!value.All(char.IsDigit))
+        var shouldRefresh = propertyName switch
+        {
+            nameof(AuthBearerToken) => IsBearerAuthMode,
+            nameof(AuthBasicUsername) or nameof(AuthBasicPassword) => IsBasicAuthMode,
+            nameof(AuthApiKey) => IsApiKeyAuthMode,
+            nameof(AuthOAuth2AccessToken) => IsOAuth2ClientCredentialsAuthMode,
+            _ => false
+        };
+
+        if (shouldRefresh)
+        {
+            RefreshRequestDerivedViews();
+        }
+    }
+
+    private void ApplyCustomContentType()
+    {
+        if (!IsCustomContentType)
+        {
+            return;
+        }
+
+        OnPropertyChanged(nameof(ContentType));
+        RefreshRequestDerivedViews();
+    }
+
+    private void ApplyRequestTimeoutSecondsText()
+    {
+        if (string.IsNullOrEmpty(RequestTimeoutSecondsText))
+        {
+            return;
+        }
+
+        if (!RequestTimeoutSecondsText.All(char.IsDigit))
         {
             RequestTimeoutSecondsText = string.Empty;
             return;
         }
 
-        var normalized = int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed)
+        var normalized = int.TryParse(RequestTimeoutSecondsText, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed)
             ? Math.Min(parsed, 100).ToString(CultureInfo.InvariantCulture)
             : "100";
 
-        if (!string.Equals(value, normalized, StringComparison.Ordinal))
+        if (!string.Equals(RequestTimeoutSecondsText, normalized, StringComparison.Ordinal))
         {
             RequestTimeoutSecondsText = normalized;
         }
