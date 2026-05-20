@@ -207,7 +207,7 @@ public class MainWindowUiTests
     [AvaloniaFact(Timeout = 10_000)]
     public async Task Layout_DefaultSplitView_ShouldShowRequestAboveResponse()
     {
-        // Verifies the default layout places request-dock above response-dock in a vertical split
+        // Verifies the default layout keeps a single request dock; response is integrated in request view.
 
         var repository = new InMemoryRequestHistoryRepository();
         var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
@@ -232,17 +232,10 @@ public class MainWindowUiTests
 
         documentLayout.Should().NotBeNull("document-layout must exist in the default dock layout");
         requestDock.Should().NotBeNull("request-dock must exist in the default dock layout");
-        responseDock.Should().NotBeNull("response-dock must exist in the default dock layout");
+        responseDock.Should().BeNull("response is integrated into request and should not exist as separate dock");
 
-        // Request dock should be first (top) in the vertical split
-        var visibleDockables = documentLayout.VisibleDockables!;
-        var requestIndex = visibleDockables.IndexOf(requestDock);
-        var responseIndex = visibleDockables.IndexOf(responseDock);
-        requestIndex.Should().BeLessThan(responseIndex, "request-dock must appear before response-dock (top before bottom)");
-
-        // Default proportions: request gets more space
-        requestDock.Proportion.Should().BeGreaterThan(0, "request dock must have a positive proportion");
-        responseDock.Proportion.Should().BeGreaterThan(0, "response dock must have a positive proportion");
+        documentLayout.VisibleDockables!.Should().ContainSingle(dockable => dockable.Id == "request-dock");
+        requestDock!.Proportion.Should().BeGreaterThan(0, "request dock must have a positive proportion");
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -301,9 +294,8 @@ public class MainWindowUiTests
         var requestDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "request-dock");
         var responseDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "response-dock");
         requestDock2.Should().NotBeNull();
-        responseDock2.Should().NotBeNull();
-        requestDock2.Proportion.Should().BeApproximately(0.3, 0.001, "request dock proportion should be restored");
-        responseDock2.Proportion.Should().BeApproximately(0.7, 0.001, "response dock proportion should be restored");
+        responseDock2.Should().BeNull("response is integrated into request and should not be restored as separate dock");
+        requestDock2!.Proportion.Should().BeApproximately(0.3, 0.001, "request dock proportion should be restored");
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -334,11 +326,10 @@ public class MainWindowUiTests
         var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
         var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
         requestDock.Should().NotBeNull();
-        responseDock.Should().NotBeNull();
+        responseDock.Should().BeNull("response is integrated into request and should not exist as separate dock");
 
-        // Simulate user resizing the split — give response more space
-        requestDock.Proportion = 0.3;
-        responseDock.Proportion = 0.7;
+        // Simulate user resizing the request dock in-place.
+        requestDock!.Proportion = 0.3;
 
         // Simulate OnClosing: persist then capture
         var savedLayout = viewModel.CaptureCurrentLayout();
@@ -360,11 +351,9 @@ public class MainWindowUiTests
         var requestDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "request-dock");
         var responseDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "response-dock");
         requestDock2.Should().NotBeNull();
-        responseDock2.Should().NotBeNull();
-        requestDock2.Proportion.Should().BeApproximately(0.3, 0.001,
+        responseDock2.Should().BeNull("response is integrated into request and should not be restored as separate dock");
+        requestDock2!.Proportion.Should().BeApproximately(0.3, 0.001,
             "request dock proportion should be restored in-place from DockTree");
-        responseDock2.Proportion.Should().BeApproximately(0.7, 0.001,
-            "response dock proportion should be restored in-place from DockTree");
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -419,16 +408,8 @@ public class MainWindowUiTests
                                     {
                                         Type = "Document",
                                         Id = "request-dock",
-                                        Proportion = 0.6,
+                                        Proportion = 1,
                                         ContentIds = ["request"]
-                                    },
-                                    new DockTreeNode { Type = "Splitter", Id = "document-splitter" },
-                                    new DockTreeNode
-                                    {
-                                        Type = "Document",
-                                        Id = "response-dock",
-                                        Proportion = 0.4,
-                                        ContentIds = ["response"]
                                     }
                                 ]
                             }
@@ -900,7 +881,7 @@ public class MainWindowUiTests
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/slow";
         viewModel.RequestEditor.SelectedMethod = "GET";
 
-        viewModel.SendRequestCommand.Execute(null);
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
         await requestStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
         await Task.Delay(30, TestContext.Current.CancellationToken);
 

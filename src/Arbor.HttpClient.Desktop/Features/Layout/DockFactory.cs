@@ -15,7 +15,7 @@ namespace Arbor.HttpClient.Desktop.Features.Layout;
 
 /// <summary>
 /// Builds the initial Dock layout for the main window.
-    /// Panels: Explorer tool (left), Options tool (left), Environments tool (left), Logs tool (left), Cookie Jar tool (left), Request document, Response document.
+/// Panels: Explorer tool (left), Options tool (left), Environments tool (left), Logs tool (left), Cookie Jar tool (left), and a single Request document that contains the integrated response panel.
 /// </summary>
 public sealed class DockFactory : Factory
 {
@@ -87,23 +87,13 @@ public sealed class DockFactory : Factory
         LeftToolDock = leftToolDock;
 
         var request = new RequestViewModel(_mainVm);
-        var response = new ResponseViewModel(_mainVm);
 
         var requestDock = new DocumentDock
         {
             Id = "request-dock",
-            Proportion = 0.6,
+            Proportion = 1,
             ActiveDockable = request,
             VisibleDockables = CreateList<IDockable>(request),
-            IsCollapsable = false
-        };
-
-        var responseDock = new DocumentDock
-        {
-            Id = "response-dock",
-            Proportion = 0.4,
-            ActiveDockable = response,
-            VisibleDockables = CreateList<IDockable>(response),
             IsCollapsable = false
         };
 
@@ -112,10 +102,7 @@ public sealed class DockFactory : Factory
             Id = "document-layout",
             Proportion = 0.75,
             Orientation = Orientation.Vertical,
-            VisibleDockables = CreateList<IDockable>(
-                requestDock,
-                new ProportionalDockSplitter { Id = "document-splitter" },
-                responseDock)
+            VisibleDockables = CreateList<IDockable>(requestDock)
         };
 
         var mainLayout = new ProportionalDock

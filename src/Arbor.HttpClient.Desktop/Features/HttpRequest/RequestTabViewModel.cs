@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using Arbor.HttpClient.Desktop.Shared;
 
@@ -14,6 +15,30 @@ public sealed partial class RequestTabViewModel : ViewModelBase, IDisposable
 {
     private bool _disposed;
     private CollectionRequestSource? _collectionRequestSource;
+
+    /// <summary>
+    /// Per-tab response state snapshot so each request tab can preserve its own response view.
+    /// </summary>
+    public sealed record ResponseStateSnapshot(
+        string ResponseStatus,
+        int ResponseStatusCode,
+        string ResponseTimeDisplay,
+        string ResponseSizeDisplay,
+        string ResponseBody,
+        string RawResponseBody,
+        string ResponseBodyTabLabel,
+        string ResponseContentType,
+        string ResponseRawText,
+        int SelectedResponseTabIndex,
+        bool IsResponseWebViewAvailable,
+        string ResponseWebViewUri,
+        bool IsBinaryResponse,
+        bool HasResponseHeaders,
+        bool HasTextResponse,
+        IReadOnlyList<string> ResponseHeaders,
+        byte[] LastResponseBodyBytes);
+
+    public ResponseStateSnapshot? ResponseState { get; set; }
 
     public RequestTabViewModel(RequestEditorViewModel requestEditor)
     {
