@@ -40,6 +40,9 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Trait("Category", "Integration")]
 public class MainWindowUiTests
 {
+    private static Task WaitForUiThreadAsync() =>
+        Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
+
     [AvaloniaFact(Timeout = 10_000)]
     public async Task OnRequestBodyFileChanged_WhenWatcherTokenAlreadyCancelled_ResetsPendingFlag()
     {
@@ -944,7 +947,7 @@ public class MainWindowUiTests
         viewModel.SelectedResponseTabIndex = 2;
 
         viewModel.NewRequestTabCommand.Execute(null);
-        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        await WaitForUiThreadAsync();
         viewModel.ActiveRequestTab.Should().NotBeNull();
         var secondTab = viewModel.ActiveRequestTab!;
         secondTab.Should().NotBeSameAs(firstTab);
@@ -957,7 +960,7 @@ public class MainWindowUiTests
         viewModel.SelectedResponseTabIndex = 3;
 
         viewModel.ActiveRequestTab = firstTab;
-        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        await WaitForUiThreadAsync();
         viewModel.RequestEditor.Should().BeSameAs(firstTab.RequestEditor);
         viewModel.ResponseBody.Should().Contain("\"tab\": 1");
         viewModel.ResponseBodyTabLabel.Should().Be("JSON");
@@ -966,7 +969,7 @@ public class MainWindowUiTests
         viewModel.SelectedResponseTabIndex.Should().Be(2);
 
         viewModel.ActiveRequestTab = secondTab;
-        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        await WaitForUiThreadAsync();
         viewModel.RequestEditor.Should().BeSameAs(secondTab.RequestEditor);
         viewModel.ResponseBody.Should().Contain("<tab>2</tab>");
         viewModel.ResponseBodyTabLabel.Should().Be("XML");

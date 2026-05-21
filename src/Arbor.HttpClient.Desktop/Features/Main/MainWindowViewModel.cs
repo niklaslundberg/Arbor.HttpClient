@@ -9,6 +9,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -3192,9 +3193,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             ResponseWebViewUri = state.ResponseWebViewUri;
             HasResponseHeaders = state.HasResponseHeaders;
             HasTextResponse = state.HasTextResponse;
-            _lastResponseBodyBytes = state.LastResponseBodyBytes.IsEmpty
-                ? []
-                : state.LastResponseBodyBytes.ToArray();
+            _lastResponseBodyBytes = GetResponseStateBytes(state.LastResponseBodyBytes);
             ResponseHeaders.Clear();
             foreach (var header in state.ResponseHeaders)
             {
@@ -3205,6 +3204,27 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         {
             ClearResponseState();
         }
+    }
+
+    private static byte[] GetResponseStateBytes(ReadOnlyMemory<byte> responseBodyBytes)
+    {
+        if (responseBodyBytes.IsEmpty)
+        {
+            return [];
+        }
+
+        if (MemoryMarshal.TryGetArray(responseBodyBytes, out ArraySegment<byte> segment)
+            && segment.Array is { } array)
+        {
+            if (segment.Offset == 0 && segment.Count == array.Length)
+            {
+                return array;
+            }
+
+            return responseBodyBytes.ToArray();
+        }
+
+        return responseBodyBytes.ToArray();
     }
 
     private void ClearResponseState()
