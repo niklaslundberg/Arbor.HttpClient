@@ -40,8 +40,8 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Trait("Category", "Integration")]
 public class MainWindowUiTests
 {
-    private static Task WaitForUiThreadAsync() =>
-        Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
+    private static async Task WaitForUiThreadAsync() =>
+        await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
 
     [AvaloniaFact(Timeout = 10_000)]
     public async Task OnRequestBodyFileChanged_WhenWatcherTokenAlreadyCancelled_ResetsPendingFlag()
