@@ -21,6 +21,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Skia;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
 using AvaloniaEdit.Document;
@@ -264,11 +265,10 @@ public class MainWindowUiTests
         var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
         var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
         requestDock.Should().NotBeNull();
-        responseDock.Should().NotBeNull();
+        responseDock.Should().BeNull("response is integrated into request and should not exist as separate dock");
 
-        // Simulate user resizing the split — give response more space
+        // Simulate user resizing the remaining document dock.
         requestDock.Proportion = 0.3;
-        responseDock.Proportion = 0.7;
 
         // Simulate OnClosing: persist then capture
         var savedLayout = viewModel.CaptureCurrentLayout();
@@ -881,7 +881,7 @@ public class MainWindowUiTests
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/slow";
         viewModel.RequestEditor.SelectedMethod = "GET";
 
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        var sendTask = viewModel.SendRequestCommand.ExecuteAsync(null);
         await requestStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
         await Task.Delay(30, TestContext.Current.CancellationToken);
 
@@ -893,7 +893,86 @@ public class MainWindowUiTests
         viewModel.HasTextResponse.Should().BeFalse();
 
         allowResponse.TrySetResult();
-        await viewModel.SendRequestCommand.ExecutionTask!;
+        await sendTask;
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task RequestTabs_ShouldRestorePerTabResponseStateWhenSwitchingTabs()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var responseIndex = 0;
+        var handler = new StubHttpMessageHandler(_ =>
+        {
+            return Interlocked.Increment(ref responseIndex) switch
+            {
+                1 => new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"tab\":1}", Encoding.UTF8, "application/json")
+                },
+                2 => new HttpResponseMessage(HttpStatusCode.Accepted)
+                {
+                    Content = new StringContent("<item><tab>2</tab></item>", Encoding.UTF8, "application/xml")
+                },
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+            };
+        });
+
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        viewModel.ActiveRequestTab.Should().NotBeNull();
+        var firstTab = viewModel.ActiveRequestTab!;
+        viewModel.RequestEditor.Should().BeSameAs(firstTab.RequestEditor);
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/json";
+        viewModel.RequestEditor.SelectedMethod = "GET";
+
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        viewModel.ResponseBody.Should().Contain("\"tab\": 1");
+        viewModel.SelectedResponseTabIndex = 2;
+
+        viewModel.NewRequestTabCommand.Execute(null);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        viewModel.ActiveRequestTab.Should().NotBeNull();
+        var secondTab = viewModel.ActiveRequestTab!;
+        secondTab.Should().NotBeSameAs(firstTab);
+        viewModel.RequestEditor.Should().BeSameAs(secondTab.RequestEditor);
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/xml";
+        viewModel.RequestEditor.SelectedMethod = "GET";
+
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        viewModel.ResponseBody.Should().Contain("<tab>2</tab>");
+        viewModel.SelectedResponseTabIndex = 3;
+
+        viewModel.ActiveRequestTab = firstTab;
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        viewModel.RequestEditor.Should().BeSameAs(firstTab.RequestEditor);
+        viewModel.ResponseBody.Should().Contain("\"tab\": 1");
+        viewModel.ResponseBodyTabLabel.Should().Be("JSON");
+        viewModel.ResponseStatus.Should().Be("200 OK");
+        viewModel.ResponseHeaders.Should().Contain(header => header == "Content-Type: application/json; charset=utf-8");
+        viewModel.SelectedResponseTabIndex.Should().Be(2);
+
+        viewModel.ActiveRequestTab = secondTab;
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        viewModel.RequestEditor.Should().BeSameAs(secondTab.RequestEditor);
+        viewModel.ResponseBody.Should().Contain("<tab>2</tab>");
+        viewModel.ResponseBodyTabLabel.Should().Be("XML");
+        viewModel.ResponseStatus.Should().Be("202 Accepted");
+        viewModel.ResponseHeaders.Should().Contain(header => header == "Content-Type: application/xml; charset=utf-8");
+        viewModel.SelectedResponseTabIndex.Should().Be(3);
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -2141,7 +2220,6 @@ public class MainWindowUiTests
         const double savedDocProportion = 0.6;
         const double savedRequestProportion = 0.35;
         const double savedResponseProportion = 0.65;
-
         using var viewModel = new MainWindowViewModel(
             httpRequestService,
             repository,
@@ -2172,7 +2250,7 @@ public class MainWindowUiTests
         leftToolDock.Should().NotBeNull();
         documentLayout.Should().NotBeNull();
         requestDock.Should().NotBeNull();
-        responseDock.Should().NotBeNull();
+        responseDock.Should().BeNull("response is integrated into request and should not be restored as separate dock");
 
         // Simulate the scenario where the Dock PSP's TwoWay binding has already overwritten
         // the model proportions with equal-distribution values before the first visual render.
@@ -2180,7 +2258,6 @@ public class MainWindowUiTests
         leftToolDock.Proportion = 0.5;
         documentLayout.Proportion = 0.5;
         requestDock.Proportion = 0.5;
-        responseDock.Proportion = 0.5;
 
         // Now call ReapplyStartupLayout — this is what window.Opened does to correct the
         // PSP-corrupted proportions once visual bindings are established.
@@ -2193,8 +2270,6 @@ public class MainWindowUiTests
             "document layout proportion should be restored by ReapplyStartupLayout");
         requestDock.Proportion.Should().BeApproximately(savedRequestProportion, 0.001,
             "request dock proportion should be restored by ReapplyStartupLayout");
-        responseDock.Proportion.Should().BeApproximately(savedResponseProportion, 0.001,
-            "response dock proportion should be restored by ReapplyStartupLayout");
 
         // A second call must be a no-op (snapshot cleared after first use).
         leftToolDock.Proportion = 0.9;

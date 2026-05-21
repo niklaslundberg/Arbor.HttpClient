@@ -3170,37 +3170,40 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             HasResponseHeaders,
             HasTextResponse,
             ResponseHeaders.ToList(),
-            _lastResponseBodyBytes.ToArray());
+            _lastResponseBodyBytes);
     }
 
     private void RestoreResponseStateForTab(RequestTabViewModel tab)
     {
-        if (tab.ResponseState is not { } state)
+        if (tab.ResponseState is { } state)
+        {
+            ResponseStatus = state.ResponseStatus;
+            ResponseStatusCode = state.ResponseStatusCode;
+            ResponseTimeDisplay = state.ResponseTimeDisplay;
+            ResponseSizeDisplay = state.ResponseSizeDisplay;
+            ResponseBody = state.ResponseBody;
+            RawResponseBody = state.RawResponseBody;
+            ResponseRawText = state.ResponseRawText;
+            ResponseContentType = state.ResponseContentType;
+            ResponseBodyTabLabel = state.ResponseBodyTabLabel;
+            SelectedResponseTabIndex = state.SelectedResponseTabIndex;
+            IsBinaryResponse = state.IsBinaryResponse;
+            IsResponseWebViewAvailable = state.IsResponseWebViewAvailable;
+            ResponseWebViewUri = state.ResponseWebViewUri;
+            HasResponseHeaders = state.HasResponseHeaders;
+            HasTextResponse = state.HasTextResponse;
+            _lastResponseBodyBytes = state.LastResponseBodyBytes.IsEmpty
+                ? []
+                : state.LastResponseBodyBytes.ToArray();
+            ResponseHeaders.Clear();
+            foreach (var header in state.ResponseHeaders)
+            {
+                ResponseHeaders.Add(header);
+            }
+        }
+        else
         {
             ClearResponseState();
-            return;
-        }
-
-        ResponseStatus = state.ResponseStatus;
-        ResponseStatusCode = state.ResponseStatusCode;
-        ResponseTimeDisplay = state.ResponseTimeDisplay;
-        ResponseSizeDisplay = state.ResponseSizeDisplay;
-        ResponseBody = state.ResponseBody;
-        RawResponseBody = state.RawResponseBody;
-        ResponseRawText = state.ResponseRawText;
-        ResponseContentType = state.ResponseContentType;
-        ResponseBodyTabLabel = state.ResponseBodyTabLabel;
-        SelectedResponseTabIndex = state.SelectedResponseTabIndex;
-        IsBinaryResponse = state.IsBinaryResponse;
-        IsResponseWebViewAvailable = state.IsResponseWebViewAvailable;
-        ResponseWebViewUri = state.ResponseWebViewUri;
-        HasResponseHeaders = state.HasResponseHeaders;
-        HasTextResponse = state.HasTextResponse;
-        _lastResponseBodyBytes = state.LastResponseBodyBytes.ToArray();
-        ResponseHeaders.Clear();
-        foreach (var header in state.ResponseHeaders)
-        {
-            ResponseHeaders.Add(header);
         }
     }
 

@@ -84,6 +84,8 @@ public partial class EmbeddedResponseView : UserControl
             UpdateEditorsFromViewModel();
             ApplyEditorFonts();
         }
+
+        ApplyTextMateTheme();
     }
 
     private void OnAppVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -314,14 +316,9 @@ public partial class EmbeddedResponseView : UserControl
             editor.TextArea.TextView.SetDefaultHighlightLineColors();
         }
 
-        if (TryGetThemeBrush(installation, "editorLineNumber.foreground", out var lineNumberForeground))
-        {
-            editor.LineNumbersForeground = lineNumberForeground;
-        }
-        else
-        {
-            editor.LineNumbersForeground = editor.Foreground;
-        }
+        editor.LineNumbersForeground = TryGetThemeBrush(installation, "editorLineNumber.foreground", out var lineNumberForeground)
+            ? lineNumberForeground
+            : editor.Foreground;
     }
 
     private static bool TryGetThemeBrush(TextMate.Installation installation, string key, out IBrush brush)

@@ -36,7 +36,7 @@ public sealed partial class RequestTabViewModel : ViewModelBase, IDisposable
         bool HasResponseHeaders,
         bool HasTextResponse,
         IReadOnlyList<string> ResponseHeaders,
-        byte[] LastResponseBodyBytes);
+        ReadOnlyMemory<byte> LastResponseBodyBytes);
 
     public ResponseStateSnapshot? ResponseState { get; set; }
 

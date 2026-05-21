@@ -481,6 +481,9 @@
   <data name="ResponseBinaryResponse" xml:space="preserve">
     <value>Binary response</value>
   </data>
+  <data name="ResponseSendingRequest" xml:space="preserve">
+    <value>Sending request...</value>
+  </data>
   <data name="ResponseSaveAndOpen" xml:space="preserve">
     <value>Save and Open</value>
   </data>
