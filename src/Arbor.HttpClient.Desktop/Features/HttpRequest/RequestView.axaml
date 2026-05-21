@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Arbor.HttpClient.Desktop.Features.HttpRequest"
              xmlns:conv="using:Arbor.HttpClient.Desktop.Features.HttpRequest"
+             xmlns:local="using:Arbor.HttpClient.Desktop.Features.HttpRequest"
              xmlns:aedit="using:AvaloniaEdit"
              xmlns:views="using:Arbor.HttpClient.Desktop.Features.Variables"
              xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
@@ -18,7 +19,7 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="10" Margin="8">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto,*" RowSpacing="10" Margin="8" MinHeight="640">
 
         <Grid.KeyBindings>
             <!-- Standard across Hoppscotch / Insomnia / Postman: Ctrl+Enter (or Cmd+Enter) sends the request.
@@ -197,7 +198,7 @@
         <TextBlock Grid.Row="4" Text="{Binding App.ErrorMessage}" Foreground="{DynamicResource ErrorBrush}" />
 
         <!-- Row 5: Type-specific editor tabs + full-width preview with adjustable split -->
-        <Grid x:Name="RequestDraftGrid" Grid.Row="5" RowSpacing="0">
+        <Grid x:Name="RequestDraftGrid" Grid.Row="5" RowSpacing="0" MinHeight="320">
             <Grid.RowDefinitions>
                 <RowDefinition Height="3*" MinHeight="140" />
                 <RowDefinition Height="Auto" />
@@ -716,5 +717,15 @@
             </Border>
         </Grid>
     </Grid>
+
+    <GridSplitter Grid.Row="6"
+                  Height="6"
+                  Margin="0,2,0,2"
+                  HorizontalAlignment="Stretch"
+                  ResizeDirection="Rows"
+                  ResizeBehavior="PreviousAndNext"
+                  Background="{DynamicResource PanelBorderBrush}" />
+
+    <local:EmbeddedResponseView Grid.Row="7" DataContext="{Binding}" />
 </Grid>
 </UserControl>

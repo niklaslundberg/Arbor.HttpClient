@@ -458,6 +458,9 @@ public static class Strings
     /// <summary>Binary response</summary>
     public static string ResponseBinaryResponse => Get(nameof(ResponseBinaryResponse));
 
+    /// <summary>Sending request...</summary>
+    public static string ResponseSendingRequest => Get(nameof(ResponseSendingRequest));
+
     /// <summary>Save and Open</summary>
     public static string ResponseSaveAndOpen => Get(nameof(ResponseSaveAndOpen));
 

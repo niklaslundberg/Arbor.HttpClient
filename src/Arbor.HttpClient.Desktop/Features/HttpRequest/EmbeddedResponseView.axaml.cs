@@ -1,4 +1,5 @@
-using Arbor.HttpClient.Desktop.Features.HttpRequest;
+using System;
+using System.ComponentModel;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Avalonia;
 using Avalonia.Controls;
@@ -10,7 +11,7 @@ using TextMateSharp.Grammars;
 
 namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
 
-public partial class ResponseView : UserControl
+public partial class EmbeddedResponseView : UserControl
 {
     private TextEditor? _responseBodyEditor;
     private TextEditor? _rawResponseBodyEditor;
@@ -29,14 +30,14 @@ public partial class ResponseView : UserControl
     private string _responseRawEditorGrammarScope = string.Empty;
     private string _lastWebViewUri = string.Empty;
 
-    public ResponseView()
+    public EmbeddedResponseView()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
         ActualThemeVariantChanged += OnActualThemeVariantChanged;
     }
 
-    private MainWindowViewModel? GetAppVm() => DataContext as MainWindowViewModel;
+    private MainWindowViewModel? GetAppVm() => (DataContext as RequestViewModel)?.App;
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
@@ -58,21 +59,21 @@ public partial class ResponseView : UserControl
 
         if (_responseBodyEditor is not null)
         {
-            _responseAppliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_responseBodyEditor, inst);
+            _responseAppliedThemeHandler = (_, installation) => ApplyThemeColorsToEditor(_responseBodyEditor, installation);
             _responseTextMate = _responseBodyEditor.InstallTextMate(_registryOptions);
             _responseTextMate.AppliedTheme += _responseAppliedThemeHandler;
         }
 
         if (_rawResponseBodyEditor is not null)
         {
-            _rawAppliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_rawResponseBodyEditor, inst);
+            _rawAppliedThemeHandler = (_, installation) => ApplyThemeColorsToEditor(_rawResponseBodyEditor, installation);
             _rawResponseTextMate = _rawResponseBodyEditor.InstallTextMate(_registryOptions);
             _rawResponseTextMate.AppliedTheme += _rawAppliedThemeHandler;
         }
 
         if (_responseRawEditor is not null)
         {
-            _responseRawEditorAppliedThemeHandler = (_, inst) => ApplyThemeColorsToEditor(_responseRawEditor, inst);
+            _responseRawEditorAppliedThemeHandler = (_, installation) => ApplyThemeColorsToEditor(_responseRawEditor, installation);
             _responseRawEditorTextMate = _responseRawEditor.InstallTextMate(_registryOptions);
             _responseRawEditorTextMate.AppliedTheme += _responseRawEditorAppliedThemeHandler;
         }
@@ -83,14 +84,12 @@ public partial class ResponseView : UserControl
             UpdateEditorsFromViewModel();
             ApplyEditorFonts();
         }
+
+        ApplyTextMateTheme();
     }
 
-    private void OnAppVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private void OnAppVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        // PropertyChanged may be raised from a background thread (e.g. after an async HTTP response
-        // sets ResponseBody). All editor mutations must happen on the UI thread to avoid the
-        // circular lock inversion between AvaloniaEdit's document lock and TextMateSharp's
-        // listener lock that causes a deadlock with the TMModel tokenizer thread.
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() => OnAppVmPropertyChanged(sender, e));
@@ -138,17 +137,18 @@ public partial class ResponseView : UserControl
             _responseRawEditor.Text = _appVm.ResponseRawText;
         }
 
-        var ext = !string.IsNullOrWhiteSpace(_appVm.ResponseContentType)
+        var extension = !string.IsNullOrWhiteSpace(_appVm.ResponseContentType)
             ? MainWindowViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
             : MainWindowViewModel.DetectExtensionFromContent(_appVm.ResponseBody);
 
-        ApplyGrammarForContent(_responseTextMate, _registryOptions, ext, ref _responseGrammarScope);
+        ApplyGrammarForContent(_responseTextMate, _registryOptions, extension, ref _responseGrammarScope);
 
-        var rawExt = !string.IsNullOrWhiteSpace(_appVm.ResponseContentType)
+        var rawExtension = !string.IsNullOrWhiteSpace(_appVm.ResponseContentType)
             ? MainWindowViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
             : MainWindowViewModel.DetectExtensionFromContent(_appVm.RawResponseBody);
-        ApplyGrammarForContent(_rawResponseTextMate, _registryOptions, rawExt, ref _rawResponseGrammarScope);
-        ApplyGrammarForContent(_responseRawEditorTextMate, _registryOptions, rawExt, ref _responseRawEditorGrammarScope);
+
+        ApplyGrammarForContent(_rawResponseTextMate, _registryOptions, rawExtension, ref _rawResponseGrammarScope);
+        ApplyGrammarForContent(_responseRawEditorTextMate, _registryOptions, rawExtension, ref _responseRawEditorGrammarScope);
 
         if (_responseWebView is null)
         {
@@ -208,7 +208,6 @@ public partial class ResponseView : UserControl
 
         var language = registryOptions.GetLanguageByExtension(extension);
         var newScope = language is not null ? registryOptions.GetScopeByLanguageId(language.Id) : string.Empty;
-
         if (newScope == currentScope)
         {
             return;
@@ -317,14 +316,9 @@ public partial class ResponseView : UserControl
             editor.TextArea.TextView.SetDefaultHighlightLineColors();
         }
 
-        if (TryGetThemeBrush(installation, "editorLineNumber.foreground", out var lineNumberForeground))
-        {
-            editor.LineNumbersForeground = lineNumberForeground;
-        }
-        else
-        {
-            editor.LineNumbersForeground = editor.Foreground;
-        }
+        editor.LineNumbersForeground = TryGetThemeBrush(installation, "editorLineNumber.foreground", out var lineNumberForeground)
+            ? lineNumberForeground
+            : editor.Foreground;
     }
 
     private static bool TryGetThemeBrush(TextMate.Installation installation, string key, out IBrush brush)

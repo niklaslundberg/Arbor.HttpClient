@@ -4,10 +4,12 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -62,6 +64,7 @@ using Arbor.HttpClient.Desktop.Features.Scripting;
 
 namespace Arbor.HttpClient.Desktop.Features.Main;
 
+[SuppressMessage("Major Code Smell", "S3881", Justification = "Lifetime is managed as a UI root ViewModel with deterministic cleanup via Dispose.")]
 public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponseActionsContext
 {
     private readonly HttpRequestService _httpRequestService;
@@ -102,6 +105,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private int _requestBodyReadPending;
     private readonly Subject<string> _historyFilterRequestedSubject = new();
     private readonly CompositeDisposable _historyFilterDisposables = new();
+    private RequestTabViewModel? _lastAppliedRequestTab;
     private readonly Subject<string> _collectionSearchFilterRequestedSubject = new();
     private readonly CompositeDisposable _collectionSearchFilterDisposables = new();
     private DockFactory? _dockFactory;
@@ -208,8 +212,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
     void IResponseActionsContext.RecordTempFile(string path) => _tempFiles.Add(path);
 
-    void IResponseActionsContext.SetResponseSaveFileNamePatternValidationError(string error) =>
-        ResponseSaveFileNamePatternValidationError = error;
+    void IResponseActionsContext.SetResponseSaveFileNamePatternValidationError(string validationMessage) =>
+        ResponseSaveFileNamePatternValidationError = validationMessage;
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -668,6 +672,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         QueueOptionsAutoSave();
     }
 
+    [SuppressMessage("Major Code Smell", "S107", Justification = "Root composition constructor wires all feature services and optional host integrations.")]
     public MainWindowViewModel(
         HttpRequestService httpRequestService,
         IRequestHistoryRepository requestHistoryRepository,
@@ -893,6 +898,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         var firstTab = new RequestTabViewModel(_requestEditor);
         RequestTabs.Add(firstTab);
         _activeRequestTab = firstTab;
+        _lastAppliedRequestTab = firstTab;
         _environmentsViewModel = new EnvironmentsViewModel(
             environmentRepository,
             () => _requestEditor,
@@ -1099,7 +1105,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             return;
         }
 
+        SaveResponseStateForTab(_lastAppliedRequestTab);
+
         _requestEditor = newValue.RequestEditor;
+        RestoreResponseStateForTab(newValue);
+        _lastAppliedRequestTab = newValue;
         // Capture the editor in a local so the dispatcher callback always targets
         // the same instance even if ActiveRequestTab changes again before it runs.
         var editorForThisTab = _requestEditor;
@@ -2610,8 +2620,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         var leftToolDock = FindDockById<ToolDock>(Layout, "left-tool-dock");
         var documentLayout = FindDockById<ProportionalDock>(Layout, "document-layout");
         var requestDock = FindDockById<DocumentDock>(Layout, "request-dock");
-        var responseDock = FindDockById<DocumentDock>(Layout, "response-dock");
-        if (leftToolDock is null || documentLayout is null || requestDock is null || responseDock is null)
+        if (leftToolDock is null || documentLayout is null || requestDock is null)
         {
             return;
         }
@@ -2629,11 +2638,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         if (snapshot.RequestDockProportion > 0)
         {
             requestDock.Proportion = snapshot.RequestDockProportion;
-        }
-
-        if (snapshot.ResponseDockProportion > 0)
-        {
-            responseDock.Proportion = snapshot.ResponseDockProportion;
         }
     }
 
@@ -3143,6 +3147,86 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         LeftPanelTab = "History";
     }
 
+    private void SaveResponseStateForTab(RequestTabViewModel? tab)
+    {
+        if (tab is null)
+        {
+            return;
+        }
+
+        tab.ResponseState = new RequestTabViewModel.ResponseStateSnapshot(
+            ResponseStatus,
+            ResponseStatusCode,
+            ResponseTimeDisplay,
+            ResponseSizeDisplay,
+            ResponseBody,
+            RawResponseBody,
+            ResponseBodyTabLabel,
+            ResponseContentType,
+            ResponseRawText,
+            SelectedResponseTabIndex,
+            IsResponseWebViewAvailable,
+            ResponseWebViewUri,
+            IsBinaryResponse,
+            HasResponseHeaders,
+            HasTextResponse,
+            ResponseHeaders.ToList(),
+            _lastResponseBodyBytes);
+    }
+
+    private void RestoreResponseStateForTab(RequestTabViewModel tab)
+    {
+        if (tab.ResponseState is { } state)
+        {
+            ResponseStatus = state.ResponseStatus;
+            ResponseStatusCode = state.ResponseStatusCode;
+            ResponseTimeDisplay = state.ResponseTimeDisplay;
+            ResponseSizeDisplay = state.ResponseSizeDisplay;
+            ResponseBody = state.ResponseBody;
+            RawResponseBody = state.RawResponseBody;
+            ResponseRawText = state.ResponseRawText;
+            ResponseContentType = state.ResponseContentType;
+            ResponseBodyTabLabel = state.ResponseBodyTabLabel;
+            SelectedResponseTabIndex = state.SelectedResponseTabIndex;
+            IsBinaryResponse = state.IsBinaryResponse;
+            IsResponseWebViewAvailable = state.IsResponseWebViewAvailable;
+            ResponseWebViewUri = state.ResponseWebViewUri;
+            HasResponseHeaders = state.HasResponseHeaders;
+            HasTextResponse = state.HasTextResponse;
+            _lastResponseBodyBytes = GetResponseStateBytes(state.LastResponseBodyBytes);
+            ResponseHeaders.Clear();
+            foreach (var header in state.ResponseHeaders)
+            {
+                ResponseHeaders.Add(header);
+            }
+        }
+        else
+        {
+            ClearResponseState();
+        }
+    }
+
+    private static byte[] GetResponseStateBytes(ReadOnlyMemory<byte> responseBodyBytes)
+    {
+        if (responseBodyBytes.IsEmpty)
+        {
+            return [];
+        }
+
+        if (MemoryMarshal.TryGetArray(responseBodyBytes, out ArraySegment<byte> segment)
+            && segment.Array is { } array)
+        {
+            if (segment.Offset == 0 && segment.Count == array.Length)
+            {
+                return array;
+            }
+
+            return responseBodyBytes.ToArray();
+        }
+
+        return responseBodyBytes.ToArray();
+    }
+
     private void ClearResponseState()
     {
         ResponseStatus = string.Empty;
@@ -3154,6 +3238,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         ResponseRawText = string.Empty;
         ResponseContentType = string.Empty;
         ResponseBodyTabLabel = "Body";
+        SelectedResponseTabIndex = 0;
         IsBinaryResponse = false;
         IsResponseWebViewAvailable = false;
         ResponseWebViewUri = "about:blank";

@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.Mvvm.Controls;
@@ -9,6 +13,7 @@ namespace Arbor.HttpClient.Desktop.Features.Layout;
 /// </summary>
 public sealed class LayoutTreeWorkflow
 {
+    [SuppressMessage("Major Code Smell", "S3776", Justification = "Captures snapshot, floating window filtering, and geometry in one cohesive traversal.")]
     public DockLayoutSnapshot? CaptureLayoutSnapshot(
         IRootDock? root,
         DockTreeNode? cachedDockTree,
@@ -26,8 +31,7 @@ public sealed class LayoutTreeWorkflow
         var leftToolDock = FindDockById<ToolDock>(root, "left-tool-dock");
         var documentLayout = FindDockById<ProportionalDock>(root, "document-layout");
         var requestDock = FindDockById<DocumentDock>(root, "request-dock");
-        var responseDock = FindDockById<DocumentDock>(root, "response-dock");
-        if (leftToolDock is null || documentLayout is null || requestDock is null || responseDock is null)
+        if (leftToolDock is null || documentLayout is null || requestDock is null)
         {
             return null;
         }
@@ -46,6 +50,11 @@ public sealed class LayoutTreeWorkflow
                 var ids = new List<string>();
                 CollectDockableIds(floatRoot, ids);
 
+                if (ContainsPinnedRequestResponseDockable(ids))
+                {
+                    continue;
+                }
+
                 floatingWindows.Add(new FloatingWindowSnapshot
                 {
                     X = window.X,
@@ -63,7 +72,7 @@ public sealed class LayoutTreeWorkflow
             LeftToolProportion = SanitizeProportion(leftToolDock.Proportion, 0.25),
             DocumentProportion = SanitizeProportion(documentLayout.Proportion, 0.75),
             RequestDockProportion = SanitizeOptionalProportion(requestDock.Proportion),
-            ResponseDockProportion = SanitizeOptionalProportion(responseDock.Proportion),
+            ResponseDockProportion = 0,
             ActiveToolDockableId = leftToolDock.ActiveDockable?.Id,
             LeftToolDockableOrder = GetDockableOrder(leftToolDock.VisibleDockables),
             FloatingWindows = floatingWindows,
@@ -78,6 +87,7 @@ public sealed class LayoutTreeWorkflow
 
     public DockTreeNode? CaptureDockTree(IRootDock? root) => root is { } layoutRoot ? CaptureDockNode(layoutRoot) : null;
 
+    [SuppressMessage("Major Code Smell", "S3776", Justification = "Applies tree rebuild, fallback proportion restore, and floating window restore in one orchestration entry point.")]
     public LayoutApplyResult ApplyLayoutSnapshot(
         DockLayoutSnapshot? snapshot,
         IRootDock? layout,
@@ -124,8 +134,7 @@ public sealed class LayoutTreeWorkflow
             var leftToolDock = FindDockById<ToolDock>(effectiveLayout, "left-tool-dock");
             var documentLayout = FindDockById<ProportionalDock>(effectiveLayout, "document-layout");
             var requestDock = FindDockById<DocumentDock>(effectiveLayout, "request-dock");
-            var responseDock = FindDockById<DocumentDock>(effectiveLayout, "response-dock");
-            if (leftToolDock is null || documentLayout is null || requestDock is null || responseDock is null)
+            if (leftToolDock is null || documentLayout is null || requestDock is null)
             {
                 return new LayoutApplyResult(effectiveLayout, true);
             }
@@ -145,10 +154,6 @@ public sealed class LayoutTreeWorkflow
                 requestDock.Proportion = snapshot.RequestDockProportion;
             }
 
-            if (snapshot.ResponseDockProportion > 0)
-            {
-                responseDock.Proportion = snapshot.ResponseDockProportion;
-            }
 
             ApplyDockOrder(leftToolDock, snapshot.LeftToolDockableOrder);
             SetActiveDockable(leftToolDock, snapshot.ActiveToolDockableId);
@@ -156,7 +161,7 @@ public sealed class LayoutTreeWorkflow
 
         foreach (var floatingWindow in snapshot.FloatingWindows)
         {
-            if (floatingWindow.DockableIds.Count == 0)
+            if (floatingWindow.DockableIds.Count == 0 || ContainsPinnedRequestResponseDockable(floatingWindow.DockableIds))
             {
                 continue;
             }
@@ -300,6 +305,17 @@ public sealed class LayoutTreeWorkflow
         return null;
     }
 
+    private static bool ContainsPinnedRequestResponseDockable(IEnumerable<string> dockableIds) =>
+        dockableIds.Any(IsPinnedRequestResponseDockableId);
+
+    private static bool IsPinnedRequestResponseDockableId(string dockableId) =>
+        string.Equals(dockableId, "request", StringComparison.OrdinalIgnoreCase)
+        || IsLegacyResponseDockableId(dockableId);
+
+    private static bool IsLegacyResponseDockableId(string dockableId) =>
+        string.Equals(dockableId, "response", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(dockableId, "response-dock", StringComparison.OrdinalIgnoreCase);
+
     private static void CollectLeafDockables(IDockable dockable, Dictionary<string, IDockable> result)
     {
         if (dockable is IProportionalDockSplitter)
@@ -320,6 +336,7 @@ public sealed class LayoutTreeWorkflow
         }
     }
 
+    [SuppressMessage("Major Code Smell", "S3776", Justification = "Type-driven dock node factory maps serialized node variants to Dock model instances.")]
     private static IDockable? BuildDockNode(
         DockTreeNode node,
         IReadOnlyDictionary<string, IDockable> contentDockables,
@@ -418,7 +435,8 @@ public sealed class LayoutTreeWorkflow
                 var contents = dockFactory.CreateList<IDockable>();
                 foreach (var content in node.ContentIds
                     .Where(contentDockables.ContainsKey)
-                    .Select(id => contentDockables[id]))
+                    .Select(id => contentDockables[id])
+                    .Where(content => !IsLegacyResponseDockableId(content.Id ?? string.Empty)))
                 {
                     contents.Add(content);
                 }
@@ -429,7 +447,7 @@ public sealed class LayoutTreeWorkflow
                 }
 
                 IDockable? active = null;
-                if (node.ActiveContentId is { } activeId)
+                if (node.ActiveContentId is { } activeId && !IsLegacyResponseDockableId(activeId))
                 {
                     contentDockables.TryGetValue(activeId, out active);
                 }
@@ -491,6 +509,11 @@ public sealed class LayoutTreeWorkflow
 
     private static bool DockTreeNodeRequiresRebuild(DockTreeNode node, IDockable currentRoot)
     {
+        if (node.Type is "Document" && string.Equals(node.Id, "response-dock", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         if (node.Type is "Tool" or "Document")
         {
             if (string.IsNullOrWhiteSpace(node.Id))
@@ -520,6 +543,7 @@ public sealed class LayoutTreeWorkflow
         return node.Children.Any(child => DockTreeNodeRequiresRebuild(child, currentRoot));
     }
 
+    [SuppressMessage("Major Code Smell", "S3776", Justification = "Recursive in-place tree apply updates proportions, ordering, and active items.")]
     private static void ApplyDockTreeInPlace(IDockable currentRoot, DockTreeNode node)
     {
         if (!string.IsNullOrWhiteSpace(node.Id) && node.Proportion > 0)

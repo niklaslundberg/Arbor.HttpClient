@@ -21,6 +21,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Skia;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
 using AvaloniaEdit.Document;
@@ -39,6 +40,9 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 [Trait("Category", "Integration")]
 public class MainWindowUiTests
 {
+    private static async Task WaitForUiThreadAsync() =>
+        await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
+
     [AvaloniaFact(Timeout = 10_000)]
     public async Task OnRequestBodyFileChanged_WhenWatcherTokenAlreadyCancelled_ResetsPendingFlag()
     {
@@ -207,7 +211,7 @@ public class MainWindowUiTests
     [AvaloniaFact(Timeout = 10_000)]
     public async Task Layout_DefaultSplitView_ShouldShowRequestAboveResponse()
     {
-        // Verifies the default layout places request-dock above response-dock in a vertical split
+        // Verifies the default layout keeps a single request dock; response is integrated in request view.
 
         var repository = new InMemoryRequestHistoryRepository();
         var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
@@ -232,17 +236,10 @@ public class MainWindowUiTests
 
         documentLayout.Should().NotBeNull("document-layout must exist in the default dock layout");
         requestDock.Should().NotBeNull("request-dock must exist in the default dock layout");
-        responseDock.Should().NotBeNull("response-dock must exist in the default dock layout");
+        responseDock.Should().BeNull("response is integrated into request and should not exist as separate dock");
 
-        // Request dock should be first (top) in the vertical split
-        var visibleDockables = documentLayout.VisibleDockables!;
-        var requestIndex = visibleDockables.IndexOf(requestDock);
-        var responseIndex = visibleDockables.IndexOf(responseDock);
-        requestIndex.Should().BeLessThan(responseIndex, "request-dock must appear before response-dock (top before bottom)");
-
-        // Default proportions: request gets more space
-        requestDock.Proportion.Should().BeGreaterThan(0, "request dock must have a positive proportion");
-        responseDock.Proportion.Should().BeGreaterThan(0, "response dock must have a positive proportion");
+        documentLayout.VisibleDockables!.Should().ContainSingle(dockable => dockable.Id == "request-dock");
+        requestDock!.Proportion.Should().BeGreaterThan(0, "request dock must have a positive proportion");
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -271,11 +268,10 @@ public class MainWindowUiTests
         var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
         var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
         requestDock.Should().NotBeNull();
-        responseDock.Should().NotBeNull();
+        responseDock.Should().BeNull("response is integrated into request and should not exist as separate dock");
 
-        // Simulate user resizing the split — give response more space
+        // Simulate user resizing the remaining document dock.
         requestDock.Proportion = 0.3;
-        responseDock.Proportion = 0.7;
 
         // Simulate OnClosing: persist then capture
         var savedLayout = viewModel.CaptureCurrentLayout();
@@ -301,9 +297,8 @@ public class MainWindowUiTests
         var requestDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "request-dock");
         var responseDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "response-dock");
         requestDock2.Should().NotBeNull();
-        responseDock2.Should().NotBeNull();
-        requestDock2.Proportion.Should().BeApproximately(0.3, 0.001, "request dock proportion should be restored");
-        responseDock2.Proportion.Should().BeApproximately(0.7, 0.001, "response dock proportion should be restored");
+        responseDock2.Should().BeNull("response is integrated into request and should not be restored as separate dock");
+        requestDock2!.Proportion.Should().BeApproximately(0.3, 0.001, "request dock proportion should be restored");
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -334,11 +329,10 @@ public class MainWindowUiTests
         var requestDock = FindDockById<DocumentDock>(viewModel.Layout!, "request-dock");
         var responseDock = FindDockById<DocumentDock>(viewModel.Layout!, "response-dock");
         requestDock.Should().NotBeNull();
-        responseDock.Should().NotBeNull();
+        responseDock.Should().BeNull("response is integrated into request and should not exist as separate dock");
 
-        // Simulate user resizing the split — give response more space
-        requestDock.Proportion = 0.3;
-        responseDock.Proportion = 0.7;
+        // Simulate user resizing the request dock in-place.
+        requestDock!.Proportion = 0.3;
 
         // Simulate OnClosing: persist then capture
         var savedLayout = viewModel.CaptureCurrentLayout();
@@ -360,11 +354,9 @@ public class MainWindowUiTests
         var requestDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "request-dock");
         var responseDock2 = FindDockById<DocumentDock>(viewModel2.Layout!, "response-dock");
         requestDock2.Should().NotBeNull();
-        responseDock2.Should().NotBeNull();
-        requestDock2.Proportion.Should().BeApproximately(0.3, 0.001,
+        responseDock2.Should().BeNull("response is integrated into request and should not be restored as separate dock");
+        requestDock2!.Proportion.Should().BeApproximately(0.3, 0.001,
             "request dock proportion should be restored in-place from DockTree");
-        responseDock2.Proportion.Should().BeApproximately(0.7, 0.001,
-            "response dock proportion should be restored in-place from DockTree");
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -419,16 +411,8 @@ public class MainWindowUiTests
                                     {
                                         Type = "Document",
                                         Id = "request-dock",
-                                        Proportion = 0.6,
+                                        Proportion = 1,
                                         ContentIds = ["request"]
-                                    },
-                                    new DockTreeNode { Type = "Splitter", Id = "document-splitter" },
-                                    new DockTreeNode
-                                    {
-                                        Type = "Document",
-                                        Id = "response-dock",
-                                        Proportion = 0.4,
-                                        ContentIds = ["response"]
                                     }
                                 ]
                             }
@@ -900,7 +884,7 @@ public class MainWindowUiTests
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/slow";
         viewModel.RequestEditor.SelectedMethod = "GET";
 
-        viewModel.SendRequestCommand.Execute(null);
+        var sendTask = viewModel.SendRequestCommand.ExecuteAsync(null);
         await requestStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
         await Task.Delay(30, TestContext.Current.CancellationToken);
 
@@ -912,7 +896,86 @@ public class MainWindowUiTests
         viewModel.HasTextResponse.Should().BeFalse();
 
         allowResponse.TrySetResult();
-        await viewModel.SendRequestCommand.ExecutionTask!;
+        await sendTask;
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task RequestTabs_ShouldRestorePerTabResponseStateWhenSwitchingTabs()
+    {
+        var repository = new InMemoryRequestHistoryRepository();
+        var responseIndex = 0;
+        var handler = new StubHttpMessageHandler(_ =>
+        {
+            return Interlocked.Increment(ref responseIndex) switch
+            {
+                1 => new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"tab\":1}", Encoding.UTF8, "application/json")
+                },
+                2 => new HttpResponseMessage(HttpStatusCode.Accepted)
+                {
+                    Content = new StringContent("<item><tab>2</tab></item>", Encoding.UTF8, "application/xml")
+                },
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+            };
+        });
+
+        using var httpClient = new System.Net.Http.HttpClient(handler);
+        var httpRequestService = new HttpRequestService(httpClient, repository);
+        var inMemorySink = new InMemorySink();
+        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
+        var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
+        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
+
+        using var viewModel = new MainWindowViewModel(
+            httpRequestService,
+            repository,
+            new InMemoryCollectionRepository(),
+            new InMemoryEnvironmentRepository(),
+            new InMemoryScheduledJobRepository(),
+            scheduledJobService,
+            logWindowViewModel);
+
+        viewModel.ActiveRequestTab.Should().NotBeNull();
+        var firstTab = viewModel.ActiveRequestTab!;
+        viewModel.RequestEditor.Should().BeSameAs(firstTab.RequestEditor);
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/json";
+        viewModel.RequestEditor.SelectedMethod = "GET";
+
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        viewModel.ResponseBody.Should().Contain("\"tab\": 1");
+        viewModel.SelectedResponseTabIndex = 2;
+
+        viewModel.NewRequestTabCommand.Execute(null);
+        await WaitForUiThreadAsync();
+        viewModel.ActiveRequestTab.Should().NotBeNull();
+        var secondTab = viewModel.ActiveRequestTab!;
+        secondTab.Should().NotBeSameAs(firstTab);
+        viewModel.RequestEditor.Should().BeSameAs(secondTab.RequestEditor);
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/xml";
+        viewModel.RequestEditor.SelectedMethod = "GET";
+
+        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        viewModel.ResponseBody.Should().Contain("<tab>2</tab>");
+        viewModel.SelectedResponseTabIndex = 3;
+
+        viewModel.ActiveRequestTab = firstTab;
+        await WaitForUiThreadAsync();
+        viewModel.RequestEditor.Should().BeSameAs(firstTab.RequestEditor);
+        viewModel.ResponseBody.Should().Contain("\"tab\": 1");
+        viewModel.ResponseBodyTabLabel.Should().Be("JSON");
+        viewModel.ResponseStatus.Should().Be("200 OK");
+        viewModel.ResponseHeaders.Should().Contain(header => header == "Content-Type: application/json; charset=utf-8");
+        viewModel.SelectedResponseTabIndex.Should().Be(2);
+
+        viewModel.ActiveRequestTab = secondTab;
+        await WaitForUiThreadAsync();
+        viewModel.RequestEditor.Should().BeSameAs(secondTab.RequestEditor);
+        viewModel.ResponseBody.Should().Contain("<tab>2</tab>");
+        viewModel.ResponseBodyTabLabel.Should().Be("XML");
+        viewModel.ResponseStatus.Should().Be("202 Accepted");
+        viewModel.ResponseHeaders.Should().Contain(header => header == "Content-Type: application/xml; charset=utf-8");
+        viewModel.SelectedResponseTabIndex.Should().Be(3);
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -2160,7 +2223,6 @@ public class MainWindowUiTests
         const double savedDocProportion = 0.6;
         const double savedRequestProportion = 0.35;
         const double savedResponseProportion = 0.65;
-
         using var viewModel = new MainWindowViewModel(
             httpRequestService,
             repository,
@@ -2191,7 +2253,7 @@ public class MainWindowUiTests
         leftToolDock.Should().NotBeNull();
         documentLayout.Should().NotBeNull();
         requestDock.Should().NotBeNull();
-        responseDock.Should().NotBeNull();
+        responseDock.Should().BeNull("response is integrated into request and should not be restored as separate dock");
 
         // Simulate the scenario where the Dock PSP's TwoWay binding has already overwritten
         // the model proportions with equal-distribution values before the first visual render.
@@ -2199,7 +2261,6 @@ public class MainWindowUiTests
         leftToolDock.Proportion = 0.5;
         documentLayout.Proportion = 0.5;
         requestDock.Proportion = 0.5;
-        responseDock.Proportion = 0.5;
 
         // Now call ReapplyStartupLayout — this is what window.Opened does to correct the
         // PSP-corrupted proportions once visual bindings are established.
@@ -2212,8 +2273,6 @@ public class MainWindowUiTests
             "document layout proportion should be restored by ReapplyStartupLayout");
         requestDock.Proportion.Should().BeApproximately(savedRequestProportion, 0.001,
             "request dock proportion should be restored by ReapplyStartupLayout");
-        responseDock.Proportion.Should().BeApproximately(savedResponseProportion, 0.001,
-            "response dock proportion should be restored by ReapplyStartupLayout");
 
         // A second call must be a no-op (snapshot cleared after first use).
         leftToolDock.Proportion = 0.9;

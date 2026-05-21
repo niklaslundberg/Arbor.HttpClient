@@ -4,7 +4,7 @@
              xmlns:webview="using:Avalonia.Controls"
              xmlns:conv="using:Arbor.HttpClient.Desktop.Features.HttpRequest"
              xmlns:loc="using:Arbor.HttpClient.Desktop.Localization"
-             x:Class="Arbor.HttpClient.Desktop.Features.HttpRequest.ResponseView"
+             x:Class="Arbor.HttpClient.Desktop.Features.HttpRequest.EmbeddedResponseView"
              x:CompileBindings="False">
 
     <UserControl.Resources>
@@ -67,8 +67,7 @@
                         Command="{Binding App.SaveBinaryResponseAndOpenCommand}" />
             </Grid>
 
-            <TabControl x:Name="ResponseTabControl"
-                        Grid.Row="2"
+            <TabControl Grid.Row="2"
                         SelectedIndex="{Binding App.SelectedResponseTabIndex, Mode=TwoWay}">
                 <TabItem Header="{Binding App.ResponseBodyTabLabel}">
                     <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">

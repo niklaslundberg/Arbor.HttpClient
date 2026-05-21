@@ -1,16 +1,16 @@
 using Dock.Model.Mvvm.Controls;
-using Arbor.HttpClient.Desktop.Features.Main;
 
 namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
 
+/// <summary>
+/// Legacy response document view model retained for backward compatibility with old layouts.
+/// Response is now integrated into the request document.
+/// </summary>
 public sealed class ResponseViewModel : Document
 {
-    public ResponseViewModel(MainWindowViewModel app)
+    public ResponseViewModel()
     {
-        App = app;
         Id = "response";
         Title = "Response";
     }
-
-    public MainWindowViewModel App { get; }
 }
