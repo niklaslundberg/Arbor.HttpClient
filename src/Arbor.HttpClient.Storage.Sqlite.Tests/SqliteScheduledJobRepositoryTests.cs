@@ -2,18 +2,18 @@ using Arbor.HttpClient.Storage.Sqlite;
 using Microsoft.Data.Sqlite;
 using Arbor.HttpClient.Core.ScheduledJobs;
 
-namespace Arbor.HttpClient.Desktop.E2E.Tests;
+namespace Arbor.HttpClient.Storage.Sqlite.Tests;
 
 [Trait("Category", "Integration")]
 public class SqliteScheduledJobRepositoryTests
 {
-    [AvaloniaFact(Timeout = 10_000)]
+    [Fact]
     public async Task SaveAndLoad_ShouldPersistFollowRedirectOverride()
     {
         var dbPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
         var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
         var repository = new SqliteScheduledJobRepository(connectionString);
-        await repository.InitializeAsync();
+        await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
         try
         {
@@ -26,9 +26,9 @@ public class SqliteScheduledJobRepositoryTests
                 null,
                 30,
                 AutoStart: true,
-                FollowRedirects: false));
+                FollowRedirects: false), TestContext.Current.CancellationToken);
 
-            var items = await repository.GetAllAsync();
+            var items = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
             items.Should().ContainSingle();
             items[0].Id.Should().Be(id);
@@ -44,13 +44,13 @@ public class SqliteScheduledJobRepositoryTests
         }
     }
 
-    [AvaloniaFact(Timeout = 10_000)]
+    [Fact]
     public async Task SaveAndLoad_ShouldPersistUseWebViewEnabled()
     {
         var dbPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
         var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
         var repository = new SqliteScheduledJobRepository(connectionString);
-        await repository.InitializeAsync();
+        await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
         try
         {
@@ -64,9 +64,9 @@ public class SqliteScheduledJobRepositoryTests
                 60,
                 AutoStart: false,
                 FollowRedirects: true,
-                UseWebView: true));
+                UseWebView: true), TestContext.Current.CancellationToken);
 
-            var items = await repository.GetAllAsync();
+            var items = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
             items.Should().ContainSingle();
             items[0].Id.Should().Be(id);
@@ -82,13 +82,13 @@ public class SqliteScheduledJobRepositoryTests
         }
     }
 
-    [AvaloniaFact(Timeout = 10_000)]
+    [Fact]
     public async Task SaveAndLoad_ShouldDefaultUseWebViewToFalse()
     {
         var dbPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
         var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
         var repository = new SqliteScheduledJobRepository(connectionString);
-        await repository.InitializeAsync();
+        await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
         try
         {
@@ -100,9 +100,9 @@ public class SqliteScheduledJobRepositoryTests
                 null,
                 null,
                 120,
-                AutoStart: false));
+                AutoStart: false), TestContext.Current.CancellationToken);
 
-            var items = await repository.GetAllAsync();
+            var items = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
             items.Should().ContainSingle();
             items[0].Id.Should().Be(id);
@@ -118,13 +118,13 @@ public class SqliteScheduledJobRepositoryTests
         }
     }
 
-    [AvaloniaFact(Timeout = 10_000)]
+    [Fact]
     public async Task UpdateAndLoad_ShouldPersistUseWebViewChange()
     {
         var dbPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
         var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
         var repository = new SqliteScheduledJobRepository(connectionString);
-        await repository.InitializeAsync();
+        await repository.InitializeAsync(TestContext.Current.CancellationToken);
 
         try
         {
@@ -137,7 +137,7 @@ public class SqliteScheduledJobRepositoryTests
                 null,
                 30,
                 AutoStart: false,
-                UseWebView: false));
+                UseWebView: false), TestContext.Current.CancellationToken);
 
             await repository.UpdateAsync(new ScheduledJobConfig(
                 id,
@@ -148,9 +148,9 @@ public class SqliteScheduledJobRepositoryTests
                 null,
                 30,
                 AutoStart: false,
-                UseWebView: true));
+                UseWebView: true), TestContext.Current.CancellationToken);
 
-            var items = await repository.GetAllAsync();
+            var items = await repository.GetAllAsync(TestContext.Current.CancellationToken);
 
             items.Should().ContainSingle();
             items[0].UseWebView.Should().BeTrue();
@@ -165,4 +165,3 @@ public class SqliteScheduledJobRepositoryTests
         }
     }
 }
-

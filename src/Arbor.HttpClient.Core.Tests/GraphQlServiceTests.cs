@@ -232,8 +232,7 @@ public class GraphQlServiceTests
     [Fact]
     public async Task SendQueryAsync_ShouldFallBackToUtf8_WhenCharsetIsInvalid()
     {
-        // Arrange: response carries an unrecognised charset; service should not throw
-        var handler = new StubHttpMessageHandler(_ =>
+        var handler = new StubHttpMessageHandler(_ =>  // unrecognised charset — must not throw
         {
             var content = new ByteArrayContent(Encoding.UTF8.GetBytes("""{"data":{}}"""));
             content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json")
@@ -256,8 +255,7 @@ public class GraphQlServiceTests
     [Fact]
     public async Task IntrospectSchemaAsync_ShouldReturnBodyAsIs_WhenResponseBodyIsNotJson()
     {
-        // Arrange: server returns 200 with a plain-text body (not JSON)
-        var handler = new StubHttpMessageHandler(_ =>
+        var handler = new StubHttpMessageHandler(_ =>  // server returns 200 with a plain-text body (not JSON)
             new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("not-json-content", Encoding.UTF8, "text/plain")
@@ -274,8 +272,7 @@ public class GraphQlServiceTests
     [Fact]
     public async Task SendQueryAsync_ShouldSkipContentTypeHeaderFromCustomHeaders()
     {
-        // Arrange: a custom Content-Type header should be ignored (service sets its own)
-        HttpRequestMessage? captured = null;
+        HttpRequestMessage? captured = null; // custom Content-Type header should be ignored (service sets its own)
         var handler = new StubHttpMessageHandler(req =>
         {
             captured = req;

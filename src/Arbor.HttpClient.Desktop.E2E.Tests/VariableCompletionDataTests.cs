@@ -47,12 +47,10 @@ public class VariableCompletionDataTests
 
         var completionData = new VariableCompletionData("host");
 
-        // Act — must not throw ArgumentOutOfRangeException
         var act = () => completionData.Complete(editor.TextArea, segment, EventArgs.Empty);
-        act.Should().NotThrow();
+        act.Should().NotThrow(); // must not throw ArgumentOutOfRangeException
 
-        // Assert: text is "{{host}}" and caret is at the end of the inserted text
-        editor.Text.Should().Be("{{host}}");
+        editor.Text.Should().Be("{{host}}"); // text is "{{host}}" and caret is at the end of the inserted text
         editor.CaretOffset.Should().Be("{{host}}".Length);
 
         window.Close();

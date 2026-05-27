@@ -69,10 +69,10 @@ dotnet_naming_style.camel_case_underscore_style.capitalization = camel_case
 csharp_using_directive_placement = outside_namespace:suggestion
 dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = false
-csharp_prefer_braces = true:silent
+csharp_prefer_braces = true:suggestion
 csharp_preserve_single_line_blocks = true:none
 csharp_preserve_single_line_statements = false:none
-dotnet_style_readonly_field = true:suggestion
+dotnet_style_readonly_field = true:warning
 
 # Expression-bodied members
 csharp_style_expression_bodied_methods = true:silent
@@ -84,8 +84,8 @@ csharp_style_expression_bodied_accessors = true:silent
 csharp_style_expression_bodied_lambdas = true:silent
 csharp_style_expression_bodied_local_functions = true:silent
 
-# Default severity for analyzer diagnostics with category 'Naming'
-dotnet_analyzer_diagnostic.category-Naming.severity = none
+# Naming diagnostics are scoped individually below; the category-level override is removed
+# so that IDE naming rules apply at their declared severity.
 
 # CA1707 — allow underscores in identifiers (test method naming convention Method_Scenario_ExpectedResult)
 dotnet_diagnostic.CA1707.severity = none
