@@ -158,6 +158,8 @@ Severity guidance:
 
 ## String Handling
 
+**[RECOMMENDED]** Prefer `string.IsNullOrWhiteSpace` over `string.IsNullOrEmpty` for null or whitespace checks. This captures both empty strings and strings containing only whitespace, reducing hidden bugs and aligning with the repository’s defensive coding style.
+
 **[RECOMMENDED]** Prefer string interpolation (`$""`) over `string.Format()` or concatenation. Use `StringBuilder` for heavy or repeated string construction. Use `string.Equals(a, b, StringComparison)` for culture-aware comparisons.
 
 ## Collections
@@ -171,6 +173,10 @@ Severity guidance:
 **[RECOMMENDED]** Prefer method syntax over query syntax for simple operations. Be aware of deferred execution — call `ToList()` or `ToArray()` when the sequence will be enumerated multiple times.
 
 ## Object-Oriented Design
+
+**[RECOMMENDED]** Prefer pure functional code where feasible—avoid mutating shared state, opt for immutable data structures, and express transformations as pure functions returning new values. This reduces side‑effects, improves testability, and aligns with reactive/Rx patterns used elsewhere in the project.
+
+**[RECOMMENDED]** Prefer composition over inheritance. Follow SOLID principles: single responsibility, open/closed, Liskov substitution, interface segregation, dependency inversion.
 
 **[RECOMMENDED]** Prefer composition over inheritance. Follow SOLID principles: single responsibility, open/closed, Liskov substitution, interface segregation, dependency inversion.
 

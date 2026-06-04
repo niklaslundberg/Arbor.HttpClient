@@ -7,7 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-
+using System.Diagnostics;
 // Define known text extensions.
 string[] TextFileExtensions = new[]
 {
@@ -20,6 +20,10 @@ var files = GetFiles(root);
 int changed = 0;
 foreach (var file in files)
 {
+    // Skip files ignored by .gitignore
+    if (IsGitIgnored(file))
+        continue;
+
     if (IsBinary(file))
         continue;
 
@@ -85,6 +89,41 @@ bool IsBinary(string path)
     catch
     {
         return true;
+    }
+}
+
+// Determines if a file is ignored by .gitignore using "git check-ignore".
+static bool IsGitIgnored(string filePath)
+{
+    // Locate the repository root containing the .git folder.
+    string dir = Path.GetDirectoryName(filePath) ?? "";
+    while (!string.IsNullOrEmpty(dir) && !Directory.Exists(Path.Combine(dir, ".git")))
+    {
+        dir = Path.GetDirectoryName(dir);
+    }
+    if (string.IsNullOrEmpty(dir))
+        return false; // No .git folder found – treat as not ignored.
+
+    var startInfo = new ProcessStartInfo
+    {
+        FileName = "git",
+        Arguments = $"check-ignore -q \"{filePath}\"",
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        WorkingDirectory = dir
+    };
+    try
+    {
+        using var process = Process.Start(startInfo);
+        process.WaitForExit();
+        return process.ExitCode == 0; // 0 = ignored, 1 = not ignored
+    }
+    catch
+    {
+        // If git is unavailable, assume file is not ignored.
+        return false;
     }
 }
 
