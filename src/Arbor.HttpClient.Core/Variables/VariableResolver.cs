@@ -32,6 +32,17 @@ public sealed class VariableResolver
         _environmentVariableProvider = environmentVariableProvider;
     }
 
+    /// <summary>
+    /// Replaces all <c>{{token}}</c> placeholders in <paramref name="input"/> with their
+    /// resolved values from the active environment, system environment variables, or built-in
+    /// computed values (timestamps).
+    /// </summary>
+    /// <param name="input">The string containing zero or more <c>{{token}}</c> placeholders.</param>
+    /// <param name="variables">Active environment variables to use for substitution.</param>
+    /// <returns>
+    /// The input string with all recognised placeholders replaced. Unrecognised tokens are
+    /// replaced with an empty string.
+    /// </returns>
     public string Resolve(string input, IReadOnlyList<EnvironmentVariable> variables)
     {
         if (string.IsNullOrEmpty(input))

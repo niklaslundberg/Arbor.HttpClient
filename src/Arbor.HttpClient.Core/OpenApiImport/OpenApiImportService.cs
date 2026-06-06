@@ -128,14 +128,14 @@ public sealed class OpenApiImportService
         }
 
         var merged = new Dictionary<string, OpenApiParameter>(StringComparer.OrdinalIgnoreCase);
-        foreach (var p in pathItemParams)
+        foreach (var parameter in pathItemParams)
         {
-            merged[$"{p.In}:{p.Name}"] = p;
+            merged[$"{parameter.In}:{parameter.Name}"] = parameter;
         }
 
-        foreach (var p in operationParams)
+        foreach (var parameter in operationParams)
         {
-            merged[$"{p.In}:{p.Name}"] = p;
+            merged[$"{parameter.In}:{parameter.Name}"] = parameter;
         }
 
         return merged.Values.ToList();
