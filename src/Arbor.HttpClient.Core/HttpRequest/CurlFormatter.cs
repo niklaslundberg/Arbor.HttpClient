@@ -12,6 +12,15 @@ namespace Arbor.HttpClient.Core.HttpRequest;
 /// </summary>
 public static class CurlFormatter
 {
+    /// <summary>
+    /// Formats a request as a portable single-line <c>curl</c> command.
+    /// </summary>
+    /// <param name="method">HTTP method (e.g. <c>GET</c>, <c>POST</c>). Defaults to <c>GET</c> when blank.</param>
+    /// <param name="url">Full request URL. Must not be empty or whitespace.</param>
+    /// <param name="body">Optional request body appended via <c>--data-raw</c>.</param>
+    /// <param name="headers">Optional enabled headers appended via <c>-H</c>.</param>
+    /// <returns>A POSIX-compatible <c>curl</c> command string.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="url"/> is null, empty, or whitespace.</exception>
     public static string Format(
         string method,
         string url,

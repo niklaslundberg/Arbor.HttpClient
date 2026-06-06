@@ -11,7 +11,7 @@ public class ApplicationOptionsStoreTests
     [AvaloniaFact(Timeout = 10_000)]
     public void Load_ShouldReturnDefaults_WhenOptionsFileDoesNotExist()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}", "options.json");
+        var path = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}", "options.json");
         var store = new ApplicationOptionsStore(path);
 
         var options = store.Load();
@@ -30,10 +30,10 @@ public class ApplicationOptionsStoreTests
     [AvaloniaFact(Timeout = 10_000)]
     public void Import_ShouldRejectInvalidHttpVersion()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}");
+        var tempDir = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
-        var optionsPath = Path.Combine(tempDir, "options.json");
-        var importPath = Path.Combine(tempDir, "invalid-options.json");
+        var optionsPath = Path.Join(tempDir, "options.json");
+        var importPath = Path.Join(tempDir, "invalid-options.json");
         File.WriteAllText(importPath, """
         {
           "http": {
@@ -60,10 +60,10 @@ public class ApplicationOptionsStoreTests
     [AvaloniaFact(Timeout = 10_000)]
     public void SaveAndImport_ShouldRoundtripValidOptions()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}");
+        var tempDir = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
-        var optionsPath = Path.Combine(tempDir, "options.json");
-        var exportPath = Path.Combine(tempDir, "exported-options.json");
+        var optionsPath = Path.Join(tempDir, "options.json");
+        var exportPath = Path.Join(tempDir, "exported-options.json");
         var store = new ApplicationOptionsStore(optionsPath);
         var options = new ApplicationOptions
         {

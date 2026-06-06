@@ -746,7 +746,7 @@ public class MainWindowUiTests
         viewModel.ResponseBody.Should().Contain("ok");
         AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
         var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-        var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-ui.png");
+        var screenshotPath = Path.Join(Path.GetTempPath(), "arbor-httpclient-ui.png");
         screenshot?.Save(screenshotPath);
 
         window.Close();
@@ -1792,7 +1792,7 @@ public class MainWindowUiTests
             .BeTrue("auto-start toggle should be on the Scheduled Jobs page");
 
         var screenshot = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-        var screenshotPath = Path.Combine(Path.GetTempPath(), "arbor-httpclient-options-view.png");
+        var screenshotPath = Path.Join(Path.GetTempPath(), "arbor-httpclient-options-view.png");
         screenshot?.Save(screenshotPath);
 
         window.Close();
@@ -1850,7 +1850,7 @@ public class MainWindowUiTests
         var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
         var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
         var logWindowViewModel = new LogWindowViewModel(inMemorySink);
-        var optionsPath = Path.Combine(Path.GetTempPath(), $"arbor-options-autosave-{Guid.NewGuid():N}.json");
+        var optionsPath = Path.Join(Path.GetTempPath(), $"arbor-options-autosave-{Guid.NewGuid():N}.json");
         var optionsStore = new ApplicationOptionsStore(optionsPath);
 
         using var viewModel = new MainWindowViewModel(

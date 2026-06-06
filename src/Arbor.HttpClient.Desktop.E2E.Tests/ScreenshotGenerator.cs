@@ -24,6 +24,14 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 /// Run with: dotnet test --filter "Category=Screenshots"
 /// The output directory is controlled by the SCREENSHOT_OUTPUT_DIR environment variable
 /// (defaults to the system temp folder).
+///
+/// <para>
+/// <b>Naming convention exemption:</b> these methods are visual snapshot generators, not
+/// behavioural unit tests. They do not verify a single logical outcome and therefore cannot
+/// follow the <c>Method_Scenario_ExpectedResult</c> pattern meaningfully. The
+/// <c>CaptureScreenshot_&lt;Panel&gt;_SavesToDisk</c> form is used instead, which still
+/// provides the three-part structure required by the guideline.
+/// </para>
 /// </summary>
 [Collection("HeadlessAvalonia")]
 [Trait("Category", "Screenshots")]
@@ -31,523 +39,523 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 public class ScreenshotGenerator
 {
     [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateInitialStateScreenshot()
+    public async Task CaptureScreenshot_InitialState_SavesToDisk()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-            // App as it looks when first opened — URL field empty, no response yet
-            var (_, window) = CreateWindow(
-                BuildHandler("{}"),
-                requestName: "Demo Request",
-                method: "GET",
-                url: string.Empty);   // start with empty URL to enable typing animation
+        // App as it looks when first opened — URL field empty, no response yet
+        var (_, window) = CreateWindow(
+            BuildHandler("{}"),
+            requestName: "Demo Request",
+            method: "GET",
+            url: string.Empty);   // start with empty URL to enable typing animation
 
-            window.Show();
+        window.Show();
 
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Combine(outputDir, "state-initial.png"));
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "state-initial.png"));
 
-            window.Close();
+        window.Close();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateAfterResponseScreenshot()
+    public async Task CaptureScreenshot_AfterResponse_SavesToDisk()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-            var (viewModel, window) = CreateWindow(
-                BuildHandler("""
-                    {
-                      "status": "ok",
-                      "path": "/echo",
-                      "params": { "hello": "world" },
-                      "message": "Hello from Arbor.HttpClient demo!"
-                    }
-                    """),
-                requestName: "Demo Request",
-                method: "GET",
-                url: "http://localhost:5000/echo?hello=world");
-
-            window.Show();
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
-
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Combine(outputDir, "state-response.png"));
-
-            window.Close();
-    }
-
-    [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateMainWindowScreenshot()
-    {
-        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
-            ?? Path.GetTempPath();
-        Directory.CreateDirectory(outputDir);
-
-            var (viewModel, window) = CreateWindow(
-                BuildHandler("""
-                    {
-                      "args": { "hello": "world" },
-                      "headers": {
-                        "host": "localhost:5000",
-                        "user-agent": "Arbor.HttpClient/1.0"
-                      },
-                      "url": "http://localhost:5000/echo?hello=world"
-                    }
-                    """),
-                requestName: "Echo GET",
-                method: "GET",
-                url: "http://localhost:5000/echo?hello=world");
-
-            window.Show();
-            viewModel.SendRequestCommand.Execute(null);
-            await viewModel.SendRequestCommand.ExecutionTask!;
-
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Combine(outputDir, "main-window.png"));
-
-            window.Close();
-    }
-
-    [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateVariablesScreenshot()
-    {
-        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
-            ?? Path.GetTempPath();
-        Directory.CreateDirectory(outputDir);
-
-            var (viewModel, window) = CreateWindow(
-                BuildHandler("""
-                    {
-                      "args": { "env": "production" },
-                      "headers": { "host": "localhost:5000" },
-                      "url": "http://localhost:5000/echo?env=production"
-                    }
-                    """),
-                requestName: "Echo with variable",
-                method: "POST",
-                url: "{{baseUrl}}/echo?env={{environment}}&{{queryKey}}={{queryValue}}");
-
-            viewModel.RequestEditor.RequestBody = """
+        var (viewModel, window) = CreateWindow(
+            BuildHandler("""
                 {
-                  "apiKey": "{{token}}",
-                  "environment": "{{environment}}"
+                  "status": "ok",
+                  "path": "/echo",
+                  "params": { "hello": "world" },
+                  "message": "Hello from Arbor.HttpClient demo!"
                 }
-                """;
-            viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
-            {
-                Name = "X-{{headerName}}",
-                Value = "{{headerValue}}",
-                IsEnabled = true
-            });
+                """),
+            requestName: "Demo Request",
+            method: "GET",
+            url: "http://localhost:5000/echo?hello=world");
 
-            // Pre-populate an environment so the Environments dock panel shows real variables
-            viewModel.Environments.Add(new RequestEnvironment(1, "Demo Environment",
+        window.Show();
+        viewModel.SendRequestCommand.Execute(null);
+        await viewModel.SendRequestCommand.ExecutionTask!;
+
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "state-response.png"));
+
+        window.Close();
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task CaptureScreenshot_MainWindow_SavesToDisk()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        var (viewModel, window) = CreateWindow(
+            BuildHandler("""
+                {
+                  "args": { "hello": "world" },
+                  "headers": {
+                    "host": "localhost:5000",
+                    "user-agent": "Arbor.HttpClient/1.0"
+                  },
+                  "url": "http://localhost:5000/echo?hello=world"
+                }
+                """),
+            requestName: "Echo GET",
+            method: "GET",
+            url: "http://localhost:5000/echo?hello=world");
+
+        window.Show();
+        viewModel.SendRequestCommand.Execute(null);
+        await viewModel.SendRequestCommand.ExecutionTask!;
+
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "main-window.png"));
+
+        window.Close();
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task CaptureScreenshot_Variables_SavesToDisk()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        var (viewModel, window) = CreateWindow(
+            BuildHandler("""
+                {
+                  "args": { "env": "production" },
+                  "headers": { "host": "localhost:5000" },
+                  "url": "http://localhost:5000/echo?env=production"
+                }
+                """),
+            requestName: "Echo with variable",
+            method: "POST",
+            url: "{{baseUrl}}/echo?env={{environment}}&{{queryKey}}={{queryValue}}");
+
+        viewModel.RequestEditor.RequestBody = """
+            {
+              "apiKey": "{{token}}",
+              "environment": "{{environment}}"
+            }
+            """;
+        viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+        {
+            Name = "X-{{headerName}}",
+            Value = "{{headerValue}}",
+            IsEnabled = true
+        });
+
+        // Pre-populate an environment so the Environments dock panel shows real variables
+        viewModel.Environments.Add(new RequestEnvironment(1, "Demo Environment",
+        [
+            new EnvironmentVariable("environment", "production"),
+            new EnvironmentVariable("baseUrl", "http://localhost:5000"),
+            new EnvironmentVariable("queryKey", "city"),
+            new EnvironmentVariable("queryValue", "stockholm"),
+            new EnvironmentVariable("token", "demo-token", IsSensitive: true),
+            new EnvironmentVariable("headerName", "Tenant"),
+            new EnvironmentVariable("headerValue", "blue", false)
+        ]));
+        viewModel.EditEnvironmentCommand.Execute(viewModel.Environments[0]);
+        viewModel.OpenEnvironmentsCommand.Execute(null);
+
+        window.Show();
+        var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
+        if (tabControl is { })
+        {
+            tabControl.SelectedIndex = 1;
+        }
+
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "variables.png"));
+
+        window.Close();
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task CaptureScreenshot_VariablesQueryTab_SavesToDisk()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        var (viewModel, window) = CreateWindow(
+            BuildHandler("{\"ok\":true}"),
+            requestName: "Query with variables",
+            method: "GET",
+            url: "{{baseUrl}}/search");
+
+        viewModel.RequestEditor.RequestQueryParameters.Add(new RequestQueryParameterViewModel
+        {
+            Key = "{{queryKey}}",
+            Value = "{{queryValue}}",
+            IsEnabled = true
+        });
+        viewModel.RequestEditor.RequestQueryParameters.Add(new RequestQueryParameterViewModel
+        {
+            Key = "env",
+            Value = "{{environment}}",
+            IsEnabled = true
+        });
+        viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+        {
+            Name = "X-{{headerName}}",
+            Value = "{{headerValue}}",
+            IsEnabled = true
+        });
+
+        viewModel.NewEnvironmentName = "Demo Environment";
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "http://localhost:5000"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryKey", "city"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryValue", "stockholm"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("environment", "production"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerValue", "blue"));
+        viewModel.IsEnvironmentPanelVisible = false;
+
+        window.Show();
+        var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
+        if (tabControl is { })
+        {
+            tabControl.SelectedIndex = 0; // Query tab
+        }
+
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "variables-query-tab.png"));
+
+        window.Close();
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task CaptureScreenshot_VariablesHeadersTab_SavesToDisk()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        var (viewModel, window) = CreateWindow(
+            BuildHandler("{\"ok\":true}"),
+            requestName: "Headers with variables",
+            method: "POST",
+            url: "{{baseUrl}}/api");
+
+        viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+        {
+            Name = "X-{{headerName}}",
+            Value = "{{headerValue}}",
+            IsEnabled = true
+        });
+        viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+        {
+            Name = "Authorization",
+            Value = "Bearer {{token}}",
+            IsEnabled = true
+        });
+
+        viewModel.NewEnvironmentName = "Demo Environment";
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "http://localhost:5000"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerValue", "blue"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "demo-token"));
+        viewModel.IsEnvironmentPanelVisible = false;
+
+        window.Show();
+        var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
+        if (tabControl is { })
+        {
+            tabControl.SelectedIndex = 2; // Headers tab
+        }
+
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "variables-headers-tab.png"));
+
+        window.Close();
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task CaptureScreenshot_VariablesPreview_SavesToDisk()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        var (viewModel, window) = CreateWindow(
+            BuildHandler("""
+                {
+                  "ok": true
+                }
+                """),
+            requestName: "Preview with variables",
+            method: "POST",
+            url: "{{baseUrl}}/get?env={{environment}}");
+
+        viewModel.RequestEditor.RequestBody = """
+            {
+              "apiKey": "{{token}}"
+            }
+            """;
+        viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+        {
+            Name = "X-{{headerName}}",
+            Value = "{{headerValue}}",
+            IsEnabled = true
+        });
+
+        viewModel.NewEnvironmentName = "Demo Environment";
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "http://localhost:5000"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("environment", "production"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "demo-token"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
+        viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerValue", "blue"));
+        viewModel.IsEnvironmentPanelVisible = true;
+        viewModel.RequestEditor.ShowRequestPreview = true;
+
+        window.Show();
+        var requestTabs = window.GetVisualDescendants()
+            .OfType<TabControl>()
+            .FirstOrDefault(control => control.Items.OfType<TabItem>().Any(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal)));
+        if (requestTabs is { })
+        {
+            var tabItems = requestTabs.Items.OfType<TabItem>().ToList();
+            var queryTab = tabItems.FirstOrDefault(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal));
+            if (queryTab is not null)
+            {
+                requestTabs.SelectedIndex = tabItems.IndexOf(queryTab);
+            }
+        }
+
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "variables-preview.png"));
+
+        window.Close();
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task CaptureScreenshot_ScheduledJobs_SavesToDisk()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        var (viewModel, window) = CreateWindow(
+            BuildHandler("{}"),
+            requestName: "Health check",
+            method: "GET",
+            url: "http://localhost:5000/echo");
+
+        // Add a scheduled job so the tab looks populated
+        var jobVm = new ScheduledJobViewModel(new InMemoryScheduledJobRepo(), new ScheduledJobService(
+            new HttpRequestService(new System.Net.Http.HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryHistoryRepo()),
+            new LoggerConfiguration().WriteTo.Sink(new InMemorySink()).CreateLogger()))
+        {
+            Name = "Health check every 60 s",
+            Method = "GET",
+            Url = "http://localhost:5000/echo",
+            IntervalSeconds = 60,
+            AutoStart = true
+        };
+        viewModel.ScheduledJobs.Add(jobVm);
+        viewModel.LeftPanelTab = "ScheduledJobs";
+
+        window.Show();
+
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "scheduled-jobs.png"));
+
+        window.Close();
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task CaptureScreenshot_FollowRedirectOverrides_SavesToDisk()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        var (viewModel, window) = CreateWindow(
+            BuildHandler("{}"),
+            requestName: "Redirect override demo",
+            method: "GET",
+            url: "http://localhost:5000/redirect?to=http://localhost:5000/echo");
+
+        viewModel.RequestEditor.FollowRedirectsForRequest = false;
+        viewModel.LeftPanelTab = "ScheduledJobs";
+        viewModel.ScheduledJobs.Add(new ScheduledJobViewModel(new InMemoryScheduledJobRepo(), new ScheduledJobService(
+            new HttpRequestService(new System.Net.Http.HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryHistoryRepo()),
+            new LoggerConfiguration().WriteTo.Sink(new InMemorySink()).CreateLogger()))
+        {
+            Name = "Redirect check",
+            Method = "GET",
+            Url = "http://localhost:5000/redirect?to=http://localhost:5000/echo",
+            IntervalSeconds = 60,
+            AutoStart = false,
+            FollowRedirects = false
+        });
+
+        window.Show();
+
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "follow-redirect-overrides.png"));
+
+        window.Close();
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task CaptureScreenshot_OptionsWindow_SavesToDisk()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        var (viewModel, window) = CreateWindow(
+            BuildHandler("{}"),
+            requestName: "Options demo",
+            method: "POST",
+            url: "http://localhost:5000/echo");
+
+        // Open the options dockable so it appears in the screenshot
+        viewModel.OpenOptionsCommand.Execute(null);
+
+        window.Show();
+
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "options-window.png"));
+
+        window.Close();
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task CaptureScreenshot_LayoutPanel_SavesToDisk()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        var (viewModel, window) = CreateWindow(
+            BuildHandler("{}"),
+            requestName: "Layout demo",
+            method: "GET",
+            url: "http://localhost:5000/echo");
+
+        // Open the layout management dockable so it appears in the screenshot
+        viewModel.OpenLayoutPanelCommand.Execute(null);
+
+        window.Show();
+
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "layout-panel.png"));
+
+        window.Close();
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task CaptureScreenshot_LogPanel_SavesToDisk()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        var (viewModel, window) = CreateWindow(
+            BuildHandler("{}"),
+            requestName: "Log panel demo",
+            method: "GET",
+            url: "http://localhost:5000/echo");
+
+        // Navigate to the dockable Logs panel
+        viewModel.OpenLogWindowCommand.Execute(null);
+
+        window.Show();
+
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(5);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "log-panel.png"));
+
+        window.Close();
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task CaptureScreenshot_OptionsWindowHttpDiagnostics_SavesToDisk()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        var (viewModel, window) = CreateWindow(
+            BuildHandler("{}"),
+            requestName: "Diagnostics demo",
+            method: "GET",
+            url: "http://localhost:5000/echo");
+
+        // Show HTTP options page (includes the new "Enable HTTP diagnostics" checkbox)
+        viewModel.OptionsPanel.SelectedOptionsPage = "HTTP";
+
+        // Open the options dockable so it appears in the screenshot
+        viewModel.OpenOptionsCommand.Execute(null);
+
+        window.Show();
+
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "options-window-http-diagnostics.png"));
+
+        window.Close();
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public async Task CaptureScreenshot_CollectionsPanel_SavesToDisk()
+    {
+        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
+            ?? Path.GetTempPath();
+        Directory.CreateDirectory(outputDir);
+
+        IReadOnlyList<Collection> collections =
+        [
+            new Collection(1, "Petstore API", "/specs/petstore.yaml", "http://localhost:5000",
             [
-                new EnvironmentVariable("environment", "production"),
-                new EnvironmentVariable("baseUrl", "http://localhost:5000"),
-                new EnvironmentVariable("queryKey", "city"),
-                new EnvironmentVariable("queryValue", "stockholm"),
-                new EnvironmentVariable("token", "demo-token", IsSensitive: true),
-                new EnvironmentVariable("headerName", "Tenant"),
-                new EnvironmentVariable("headerValue", "blue", false)
-            ]));
-            viewModel.EditEnvironmentCommand.Execute(viewModel.Environments[0]);
-            viewModel.OpenEnvironmentsCommand.Execute(null);
-
-            window.Show();
-            var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
-            if (tabControl is { })
-            {
-                tabControl.SelectedIndex = 1;
-            }
-
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Combine(outputDir, "variables.png"));
-
-            window.Close();
-    }
-
-    [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateVariablesQueryTabScreenshot()
-    {
-        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
-            ?? Path.GetTempPath();
-        Directory.CreateDirectory(outputDir);
-
-            var (viewModel, window) = CreateWindow(
-                BuildHandler("{\"ok\":true}"),
-                requestName: "Query with variables",
-                method: "GET",
-                url: "{{baseUrl}}/search");
-
-            viewModel.RequestEditor.RequestQueryParameters.Add(new RequestQueryParameterViewModel
-            {
-                Key = "{{queryKey}}",
-                Value = "{{queryValue}}",
-                IsEnabled = true
-            });
-            viewModel.RequestEditor.RequestQueryParameters.Add(new RequestQueryParameterViewModel
-            {
-                Key = "env",
-                Value = "{{environment}}",
-                IsEnabled = true
-            });
-            viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
-            {
-                Name = "X-{{headerName}}",
-                Value = "{{headerValue}}",
-                IsEnabled = true
-            });
-
-            viewModel.NewEnvironmentName = "Demo Environment";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "http://localhost:5000"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryKey", "city"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("queryValue", "stockholm"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("environment", "production"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerValue", "blue"));
-            viewModel.IsEnvironmentPanelVisible = false;
-
-            window.Show();
-            var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
-            if (tabControl is { })
-            {
-                tabControl.SelectedIndex = 0; // Query tab
-            }
-
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Combine(outputDir, "variables-query-tab.png"));
-
-            window.Close();
-    }
-
-    [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateVariablesHeadersTabScreenshot()
-    {
-        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
-            ?? Path.GetTempPath();
-        Directory.CreateDirectory(outputDir);
-
-            var (viewModel, window) = CreateWindow(
-                BuildHandler("{\"ok\":true}"),
-                requestName: "Headers with variables",
-                method: "POST",
-                url: "{{baseUrl}}/api");
-
-            viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
-            {
-                Name = "X-{{headerName}}",
-                Value = "{{headerValue}}",
-                IsEnabled = true
-            });
-            viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
-            {
-                Name = "Authorization",
-                Value = "Bearer {{token}}",
-                IsEnabled = true
-            });
-
-            viewModel.NewEnvironmentName = "Demo Environment";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "http://localhost:5000"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerValue", "blue"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "demo-token"));
-            viewModel.IsEnvironmentPanelVisible = false;
-
-            window.Show();
-            var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
-            if (tabControl is { })
-            {
-                tabControl.SelectedIndex = 2; // Headers tab
-            }
-
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Combine(outputDir, "variables-headers-tab.png"));
-
-            window.Close();
-    }
-
-    [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateVariablesPreviewScreenshot()
-    {
-        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
-            ?? Path.GetTempPath();
-        Directory.CreateDirectory(outputDir);
-
-            var (viewModel, window) = CreateWindow(
-                BuildHandler("""
-                    {
-                      "ok": true
-                    }
-                    """),
-                requestName: "Preview with variables",
-                method: "POST",
-                url: "{{baseUrl}}/get?env={{environment}}");
-
-            viewModel.RequestEditor.RequestBody = """
-                {
-                  "apiKey": "{{token}}"
-                }
-                """;
-            viewModel.RequestEditor.RequestHeaders.Add(new RequestHeaderViewModel
-            {
-                Name = "X-{{headerName}}",
-                Value = "{{headerValue}}",
-                IsEnabled = true
-            });
-
-            viewModel.NewEnvironmentName = "Demo Environment";
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("baseUrl", "http://localhost:5000"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("environment", "production"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("token", "demo-token"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerName", "Tenant"));
-            viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("headerValue", "blue"));
-            viewModel.IsEnvironmentPanelVisible = true;
-            viewModel.RequestEditor.ShowRequestPreview = true;
-
-            window.Show();
-            var requestTabs = window.GetVisualDescendants()
-                .OfType<TabControl>()
-                .FirstOrDefault(control => control.Items.OfType<TabItem>().Any(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal)));
-            if (requestTabs is { })
-            {
-                var tabItems = requestTabs.Items.OfType<TabItem>().ToList();
-                var queryTab = tabItems.FirstOrDefault(item => string.Equals(item.Header?.ToString(), "Query", StringComparison.Ordinal));
-                if (queryTab is not null)
-                {
-                    requestTabs.SelectedIndex = tabItems.IndexOf(queryTab);
-                }
-            }
-
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Combine(outputDir, "variables-preview.png"));
-
-            window.Close();
-    }
-
-    [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateScheduledJobsScreenshot()
-    {
-        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
-            ?? Path.GetTempPath();
-        Directory.CreateDirectory(outputDir);
-
-            var (viewModel, window) = CreateWindow(
-                BuildHandler("{}"),
-                requestName: "Health check",
-                method: "GET",
-                url: "http://localhost:5000/echo");
-
-            // Add a scheduled job so the tab looks populated
-            var jobVm = new ScheduledJobViewModel(new InMemoryScheduledJobRepo(), new ScheduledJobService(
-                new HttpRequestService(new System.Net.Http.HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryHistoryRepo()),
-                new LoggerConfiguration().WriteTo.Sink(new InMemorySink()).CreateLogger()))
-            {
-                Name = "Health check every 60 s",
-                Method = "GET",
-                Url = "http://localhost:5000/echo",
-                IntervalSeconds = 60,
-                AutoStart = true
-            };
-            viewModel.ScheduledJobs.Add(jobVm);
-            viewModel.LeftPanelTab = "ScheduledJobs";
-
-            window.Show();
-
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Combine(outputDir, "scheduled-jobs.png"));
-
-            window.Close();
-    }
-
-    [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateFollowRedirectOverridesScreenshot()
-    {
-        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
-            ?? Path.GetTempPath();
-        Directory.CreateDirectory(outputDir);
-
-            var (viewModel, window) = CreateWindow(
-                BuildHandler("{}"),
-                requestName: "Redirect override demo",
-                method: "GET",
-                url: "http://localhost:5000/redirect?to=http://localhost:5000/echo");
-
-            viewModel.RequestEditor.FollowRedirectsForRequest = false;
-            viewModel.LeftPanelTab = "ScheduledJobs";
-            viewModel.ScheduledJobs.Add(new ScheduledJobViewModel(new InMemoryScheduledJobRepo(), new ScheduledJobService(
-                new HttpRequestService(new System.Net.Http.HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryHistoryRepo()),
-                new LoggerConfiguration().WriteTo.Sink(new InMemorySink()).CreateLogger()))
-            {
-                Name = "Redirect check",
-                Method = "GET",
-                Url = "http://localhost:5000/redirect?to=http://localhost:5000/echo",
-                IntervalSeconds = 60,
-                AutoStart = false,
-                FollowRedirects = false
-            });
-
-            window.Show();
-
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Combine(outputDir, "follow-redirect-overrides.png"));
-
-            window.Close();
-    }
-
-    [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateOptionsWindowScreenshot()
-    {
-        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
-            ?? Path.GetTempPath();
-        Directory.CreateDirectory(outputDir);
-
-            var (viewModel, window) = CreateWindow(
-                BuildHandler("{}"),
-                requestName: "Options demo",
-                method: "POST",
-                url: "http://localhost:5000/echo");
-
-            // Open the options dockable so it appears in the screenshot
-            viewModel.OpenOptionsCommand.Execute(null);
-
-            window.Show();
-
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Combine(outputDir, "options-window.png"));
-
-            window.Close();
-    }
-
-    [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateLayoutPanelScreenshot()
-    {
-        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
-            ?? Path.GetTempPath();
-        Directory.CreateDirectory(outputDir);
-
-            var (viewModel, window) = CreateWindow(
-                BuildHandler("{}"),
-                requestName: "Layout demo",
-                method: "GET",
-                url: "http://localhost:5000/echo");
-
-            // Open the layout management dockable so it appears in the screenshot
-            viewModel.OpenLayoutPanelCommand.Execute(null);
-
-            window.Show();
-
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Combine(outputDir, "layout-panel.png"));
-
-            window.Close();
-    }
-
-    [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateLogPanelScreenshot()
-    {
-        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
-            ?? Path.GetTempPath();
-        Directory.CreateDirectory(outputDir);
-
-            var (viewModel, window) = CreateWindow(
-                BuildHandler("{}"),
-                requestName: "Log panel demo",
-                method: "GET",
-                url: "http://localhost:5000/echo");
-
-            // Navigate to the dockable Logs panel
-            viewModel.OpenLogWindowCommand.Execute(null);
-
-            window.Show();
-
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(5);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Combine(outputDir, "log-panel.png"));
-
-            window.Close();
-    }
-
-    [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateOptionsWindowHttpDiagnosticsScreenshot()
-    {
-        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
-            ?? Path.GetTempPath();
-        Directory.CreateDirectory(outputDir);
-
-            var (viewModel, window) = CreateWindow(
-                BuildHandler("{}"),
-                requestName: "Diagnostics demo",
-                method: "GET",
-                url: "http://localhost:5000/echo");
-
-            // Show HTTP options page (includes the new "Enable HTTP diagnostics" checkbox)
-            viewModel.OptionsPanel.SelectedOptionsPage = "HTTP";
-
-            // Open the options dockable so it appears in the screenshot
-            viewModel.OpenOptionsCommand.Execute(null);
-
-            window.Show();
-
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Combine(outputDir, "options-window-http-diagnostics.png"));
-
-            window.Close();
-    }
-
-    [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateCollectionsPanelScreenshot()
-    {
-        var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
-            ?? Path.GetTempPath();
-        Directory.CreateDirectory(outputDir);
-
-            IReadOnlyList<Collection> collections =
-            [
-                new Collection(1, "Petstore API", "/specs/petstore.yaml", "http://localhost:5000",
-                [
-                    new CollectionRequest("List all pets", "GET", "/pets", "Returns all pets"),
-                    new CollectionRequest("Create pet", "POST", "/pets", "Create a new pet"),
-                    new CollectionRequest("Get pet by ID", "GET", "/pets/{id}", "Returns a single pet"),
-                    new CollectionRequest("Update pet", "PUT", "/pets/{id}", "Update an existing pet"),
-                    new CollectionRequest("Delete pet", "DELETE", "/pets/{id}", "Delete a pet"),
-                    new CollectionRequest("List owners", "GET", "/owners", "Returns all owners"),
-                    new CollectionRequest("Get owner", "GET", "/owners/{id}", "Get owner by ID"),
-                ])
-            ];
-
-            var (viewModel, window) = CreateWindowWithCollections(BuildHandler("{}"), collections);
-
-            window.Show();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Join(outputDir, "collections-panel.png"));
-
-            // Also take tree-view screenshot
-            viewModel.IsCollectionTreeView = true;
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var treeFrame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            treeFrame?.Save(Path.Join(outputDir, "collections-panel-tree.png"));
-
-            window.Close();
+                new CollectionRequest("List all pets", "GET", "/pets", "Returns all pets"),
+                new CollectionRequest("Create pet", "POST", "/pets", "Create a new pet"),
+                new CollectionRequest("Get pet by ID", "GET", "/pets/{id}", "Returns a single pet"),
+                new CollectionRequest("Update pet", "PUT", "/pets/{id}", "Update an existing pet"),
+                new CollectionRequest("Delete pet", "DELETE", "/pets/{id}", "Delete a pet"),
+                new CollectionRequest("List owners", "GET", "/owners", "Returns all owners"),
+                new CollectionRequest("Get owner", "GET", "/owners/{id}", "Get owner by ID"),
+            ])
+        ];
+
+        var (viewModel, window) = CreateWindowWithCollections(BuildHandler("{}"), collections);
+
+        window.Show();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "collections-panel.png"));
+
+        // Also take tree-view screenshot
+        viewModel.IsCollectionTreeView = true;
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var treeFrame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        treeFrame?.Save(Path.Join(outputDir, "collections-panel-tree.png"));
+
+        window.Close();
     }
 
     // -------------------------------------------------------------------------
@@ -617,9 +625,9 @@ public class ScreenshotGenerator
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/users";
 
         // Pre-populate collections from the repo data (mirrors InitializeAsync but synchronous)
-        foreach (var c in collections)
+        foreach (var collection in collections)
         {
-            viewModel.Collections.Add(c);
+            viewModel.Collections.Add(collection);
         }
 
         if (collections.Count > 0)
@@ -632,42 +640,41 @@ public class ScreenshotGenerator
     }
 
     [AvaloniaFact(Timeout = 10_000)]
-    public async Task GenerateRequestTabsScreenshot()
+    public async Task CaptureScreenshot_RequestTabs_SavesToDisk()
     {
         var outputDir = Environment.GetEnvironmentVariable("SCREENSHOT_OUTPUT_DIR")
             ?? Path.GetTempPath();
         Directory.CreateDirectory(outputDir);
 
-            var (viewModel, window) = CreateWindow(
-                BuildHandler("{}"),
-                requestName: "Get Users",
-                method: "GET",
-                url: "http://localhost:5000/users");
+        var (viewModel, window) = CreateWindow(
+            BuildHandler("{}"),
+            requestName: "Get Users",
+            method: "GET",
+            url: "http://localhost:5000/users");
 
-            // Add two more request tabs to demonstrate multi-tab support
-            viewModel.NewRequestTabCommand.Execute(null);
-            viewModel.RequestEditor.RequestName = "Create Order";
-            viewModel.RequestEditor.SelectedMethod = "POST";
-            viewModel.RequestEditor.RequestUrl = "http://localhost:5000/orders";
+        // Add two more request tabs to demonstrate multi-tab support
+        viewModel.NewRequestTabCommand.Execute(null);
+        viewModel.RequestEditor.RequestName = "Create Order";
+        viewModel.RequestEditor.SelectedMethod = "POST";
+        viewModel.RequestEditor.RequestUrl = "http://localhost:5000/orders";
 
-            viewModel.NewRequestTabCommand.Execute(null);
-            viewModel.RequestEditor.RequestName = string.Empty; // shows "New" fallback
+        viewModel.NewRequestTabCommand.Execute(null);
+        viewModel.RequestEditor.RequestName = string.Empty; // shows "New" fallback
 
-            // Assert tab state is truly isolated — switching away from tab 0 must not
-            // mutate its request name or URL.
-            viewModel.RequestTabs[0].RequestEditor.RequestName.Should().Be("Get Users");
-            viewModel.RequestTabs[0].RequestEditor.RequestUrl.Should().Be("http://localhost:5000/users");
-            viewModel.RequestTabs[1].RequestEditor.RequestName.Should().Be("Create Order");
-            viewModel.RequestTabs[1].RequestEditor.RequestUrl.Should().Be("http://localhost:5000/orders");
-            viewModel.RequestTabs[2].RequestEditor.RequestName.Should().BeEmpty();
-            viewModel.RequestTabs[2].DisplayTitle.Should().Be("New");
+        // Tab state is truly isolated — switching away from tab 0 must not mutate its request name or URL.
+        viewModel.RequestTabs[0].RequestEditor.RequestName.Should().Be("Get Users");
+        viewModel.RequestTabs[0].RequestEditor.RequestUrl.Should().Be("http://localhost:5000/users");
+        viewModel.RequestTabs[1].RequestEditor.RequestName.Should().Be("Create Order");
+        viewModel.RequestTabs[1].RequestEditor.RequestUrl.Should().Be("http://localhost:5000/orders");
+        viewModel.RequestTabs[2].RequestEditor.RequestName.Should().BeEmpty();
+        viewModel.RequestTabs[2].DisplayTitle.Should().Be("New");
 
-            window.Show();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
-            var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
-            frame?.Save(Path.Join(outputDir, "request-tabs.png"));
+        window.Show();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
+        var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
+        frame?.Save(Path.Join(outputDir, "request-tabs.png"));
 
-            window.Close();
+        window.Close();
     }
 
     // -------------------------------------------------------------------------
@@ -737,6 +744,4 @@ public class ScreenshotGenerator
         public Task DeleteAsync(int id, CancellationToken cancellationToken = default) { _items.RemoveAll(x => x.Id == id); return Task.CompletedTask; }
         public Task<IReadOnlyList<ScheduledJobConfig>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ScheduledJobConfig>>(_items.ToList());
     }
-
-
 }
