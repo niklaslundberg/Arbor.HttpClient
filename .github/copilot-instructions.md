@@ -22,6 +22,12 @@ Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-s
 
 ## Repository Constants
 
+**Preferred scripting approach** – For any custom scripts or automation, use a file‑based .NET 10 (or later) application written in C#. Such apps should be created according to the definition and guidance in the official documentation: https://learn.microsoft.com/en-us/dotnet/core/sdk/file-based-apps
+
+**C# script guideline** – When creating C# scripts, honor the repository’s C# coding guidelines (e.g., curly‑brace enforcement, naming conventions, and style rules defined in `.editorconfig` and this instruction file).
+
+The following values are used throughout instructions and workflows. They are listed here once so agents do not have to re-derive them from context.
+
 | Constant | Value |
 |---|---|
 | Solution file | `Arbor.HttpClient.slnx` |
