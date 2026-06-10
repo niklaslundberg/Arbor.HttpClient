@@ -1,9 +1,8 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Net;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using Dock.Model.Mvvm.Controls;
+using Dock.Model.ReactiveUI.Controls;
+using ReactiveUI.SourceGenerators;
 
 namespace Arbor.HttpClient.Desktop.Features.Cookies;
 
@@ -22,19 +21,19 @@ public sealed partial class CookieJarViewModel : Tool
 
     public ObservableCollection<CookieEntryViewModel> Cookies { get; }
 
-    [ObservableProperty]
+    [Reactive]
     private string _newCookieName = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _newCookieValue = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _newCookieDomain = string.Empty;
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void Refresh() => RefreshCookies();
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void ClearAll()
     {
         foreach (var entry in Cookies)
@@ -47,7 +46,7 @@ public sealed partial class CookieJarViewModel : Tool
         RefreshCookies();
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void Remove(CookieEntryViewModel? entry)
     {
         if (entry is null)
@@ -61,7 +60,7 @@ public sealed partial class CookieJarViewModel : Tool
         RefreshCookies();
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void AddCookie()
     {
         var name = NewCookieName.Trim();

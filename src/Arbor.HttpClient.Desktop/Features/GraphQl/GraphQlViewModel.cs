@@ -3,8 +3,8 @@ using System.Net.Http;
 using System.Reactive.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
+using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 using Serilog;
 using Arbor.HttpClient.Desktop.Shared;
 using Arbor.HttpClient.Core.GraphQl;
@@ -17,7 +17,7 @@ namespace Arbor.HttpClient.Desktop.Features.GraphQl;
 /// and schema introspection.  The parent view model calls <see cref="BuildDraft"/> to
 /// obtain the fully resolved draft before sending.
 /// </summary>
-public sealed partial class GraphQlViewModel : ViewModelBase
+public sealed partial class GraphQlViewModel : ReactiveViewModelBase
 {
     private static readonly JsonSerializerOptions GraphQlJsonOptions = new()
     {
@@ -27,22 +27,22 @@ public sealed partial class GraphQlViewModel : ViewModelBase
     private readonly GraphQlService _service;
     private readonly ILogger _logger;
 
-    [ObservableProperty]
+    [Reactive]
     private string _query = "{\n  __typename\n}";
 
-    [ObservableProperty]
+    [Reactive]
     private string _variablesJson = "{}";
 
-    [ObservableProperty]
+    [Reactive]
     private string _operationName = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _schemaJson = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _isIntrospecting;
 
-    [ObservableProperty]
+    [Reactive]
     private string _introspectionError = string.Empty;
 
     public GraphQlViewModel(System.Net.Http.HttpClient httpClient, ILogger logger)
@@ -50,10 +50,13 @@ public sealed partial class GraphQlViewModel : ViewModelBase
         _service = new GraphQlService(httpClient);
         _logger = logger.ForContext<GraphQlViewModel>();
 
-        PropertyChangedObservable
-            .Select(args => args.PropertyName)
-            .Where(propertyName => propertyName is nameof(Query) or nameof(VariablesJson) or nameof(OperationName))
-            .Subscribe(_ => ClearIntrospectionOutcome());
+        this.WhenAnyValue(
+                viewModel => viewModel.Query,
+                viewModel => viewModel.VariablesJson,
+                viewModel => viewModel.OperationName)
+            .Skip(1)
+            .Subscribe(_ => ClearIntrospectionOutcome())
+            .DisposeWith(Disposables);
     }
 
     private void ClearIntrospectionOutcome()
@@ -127,7 +130,7 @@ public sealed partial class GraphQlViewModel : ViewModelBase
     }
 
     /// <summary>Runs a GraphQL introspection query against the supplied URL and populates <see cref="SchemaJson"/>.</summary>
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task IntrospectSchemaAsync(string url)
     {
         if (string.IsNullOrWhiteSpace(url))

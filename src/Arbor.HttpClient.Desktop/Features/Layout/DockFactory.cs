@@ -1,8 +1,8 @@
 using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
 using Dock.Model.Core;
-using Dock.Model.Mvvm;
-using Dock.Model.Mvvm.Controls;
+using Dock.Model.ReactiveUI;
+using Dock.Model.ReactiveUI.Controls;
 using Arbor.HttpClient.Desktop.Features.Collections;
 using Arbor.HttpClient.Desktop.Features.Cookies;
 using Arbor.HttpClient.Desktop.Features.Environments;

@@ -1,16 +1,16 @@
 using System;
 using System.Net;
-using CommunityToolkit.Mvvm.ComponentModel;
+using System.Reactive.Linq;
 using Arbor.HttpClient.Desktop.Shared;
+using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 
 namespace Arbor.HttpClient.Desktop.Features.Cookies;
 
-public sealed partial class CookieEntryViewModel : ViewModelBase
+public sealed partial class CookieEntryViewModel : ReactiveViewModelBase
 {
-    [ObservableProperty]
+    [Reactive]
     private string _value;
-
-    partial void OnValueChanged(string value) => Cookie.Value = value;
 
     public string Name { get; }
     public string Domain { get; }
@@ -29,5 +29,9 @@ public sealed partial class CookieEntryViewModel : ViewModelBase
         Expires = cookie.Expires == DateTime.MinValue
             ? "Session"
             : cookie.Expires.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+
+        this.WhenAnyValue(viewModel => viewModel.Value)
+            .Skip(1)
+            .Subscribe(value => Cookie.Value = value);
     }
 }

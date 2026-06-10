@@ -7,7 +7,7 @@ This project makes use of third-party packages. Their licenses and attribution d
 ## Avalonia
 
 **Packages:** Avalonia, Avalonia.Desktop, Avalonia.Themes.Fluent, Avalonia.Fonts.Inter, Avalonia.Headless, Avalonia.Headless.XUnit  
-**Version:** 12.0.2  
+**Version:** 12.0.4  
 **Authors:** Avalonia Team  
 **Copyright:** Copyright 2013-2026 © The AvaloniaUI Project  
 **Project URL:** https://avaloniaui.net/  
@@ -129,6 +129,30 @@ This project makes use of third-party packages. Their licenses and attribution d
 
 ---
 
+## ReactiveUI
+
+**Packages:** ReactiveUI, ReactiveUI.Avalonia, ReactiveUI.SourceGenerators  
+**Versions:** ReactiveUI 23.2.28, ReactiveUI.Avalonia 12.0.3, ReactiveUI.SourceGenerators 3.1.0  
+**Authors:** .NET Foundation and Contributors  
+**Copyright:** Copyright (c) .NET Foundation and Contributors  
+**Project URL:** https://reactiveui.net/  
+**Source:** https://github.com/reactiveui/ReactiveUI  
+**License:** MIT  
+**Note:** `ReactiveUI.SourceGenerators` is a compile-time-only analyzer/source-generator dependency (`PrivateAssets=all`); it is not redistributed with the application.
+
+---
+
+## Microsoft.Reactive.Testing
+
+**Package:** Microsoft.Reactive.Testing  
+**Version:** 6.1.0  
+**Authors:** .NET Foundation and Contributors  
+**Project URL:** https://github.com/dotnet/reactive  
+**License:** MIT  
+**Note:** Test-only dependency (`TestScheduler` for deterministic virtual-time tests), not included in production builds.
+
+---
+
 ## AwesomeAssertions
 
 **Package:** AwesomeAssertions  
@@ -177,7 +201,7 @@ The SIL Open Font License 1.1 permits the font to be used, studied, modified, an
 
 ## Dock
 
-**Packages:** Dock.Avalonia, Dock.Avalonia.Themes.Fluent, Dock.Model.Mvvm  
+**Packages:** Dock.Avalonia, Dock.Avalonia.Themes.Fluent, Dock.Model.ReactiveUI  
 **Version:** 12.0.0.2  
 **Authors:** Wiesław Šoltés  
 **Copyright:** Copyright © Wiesław Šoltés 2026  

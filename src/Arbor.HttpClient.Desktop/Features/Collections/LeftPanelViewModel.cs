@@ -1,5 +1,5 @@
-using CommunityToolkit.Mvvm.Input;
-using Dock.Model.Mvvm.Controls;
+using System.Windows.Input;
+using Dock.Model.ReactiveUI.Controls;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 
@@ -17,6 +17,6 @@ public sealed class LeftPanelViewModel : Tool
     public MainWindowViewModel App { get; }
 
     // Proxy needed inside the ScheduledJobs item-template (DataContext = ScheduledJobViewModel)
-    public IAsyncRelayCommand<ScheduledJobViewModel?> RemoveScheduledJobCommand =>
+    public ICommand RemoveScheduledJobCommand =>
         App.RemoveScheduledJobCommand;
 }

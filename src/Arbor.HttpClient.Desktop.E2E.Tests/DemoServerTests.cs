@@ -1,3 +1,5 @@
+using System.Reactive.Linq;
+using System.Reactive.Threading.Tasks;
 using System.Diagnostics;
 using System.Net;
 using Arbor.HttpClient.Desktop.Demo;
@@ -350,7 +352,7 @@ public class DemoServerTests
         var firstOpenedTab = viewModel.ActiveRequestTab;
         var tabCountAfterFirstOpen = viewModel.RequestTabs.Count;
 
-        viewModel.NewRequestTabCommand.Execute(null);
+        viewModel.NewRequestTabCommand.Execute().Subscribe();
         viewModel.LoadCollectionRequestCore(item);
         await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
@@ -488,7 +490,7 @@ public class DemoServerTests
         viewModel.ActiveEnvironment = viewModel.Environments.First(e => e.Name == "Header Env");
         viewModel.SelectedCollection = viewModel.Collections.First(c => c.Name == "Header Editor");
 
-        viewModel.AddCollectionInheritedHeaderCommand.Execute(null);
+        viewModel.AddCollectionInheritedHeaderCommand.Execute().Subscribe();
         viewModel.CollectionInheritedHeaders.Should().ContainSingle();
         var inheritedHeader = viewModel.CollectionInheritedHeaders[0];
         inheritedHeader.Name = "Authorization";
@@ -542,7 +544,7 @@ public class DemoServerTests
         var collectionB = viewModel.Collections.First(c => c.Name == "Collection B");
 
         viewModel.SelectedCollection = collectionA;
-        viewModel.AddCollectionInheritedHeaderCommand.Execute(null);
+        viewModel.AddCollectionInheritedHeaderCommand.Execute().Subscribe();
         viewModel.CollectionInheritedHeaders[0].Name = "X-Tenant";
         viewModel.CollectionInheritedHeaders[0].Value = "team-a";
 
@@ -579,7 +581,7 @@ public class DemoServerTests
         viewModel.SelectedCollection = viewModel.Collections.First(c => c.Name == "Header Removal");
 
         viewModel.CollectionInheritedHeaders.Should().ContainSingle();
-        viewModel.RemoveCollectionInheritedHeaderCommand.Execute(viewModel.CollectionInheritedHeaders[0]);
+        viewModel.RemoveCollectionInheritedHeaderCommand.Execute(viewModel.CollectionInheritedHeaders[0]).Subscribe();
         viewModel.CollectionInheritedHeaders.Should().BeEmpty();
 
         await WaitUntilAsync(

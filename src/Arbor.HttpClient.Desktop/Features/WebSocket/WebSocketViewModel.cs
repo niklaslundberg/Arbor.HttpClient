@@ -1,12 +1,11 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
-using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using Arbor.HttpClient.Desktop.Shared;
 using Avalonia.Threading;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
+using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 using Serilog;
 using Arbor.HttpClient.Core.HttpRequest;
 using Arbor.HttpClient.Core.WebSocket;
@@ -17,42 +16,49 @@ namespace Arbor.HttpClient.Desktop.Features.WebSocket;
 /// Owns the WebSocket connection lifecycle and the message log displayed in the
 /// Response panel when the request type is <see cref="RequestType.WebSocket"/>.
 /// </summary>
-public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
+public sealed partial class WebSocketViewModel : ReactiveViewModelBase
 {
     private readonly WebSocketService _service = new();
     private readonly ILogger _logger;
     private readonly Subject<WebSocketMessage> _messageReceivedSubject = new();
     private readonly Subject<Unit> _disconnectedSubject = new();
-    private readonly CompositeDisposable _subscriptions = new();
     private CancellationTokenSource? _connectionCts;
     private bool _disposed;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ConnectButtonLabel))]
+    [Reactive]
     private bool _isConnected;
 
-    [ObservableProperty]
+    [Reactive]
     private string _messageToSend = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _connectionError = string.Empty;
+
+    private readonly ObservableAsPropertyHelper<string> _connectButtonLabel;
 
     /// <summary>All frames exchanged in the current session, newest last.</summary>
     public ObservableCollection<WebSocketMessage> Messages { get; } = [];
     public IObservable<WebSocketMessage> MessageReceivedObservable => _messageReceivedSubject.AsObservable();
     public IObservable<Unit> DisconnectedObservable => _disconnectedSubject.AsObservable();
 
-    public string ConnectButtonLabel => IsConnected ? "Disconnect" : "Connect";
+    public string ConnectButtonLabel => _connectButtonLabel.Value;
 
     public WebSocketViewModel(ILogger logger)
     {
         _logger = logger.ForContext<WebSocketViewModel>();
 
-        _subscriptions.Add(MessageReceivedObservable.Subscribe(
-            message => Dispatcher.UIThread.Post(() => Messages.Add(message))));
+        _connectButtonLabel = this
+            .WhenAnyValue(viewModel => viewModel.IsConnected)
+            .Select(connected => connected ? "Disconnect" : "Connect")
+            .ToProperty(this, viewModel => viewModel.ConnectButtonLabel);
 
-        _subscriptions.Add(DisconnectedObservable.Subscribe(
-            _ => Dispatcher.UIThread.Post(() => IsConnected = false)));
+        MessageReceivedObservable
+            .Subscribe(message => Dispatcher.UIThread.Post(() => Messages.Add(message)))
+            .DisposeWith(Disposables);
+
+        DisconnectedObservable
+            .Subscribe(_ => Dispatcher.UIThread.Post(() => IsConnected = false))
+            .DisposeWith(Disposables);
     }
 
     /// <summary>Connects to the supplied WebSocket URL with optional extra headers.</summary>
@@ -98,7 +104,7 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Closes the WebSocket connection.</summary>
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task DisconnectAsync()
     {
         if (!IsConnected)
@@ -127,7 +133,7 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Sends the text in <see cref="MessageToSend"/> as a WebSocket text frame.</summary>
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task SendMessageAsync()
     {
         if (!IsConnected || string.IsNullOrWhiteSpace(MessageToSend))
@@ -154,7 +160,7 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Clears the message log.</summary>
-    [RelayCommand]
+    [ReactiveCommand]
     private void ClearMessages()
     {
         if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
@@ -168,20 +174,19 @@ public sealed partial class WebSocketViewModel : ViewModelBase, IDisposable
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        if (_disposed)
+        if (disposing && !_disposed)
         {
-            return;
+            _disposed = true;
+            _messageReceivedSubject.OnCompleted();
+            _disconnectedSubject.OnCompleted();
+            _connectionCts?.Cancel();
+            _connectionCts?.Dispose();
+            _connectionCts = null;
+            _service.Dispose();
         }
 
-        _disposed = true;
-        _messageReceivedSubject.OnCompleted();
-        _disconnectedSubject.OnCompleted();
-        _subscriptions.Dispose();
-        _connectionCts?.Cancel();
-        _connectionCts?.Dispose();
-        _connectionCts = null;
-        _service.Dispose();
+        base.Dispose(disposing);
     }
 }

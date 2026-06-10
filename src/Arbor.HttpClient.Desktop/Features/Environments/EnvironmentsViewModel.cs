@@ -11,9 +11,9 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using Dock.Model.Mvvm.Controls;
+using Dock.Model.ReactiveUI.Controls;
+using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 using Serilog;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Core.Environments;
@@ -61,24 +61,37 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         _disposables.Add(_autoSaveRequestedSubject
             .Throttle(TimeSpan.FromSeconds(1))
             .Subscribe(_ => TriggerEnvironmentAutoSave()));
+
+        _disposables.Add(this
+            .WhenAnyValue(viewModel => viewModel.ActiveEnvironment)
+            .Skip(1)
+            .Subscribe(ApplyActiveEnvironmentChanged));
+
+        _disposables.Add(this
+            .WhenAnyValue(
+                viewModel => viewModel.NewEnvironmentName,
+                viewModel => viewModel.EditingAccentColor,
+                viewModel => viewModel.EditingShowWarningBanner)
+            .Skip(1)
+            .Subscribe(_ => QueueEnvironmentAutoSave()));
     }
 
     public ObservableCollection<RequestEnvironment> Environments { get; }
     public ObservableCollection<EnvironmentVariableViewModel> ActiveEnvironmentVariables { get; }
 
-    [ObservableProperty]
+    [Reactive]
     private RequestEnvironment? _activeEnvironment;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _isEnvironmentPanelVisible;
 
-    [ObservableProperty]
+    [Reactive]
     private string _newEnvironmentName = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string? _editingAccentColor;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _editingShowWarningBanner;
 
     /// <summary>
@@ -172,13 +185,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
             .Select(variable => new EnvironmentVariable(variable.Name, variable.Value, variable.IsEnabled, variable.IsSensitive, variable.ExpiresAtUtc))
             .ToList();
 
-    partial void OnNewEnvironmentNameChanged(string value) => QueueEnvironmentAutoSave();
-
-    partial void OnEditingAccentColorChanged(string? value) => QueueEnvironmentAutoSave();
-
-    partial void OnEditingShowWarningBannerChanged(bool value) => QueueEnvironmentAutoSave();
-
-    partial void OnActiveEnvironmentChanged(RequestEnvironment? value)
+    private void ApplyActiveEnvironmentChanged(RequestEnvironment? value)
     {
         var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
         _suppressEnvironmentAutoSave = true;
@@ -204,26 +211,26 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         _getRequestEditor().RefreshRequestPreview();
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void SetAccentColor(string? color)
     {
         EditingAccentColor = color;
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void ClearAccentColor()
     {
         EditingAccentColor = null;
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void AddEnvironmentVariable()
     {
         ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel(string.Empty, string.Empty, true));
         _logger.Information("Added environment variable placeholder");
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void RemoveEnvironmentVariable(EnvironmentVariableViewModel? variable)
     {
         if (variable is null)
@@ -235,10 +242,10 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         _logger.Information("Removed environment variable {VariableName}", variable.Name);
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private Task SaveEnvironmentAsync() => SaveEnvironmentCoreAsync(closeEnvironmentPanel: true, CancellationToken.None);
 
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task DeleteEnvironmentAsync(RequestEnvironment? environment)
     {
         if (environment is null)
@@ -256,7 +263,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         await LoadEnvironmentsAsync();
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void EditEnvironment(RequestEnvironment? environment)
     {
         if (environment is null)
@@ -287,7 +294,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         }
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void NewEnvironment()
     {
         var previousSuppressEnvironmentAutoSave = _suppressEnvironmentAutoSave;
@@ -308,7 +315,7 @@ public sealed partial class EnvironmentsViewModel : Tool, IDisposable
         }
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task ExportEnvironmentsAsync()
     {
         var storageProvider = _getStorageProvider();

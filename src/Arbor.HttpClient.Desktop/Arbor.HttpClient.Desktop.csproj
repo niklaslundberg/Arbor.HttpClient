@@ -52,8 +52,14 @@
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Dock.Avalonia" />
     <PackageReference Include="Dock.Avalonia.Themes.Fluent" />
-    <PackageReference Include="Dock.Model.Mvvm" />
+    <PackageReference Include="Dock.Model.ReactiveUI" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" />
+    <PackageReference Include="ReactiveUI" />
+    <PackageReference Include="ReactiveUI.Avalonia" />
+    <PackageReference Include="ReactiveUI.SourceGenerators">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Serilog" />
     <PackageReference Include="System.Reactive" />
     <PackageReference Include="TextMateSharp.Grammars" />

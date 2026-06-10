@@ -47,11 +47,11 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
+using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 using Dock.Model.Controls;
 using Dock.Model.Core;
-using Dock.Model.Mvvm.Controls;
+using Dock.Model.ReactiveUI.Controls;
 using Serilog;
 using Arbor.HttpClient.Core.Collections;
 using Arbor.HttpClient.Core.Environments;
@@ -65,7 +65,7 @@ using Arbor.HttpClient.Desktop.Features.Scripting;
 namespace Arbor.HttpClient.Desktop.Features.Main;
 
 [SuppressMessage("Major Code Smell", "S3881", Justification = "Lifetime is managed as a UI root ViewModel with deterministic cleanup via Dispose.")]
-public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponseActionsContext
+public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActionsContext
 {
     private readonly HttpRequestService _httpRequestService;
     private HttpRequestWorkflow _httpRequestWorkflow = null!;
@@ -116,6 +116,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private int _layoutNameCounter = 1;
     private bool _suppressLayoutRestore;
     private bool _suppressOptionsAutoSave;
+    private CancellationTokenSource? _sendRequestCts;
     private readonly Subject<Unit> _optionsAutoSaveRequestedSubject = new();
     private readonly CompositeDisposable _optionsAutoSaveDisposables = new();
     private bool _suppressCollectionInheritedHeadersAutoSave;
@@ -151,7 +152,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         nameof(IsDemoServerHttpsEnabled)
     };
 
-    [ObservableProperty]
+    [Reactive]
     private RequestTabViewModel? _activeRequestTab;
 
     // Cached DockTree from the last explicit layout capture (set during PersistCurrentLayout,
@@ -226,7 +227,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     /// <summary>Dock factory; bound to DockControl.Factory in MainWindow.</summary>
     public IFactory? Factory => _dockFactory;
 
-    [ObservableProperty]
+    [Reactive]
     private string _responseStatus = string.Empty;
 
     /// <summary>
@@ -234,93 +235,93 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     /// or the request failed before receiving one). Used by the UI to color-code the
     /// response status by family (1xx/2xx/3xx/4xx/5xx).
     /// </summary>
-    [ObservableProperty]
+    [Reactive]
     private int _responseStatusCode;
 
     /// <summary>
     /// Human-readable elapsed time for the last response, e.g. "142 ms" or "1.23 s".
     /// Empty when no response has been received.
     /// </summary>
-    [ObservableProperty]
+    [Reactive]
     private string _responseTimeDisplay = string.Empty;
 
     /// <summary>
     /// Human-readable size of the last response body, e.g. "512 B", "1.3 KB", "4.7 MB".
     /// Empty when no response has been received.
     /// </summary>
-    [ObservableProperty]
+    [Reactive]
     private string _responseSizeDisplay = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _responseBody = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _rawResponseBody = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _responseBodyTabLabel = "Body";
 
-    [ObservableProperty]
+    [Reactive]
     private string _responseContentType = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _responseRawText = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private int _selectedResponseTabIndex;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _isResponseWebViewAvailable;
 
-    [ObservableProperty]
+    [Reactive]
     private string _responseWebViewUri = "about:blank";
 
-    [ObservableProperty]
+    [Reactive]
     private bool _isBinaryResponse;
 
-    [ObservableProperty]
+    [Reactive]
     private string _errorMessage = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _historySearchQuery = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _leftPanelTab = "History"; // "History" | "Collections"
 
-    [ObservableProperty]
+    [Reactive]
     private Collection? _selectedCollection;
 
-    [ObservableProperty]
+    [Reactive]
     private string _collectionSearchQuery = string.Empty;
 
     /// <summary>Sort order for collection requests: "Default" | "Name" | "Method" | "Path".</summary>
-    [ObservableProperty]
+    [Reactive]
     private string _collectionSortBy = "Default";
 
     /// <summary>
     /// Display mode for collection request entries:
     /// "NameAndPath" | "NameOnly" | "PathOnly" | "FullUrl".
     /// </summary>
-    [ObservableProperty]
+    [Reactive]
     private string _collectionDisplayMode = "NameAndPath";
 
     /// <summary>When true, requests are shown grouped by their top-level path segment.</summary>
-    [ObservableProperty]
+    [Reactive]
     private bool _isCollectionTreeView;
 
-    [ObservableProperty]
+    [Reactive]
     private string _newCollectionName = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _isNewCollectionFormVisible;
 
-    [ObservableProperty]
+    [Reactive]
     private string _renameCollectionName = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _isRenameCollectionFormVisible;
 
-    [ObservableProperty]
+    [Reactive]
     private string? _selectedLayoutName;
 
     public const string SystemThemeOption = "System";
@@ -335,7 +336,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         LightThemeOption
     ];
 
-    [ObservableProperty]
+    [Reactive]
     private string _selectedThemeOption = SystemThemeOption;
 
     public IReadOnlyList<string> TlsVersionOptions { get; } =
@@ -351,23 +352,22 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
     public bool IsInsecureTlsVersionSelected => InsecureTlsVersions.Contains(SelectedTlsVersionOption);
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsInsecureTlsVersionSelected))]
+    [Reactive]
     private string _selectedTlsVersionOption = "SystemDefault";
 
-    [ObservableProperty]
+    [Reactive]
     private bool _followHttpRedirects = true;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _showRequestPreviewByDefault = true;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _enableHttpDiagnostics;
 
-    [ObservableProperty]
+    [Reactive]
     private string _defaultRequestUrl = "http://localhost:5000/echo";
 
-    [ObservableProperty]
+    [Reactive]
     private string _defaultContentType = "application/json";
 
     public IReadOnlyList<string> DefaultContentTypeOptions { get; } =
@@ -384,24 +384,22 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     public bool IsCustomDefaultContentType =>
         string.Equals(SelectedDefaultContentTypeOption, DefaultContentTypeCustomOption, StringComparison.Ordinal);
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsCustomDefaultContentType))]
+    [Reactive]
     private string _selectedDefaultContentTypeOption = "application/json";
 
-    [ObservableProperty]
+    [Reactive]
     private string _customDefaultContentType = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _responseSaveDefaultFolder = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _responseSaveFileNamePattern = ResponseSaveFileNamePatternFormatter.DefaultPattern;
 
-    [ObservableProperty]
+    [Reactive]
     private string _responseSaveFileNamePatternValidationError = string.Empty;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RequestTimeoutDefaultWatermark))]
+    [Reactive]
     private int _defaultRequestTimeoutSeconds = 100;
 
     public IReadOnlyList<string> FontFamilyOptions { get; } =
@@ -411,19 +409,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         "JetBrains Mono,Cascadia Code,Consolas,monospace"
     ];
 
-    [ObservableProperty]
+    [Reactive]
     private string _uiFontFamily = "Cascadia Code,Consolas,Menlo,monospace";
 
-    [ObservableProperty]
+    [Reactive]
     private string _uiFontSizeText = "13";
 
-    [ObservableProperty]
+    [Reactive]
     private bool _autoStartScheduledJobsOnLaunch = true;
 
-    [ObservableProperty]
+    [Reactive]
     private int _defaultScheduledJobIntervalSeconds = 60;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _collectUnhandledExceptions;
 
     public double UiFontSize =>
@@ -437,50 +435,50 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     // Response headers panel (populated after each successful request)
     public ObservableCollection<string> ResponseHeaders { get; } = [];
 
-    [ObservableProperty]
+    [Reactive]
     private bool _hasResponseHeaders;
 
     /// <summary>
     /// True when a non-binary text response has been received and the response shortcuts
     /// toolbar (Copy body / Save as file / Copy as cURL) should be visible.
     /// </summary>
-    [ObservableProperty]
+    [Reactive]
     private bool _hasTextResponse;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _hasDraftToRestore;
 
-    [ObservableProperty]
+    [Reactive]
     private string _draftRestoreMessage = string.Empty;
 
     /// <summary>Gets or sets the HTTP port the demo server listens on.</summary>
-    [ObservableProperty]
+    [Reactive]
     private int _demoServerPort = DemoServer.DefaultPort;
 
     /// <summary>Gets or sets the HTTPS port the demo server listens on.</summary>
-    [ObservableProperty]
+    [Reactive]
     private int _demoServerHttpsPort = DemoServer.DefaultHttpsPort;
 
     /// <summary>Gets or sets whether the demo server HTTP endpoint is enabled.</summary>
-    [ObservableProperty]
+    [Reactive]
     private bool _isDemoServerHttpEnabled = true;
 
     /// <summary>Gets or sets whether the demo server HTTPS endpoint is enabled.</summary>
-    [ObservableProperty]
+    [Reactive]
     private bool _isDemoServerHttpsEnabled;
 
     /// <summary>True while the embedded demo server is running.</summary>
-    [ObservableProperty]
+    [Reactive]
     private bool _isDemoServerRunning;
 
     /// <summary>
     /// True when a collection request targeting the demo server was loaded but the
     /// server is not yet running.  Shows an inline banner offering to start it.
     /// </summary>
-    [ObservableProperty]
+    [Reactive]
     private bool _isDemoServerBannerVisible;
 
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task SelectResponseSaveDefaultFolderAsync()
     {
         if (StorageProvider is null)
@@ -546,7 +544,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
 
     private void OnUiFontSizeTextChangedCore()
     {
-        OnPropertyChanged(nameof(UiFontSize));
+        this.RaisePropertyChanged(nameof(UiFontSize));
         QueueOptionsAutoSave();
     }
 
@@ -960,8 +958,34 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         ScheduledJobs = [];
         SavedLayoutNames = [];
 
-        SendRequestCommand = new AsyncRelayCommand(SendRequestAsync);
-        LoadHistoryCommand = new AsyncRelayCommand(LoadHistoryAsync);
+        // Cancellation: ExecutePrimaryAction cancels _sendRequestCts, which is linked to the
+        // execution's CancellationToken — equivalent to the old AsyncRelayCommand.Cancel().
+        // IsExecuting stays true until SendRequestAsync has fully completed (including its
+        // cancellation handling), matching the previous ExecutionTask semantics.
+        SendRequestCommand = ReactiveCommand.CreateFromTask(async cancellationToken =>
+        {
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _sendRequestCts = linkedCts;
+            try
+            {
+                await SendRequestAsync(linkedCts.Token);
+            }
+            finally
+            {
+                _sendRequestCts = null;
+            }
+        });
+        LoadHistoryCommand = ReactiveCommand.CreateFromTask(LoadHistoryAsync);
+
+        SendRequestCommand.ThrownExceptions
+            .Subscribe(exception => _debugLogger.Error(exception, "Send request failed unexpectedly"))
+            .DisposeWith(_crossFeatureDisposables);
+        LoadHistoryCommand.ThrownExceptions
+            .Subscribe(exception => _debugLogger.Error(exception, "Loading history failed unexpectedly"))
+            .DisposeWith(_crossFeatureDisposables);
+
+        _isRequestInProgress = SendRequestCommand.IsExecuting
+            .ToProperty(this, viewModel => viewModel.IsRequestInProgress);
 
         _crossFeatureDisposables.Add(Observable
             .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
@@ -971,10 +995,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             .Where(propertyName => string.Equals(propertyName, nameof(EnvironmentsViewModel.ActiveEnvironment), StringComparison.Ordinal))
             .Subscribe(_ =>
             {
-                OnPropertyChanged(nameof(ActiveEnvironment));
-                OnPropertyChanged(nameof(ActiveEnvironmentAccentColor));
-                OnPropertyChanged(nameof(ActiveEnvironmentHasColor));
-                OnPropertyChanged(nameof(ActiveEnvironmentShowWarningBanner));
+                this.RaisePropertyChanged(nameof(ActiveEnvironment));
+                this.RaisePropertyChanged(nameof(ActiveEnvironmentAccentColor));
+                this.RaisePropertyChanged(nameof(ActiveEnvironmentHasColor));
+                this.RaisePropertyChanged(nameof(ActiveEnvironmentShowWarningBanner));
             }));
 
         _crossFeatureDisposables.Add(Observable
@@ -983,7 +1007,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
                 handler => _environmentsViewModel.PropertyChanged -= handler)
             .Select(eventPattern => eventPattern.EventArgs.PropertyName)
             .Where(propertyName => string.Equals(propertyName, nameof(EnvironmentsViewModel.NewEnvironmentName), StringComparison.Ordinal))
-            .Subscribe(_ => OnPropertyChanged(nameof(NewEnvironmentName))));
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(NewEnvironmentName))));
 
         _crossFeatureDisposables.Add(Observable
             .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
@@ -991,27 +1015,33 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
                 handler => _environmentsViewModel.PropertyChanged -= handler)
             .Select(eventPattern => eventPattern.EventArgs.PropertyName)
             .Where(propertyName => string.Equals(propertyName, nameof(EnvironmentsViewModel.IsEnvironmentPanelVisible), StringComparison.Ordinal))
-            .Subscribe(_ => OnPropertyChanged(nameof(IsEnvironmentPanelVisible))));
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(IsEnvironmentPanelVisible))));
 
         _crossFeatureDisposables.Add(Observable.Merge(
                 _webSocketViewModel.PropertyChangedObservable,
                 _sseViewModel.PropertyChangedObservable)
             .Where(eventArgs => eventArgs.PropertyName is nameof(WebSocketViewModel.IsConnected)
                 or nameof(SseViewModel.IsConnected))
-            .Subscribe(_ => OnPropertyChanged(nameof(PrimaryActionLabel))));
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(PrimaryActionLabel))));
 
-        _crossFeatureDisposables.Add(Observable
-            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
-                handler => SendRequestCommand.PropertyChanged += handler,
-                handler => SendRequestCommand.PropertyChanged -= handler)
-            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
-            .Where(propertyName => propertyName is nameof(IAsyncRelayCommand.IsRunning)
-                or nameof(IAsyncRelayCommand.CanBeCanceled))
-            .Subscribe(_ =>
-            {
-                OnPropertyChanged(nameof(PrimaryActionLabel));
-                OnPropertyChanged(nameof(IsRequestInProgress));
-            }));
+        _crossFeatureDisposables.Add(SendRequestCommand.IsExecuting
+            .Skip(1)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(PrimaryActionLabel))));
+
+        _crossFeatureDisposables.Add(this
+            .WhenAnyValue(viewModel => viewModel.SelectedTlsVersionOption)
+            .Skip(1)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(IsInsecureTlsVersionSelected))));
+
+        _crossFeatureDisposables.Add(this
+            .WhenAnyValue(viewModel => viewModel.SelectedDefaultContentTypeOption)
+            .Skip(1)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(IsCustomDefaultContentType))));
+
+        _crossFeatureDisposables.Add(this
+            .WhenAnyValue(viewModel => viewModel.DefaultRequestTimeoutSeconds)
+            .Skip(1)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(RequestTimeoutDefaultWatermark))));
 
         _crossFeatureDisposables.Add(Observable
             .FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
@@ -1049,7 +1079,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             .Select(editor => editor?.PropertyChangedObservable ?? Observable.Empty<PropertyChangedEventArgs>())
             .Switch()
             .Where(eventArgs => string.Equals(eventArgs.PropertyName, nameof(RequestEditorViewModel.SelectedRequestType), StringComparison.Ordinal))
-            .Subscribe(_ => OnPropertyChanged(nameof(PrimaryActionLabel))));
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(PrimaryActionLabel))));
 
         _dockFactory = new DockFactory(this, _environmentsViewModel, _optionsViewModel, _cookieJarViewModel);
         Layout = _dockFactory.CreateLayout();
@@ -1119,12 +1149,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         // current dispatcher frame, so a Post at default priority is guaranteed to run
         // after all binding subscriptions have settled for the current frame.
         editorForThisTab.BeginBulkUpdate();
-        OnPropertyChanged(nameof(RequestEditor));
-        OnPropertyChanged(nameof(PrimaryActionLabel));
+        this.RaisePropertyChanged(nameof(RequestEditor));
+        this.RaisePropertyChanged(nameof(PrimaryActionLabel));
         Dispatcher.UIThread.Post(() => editorForThisTab.EndBulkUpdate());
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void NewRequestTab()
     {
         var tab = new RequestTabViewModel(CreateRequestEditor());
@@ -1132,7 +1162,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         ActiveRequestTab = tab;
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void CloseRequestTab(RequestTabViewModel? tab)
     {
         if (tab is null || RequestTabs.Count <= 1)
@@ -1182,7 +1212,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     {
         get
         {
-            if (SendRequestCommand.IsRunning && SendRequestCommand.CanBeCanceled)
+            if (IsRequestInProgress)
             {
                 return "Cancel";
             }
@@ -1233,32 +1263,34 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         set => _environmentsViewModel.NewEnvironmentName = value;
     }
 
-    public IAsyncRelayCommand SendRequestCommand { get; }
-    public IAsyncRelayCommand LoadHistoryCommand { get; }
-    public bool IsRequestInProgress => SendRequestCommand.IsRunning;
+    public ReactiveCommand<Unit, Unit> SendRequestCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadHistoryCommand { get; }
 
-    [RelayCommand]
+    private readonly ObservableAsPropertyHelper<bool> _isRequestInProgress;
+    public bool IsRequestInProgress => _isRequestInProgress.Value;
+
+    [ReactiveCommand]
     private void ExecutePrimaryAction()
     {
-        if (SendRequestCommand.IsRunning && SendRequestCommand.CanBeCanceled)
+        if (IsRequestInProgress)
         {
-            SendRequestCommand.Cancel();
+            _sendRequestCts?.Cancel();
             return;
         }
 
-        if (SendRequestCommand.CanExecute(null))
+        if (((System.Windows.Input.ICommand)SendRequestCommand).CanExecute(null))
         {
-            SendRequestCommand.Execute(null);
+            SendRequestCommand.Execute().Subscribe();
         }
     }
 
-    public IRelayCommand AddEnvironmentVariableCommand => _environmentsViewModel.AddEnvironmentVariableCommand;
-    public IRelayCommand<EnvironmentVariableViewModel?> RemoveEnvironmentVariableCommand => _environmentsViewModel.RemoveEnvironmentVariableCommand;
-    public IAsyncRelayCommand SaveEnvironmentCommand => _environmentsViewModel.SaveEnvironmentCommand;
-    public IAsyncRelayCommand<RequestEnvironment?> DeleteEnvironmentCommand => _environmentsViewModel.DeleteEnvironmentCommand;
-    public IRelayCommand<RequestEnvironment?> EditEnvironmentCommand => _environmentsViewModel.EditEnvironmentCommand;
-    public IRelayCommand NewEnvironmentCommand => _environmentsViewModel.NewEnvironmentCommand;
-    public IAsyncRelayCommand ExportEnvironmentsCommand => _environmentsViewModel.ExportEnvironmentsCommand;
+    public System.Windows.Input.ICommand AddEnvironmentVariableCommand => _environmentsViewModel.AddEnvironmentVariableCommand;
+    public System.Windows.Input.ICommand RemoveEnvironmentVariableCommand => _environmentsViewModel.RemoveEnvironmentVariableCommand;
+    public System.Windows.Input.ICommand SaveEnvironmentCommand => _environmentsViewModel.SaveEnvironmentCommand;
+    public System.Windows.Input.ICommand DeleteEnvironmentCommand => _environmentsViewModel.DeleteEnvironmentCommand;
+    public System.Windows.Input.ICommand EditEnvironmentCommand => _environmentsViewModel.EditEnvironmentCommand;
+    public System.Windows.Input.ICommand NewEnvironmentCommand => _environmentsViewModel.NewEnvironmentCommand;
+    public System.Windows.Input.ICommand ExportEnvironmentsCommand => _environmentsViewModel.ExportEnvironmentsCommand;
 
     private ApplicationOptions BuildOptionsFromCurrentState()
     {
@@ -1379,7 +1411,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         UpdateLayoutNameCounter();
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void AddScheduledJob()
     {
         var vm = new ScheduledJobViewModel(_scheduledJobRepository, _scheduledJobService)
@@ -1391,7 +1423,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         LeftPanelTab = "ScheduledJobs";
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task RemoveScheduledJobAsync(ScheduledJobViewModel? job)
     {
         if (job is null)
@@ -1409,21 +1441,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         job.Dispose();
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void ShowHistoryTab()
     {
         LeftPanelTab = "History";
         ActivateLeftPanel();
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void ShowCollectionsTab()
     {
         LeftPanelTab = "Collections";
         ActivateLeftPanel();
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void ShowScheduledJobsTab()
     {
         LeftPanelTab = "ScheduledJobs";
@@ -1444,16 +1476,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     /// <summary>Set by the view layer to open the About window.</summary>
     public Action? OpenAboutWindowAction { get; set; }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void OpenAbout() => OpenAboutWindowAction?.Invoke();
 
     /// <summary>Set by the view layer to open the Diagnostics window.</summary>
     public Action? OpenDiagnosticsWindowAction { get; set; }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void OpenDiagnostics() => OpenDiagnosticsWindowAction?.Invoke();
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void OpenLogWindow()
     {
         if (_dockFactory?.LogPanelViewModel is { Owner: IDock ownerDock } logPanelVm)
@@ -1462,7 +1494,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void OpenCookieJar()
     {
         if (_dockFactory?.CookieJarViewModel is { Owner: IDock ownerDock } cookieJarVm)
@@ -1472,10 +1504,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void ExitApplication() => ExitApplicationAction?.Invoke();
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void OpenOptions()
     {
         if (_dockFactory?.OptionsViewModel is { Owner: IDock ownerDock } optVm)
@@ -1484,7 +1516,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void OpenEnvironments()
     {
         if (_dockFactory?.EnvironmentsViewModel is { Owner: IDock ownerDock } environmentsVm)
@@ -1493,7 +1525,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void OpenLayoutPanel()
     {
         if (_dockFactory?.LayoutManagementViewModel is { Owner: IDock ownerDock } layoutVm)
@@ -1516,7 +1548,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void SaveLayoutAsNew()
     {
         RefreshDockTreeCache();
@@ -1533,7 +1565,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         PersistLayoutOptions();
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void SaveLayoutToExisting(string? layoutName)
     {
         RefreshDockTreeCache();
@@ -1549,7 +1581,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         PersistLayoutOptions();
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void RestoreDefaultLayout()
     {
         if (!_layoutWorkflow.RestoreDefaultLayout(_defaultLayout, ApplyLayoutSnapshot))
@@ -1563,7 +1595,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         PersistLayoutOptions();
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void RemoveLayout(string? layoutName)
     {
         var removeLayoutResult = _layoutWorkflow.RemoveLayout(layoutName, _savedLayouts, SelectedLayoutName);
@@ -1579,7 +1611,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         PersistLayoutOptions();
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void LoadCollectionRequest(CollectionItemViewModel? item) => LoadCollectionRequestCore(item);
 
     internal void LoadCollectionRequestCore(CollectionItemViewModel? item)
@@ -1768,7 +1800,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     }
 
     /// <summary>Starts the embedded demo server on <see cref="DemoServerPort"/> and/or <see cref="DemoServerHttpsPort"/>.</summary>
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task StartDemoServerAsync()
     {
         var outcome = await _demoServerLifecycleCoordinator.StartAsync(
@@ -1794,7 +1826,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     }
 
     /// <summary>Stops the embedded demo server.</summary>
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task StopDemoServerAsync()
     {
         var outcome = await _demoServerLifecycleCoordinator.StopAsync();
@@ -1807,24 +1839,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     }
 
     /// <summary>Dismisses the "demo server not running" banner without starting the server.</summary>
-    [RelayCommand]
+    [ReactiveCommand]
     private void DismissDemoServerBanner() => IsDemoServerBannerVisible = false;
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void ShowNewCollectionForm()
     {
         NewCollectionName = string.Empty;
         IsNewCollectionFormVisible = true;
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void CancelNewCollection()
     {
         NewCollectionName = string.Empty;
         IsNewCollectionFormVisible = false;
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task CreateCollectionAsync(CancellationToken cancellationToken)
     {
         var outcome = await _collectionsManagementCoordinator.CreateCollectionAsync(NewCollectionName, cancellationToken);
@@ -1846,7 +1878,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         LeftPanelTab = "Collections";
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void ShowRenameCollectionForm()
     {
         if (SelectedCollection is not { } collection)
@@ -1858,14 +1890,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         IsRenameCollectionFormVisible = true;
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void CancelRenameCollection()
     {
         RenameCollectionName = string.Empty;
         IsRenameCollectionFormVisible = false;
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task ConfirmRenameCollectionAsync(CancellationToken cancellationToken)
     {
         var outcome = await _collectionsManagementCoordinator.RenameSelectedCollectionAsync(RenameCollectionName, cancellationToken);
@@ -1886,7 +1918,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         SelectedCollection = Collections.FirstOrDefault(collection => collection.Id == outcome.SelectedCollectionId);
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task AddRequestToCollectionAsync()
     {
         var outcome = await _collectionsManagementCoordinator.AddCurrentRequestToSelectedCollectionAsync();
@@ -1898,13 +1930,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         SelectedCollection = Collections.FirstOrDefault(collection => collection.Id == outcome.SelectedCollectionId);
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void AddCollectionInheritedHeader()
     {
         CollectionInheritedHeaders.Add(new RequestHeaderViewModel());
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void RemoveCollectionInheritedHeader(RequestHeaderViewModel? header)
     {
         if (header is null)
@@ -1915,7 +1947,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         CollectionInheritedHeaders.Remove(header);
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task SaveCollectionInheritedHeadersAsync(CancellationToken cancellationToken)
     {
         if (BuildCollectionInheritedHeadersAutoSaveSnapshot() is { } snapshot)
@@ -1925,15 +1957,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void SetCollectionSortBy(string? sortBy) =>
         CollectionSortBy = sortBy ?? "Default";
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void SetCollectionDisplayMode(string? mode) =>
         CollectionDisplayMode = mode ?? "NameAndPath";
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void ToggleCollectionTreeView() =>
         IsCollectionTreeView = !IsCollectionTreeView;
 
@@ -2282,7 +2314,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         return true;
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task ImportCollectionAsync()
     {
         if (StorageProvider is null)
@@ -2331,7 +2363,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task DeleteCollectionAsync(Collection? collection)
     {
         if (collection is null)
@@ -2349,7 +2381,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         await LoadCollectionsAsync();
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void SaveOptions()
     {
         try
@@ -2367,7 +2399,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task ExportOptionsAsync()
     {
         if (StorageProvider is null)
@@ -2406,7 +2438,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task ImportOptionsAsync()
     {
         if (StorageProvider is null || _applicationOptionsStore is null)
@@ -2447,9 +2479,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    // CommunityToolkit.Mvvm strips the "Async" suffix when generating command properties,
+    // ReactiveUI.SourceGenerators strips the "Async" suffix when generating command properties,
     // so the XAML binding target is OpenRequestBodyInExternalEditorCommand (not OpenRequestBodyInExternalEditorAsyncCommand).
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task OpenRequestBodyInExternalEditorAsync()
     {
         if (_fileWatcherCts is { })
@@ -2476,13 +2508,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         ResponseActionsViewModel.OpenWithShell(path);
     }
 
-    // CommunityToolkit.Mvvm strips the "Async" suffix when generating command properties,
+    // ReactiveUI.SourceGenerators strips the "Async" suffix when generating command properties,
     // so the XAML binding target is OpenResponseBodyInExternalEditorCommand (not OpenResponseBodyInExternalEditorAsyncCommand).
-    [RelayCommand]
+    [ReactiveCommand]
     private Task OpenResponseBodyInExternalEditorAsync(CancellationToken cancellationToken) =>
         _responseActions.OpenResponseBodyInExternalEditorAsync(cancellationToken);
 
-    [RelayCommand]
+    [ReactiveCommand]
     private Task SaveBinaryResponseAndOpenAsync(CancellationToken cancellationToken) =>
         _responseActions.SaveBinaryResponseAndOpenAsync(cancellationToken);
 
@@ -2492,7 +2524,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     /// Hoppscotch, Insomnia, and the browser devtools network panel.
     /// No-op when the clipboard or request is unavailable.
     /// </summary>
-    [RelayCommand]
+    [ReactiveCommand]
     private Task CopyHistoryItemAsCurlAsync(RequestHistoryEntry? request) =>
         _responseActions.CopyHistoryItemAsCurlAsync(request);
 
@@ -2500,7 +2532,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     /// Copies the current (pretty-printed) response body text to the clipboard.
     /// No-op when the clipboard is unavailable or the response body is empty.
     /// </summary>
-    [RelayCommand]
+    [ReactiveCommand]
     private Task CopyResponseBodyAsync() => _responseActions.CopyResponseBodyAsync();
 
     /// <summary>
@@ -2508,7 +2540,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     /// The suggested file extension is derived from the response <c>Content-Type</c> when applicable.
     /// No-op when the storage provider is unavailable or the selected tab has no saveable text content.
     /// </summary>
-    [RelayCommand]
+    [ReactiveCommand]
     private Task SaveResponseBodyAsFileAsync(CancellationToken cancellationToken) =>
         _responseActions.SaveResponseBodyAsFileAsync(cancellationToken);
 
@@ -2517,13 +2549,20 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     /// clipboard formatted as a single-line <c>curl</c> command.
     /// No-op when the clipboard is unavailable.
     /// </summary>
-    [RelayCommand]
+    [ReactiveCommand]
     private Task CopyCurrentRequestAsCurlAsync() => _responseActions.CopyCurrentRequestAsCurlAsync();
 
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
+        if (!disposing)
+        {
+            base.Dispose(disposing);
+            return;
+        }
+
         _crossFeatureDisposables.Dispose();
 
+        _sendRequestCts?.Cancel();
         _environmentsViewModel.Dispose();
         _historyFilterRequestedSubject.OnCompleted();
         _historyFilterDisposables.Dispose();
@@ -2565,6 +2604,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
             catch (NotSupportedException) { /* best-effort cleanup */ }
             catch (IOException) { /* best-effort cleanup */ }
         }
+
+        base.Dispose(disposing);
     }
 
     public void PersistCurrentLayout()
@@ -2957,7 +2998,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         if (!ReferenceEquals(Layout, applyResult.Layout))
         {
             Layout = applyResult.Layout;
-            OnPropertyChanged(nameof(Layout));
+            this.RaisePropertyChanged(nameof(Layout));
         }
 
         if (applyResult.Applied)
@@ -3129,7 +3170,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         ApplyHistoryFilter(HistorySearchQuery);
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void LoadHistoryRequest(RequestHistoryEntry? request)
     {
         if (request is null)
@@ -3302,7 +3343,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
     private IReadOnlyList<EnvironmentVariable> GetActiveVariablesForEditor() =>
         _environmentsViewModel.GetActiveVariablesForEditor();
 
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task RestoreDraftAsync()
     {
         var draft = _pendingDraft
@@ -3319,7 +3360,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         StartDraftAutoSave();
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void DiscardDraft()
     {
         _pendingDraft = null;

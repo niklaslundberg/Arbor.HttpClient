@@ -1,13 +1,14 @@
 using System;
 using System.Globalization;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
+using System.Reactive.Linq;
 using Arbor.HttpClient.Core.Environments;
 using Arbor.HttpClient.Desktop.Shared;
+using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 
 namespace Arbor.HttpClient.Desktop.Features.Environments;
 
-public sealed partial class EnvironmentVariableViewModel : ViewModelBase
+public sealed partial class EnvironmentVariableViewModel : ReactiveViewModelBase
 {
     /// <summary>
     /// Set to <c>true</c> when the user has manually toggled the Sensitive checkbox,
@@ -21,30 +22,33 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
     /// </summary>
     private bool _expiryUserOverride;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _isEnabled;
 
-    [ObservableProperty]
+    [Reactive]
     private string _name;
 
-    [ObservableProperty]
+    [Reactive]
     private string _value;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _isSensitive;
 
-    [ObservableProperty]
+    [Reactive]
     private DateTimeOffset? _expiresAtUtc;
 
     /// <summary>When <c>true</c> the actual (unredacted) value is shown in the UI.</summary>
-    [ObservableProperty]
+    [Reactive]
     private bool _isValueRevealed;
 
+    private readonly ObservableAsPropertyHelper<bool> _isValueMasked;
+    private readonly ObservableAsPropertyHelper<bool> _isExpired;
+
     /// <summary>Returns <c>true</c> when the value should be displayed as masked bullets (sensitive and not revealed).</summary>
-    public bool IsValueMasked => IsSensitive && !IsValueRevealed;
+    public bool IsValueMasked => _isValueMasked.Value;
 
     /// <summary>Returns <c>true</c> when the variable has expired.</summary>
-    public bool IsExpired => ExpiresAtUtc.HasValue && DateTimeOffset.UtcNow >= ExpiresAtUtc.Value;
+    public bool IsExpired => _isExpired.Value;
 
     /// <summary>
     /// Text representation of <see cref="ExpiresAtUtc"/> for two-way binding to a TextBox.
@@ -70,7 +74,7 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
                 ExpiresAtUtc = parsed.ToUniversalTime();
             }
             // Invalid input is silently ignored; the existing value is retained.
-            OnPropertyChanged();
+            this.RaisePropertyChanged(nameof(ExpiresAtUtcText));
         }
     }
 
@@ -95,49 +99,55 @@ public sealed partial class EnvironmentVariableViewModel : ViewModelBase
         // If an expiry was loaded from storage, treat it as a user-set value so JWT
         // auto-detection does not silently overwrite it.
         _expiryUserOverride = expiresAtUtc.HasValue;
-    }
 
-    partial void OnNameChanged(string value)
-    {
+        _isValueMasked = this
+            .WhenAnyValue(
+                viewModel => viewModel.IsSensitive,
+                viewModel => viewModel.IsValueRevealed,
+                (sensitive, revealed) => sensitive && !revealed)
+            .ToProperty(this, viewModel => viewModel.IsValueMasked);
+
+        _isExpired = this
+            .WhenAnyValue(
+                viewModel => viewModel.ExpiresAtUtc,
+                expires => expires.HasValue && DateTimeOffset.UtcNow >= expires.Value)
+            .ToProperty(this, viewModel => viewModel.IsExpired);
+
         // Auto-detect sensitivity only when the user has never manually set the checkbox.
-        if (!_sensitiveUserOverride && SensitiveVariableDetector.IsSensitive(value))
-        {
-            IsSensitive = true;
-        }
-    }
+        this.WhenAnyValue(viewModel => viewModel.Name)
+            .Skip(1)
+            .Where(currentName => !_sensitiveUserOverride && SensitiveVariableDetector.IsSensitive(currentName))
+            .Subscribe(_ => IsSensitive = true);
 
-    partial void OnExpiresAtUtcChanged(DateTimeOffset? value)
-    {
-        OnPropertyChanged(nameof(ExpiresAtUtcText));
-        OnPropertyChanged(nameof(IsExpired));
-    }
-
-    partial void OnIsSensitiveChanged(bool value)
-    {
-        // Treat any change via the checkbox as a deliberate user override.
-        _sensitiveUserOverride = true;
-        // When sensitivity is toggled off, hide the value again.
-        if (!value)
-        {
-            IsValueRevealed = false;
-        }
-        OnPropertyChanged(nameof(IsValueMasked));
-    }
-
-    partial void OnValueChanged(string value)
-    {
         // Auto-detect JWT expiry from the value when the user has not manually set an expiry.
-        if (!_expiryUserOverride && JwtExpiryExtractor.TryGetExpiry(value, out var jwtExpiry))
-        {
-            ExpiresAtUtc = jwtExpiry;
-        }
+        this.WhenAnyValue(viewModel => viewModel.Value)
+            .Skip(1)
+            .Subscribe(currentValue =>
+            {
+                if (!_expiryUserOverride && JwtExpiryExtractor.TryGetExpiry(currentValue, out var jwtExpiry))
+                {
+                    ExpiresAtUtc = jwtExpiry;
+                }
+            });
+
+        // Treat any change via the checkbox as a deliberate user override.
+        // When sensitivity is toggled off, hide the value again.
+        this.WhenAnyValue(viewModel => viewModel.IsSensitive)
+            .Skip(1)
+            .Subscribe(sensitive =>
+            {
+                _sensitiveUserOverride = true;
+                if (!sensitive)
+                {
+                    IsValueRevealed = false;
+                }
+            });
+
+        this.WhenAnyValue(viewModel => viewModel.ExpiresAtUtc)
+            .Skip(1)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(ExpiresAtUtcText)));
     }
 
-    partial void OnIsValueRevealedChanged(bool value)
-    {
-        OnPropertyChanged(nameof(IsValueMasked));
-    }
-
-    [RelayCommand]
+    [ReactiveCommand]
     private void ToggleReveal() => IsValueRevealed = !IsValueRevealed;
 }

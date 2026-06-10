@@ -1,3 +1,5 @@
+using System.Reactive.Linq;
+using System.Reactive.Threading.Tasks;
 using System.Net;
 using System.Text;
 using Arbor.HttpClient.Desktop;
@@ -63,8 +65,7 @@ public class ResponseShortcutsTests
         using var viewModel = CreateViewModel(response);
 
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
-        viewModel.SendRequestCommand.Execute(null);
-        await viewModel.SendRequestCommand.ExecutionTask!;
+        await viewModel.SendRequestCommand.Execute();
 
         viewModel.HasTextResponse.Should().BeTrue();
     }
@@ -81,8 +82,7 @@ public class ResponseShortcutsTests
 
         using var viewModel = CreateViewModel(response);
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/image.png";
-        viewModel.SendRequestCommand.Execute(null);
-        await viewModel.SendRequestCommand.ExecutionTask!;
+        await viewModel.SendRequestCommand.Execute();
 
         viewModel.HasTextResponse.Should().BeFalse();
     }
@@ -102,10 +102,9 @@ public class ResponseShortcutsTests
 
         viewModel.Clipboard = TopLevel.GetTopLevel(window)?.Clipboard;
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
-        viewModel.SendRequestCommand.Execute(null);
-        await viewModel.SendRequestCommand.ExecutionTask!;
+        await viewModel.SendRequestCommand.Execute();
 
-        await viewModel.CopyResponseBodyCommand.ExecuteAsync(null);
+        await viewModel.CopyResponseBodyCommand.Execute();
 
         var clipboardText = await (TopLevel.GetTopLevel(window)?.Clipboard?.TryGetTextAsync()
                          ?? Task.FromResult<string?>(null));
@@ -126,11 +125,10 @@ public class ResponseShortcutsTests
 
         viewModel.Clipboard = null;
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
-        viewModel.SendRequestCommand.Execute(null);
-        await viewModel.SendRequestCommand.ExecutionTask!;
+        await viewModel.SendRequestCommand.Execute();
 
         // Should not throw
-        await viewModel.CopyResponseBodyCommand.ExecuteAsync(null);
+        await viewModel.CopyResponseBodyCommand.Execute();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -149,10 +147,9 @@ public class ResponseShortcutsTests
         viewModel.Clipboard = TopLevel.GetTopLevel(window)?.Clipboard;
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
         viewModel.RequestEditor.SelectedMethod = "POST";
-        viewModel.SendRequestCommand.Execute(null);
-        await viewModel.SendRequestCommand.ExecutionTask!;
+        await viewModel.SendRequestCommand.Execute();
 
-        await viewModel.CopyCurrentRequestAsCurlCommand.ExecuteAsync(null);
+        await viewModel.CopyCurrentRequestAsCurlCommand.Execute();
 
         var clipboardText = await (TopLevel.GetTopLevel(window)?.Clipboard?.TryGetTextAsync()
                          ?? Task.FromResult<string?>(null));
@@ -175,11 +172,10 @@ public class ResponseShortcutsTests
 
         viewModel.StorageProvider = null;
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
-        viewModel.SendRequestCommand.Execute(null);
-        await viewModel.SendRequestCommand.ExecutionTask!;
+        await viewModel.SendRequestCommand.Execute();
 
         // Should not throw
-        await viewModel.SaveResponseBodyAsFileCommand.ExecuteAsync(null);
+        await viewModel.SaveResponseBodyAsFileCommand.Execute();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -192,8 +188,7 @@ public class ResponseShortcutsTests
         using var viewModel = CreateViewModel(response);
 
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
-        viewModel.SendRequestCommand.Execute(null);
-        await viewModel.SendRequestCommand.ExecutionTask!;
+        await viewModel.SendRequestCommand.Execute();
 
         var responseBody = viewModel.ResponseBody;
         responseBody.Should().Contain("åäö");

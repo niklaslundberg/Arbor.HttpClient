@@ -38,7 +38,7 @@ public class CookieJarViewModelTests
         viewModel.NewCookieName = "token";
         viewModel.NewCookieValue = "xyz";
         viewModel.NewCookieDomain = "localhost";
-        viewModel.AddCookieCommand.Execute(null);
+        viewModel.AddCookieCommand.Execute().Subscribe();
 
         viewModel.Cookies.Should().ContainSingle();
         viewModel.Cookies[0].Name.Should().Be("token");
@@ -60,7 +60,7 @@ public class CookieJarViewModelTests
         viewModel.NewCookieName = string.Empty;
         viewModel.NewCookieValue = "xyz";
         viewModel.NewCookieDomain = "localhost";
-        viewModel.AddCookieCommand.Execute(null);
+        viewModel.AddCookieCommand.Execute().Subscribe();
 
         viewModel.Cookies.Should().BeEmpty();
     }
@@ -74,7 +74,7 @@ public class CookieJarViewModelTests
         viewModel.NewCookieName = "token";
         viewModel.NewCookieValue = "xyz";
         viewModel.NewCookieDomain = string.Empty;
-        viewModel.AddCookieCommand.Execute(null);
+        viewModel.AddCookieCommand.Execute().Subscribe();
 
         viewModel.Cookies.Should().BeEmpty();
     }
@@ -87,7 +87,7 @@ public class CookieJarViewModelTests
         var viewModel = new CookieJarViewModel(container);
 
         var entry = viewModel.Cookies.Single();
-        viewModel.RemoveCommand.Execute(entry);
+        viewModel.RemoveCommand.Execute(entry).Subscribe();
 
         viewModel.Cookies.Should().BeEmpty();
         container.GetAllCookies().Single().Expired.Should().BeTrue();
@@ -112,7 +112,7 @@ public class CookieJarViewModelTests
         container.Add(new Cookie("b", "2", "/", "localhost"));
         var viewModel = new CookieJarViewModel(container);
 
-        viewModel.ClearAllCommand.Execute(null);
+        viewModel.ClearAllCommand.Execute().Subscribe();
 
         viewModel.Cookies.Should().BeEmpty();
         container.GetAllCookies().Should().AllSatisfy(c => c.Expired.Should().BeTrue());
@@ -126,7 +126,7 @@ public class CookieJarViewModelTests
         viewModel.Cookies.Should().BeEmpty();
 
         container.Add(new Cookie("new-cookie", "value", "/", "localhost"));
-        viewModel.RefreshCommand.Execute(null);
+        viewModel.RefreshCommand.Execute().Subscribe();
 
         viewModel.Cookies.Should().ContainSingle(c => c.Name == "new-cookie");
     }

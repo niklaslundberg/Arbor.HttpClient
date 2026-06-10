@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Dock.Model.Controls;
 using Dock.Model.Core;
-using Dock.Model.Mvvm.Controls;
+using Dock.Model.ReactiveUI.Controls;
 
 namespace Arbor.HttpClient.Desktop.Features.Layout;
 

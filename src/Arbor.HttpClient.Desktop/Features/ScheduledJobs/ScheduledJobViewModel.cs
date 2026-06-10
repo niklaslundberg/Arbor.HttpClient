@@ -5,52 +5,50 @@ using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Desktop.Features.WebView;
 using Arbor.HttpClient.Desktop.Shared;
 using Avalonia.Threading;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using Arbor.HttpClient.Core.HttpRequest;
 using Arbor.HttpClient.Core.ScheduledJobs;
 using System.Reactive;
-using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
+using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 
 namespace Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 
-public sealed partial class ScheduledJobViewModel : ViewModelBase, IDisposable
+public sealed partial class ScheduledJobViewModel : ReactiveViewModelBase
 {
     private readonly IScheduledJobRepository _repository;
     private readonly ScheduledJobService _jobService;
     private readonly Subject<Unit> _autoSaveRequestedSubject = new();
-    private readonly CompositeDisposable _disposables = new();
     private bool _suppressAutoSave;
     private bool _isSaving;
     private CancellationTokenSource? _autoSaveCancellationTokenSource;
 
-    [ObservableProperty]
+    [Reactive]
     private int _id;
 
-    [ObservableProperty]
+    [Reactive]
     private string _name = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _method = "GET";
 
-    [ObservableProperty]
+    [Reactive]
     private string _url = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _body = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private int _intervalSeconds = 60;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _autoStart;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _followRedirects = true;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _isRunning;
 
     /// <summary>
@@ -58,36 +56,40 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase, IDisposable
     /// each scheduled tick stores the response body and a <see cref="WebViewWindow"/>
     /// can be opened to view the rendered URL in the platform-native browser engine.
     /// </summary>
-    [ObservableProperty]
+    [Reactive]
     private bool _useWebView;
 
     /// <summary>Body text of the most recent successful response, or an empty string.</summary>
-    [ObservableProperty]
+    [Reactive]
     private string _lastResponseBody = string.Empty;
 
     /// <summary>Status code + reason phrase from the most recent successful response (e.g. "200 OK").</summary>
-    [ObservableProperty]
+    [Reactive]
     private string _lastResponseStatus = string.Empty;
 
     /// <summary>Local-time display string for when the most recent response was received (e.g. "14:32:07").</summary>
-    [ObservableProperty]
+    [Reactive]
     private string _lastResponseAtDisplay = string.Empty;
+
+    private readonly ObservableAsPropertyHelper<bool> _isWebViewApplicable;
+    private readonly ObservableAsPropertyHelper<bool> _isWebViewEnabled;
+    private readonly ObservableAsPropertyHelper<bool> _hasLastResponse;
 
     /// <summary>
     /// <c>true</c> when the web view feature is applicable for this job's HTTP method.
     /// Currently limited to <c>GET</c> requests because only those reliably return
     /// renderable content (HTML, JSON) rather than side-effecting mutations.
     /// </summary>
-    public bool IsWebViewApplicable => string.Equals(Method, "GET", StringComparison.OrdinalIgnoreCase);
+    public bool IsWebViewApplicable => _isWebViewApplicable.Value;
 
     /// <summary>
     /// <c>true</c> when web view is both applicable (GET method) and enabled by the user.
     /// Used to gate the "Open in browser" button and response callback registration.
     /// </summary>
-    public bool IsWebViewEnabled => UseWebView && IsWebViewApplicable;
+    public bool IsWebViewEnabled => _isWebViewEnabled.Value;
 
     /// <summary><c>true</c> when at least one response has been captured by <see cref="HandleResponseAsync"/>.</summary>
-    public bool HasLastResponse => !string.IsNullOrEmpty(LastResponseStatus);
+    public bool HasLastResponse => _hasLastResponse.Value;
 
     public IReadOnlyList<string> Methods { get; } = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
@@ -96,9 +98,45 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase, IDisposable
         _repository = repository;
         _jobService = jobService;
 
-        _disposables.Add(_autoSaveRequestedSubject
+        _isWebViewApplicable = this
+            .WhenAnyValue(viewModel => viewModel.Method)
+            .Select(method => string.Equals(method, "GET", StringComparison.OrdinalIgnoreCase))
+            .ToProperty(this, viewModel => viewModel.IsWebViewApplicable);
+
+        _isWebViewEnabled = this
+            .WhenAnyValue(
+                viewModel => viewModel.UseWebView,
+                viewModel => viewModel.IsWebViewApplicable,
+                (useWebView, applicable) => useWebView && applicable)
+            .ToProperty(this, viewModel => viewModel.IsWebViewEnabled);
+
+        _hasLastResponse = this
+            .WhenAnyValue(viewModel => viewModel.LastResponseStatus)
+            .Select(status => !string.IsNullOrEmpty(status))
+            .ToProperty(this, viewModel => viewModel.HasLastResponse);
+
+        Observable.Merge(
+                this.WhenAnyValue(
+                        viewModel => viewModel.Name,
+                        viewModel => viewModel.Method,
+                        viewModel => viewModel.Url,
+                        viewModel => viewModel.Body)
+                    .Skip(1)
+                    .Select(_ => Unit.Default),
+                this.WhenAnyValue(
+                        viewModel => viewModel.IntervalSeconds,
+                        viewModel => viewModel.AutoStart,
+                        viewModel => viewModel.FollowRedirects,
+                        viewModel => viewModel.UseWebView)
+                    .Skip(1)
+                    .Select(_ => Unit.Default))
+            .Subscribe(_ => QueueAutoSave())
+            .DisposeWith(Disposables);
+
+        _autoSaveRequestedSubject
             .Throttle(TimeSpan.FromSeconds(1))
-            .Subscribe(_ => TriggerAutoSave()));
+            .Subscribe(_ => TriggerAutoSave())
+            .DisposeWith(Disposables);
     }
 
     public static ScheduledJobViewModel FromConfig(
@@ -132,21 +170,21 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase, IDisposable
             FollowRedirects,
             UseWebView: UseWebView);
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void Start()
     {
         _jobService.Start(ToConfig(), IsWebViewEnabled ? HandleResponseAsync : null);
         IsRunning = true;
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void Stop()
     {
         _jobService.Stop(Id);
         IsRunning = false;
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private async Task SaveAsync()
     {
         if (_isSaving)
@@ -177,7 +215,7 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase, IDisposable
     /// Opens the configured URL in the system's default browser as a fallback
     /// when the in-app web view cannot be used.
     /// </summary>
-    [RelayCommand]
+    [ReactiveCommand]
     private void OpenInBrowser()
     {
         if (string.IsNullOrWhiteSpace(Url))
@@ -207,7 +245,6 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase, IDisposable
             LastResponseBody = response.Body;
             LastResponseStatus = $"{response.StatusCode} {response.ReasonPhrase}".Trim();
             LastResponseAtDisplay = DateTimeOffset.Now.ToString("HH:mm:ss");
-            OnPropertyChanged(nameof(HasLastResponse));
         }
 
         if (Dispatcher.UIThread.CheckAccess())
@@ -217,31 +254,6 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase, IDisposable
         }
 
         await Dispatcher.UIThread.InvokeAsync(ApplyResponse, DispatcherPriority.Normal, cancellationToken);
-    }
-
-    partial void OnNameChanged(string value) => QueueAutoSave();
-
-    partial void OnMethodChanged(string value)
-    {
-        OnPropertyChanged(nameof(IsWebViewApplicable));
-        OnPropertyChanged(nameof(IsWebViewEnabled));
-        QueueAutoSave();
-    }
-
-    partial void OnUrlChanged(string value) => QueueAutoSave();
-
-    partial void OnBodyChanged(string value) => QueueAutoSave();
-
-    partial void OnIntervalSecondsChanged(int value) => QueueAutoSave();
-
-    partial void OnAutoStartChanged(bool value) => QueueAutoSave();
-
-    partial void OnFollowRedirectsChanged(bool value) => QueueAutoSave();
-
-    partial void OnUseWebViewChanged(bool value)
-    {
-        OnPropertyChanged(nameof(IsWebViewEnabled));
-        QueueAutoSave();
     }
 
     private void QueueAutoSave()
@@ -283,13 +295,17 @@ public sealed partial class ScheduledJobViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        _autoSaveCancellationTokenSource?.Cancel();
-        _autoSaveCancellationTokenSource?.Dispose();
-        _autoSaveCancellationTokenSource = null;
+        if (disposing)
+        {
+            _autoSaveCancellationTokenSource?.Cancel();
+            _autoSaveCancellationTokenSource?.Dispose();
+            _autoSaveCancellationTokenSource = null;
 
-        _autoSaveRequestedSubject.OnCompleted();
-        _disposables.Dispose();
+            _autoSaveRequestedSubject.OnCompleted();
+        }
+
+        base.Dispose(disposing);
     }
 }

@@ -2,6 +2,7 @@ using Arbor.HttpClient.Desktop;
 using Arbor.HttpClient.Desktop.E2E.Tests;
 using Avalonia;
 using Avalonia.Headless;
+using ReactiveUI.Avalonia;
 
 [assembly: AvaloniaTestApplication(typeof(TestAppBuilder))]
 
@@ -13,5 +14,6 @@ public static class TestAppBuilder
         .UseSkia()
         .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
         .WithInterFont()
+        .UseReactiveUI(reactiveUiBuilder => reactiveUiBuilder.WithAvalonia())
         .LogToTrace();
 }

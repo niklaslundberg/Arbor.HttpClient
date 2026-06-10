@@ -12,8 +12,8 @@ using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
 using System.Reactive.Linq;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
+using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 using Serilog;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Shared;
@@ -30,7 +30,7 @@ namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
 /// the Avalonia UI thread or on any other feature view model, so it can be
 /// constructed and tested without the headless Avalonia session.
 /// </summary>
-public sealed partial class RequestEditorViewModel : ViewModelBase
+public sealed partial class RequestEditorViewModel : ReactiveViewModelBase
 {
     private readonly VariableResolver _variableResolver;
     private readonly Func<IReadOnlyList<EnvironmentVariable>> _getActiveVariables;
@@ -62,128 +62,129 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     // ── Observable properties ─────────────────────────────────────────────────
 
-    [ObservableProperty]
+    [Reactive]
     private string _requestName = "Sample Request";
 
-    [ObservableProperty]
+    [Reactive]
     private string _selectedMethod = "GET";
 
-    [ObservableProperty]
+    [Reactive]
     private string _requestUrl = "http://localhost:5000/echo";
 
-    [ObservableProperty]
+    [Reactive]
     private string _requestPreview = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _requestBody = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _requestTimeoutSecondsText = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _followRedirectsForRequest = true;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _validateUrlBeforeSend = true;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _prettyPrintRequestBody;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _prettyPrintRequestBodyUseIndentation = true;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsRequestPreviewPanelVisible))]
+    [Reactive]
     private bool _showRequestPreview = true;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _ignoreCertificateValidationForRequest;
 
-    [ObservableProperty]
+    [Reactive]
     private string _selectedTlsVersionOverrideOption = DefaultTlsVersionOverrideOption;
 
-    [ObservableProperty]
+    [Reactive]
     private string _selectedHttpVersionOption = "1.1";
 
-    [ObservableProperty]
+    [Reactive]
     private string _selectedContentTypeOption = NoneContentTypeOption;
 
-    [ObservableProperty]
+    [Reactive]
     private string _customContentType = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _selectedAuthModeOption = AuthNoneOption;
 
-    [ObservableProperty]
+    [Reactive]
     private string _authBearerToken = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _authBasicUsername = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _authBasicPassword = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _authApiKey = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _authOAuth2AccessToken = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _isRequestHeadersPreviewVisible;
 
-    [ObservableProperty]
+    [Reactive]
     private string _requestNotes = string.Empty;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsHttpRequest))]
-    [NotifyPropertyChangedFor(nameof(IsRequestPreviewPanelVisible))]
-    [NotifyPropertyChangedFor(nameof(IsGraphQlRequest))]
-    [NotifyPropertyChangedFor(nameof(IsWebSocketRequest))]
-    [NotifyPropertyChangedFor(nameof(IsSseRequest))]
-    [NotifyPropertyChangedFor(nameof(IsGrpcRequest))]
-    [NotifyPropertyChangedFor(nameof(IsStreamingRequest))]
-    [NotifyPropertyChangedFor(nameof(SendButtonLabel))]
+    [Reactive]
     private RequestType _selectedRequestType = RequestType.Http;
 
-    // ── Derived bool properties ───────────────────────────────────────────────
+    // ── Derived properties (ObservableAsPropertyHelper, see constructor) ──────
 
-    public bool IsHttpRequest => SelectedRequestType == RequestType.Http;
-    public bool IsRequestPreviewPanelVisible => IsHttpRequest && ShowRequestPreview;
-    public bool IsGraphQlRequest => SelectedRequestType == RequestType.GraphQL;
-    public bool IsWebSocketRequest => SelectedRequestType == RequestType.WebSocket;
-    public bool IsSseRequest => SelectedRequestType == RequestType.Sse;
-    public bool IsGrpcRequest => SelectedRequestType == RequestType.GrpcUnary;
-    public bool IsStreamingRequest => SelectedRequestType is RequestType.WebSocket or RequestType.Sse;
+    private readonly ObservableAsPropertyHelper<bool> _isHttpRequest;
+    private readonly ObservableAsPropertyHelper<bool> _isRequestPreviewPanelVisible;
+    private readonly ObservableAsPropertyHelper<bool> _isGraphQlRequest;
+    private readonly ObservableAsPropertyHelper<bool> _isWebSocketRequest;
+    private readonly ObservableAsPropertyHelper<bool> _isSseRequest;
+    private readonly ObservableAsPropertyHelper<bool> _isGrpcRequest;
+    private readonly ObservableAsPropertyHelper<bool> _isStreamingRequest;
+    private readonly ObservableAsPropertyHelper<string> _sendButtonLabel;
+    private readonly ObservableAsPropertyHelper<bool> _isBearerAuthMode;
+    private readonly ObservableAsPropertyHelper<bool> _isBasicAuthMode;
+    private readonly ObservableAsPropertyHelper<bool> _isApiKeyAuthMode;
+    private readonly ObservableAsPropertyHelper<bool> _isOAuth2ClientCredentialsAuthMode;
+    private readonly ObservableAsPropertyHelper<bool> _isCustomContentType;
+    private readonly ObservableAsPropertyHelper<string> _requestHeadersPreviewLabel;
+    private readonly ObservableAsPropertyHelper<string> _contentType;
+
+    public bool IsHttpRequest => _isHttpRequest.Value;
+    public bool IsRequestPreviewPanelVisible => _isRequestPreviewPanelVisible.Value;
+    public bool IsGraphQlRequest => _isGraphQlRequest.Value;
+    public bool IsWebSocketRequest => _isWebSocketRequest.Value;
+    public bool IsSseRequest => _isSseRequest.Value;
+    public bool IsGrpcRequest => _isGrpcRequest.Value;
+    public bool IsStreamingRequest => _isStreamingRequest.Value;
 
     /// <summary>Label shown on the primary action button; changes based on request type.</summary>
-    public string SendButtonLabel => SelectedRequestType switch
-    {
-        RequestType.WebSocket or RequestType.Sse => "Connect",
-        _ => "Send"
-    };
+    public string SendButtonLabel => _sendButtonLabel.Value;
 
-    public bool IsBearerAuthMode => SelectedAuthModeOption == AuthBearerOption;
-    public bool IsBasicAuthMode => SelectedAuthModeOption == AuthBasicOption;
-    public bool IsApiKeyAuthMode => SelectedAuthModeOption == AuthApiKeyOption;
-    public bool IsOAuth2ClientCredentialsAuthMode => SelectedAuthModeOption == AuthOAuth2ClientCredentialsOption;
-    public bool IsCustomContentType => SelectedContentTypeOption == CustomContentTypeOption;
+    public bool IsBearerAuthMode => _isBearerAuthMode.Value;
+    public bool IsBasicAuthMode => _isBasicAuthMode.Value;
+    public bool IsApiKeyAuthMode => _isApiKeyAuthMode.Value;
+    public bool IsOAuth2ClientCredentialsAuthMode => _isOAuth2ClientCredentialsAuthMode.Value;
+    public bool IsCustomContentType => _isCustomContentType.Value;
 
-    public string RequestHeadersPreviewLabel =>
-        IsRequestHeadersPreviewVisible ? "▼ Preview" : "▶ Preview";
+    public string RequestHeadersPreviewLabel => _requestHeadersPreviewLabel.Value;
 
     /// <summary>The actual Content-Type header value to send (empty string = no header).</summary>
-    public string ContentType
-    {
-        get
-        {
-            if (string.IsNullOrEmpty(SelectedContentTypeOption) || SelectedContentTypeOption == NoneContentTypeOption)
-            {
-                return string.Empty;
-            }
+    public string ContentType => _contentType.Value;
 
-            return IsCustomContentType ? CustomContentType : SelectedContentTypeOption;
+    private static string ComputeContentType(string selectedOption, string customContentType)
+    {
+        if (string.IsNullOrEmpty(selectedOption) || selectedOption == NoneContentTypeOption)
+        {
+            return string.Empty;
         }
+
+        return selectedOption == CustomContentTypeOption ? customContentType : selectedOption;
     }
 
     // ── Settable defaults (synced from MainWindowViewModel when options change) ─
@@ -268,10 +269,10 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     // ── Commands ──────────────────────────────────────────────────────────────
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void AddHeader() => EnsurePlaceholderHeader();
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void RemoveHeader(RequestHeaderViewModel? header)
     {
         if (header is { } h)
@@ -281,10 +282,10 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void AddQueryParameter() => EnsurePlaceholderQueryParameter();
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void RemoveQueryParameter(RequestQueryParameterViewModel? parameter)
     {
         if (parameter is { } param)
@@ -294,11 +295,11 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void ToggleRequestHeadersPreview() =>
         IsRequestHeadersPreviewVisible = !IsRequestHeadersPreviewVisible;
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void PrettyPrintRequestBodySource()
     {
         if (TryFormatRequestBody(RequestBody, out var formattedBody))
@@ -333,6 +334,64 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
         _logger = logger ?? Log.Logger;
         _onOptionsAffectingPropertyChanged = onOptionsAffectingPropertyChanged;
 
+        var requestType = this.WhenAnyValue(viewModel => viewModel.SelectedRequestType);
+        _isHttpRequest = requestType
+            .Select(type => type == RequestType.Http)
+            .ToProperty(this, viewModel => viewModel.IsHttpRequest);
+        _isGraphQlRequest = requestType
+            .Select(type => type == RequestType.GraphQL)
+            .ToProperty(this, viewModel => viewModel.IsGraphQlRequest);
+        _isWebSocketRequest = requestType
+            .Select(type => type == RequestType.WebSocket)
+            .ToProperty(this, viewModel => viewModel.IsWebSocketRequest);
+        _isSseRequest = requestType
+            .Select(type => type == RequestType.Sse)
+            .ToProperty(this, viewModel => viewModel.IsSseRequest);
+        _isGrpcRequest = requestType
+            .Select(type => type == RequestType.GrpcUnary)
+            .ToProperty(this, viewModel => viewModel.IsGrpcRequest);
+        _isStreamingRequest = requestType
+            .Select(type => type is RequestType.WebSocket or RequestType.Sse)
+            .ToProperty(this, viewModel => viewModel.IsStreamingRequest);
+        _sendButtonLabel = requestType
+            .Select(type => type is RequestType.WebSocket or RequestType.Sse ? "Connect" : "Send")
+            .ToProperty(this, viewModel => viewModel.SendButtonLabel);
+        _isRequestPreviewPanelVisible = this
+            .WhenAnyValue(
+                viewModel => viewModel.SelectedRequestType,
+                viewModel => viewModel.ShowRequestPreview,
+                (type, showPreview) => type == RequestType.Http && showPreview)
+            .ToProperty(this, viewModel => viewModel.IsRequestPreviewPanelVisible);
+
+        var authMode = this.WhenAnyValue(viewModel => viewModel.SelectedAuthModeOption);
+        _isBearerAuthMode = authMode
+            .Select(mode => mode == AuthBearerOption)
+            .ToProperty(this, viewModel => viewModel.IsBearerAuthMode);
+        _isBasicAuthMode = authMode
+            .Select(mode => mode == AuthBasicOption)
+            .ToProperty(this, viewModel => viewModel.IsBasicAuthMode);
+        _isApiKeyAuthMode = authMode
+            .Select(mode => mode == AuthApiKeyOption)
+            .ToProperty(this, viewModel => viewModel.IsApiKeyAuthMode);
+        _isOAuth2ClientCredentialsAuthMode = authMode
+            .Select(mode => mode == AuthOAuth2ClientCredentialsOption)
+            .ToProperty(this, viewModel => viewModel.IsOAuth2ClientCredentialsAuthMode);
+
+        _isCustomContentType = this
+            .WhenAnyValue(viewModel => viewModel.SelectedContentTypeOption)
+            .Select(option => option == CustomContentTypeOption)
+            .ToProperty(this, viewModel => viewModel.IsCustomContentType);
+        _contentType = this
+            .WhenAnyValue(
+                viewModel => viewModel.SelectedContentTypeOption,
+                viewModel => viewModel.CustomContentType,
+                ComputeContentType)
+            .ToProperty(this, viewModel => viewModel.ContentType);
+        _requestHeadersPreviewLabel = this
+            .WhenAnyValue(viewModel => viewModel.IsRequestHeadersPreviewVisible)
+            .Select(visible => visible ? "▼ Preview" : "▶ Preview")
+            .ToProperty(this, viewModel => viewModel.RequestHeadersPreviewLabel);
+
         RequestHeaders = [];
         RequestQueryParameters = [];
 
@@ -355,70 +414,80 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
     private void RegisterPropertyChangeSubscriptions()
     {
-        PropertyChangedObservable
-            .Select(args => args.PropertyName)
-            .Where(propertyName => string.Equals(propertyName, nameof(SelectedMethod), StringComparison.Ordinal))
-            .Subscribe(_ => RefreshRequestPreview());
+        this.WhenAnyValue(viewModel => viewModel.SelectedMethod)
+            .Skip(1)
+            .Subscribe(_ => RefreshRequestPreview())
+            .DisposeWith(Disposables);
 
-        PropertyChangedObservable
-            .Select(args => args.PropertyName)
-            .Where(propertyName => string.Equals(propertyName, nameof(SelectedHttpVersionOption), StringComparison.Ordinal))
-            .Subscribe(_ => ApplySelectedHttpVersionOption());
+        this.WhenAnyValue(viewModel => viewModel.SelectedHttpVersionOption)
+            .Skip(1)
+            .Subscribe(_ => ApplySelectedHttpVersionOption())
+            .DisposeWith(Disposables);
 
-        PropertyChangedObservable
-            .Select(args => args.PropertyName)
-            .Where(propertyName => propertyName is nameof(RequestBody) or nameof(PrettyPrintRequestBody))
-            .Subscribe(_ => RefreshRequestDerivedViews());
+        this.WhenAnyValue(
+                viewModel => viewModel.RequestBody,
+                viewModel => viewModel.PrettyPrintRequestBody)
+            .Skip(1)
+            .Subscribe(_ => RefreshRequestDerivedViews())
+            .DisposeWith(Disposables);
 
-        PropertyChangedObservable
-            .Select(args => args.PropertyName)
-            .Where(propertyName => string.Equals(propertyName, nameof(PrettyPrintRequestBodyUseIndentation), StringComparison.Ordinal))
-            .Subscribe(_ =>
-            {
-                if (PrettyPrintRequestBody)
-                {
-                    RefreshRequestDerivedViews();
-                }
-            });
+        this.WhenAnyValue(viewModel => viewModel.PrettyPrintRequestBodyUseIndentation)
+            .Skip(1)
+            .Where(_ => PrettyPrintRequestBody)
+            .Subscribe(_ => RefreshRequestDerivedViews())
+            .DisposeWith(Disposables);
 
-        PropertyChangedObservable
-            .Select(args => args.PropertyName)
-            .Where(propertyName => string.Equals(propertyName, nameof(RequestUrl), StringComparison.Ordinal))
-            .Subscribe(_ => ApplyRequestUrlChanged());
+        this.WhenAnyValue(viewModel => viewModel.RequestUrl)
+            .Skip(1)
+            .Subscribe(_ => ApplyRequestUrlChanged())
+            .DisposeWith(Disposables);
 
-        PropertyChangedObservable
-            .Select(args => args.PropertyName)
-            .Where(propertyName => string.Equals(propertyName, nameof(SelectedContentTypeOption), StringComparison.Ordinal))
-            .Subscribe(_ => ApplySelectedContentTypeOption());
+        this.WhenAnyValue(viewModel => viewModel.SelectedContentTypeOption)
+            .Skip(1)
+            .Subscribe(_ => RefreshRequestDerivedViews())
+            .DisposeWith(Disposables);
 
-        PropertyChangedObservable
-            .Select(args => args.PropertyName)
-            .Where(propertyName => string.Equals(propertyName, nameof(SelectedAuthModeOption), StringComparison.Ordinal))
-            .Subscribe(_ => ApplySelectedAuthModeOption());
+        this.WhenAnyValue(viewModel => viewModel.SelectedAuthModeOption)
+            .Skip(1)
+            .Subscribe(_ => RefreshRequestDerivedViews())
+            .DisposeWith(Disposables);
 
-        PropertyChangedObservable
-            .Select(args => args.PropertyName)
-            .Where(propertyName => propertyName is nameof(AuthBearerToken)
-                or nameof(AuthBasicUsername)
-                or nameof(AuthBasicPassword)
-                or nameof(AuthApiKey)
-                or nameof(AuthOAuth2AccessToken))
-            .Subscribe(propertyName => ApplyAuthFieldChanged(propertyName));
+        this.WhenAnyValue(viewModel => viewModel.AuthBearerToken)
+            .Skip(1)
+            .Where(_ => IsBearerAuthMode)
+            .Subscribe(_ => RefreshRequestDerivedViews())
+            .DisposeWith(Disposables);
 
-        PropertyChangedObservable
-            .Select(args => args.PropertyName)
-            .Where(propertyName => string.Equals(propertyName, nameof(CustomContentType), StringComparison.Ordinal))
-            .Subscribe(_ => ApplyCustomContentType());
+        this.WhenAnyValue(
+                viewModel => viewModel.AuthBasicUsername,
+                viewModel => viewModel.AuthBasicPassword)
+            .Skip(1)
+            .Where(_ => IsBasicAuthMode)
+            .Subscribe(_ => RefreshRequestDerivedViews())
+            .DisposeWith(Disposables);
 
-        PropertyChangedObservable
-            .Select(args => args.PropertyName)
-            .Where(propertyName => string.Equals(propertyName, nameof(IsRequestHeadersPreviewVisible), StringComparison.Ordinal))
-            .Subscribe(_ => OnPropertyChanged(nameof(RequestHeadersPreviewLabel)));
+        this.WhenAnyValue(viewModel => viewModel.AuthApiKey)
+            .Skip(1)
+            .Where(_ => IsApiKeyAuthMode)
+            .Subscribe(_ => RefreshRequestDerivedViews())
+            .DisposeWith(Disposables);
 
-        PropertyChangedObservable
-            .Select(args => args.PropertyName)
-            .Where(propertyName => string.Equals(propertyName, nameof(RequestTimeoutSecondsText), StringComparison.Ordinal))
-            .Subscribe(_ => ApplyRequestTimeoutSecondsText());
+        this.WhenAnyValue(viewModel => viewModel.AuthOAuth2AccessToken)
+            .Skip(1)
+            .Where(_ => IsOAuth2ClientCredentialsAuthMode)
+            .Subscribe(_ => RefreshRequestDerivedViews())
+            .DisposeWith(Disposables);
+
+        this.WhenAnyValue(viewModel => viewModel.CustomContentType)
+            .Skip(1)
+            .Where(_ => IsCustomContentType)
+            .Subscribe(_ => RefreshRequestDerivedViews())
+            .DisposeWith(Disposables);
+
+        this.WhenAnyValue(viewModel => viewModel.RequestTimeoutSecondsText)
+            .Skip(1)
+            .Subscribe(_ => ApplyRequestTimeoutSecondsText())
+            .DisposeWith(Disposables);
     }
 
     private void ApplySelectedHttpVersionOption()
@@ -437,55 +506,6 @@ public sealed partial class RequestEditorViewModel : ViewModelBase
 
         SyncQueryParametersFromRequestUrl(RequestUrl);
         RefreshRequestPreview();
-    }
-
-    private void ApplySelectedContentTypeOption()
-    {
-        OnPropertyChanged(nameof(IsCustomContentType));
-        OnPropertyChanged(nameof(ContentType));
-        RefreshRequestDerivedViews();
-    }
-
-    private void ApplySelectedAuthModeOption()
-    {
-        OnPropertyChanged(nameof(IsBearerAuthMode));
-        OnPropertyChanged(nameof(IsBasicAuthMode));
-        OnPropertyChanged(nameof(IsApiKeyAuthMode));
-        OnPropertyChanged(nameof(IsOAuth2ClientCredentialsAuthMode));
-        RefreshRequestDerivedViews();
-    }
-
-    private void ApplyAuthFieldChanged(string? propertyName)
-    {
-        if (propertyName is null)
-        {
-            return;
-        }
-
-        var shouldRefresh = propertyName switch
-        {
-            nameof(AuthBearerToken) => IsBearerAuthMode,
-            nameof(AuthBasicUsername) or nameof(AuthBasicPassword) => IsBasicAuthMode,
-            nameof(AuthApiKey) => IsApiKeyAuthMode,
-            nameof(AuthOAuth2AccessToken) => IsOAuth2ClientCredentialsAuthMode,
-            _ => false
-        };
-
-        if (shouldRefresh)
-        {
-            RefreshRequestDerivedViews();
-        }
-    }
-
-    private void ApplyCustomContentType()
-    {
-        if (!IsCustomContentType)
-        {
-            return;
-        }
-
-        OnPropertyChanged(nameof(ContentType));
-        RefreshRequestDerivedViews();
     }
 
     private void ApplyRequestTimeoutSecondsText()

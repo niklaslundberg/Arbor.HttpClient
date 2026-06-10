@@ -87,7 +87,7 @@ public class RequestEditorViewModelTests
     {
         var editor = CreateEditor();
         editor.RequestUrl = "http://localhost:5000/items";
-        editor.AddQueryParameterCommand.Execute(null);
+        editor.AddQueryParameterCommand.Execute().Subscribe();
 
         editor.RequestQueryParameters.Should().HaveCount(1);
     }
@@ -98,7 +98,7 @@ public class RequestEditorViewModelTests
         var editor = CreateEditor();
         editor.RequestUrl = "http://localhost:5000/items?x=1";
         var param = editor.RequestQueryParameters[0];
-        editor.RemoveQueryParameterCommand.Execute(param);
+        editor.RemoveQueryParameterCommand.Execute(param).Subscribe();
 
         editor.RequestQueryParameters.Should().HaveCount(1);
         editor.RequestQueryParameters[0].Key.Should().BeEmpty();
@@ -111,7 +111,7 @@ public class RequestEditorViewModelTests
     public void AddHeader_AddsEmptyHeader()
     {
         var editor = CreateEditor();
-        editor.AddHeaderCommand.Execute(null);
+        editor.AddHeaderCommand.Execute().Subscribe();
 
         editor.RequestHeaders.Should().HaveCount(1);
     }
@@ -120,9 +120,9 @@ public class RequestEditorViewModelTests
     public void RemoveHeader_RemovesHeader()
     {
         var editor = CreateEditor();
-        editor.AddHeaderCommand.Execute(null);
+        editor.AddHeaderCommand.Execute().Subscribe();
         var header = editor.RequestHeaders[0];
-        editor.RemoveHeaderCommand.Execute(header);
+        editor.RemoveHeaderCommand.Execute(header).Subscribe();
 
         editor.RequestHeaders.Should().HaveCount(1);
         editor.RequestHeaders[0].Name.Should().BeEmpty();
@@ -229,7 +229,7 @@ public class RequestEditorViewModelTests
         var editor = CreateEditor();
         editor.SelectedAuthModeOption = RequestEditorViewModel.AuthBearerOption;
         editor.AuthBearerToken = "new-token";
-        editor.AddHeaderCommand.Execute(null);
+        editor.AddHeaderCommand.Execute().Subscribe();
         editor.RequestHeaders[0].Name = "Authorization";
         editor.RequestHeaders[0].Value = "Bearer old-token";
         editor.RequestHeaders[0].IsEnabled = true;
@@ -429,7 +429,7 @@ public class RequestEditorViewModelTests
         editor.PrettyPrintRequestBodyUseIndentation = false;
         editor.RequestBody = "{ \"a\" : 1 }";
 
-        editor.PrettyPrintRequestBodySourceCommand.Execute(null);
+        editor.PrettyPrintRequestBodySourceCommand.Execute().Subscribe();
 
         editor.RequestBody.Should().Be("{\"a\":1}");
     }
@@ -598,7 +598,7 @@ public class RequestEditorViewModelTests
         var editor = CreateEditor();
         editor.SelectedContentTypeOption = "application/xml";
         editor.RequestBody = "<root/>";
-        editor.AddHeaderCommand.Execute(null);
+        editor.AddHeaderCommand.Execute().Subscribe();
         editor.RequestHeaders[0].Name = "Content-Type";
         editor.RequestHeaders[0].Value = "text/plain";
         editor.RequestHeaders[0].IsEnabled = true;
