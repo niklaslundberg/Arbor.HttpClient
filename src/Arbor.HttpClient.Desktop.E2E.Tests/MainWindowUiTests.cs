@@ -1,3 +1,5 @@
+using System.Reactive.Linq;
+using System.Reactive.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
 using System.Diagnostics;
@@ -188,7 +190,7 @@ public class MainWindowUiTests
         documentLayout.Proportion = 0.65;
         leftToolDock.ActiveDockable = leftToolDock.VisibleDockables!.First(d => d.Id == "options");
 
-        viewModel.SaveLayoutAsNewCommand.Execute(null);
+        viewModel.SaveLayoutAsNewCommand.Execute().Subscribe();
         viewModel.SavedLayoutNames.Should().ContainSingle();
         var layoutName = viewModel.SavedLayoutNames.Single();
 
@@ -204,7 +206,7 @@ public class MainWindowUiTests
         documentLayout.Proportion.Should().BeApproximately(0.65, 0.0001);
         leftToolDock.ActiveDockable?.Id.Should().Be("options");
 
-        viewModel.RemoveLayoutCommand.Execute(layoutName);
+        viewModel.RemoveLayoutCommand.Execute(layoutName).Subscribe();
         viewModel.SavedLayoutNames.Should().BeEmpty();
     }
 
@@ -481,7 +483,7 @@ public class MainWindowUiTests
         leftToolDock.Should().NotBeNull();
         leftToolDock.VisibleDockables!.Should().Contain(d => d.Id == "log-panel");
 
-        viewModel.OpenLogWindowCommand.Execute(null);
+        viewModel.OpenLogWindowCommand.Execute().Subscribe();
 
         leftToolDock.ActiveDockable?.Id.Should().Be("log-panel");
     }
@@ -511,7 +513,7 @@ public class MainWindowUiTests
         leftToolDock.Should().NotBeNull();
         leftToolDock.VisibleDockables!.Should().Contain(d => d.Id == "environments");
 
-        viewModel.OpenEnvironmentsCommand.Execute(null);
+        viewModel.OpenEnvironmentsCommand.Execute().Subscribe();
 
         leftToolDock.ActiveDockable?.Id.Should().Be("environments");
     }
@@ -541,11 +543,11 @@ public class MainWindowUiTests
         leftToolDock.Should().NotBeNull();
 
         // Switch to Environments first so the left panel is no longer active
-        viewModel.OpenEnvironmentsCommand.Execute(null);
+        viewModel.OpenEnvironmentsCommand.Execute().Subscribe();
         leftToolDock.ActiveDockable?.Id.Should().Be("environments");
 
         // Now click Collections — should switch back to the Explorer (left-panel) dock
-        viewModel.ShowCollectionsTabCommand.Execute(null);
+        viewModel.ShowCollectionsTabCommand.Execute().Subscribe();
 
         leftToolDock.ActiveDockable?.Id.Should().Be("left-panel");
         viewModel.LeftPanelTab.Should().Be("Collections");
@@ -576,11 +578,11 @@ public class MainWindowUiTests
         leftToolDock.Should().NotBeNull();
 
         // Switch to Environments first so the left panel is no longer active
-        viewModel.OpenEnvironmentsCommand.Execute(null);
+        viewModel.OpenEnvironmentsCommand.Execute().Subscribe();
         leftToolDock.ActiveDockable?.Id.Should().Be("environments");
 
         // Now click History — should switch back to the Explorer (left-panel) dock
-        viewModel.ShowHistoryTabCommand.Execute(null);
+        viewModel.ShowHistoryTabCommand.Execute().Subscribe();
 
         leftToolDock.ActiveDockable?.Id.Should().Be("left-panel");
         viewModel.LeftPanelTab.Should().Be("History");
@@ -611,11 +613,11 @@ public class MainWindowUiTests
         leftToolDock.Should().NotBeNull();
 
         // Switch to Environments first so the left panel is no longer active
-        viewModel.OpenEnvironmentsCommand.Execute(null);
+        viewModel.OpenEnvironmentsCommand.Execute().Subscribe();
         leftToolDock.ActiveDockable?.Id.Should().Be("environments");
 
         // Now click Scheduled Jobs — should switch back to the Explorer (left-panel) dock
-        viewModel.ShowScheduledJobsTabCommand.Execute(null);
+        viewModel.ShowScheduledJobsTabCommand.Execute().Subscribe();
 
         leftToolDock.ActiveDockable?.Id.Should().Be("left-panel");
         viewModel.LeftPanelTab.Should().Be("ScheduledJobs");
@@ -646,7 +648,7 @@ public class MainWindowUiTests
         leftToolDock.Should().NotBeNull();
         leftToolDock.VisibleDockables!.Should().Contain(d => d.Id == "layout-management");
 
-        viewModel.OpenLayoutPanelCommand.Execute(null);
+        viewModel.OpenLayoutPanelCommand.Execute().Subscribe();
 
         leftToolDock.ActiveDockable?.Id.Should().Be("layout-management");
     }
@@ -740,7 +742,7 @@ public class MainWindowUiTests
         // the button during headless tests. Execute the command via the ViewModel directly,
         // which is what the button's Command binding ultimately calls.
         viewModel.Layout.Should().NotBeNull("dock layout should be initialized");
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
 
         viewModel.ResponseStatus.Should().Be("202 Accepted");
         viewModel.ResponseBody.Should().Contain("ok");
@@ -786,13 +788,19 @@ public class MainWindowUiTests
         viewModel.RequestEditor.SelectedMethod = "GET";
         viewModel.PrimaryActionLabel.Should().Be("Send");
 
-        viewModel.ExecutePrimaryActionCommand.Execute(null);
+        var sendCompleted = viewModel.SendRequestCommand.IsExecuting
+            .SkipWhile(executing => !executing)
+            .Where(executing => !executing)
+            .FirstAsync()
+            .ToTask();
+
+        viewModel.ExecutePrimaryActionCommand.Execute().Subscribe();
         await Task.Delay(30, TestContext.Current.CancellationToken);
-        viewModel.SendRequestCommand.IsRunning.Should().BeTrue();
+        viewModel.IsRequestInProgress.Should().BeTrue();
         viewModel.PrimaryActionLabel.Should().Be("Cancel");
 
-        viewModel.ExecutePrimaryActionCommand.Execute(null);
-        await viewModel.SendRequestCommand.ExecutionTask!;
+        viewModel.ExecutePrimaryActionCommand.Execute().Subscribe();
+        await sendCompleted;
 
         viewModel.PrimaryActionLabel.Should().Be("Send");
         viewModel.ErrorMessage.Should().Be("Request cancelled.");
@@ -834,8 +842,14 @@ public class MainWindowUiTests
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/slow";
         viewModel.RequestEditor.SelectedMethod = "GET";
 
-        viewModel.ExecutePrimaryActionCommand.Execute(null);
-        await viewModel.SendRequestCommand.ExecutionTask!;
+        var sendCompleted = viewModel.SendRequestCommand.IsExecuting
+            .SkipWhile(executing => !executing)
+            .Where(executing => !executing)
+            .FirstAsync()
+            .ToTask();
+
+        viewModel.ExecutePrimaryActionCommand.Execute().Subscribe();
+        await sendCompleted;
 
         viewModel.ErrorMessage.Should().Be("Request timed out.");
     }
@@ -884,7 +898,7 @@ public class MainWindowUiTests
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/slow";
         viewModel.RequestEditor.SelectedMethod = "GET";
 
-        var sendTask = viewModel.SendRequestCommand.ExecuteAsync(null);
+        var sendTask = viewModel.SendRequestCommand.Execute().ToTask();
         await requestStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
         await Task.Delay(30, TestContext.Current.CancellationToken);
 
@@ -942,11 +956,11 @@ public class MainWindowUiTests
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/json";
         viewModel.RequestEditor.SelectedMethod = "GET";
 
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
         viewModel.ResponseBody.Should().Contain("\"tab\": 1");
         viewModel.SelectedResponseTabIndex = 2;
 
-        viewModel.NewRequestTabCommand.Execute(null);
+        viewModel.NewRequestTabCommand.Execute().Subscribe();
         await WaitForUiThreadAsync();
         viewModel.ActiveRequestTab.Should().NotBeNull();
         var secondTab = viewModel.ActiveRequestTab!;
@@ -955,7 +969,7 @@ public class MainWindowUiTests
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/xml";
         viewModel.RequestEditor.SelectedMethod = "GET";
 
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
         viewModel.ResponseBody.Should().Contain("<tab>2</tab>");
         viewModel.SelectedResponseTabIndex = 3;
 
@@ -1008,7 +1022,7 @@ public class MainWindowUiTests
         await viewModel.InitializeAsync();
 
         var historyItem = viewModel.History.Should().ContainSingle().Subject;
-        viewModel.LoadHistoryRequestCommand.Execute(historyItem);
+        viewModel.LoadHistoryRequestCommand.Execute(historyItem).Subscribe();
 
         viewModel.RequestEditor.SelectedMethod.Should().Be("POST");
         viewModel.RequestEditor.RequestUrl.Should().Be("http://localhost:5000/api/items");
@@ -1045,7 +1059,7 @@ public class MainWindowUiTests
         viewModel.RequestEditor.RequestName = "Implicit Save";
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/implicit";
         viewModel.RequestEditor.SelectedMethod = "GET";
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
 
         var implicitCollection = viewModel.Collections.FirstOrDefault(collection =>
             string.Equals(collection.Name, "Implicit Requests", StringComparison.Ordinal));
@@ -1107,7 +1121,7 @@ public class MainWindowUiTests
         });
         viewModel.RequestEditor.EnsurePlaceholderRows();
 
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
 
         var implicitCollection = viewModel.Collections.First(collection =>
             string.Equals(collection.Name, "Implicit Requests", StringComparison.Ordinal));
@@ -1156,7 +1170,7 @@ public class MainWindowUiTests
         viewModel.GraphQlEditor.VariablesJson = "{\"userId\":42}";
         viewModel.GraphQlEditor.OperationName = "Ping";
 
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
 
         var implicitCollection = viewModel.Collections.First(collection =>
             string.Equals(collection.Name, "Implicit Requests", StringComparison.Ordinal));
@@ -1205,7 +1219,7 @@ public class MainWindowUiTests
         viewModel.GraphQlEditor.VariablesJson = "{bad-json";
         viewModel.GraphQlEditor.OperationName = "Ping";
 
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
 
         var implicitCollection = viewModel.Collections.First(collection =>
             string.Equals(collection.Name, "Implicit Requests", StringComparison.Ordinal));
@@ -1245,7 +1259,7 @@ public class MainWindowUiTests
         viewModel.RequestEditor.RequestName = "Initial implicit request";
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/implicit/one";
         viewModel.RequestEditor.SelectedMethod = "GET";
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
 
         var implicitCollection = viewModel.Collections.First(collection =>
             string.Equals(collection.Name, "Implicit Requests", StringComparison.Ordinal));
@@ -1253,7 +1267,7 @@ public class MainWindowUiTests
 
         viewModel.RequestEditor.RequestName = "Second implicit request";
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/implicit/two";
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
 
         viewModel.CollectionItems.Should().Contain(item =>
             string.Equals(item.Name, "Second implicit request", StringComparison.Ordinal));
@@ -1296,7 +1310,7 @@ public class MainWindowUiTests
 
         viewModel.CollectionGroups.Select(group => group.GroupKey).Should().Equal("a", "z");
 
-        viewModel.SetCollectionSortByCommand.Execute("Name");
+        viewModel.SetCollectionSortByCommand.Execute("Name").Subscribe();
 
         viewModel.CollectionGroups.Select(group => group.GroupKey).Should().Equal("z", "a");
     }
@@ -1404,7 +1418,7 @@ public class MainWindowUiTests
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/data";
         viewModel.RequestEditor.SelectedMethod = "GET";
 
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
 
         viewModel.ResponseBodyTabLabel.Should().Be("JSON");
         viewModel.ResponseBody.Should().Contain("\n");
@@ -1442,7 +1456,7 @@ public class MainWindowUiTests
             logWindowViewModel);
 
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/docs.html";
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
 
         viewModel.IsResponseWebViewAvailable.Should().BeTrue();
         viewModel.ResponseWebViewUri.Should().StartWith("data:text/html");
@@ -1515,7 +1529,7 @@ public class MainWindowUiTests
         viewModel.RequestEditor.RequestPreview.Should().Contain("\"token\":\"abc123\"");
         viewModel.RequestEditor.RequestPreview.Should().Contain("\"env\":\"dev\"");
 
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
 
         capturedUri.Should().NotBeNull();
         capturedUri!.AbsoluteUri.Should().Be("http://localhost:5000/api?search=term");
@@ -1575,7 +1589,7 @@ public class MainWindowUiTests
         viewModel.RequestEditor.RequestPreview.Should().Contain("Authorization: Bearer abc123");
         viewModel.RequestEditor.RequestPreview.Should().NotContain("Bearer old-token");
 
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
 
         capturedAuthorization.Should().Be("Bearer abc123");
     }
@@ -1930,7 +1944,7 @@ public class MainWindowUiTests
             scheduledJobService,
             logWindowViewModel);
 
-        viewModel.AddScheduledJobCommand.Execute(null);
+        viewModel.AddScheduledJobCommand.Execute().Subscribe();
         var job = viewModel.ScheduledJobs.Should().ContainSingle().Subject;
         job.Name = "sync job";
         job.Url = "http://localhost:5000/sync";
@@ -2143,11 +2157,11 @@ public class MainWindowUiTests
         viewModel.RequestEditor.RequestUrl = server.RedirectUrl;
 
         viewModel.RequestEditor.FollowRedirectsForRequest = false;
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
         viewModel.ResponseStatus.Should().StartWith("302");
 
         viewModel.RequestEditor.FollowRedirectsForRequest = true;
-        await viewModel.SendRequestCommand.ExecuteAsync(null);
+        await viewModel.SendRequestCommand.Execute();
         viewModel.ResponseStatus.Should().Be("200 OK");
         viewModel.RawResponseBody.Should().Contain("redirect-complete");
     }

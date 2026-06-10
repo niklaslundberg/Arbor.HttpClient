@@ -1,3 +1,5 @@
+using System.Reactive.Linq;
+using System.Reactive.Threading.Tasks;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -82,8 +84,7 @@ public class ScreenshotGenerator
             url: "http://localhost:5000/echo?hello=world");
 
         window.Show();
-        viewModel.SendRequestCommand.Execute(null);
-        await viewModel.SendRequestCommand.ExecutionTask!;
+        await viewModel.SendRequestCommand.Execute();
 
         AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
         var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
@@ -115,8 +116,7 @@ public class ScreenshotGenerator
             url: "http://localhost:5000/echo?hello=world");
 
         window.Show();
-        viewModel.SendRequestCommand.Execute(null);
-        await viewModel.SendRequestCommand.ExecutionTask!;
+        await viewModel.SendRequestCommand.Execute();
 
         AvaloniaHeadlessPlatform.ForceRenderTimerTick(3);
         var frame = window.GetLastRenderedFrame() ?? window.CaptureRenderedFrame();
@@ -169,7 +169,7 @@ public class ScreenshotGenerator
             new EnvironmentVariable("headerValue", "blue", false)
         ]));
         viewModel.EditEnvironmentCommand.Execute(viewModel.Environments[0]);
-        viewModel.OpenEnvironmentsCommand.Execute(null);
+        viewModel.OpenEnvironmentsCommand.Execute().Subscribe();
 
         window.Show();
         var tabControl = window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
@@ -432,7 +432,7 @@ public class ScreenshotGenerator
             url: "http://localhost:5000/echo");
 
         // Open the options dockable so it appears in the screenshot
-        viewModel.OpenOptionsCommand.Execute(null);
+        viewModel.OpenOptionsCommand.Execute().Subscribe();
 
         window.Show();
 
@@ -457,7 +457,7 @@ public class ScreenshotGenerator
             url: "http://localhost:5000/echo");
 
         // Open the layout management dockable so it appears in the screenshot
-        viewModel.OpenLayoutPanelCommand.Execute(null);
+        viewModel.OpenLayoutPanelCommand.Execute().Subscribe();
 
         window.Show();
 
@@ -482,7 +482,7 @@ public class ScreenshotGenerator
             url: "http://localhost:5000/echo");
 
         // Navigate to the dockable Logs panel
-        viewModel.OpenLogWindowCommand.Execute(null);
+        viewModel.OpenLogWindowCommand.Execute().Subscribe();
 
         window.Show();
 
@@ -510,7 +510,7 @@ public class ScreenshotGenerator
         viewModel.OptionsPanel.SelectedOptionsPage = "HTTP";
 
         // Open the options dockable so it appears in the screenshot
-        viewModel.OpenOptionsCommand.Execute(null);
+        viewModel.OpenOptionsCommand.Execute().Subscribe();
 
         window.Show();
 
@@ -653,12 +653,12 @@ public class ScreenshotGenerator
             url: "http://localhost:5000/users");
 
         // Add two more request tabs to demonstrate multi-tab support
-        viewModel.NewRequestTabCommand.Execute(null);
+        viewModel.NewRequestTabCommand.Execute().Subscribe();
         viewModel.RequestEditor.RequestName = "Create Order";
         viewModel.RequestEditor.SelectedMethod = "POST";
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/orders";
 
-        viewModel.NewRequestTabCommand.Execute(null);
+        viewModel.NewRequestTabCommand.Execute().Subscribe();
         viewModel.RequestEditor.RequestName = string.Empty; // shows "New" fallback
 
         // Tab state is truly isolated — switching away from tab 0 must not mutate its request name or URL.
