@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
+using System.Reactive.Linq;
 using Arbor.HttpClient.Desktop.Shared;
+using ReactiveUI;
 
 namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
 
@@ -11,10 +12,10 @@ namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
 /// The <see cref="DisplayTitle"/> returns the request name, falling back to "New"
 /// when no name has been set, so the tab always has visible text.
 /// </summary>
-public sealed partial class RequestTabViewModel : ViewModelBase, IDisposable
+public sealed partial class RequestTabViewModel : ReactiveViewModelBase
 {
-    private bool _disposed;
     private CollectionRequestSource? _collectionRequestSource;
+    private readonly ObservableAsPropertyHelper<string> _displayTitle;
 
     /// <summary>
     /// Per-tab response state snapshot so each request tab can preserve its own response view.
@@ -43,7 +44,12 @@ public sealed partial class RequestTabViewModel : ViewModelBase, IDisposable
     public RequestTabViewModel(RequestEditorViewModel requestEditor)
     {
         RequestEditor = requestEditor;
-        RequestEditor.PropertyChanged += OnRequestEditorPropertyChanged;
+
+        _displayTitle = RequestEditor
+            .WhenAnyValue(editor => editor.RequestName)
+            .Select(requestName => string.IsNullOrWhiteSpace(requestName) ? "New" : requestName)
+            .ToProperty(this, viewModel => viewModel.DisplayTitle)
+            .DisposeWith(Disposables);
     }
 
     /// <summary>The request editor owned exclusively by this tab.</summary>
@@ -53,8 +59,7 @@ public sealed partial class RequestTabViewModel : ViewModelBase, IDisposable
     /// Tab header text: the request name if non-empty, otherwise "New".
     /// Bound to the tab header in the view; truncation is applied in XAML.
     /// </summary>
-    public string DisplayTitle =>
-        string.IsNullOrWhiteSpace(RequestEditor.RequestName) ? "New" : RequestEditor.RequestName;
+    public string DisplayTitle => _displayTitle.Value;
 
     public void SetCollectionRequestSource(int collectionId, string method, string path, string name)
     {
@@ -88,25 +93,6 @@ public sealed partial class RequestTabViewModel : ViewModelBase, IDisposable
         path = string.Empty;
         name = string.Empty;
         return false;
-    }
-
-    private void OnRequestEditorPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (string.Equals(e.PropertyName, nameof(RequestEditorViewModel.RequestName), StringComparison.Ordinal))
-        {
-            OnPropertyChanged(nameof(DisplayTitle));
-        }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        RequestEditor.PropertyChanged -= OnRequestEditorPropertyChanged;
     }
 
     private sealed record CollectionRequestSource(int CollectionId, string Method, string Path, string Name);

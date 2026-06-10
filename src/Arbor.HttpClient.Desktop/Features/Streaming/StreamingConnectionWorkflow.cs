@@ -1,3 +1,4 @@
+using System.Reactive.Linq;
 using Arbor.HttpClient.Core.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.Sse;
@@ -29,7 +30,7 @@ public sealed class StreamingConnectionWorkflow
     {
         if (_webSocketViewModel.IsConnected)
         {
-            await _webSocketViewModel.DisconnectCommand.ExecuteAsync(null);
+            await _webSocketViewModel.DisconnectCommand.Execute();
             if (streamingCancellationTokenSource is { } existingCancellationTokenSource)
             {
                 await existingCancellationTokenSource.CancelAsync();
@@ -53,7 +54,7 @@ public sealed class StreamingConnectionWorkflow
     {
         if (_sseViewModel.IsConnected)
         {
-            _sseViewModel.DisconnectCommand.Execute(null);
+            _sseViewModel.DisconnectCommand.Execute().Subscribe();
             streamingCancellationTokenSource?.Cancel();
             streamingCancellationTokenSource?.Dispose();
             return Task.FromResult<CancellationTokenSource?>(null);

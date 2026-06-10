@@ -1,5 +1,6 @@
-using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Mvvm.Controls;
+using ReactiveUI;
+using System.Reactive;
 using Arbor.HttpClient.Desktop.Features.Main;
 
 namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
@@ -16,10 +17,10 @@ public sealed class RequestViewModel : Document
     public MainWindowViewModel App { get; }
 
     // Proxy needed inside the RequestHeaders item-template (DataContext = RequestHeaderViewModel)
-    public IRelayCommand<RequestHeaderViewModel?> RemoveHeaderCommand =>
+    public ReactiveCommand<RequestHeaderViewModel?, Unit> RemoveHeaderCommand =>
         App.RequestEditor.RemoveHeaderCommand;
 
     // Proxy needed inside the RequestQueryParameters item-template (DataContext = RequestQueryParameterViewModel)
-    public IRelayCommand<RequestQueryParameterViewModel?> RemoveQueryParameterCommand =>
+    public ReactiveCommand<RequestQueryParameterViewModel?, Unit> RemoveQueryParameterCommand =>
         App.RequestEditor.RemoveQueryParameterCommand;
 }

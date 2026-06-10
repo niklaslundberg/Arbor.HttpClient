@@ -1365,7 +1365,7 @@ public class MainWindowUiTests
         viewModel.RequestEditor.RequestQueryParameters[0].IsEnabled = false;
         viewModel.RequestEditor.RequestUrl.Should().Be("http://localhost:5000/items?second=2#keep");
 
-        viewModel.RequestEditor.AddQueryParameterCommand.Execute(null);
+        viewModel.RequestEditor.AddQueryParameterCommand.Execute().Subscribe();
         var added = viewModel.RequestEditor.RequestQueryParameters[viewModel.RequestEditor.RequestQueryParameters.Count - 1];
         added.Key = "third";
         added.Value = "3";

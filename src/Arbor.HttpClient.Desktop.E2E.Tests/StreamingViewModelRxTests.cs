@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reactive.Linq;
 using System.Net.Sockets;
 using System.Text;
 using Arbor.HttpClient.Desktop.Demo;
@@ -81,13 +82,13 @@ public sealed class StreamingViewModelRxTests
         await Dispatcher.UIThread.InvokeAsync(() => { });
 
         viewModel.MessageToSend = "rx-websocket";
-        await viewModel.SendMessageCommand.ExecuteAsync(null);
+        await viewModel.SendMessageCommand.Execute();
 
         var observedMessage = await receivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         observedMessage.Content.Should().Be("rx-websocket");
         observedMessage.Direction.Should().Be(Arbor.HttpClient.Core.WebSocket.WebSocketMessageDirection.Received);
 
-        await viewModel.DisconnectCommand.ExecuteAsync(null);
+        await viewModel.DisconnectCommand.Execute();
     }
 
     private static int GetFreeTcpPort()
