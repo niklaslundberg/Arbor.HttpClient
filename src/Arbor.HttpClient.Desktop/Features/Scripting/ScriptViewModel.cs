@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using Arbor.HttpClient.Desktop.Shared;
+using ReactiveUI.SourceGenerators;
 
 namespace Arbor.HttpClient.Desktop.Features.Scripting;
 
@@ -11,31 +10,31 @@ namespace Arbor.HttpClient.Desktop.Features.Scripting;
 /// errors, and the script log output. Intentionally has no Avalonia dependency so
 /// it can be tested without a headless session.
 /// </summary>
-public sealed partial class ScriptViewModel : ViewModelBase
+public sealed partial class ScriptViewModel : ReactiveViewModelBase
 {
-    [ObservableProperty]
+    [Reactive]
     private string _preRequestScript = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _postResponseScript = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _hasErrors;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _hasLog;
 
     public ObservableCollection<string> Errors { get; } = [];
     public ObservableCollection<string> Log { get; } = [];
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void ClearLog()
     {
         Log.Clear();
         HasLog = false;
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void ClearErrors()
     {
         Errors.Clear();

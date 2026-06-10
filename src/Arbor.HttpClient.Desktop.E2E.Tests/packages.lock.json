@@ -44,6 +44,28 @@
         "resolved": "10.0.0",
         "contentHash": "WFejCcOUR6k8UYyDnnR6Gk+obFYMsWrZuNqPJnsVFGVhpPSN0y20D4qbdKJnXinYGx9PQ397Hf9TnU1NBST8vA=="
       },
+      "ReactiveUI": {
+        "type": "Direct",
+        "requested": "[23.2.28, )",
+        "resolved": "23.2.28",
+        "contentHash": "9sSuHnMcLTLhgMTQpQO6Jhz9Cbub3Pg44i6FS4Ot4UtbV8dpwMH3JGzGjT72oav4aSrJlmzbFyI87gX55oPzLA==",
+        "dependencies": {
+          "DynamicData": "9.4.31",
+          "Splat": "19.4.1",
+          "System.Reactive": "6.1.0"
+        }
+      },
+      "ReactiveUI.Avalonia": {
+        "type": "Direct",
+        "requested": "[12.0.3, )",
+        "resolved": "12.0.3",
+        "contentHash": "mmUZb8I+0dN7DlJ1Y8KmrB3AK7QH377GjBug1mcbVbMVMlqnokjXVUE0KThn1H0eKpnyjY9CHzrjIf0rCgRgFg==",
+        "dependencies": {
+          "Avalonia": "12.0.4",
+          "ReactiveUI": "23.2.28",
+          "Splat": "19.4.1"
+        }
+      },
       "xunit.v3": {
         "type": "Direct",
         "requested": "[3.2.2, )",
@@ -708,28 +730,6 @@
         "dependencies": {
           "Microsoft.OpenApi": "1.6.29",
           "SharpYaml": "2.1.1"
-        }
-      },
-      "ReactiveUI": {
-        "type": "CentralTransitive",
-        "requested": "[23.2.28, )",
-        "resolved": "23.2.28",
-        "contentHash": "9sSuHnMcLTLhgMTQpQO6Jhz9Cbub3Pg44i6FS4Ot4UtbV8dpwMH3JGzGjT72oav4aSrJlmzbFyI87gX55oPzLA==",
-        "dependencies": {
-          "DynamicData": "9.4.31",
-          "Splat": "19.4.1",
-          "System.Reactive": "6.1.0"
-        }
-      },
-      "ReactiveUI.Avalonia": {
-        "type": "CentralTransitive",
-        "requested": "[12.0.3, )",
-        "resolved": "12.0.3",
-        "contentHash": "mmUZb8I+0dN7DlJ1Y8KmrB3AK7QH377GjBug1mcbVbMVMlqnokjXVUE0KThn1H0eKpnyjY9CHzrjIf0rCgRgFg==",
-        "dependencies": {
-          "Avalonia": "12.0.4",
-          "ReactiveUI": "23.2.28",
-          "Splat": "19.4.1"
         }
       },
       "Serilog": {

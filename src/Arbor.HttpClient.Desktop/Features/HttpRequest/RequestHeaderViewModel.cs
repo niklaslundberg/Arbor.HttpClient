@@ -1,28 +1,35 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+using System;
+using System.Reactive.Linq;
 using Arbor.HttpClient.Desktop.Shared;
+using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 
 namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
 
-public sealed partial class RequestHeaderViewModel : ViewModelBase
+public sealed partial class RequestHeaderViewModel : ReactiveViewModelBase
 {
-    [ObservableProperty]
+    [Reactive]
     private string _name = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _value = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _description = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _isEnabled = true;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _isInherited;
 
-    partial void OnNameChanged(string value) => IsInherited = false;
-
-    partial void OnValueChanged(string value) => IsInherited = false;
-
-    partial void OnIsEnabledChanged(bool value) => IsInherited = false;
+    public RequestHeaderViewModel()
+    {
+        this.WhenAnyValue(
+                viewModel => viewModel.Name,
+                viewModel => viewModel.Value,
+                viewModel => viewModel.IsEnabled)
+            .Skip(1)
+            .Subscribe(_ => IsInherited = false);
+    }
 }

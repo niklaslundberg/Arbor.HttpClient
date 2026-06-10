@@ -2,15 +2,15 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using CommunityToolkit.Mvvm.Input;
 using Arbor.HttpClient.Desktop.Shared;
+using ReactiveUI.SourceGenerators;
 
 namespace Arbor.HttpClient.Desktop.Features.About;
 
 /// <summary>
 /// Provides version, build, and attribution information displayed in the About window.
 /// </summary>
-public sealed partial class AboutWindowViewModel : ViewModelBase
+public sealed partial class AboutWindowViewModel : ReactiveViewModelBase
 {
     public AboutWindowViewModel()
     {
@@ -50,7 +50,7 @@ public sealed partial class AboutWindowViewModel : ViewModelBase
     /// <summary>GitHub repository URL.</summary>
     public string GitHubUrl => "https://github.com/niklaslundberg/Arbor.HttpClient";
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void OpenGitHub()
     {
         try

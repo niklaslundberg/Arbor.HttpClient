@@ -1,19 +1,19 @@
-using CommunityToolkit.Mvvm.ComponentModel;
 using Arbor.HttpClient.Desktop.Shared;
+using ReactiveUI.SourceGenerators;
 
 namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
 
-public sealed partial class RequestQueryParameterViewModel : ViewModelBase
+public sealed partial class RequestQueryParameterViewModel : ReactiveViewModelBase
 {
-    [ObservableProperty]
+    [Reactive]
     private string _key = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _value = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private string _description = string.Empty;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _isEnabled = true;
 }

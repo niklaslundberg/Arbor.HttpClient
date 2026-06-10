@@ -3,12 +3,11 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
 using Arbor.HttpClient.Desktop.Shared;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
+using ReactiveUI.SourceGenerators;
 
 namespace Arbor.HttpClient.Desktop.Features.Diagnostics;
 
-public sealed partial class DiagnosticsViewModel : ViewModelBase
+public sealed partial class DiagnosticsViewModel : ReactiveViewModelBase
 {
     private const string GitHubNewIssueBaseUrl =
         "https://github.com/niklaslundberg/Arbor.HttpClient/issues/new";
@@ -23,7 +22,7 @@ public sealed partial class DiagnosticsViewModel : ViewModelBase
 
     public ObservableCollection<UnhandledExceptionEntryViewModel> Entries { get; } = [];
 
-    [ObservableProperty]
+    [Reactive]
     private bool _hasEntries;
 
     /// <summary>Refreshes the entries list from the collector.</summary>
@@ -38,7 +37,7 @@ public sealed partial class DiagnosticsViewModel : ViewModelBase
         HasEntries = Entries.Count > 0;
     }
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void ClearAll()
     {
         _collector.Clear();
@@ -92,7 +91,7 @@ public sealed partial class DiagnosticsViewModel : ViewModelBase
 }
 
 /// <summary>Wraps a single <see cref="UnhandledExceptionEntry"/> for display in the diagnostics list.</summary>
-public sealed partial class UnhandledExceptionEntryViewModel : ViewModelBase
+public sealed partial class UnhandledExceptionEntryViewModel : ReactiveViewModelBase
 {
     private readonly DiagnosticsViewModel _parent;
 
@@ -112,9 +111,9 @@ public sealed partial class UnhandledExceptionEntryViewModel : ViewModelBase
 
     public string DisplayStackTrace => Entry.StackTrace;
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void Dismiss() => _parent.Dismiss(Entry.Id);
 
-    [RelayCommand]
+    [ReactiveCommand]
     private void ReportOnGitHub() => _parent.ReportOnGitHub(Entry);
 }

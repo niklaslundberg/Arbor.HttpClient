@@ -1,19 +1,20 @@
 using System.Collections.ObjectModel;
+using System.Reactive.Disposables;
 using Arbor.HttpClient.Desktop.Features.Logging;
 using Arbor.HttpClient.Desktop.Shared;
 using Avalonia.Threading;
-using CommunityToolkit.Mvvm.ComponentModel;
+using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 
 namespace Arbor.HttpClient.Desktop.Features.Logging;
 
-public sealed partial class LogWindowViewModel : ViewModelBase, IDisposable
+public sealed partial class LogWindowViewModel : ReactiveViewModelBase
 {
     private const int MaxDisplayEntries = 1000;
 
     private readonly InMemorySink _sink;
-    private readonly IDisposable _entryAddedSubscription;
 
-    [ObservableProperty]
+    [Reactive]
     private bool _autoScroll = true;
 
     public ObservableCollection<LogEntry> Entries { get; } = [];
@@ -31,25 +32,22 @@ public sealed partial class LogWindowViewModel : ViewModelBase, IDisposable
             AddEntry(entry);
         }
 
-        _entryAddedSubscription = _sink.EntryAddedObservable.Subscribe(entry =>
-        {
-            if (Dispatcher.UIThread.CheckAccess())
+        _sink.EntryAddedObservable
+            .Subscribe(entry =>
             {
-                AddEntry(entry);
-            }
-            else
-            {
-                Dispatcher.UIThread.Post(() =>
+                if (Dispatcher.UIThread.CheckAccess())
                 {
                     AddEntry(entry);
-                });
-            }
-        });
-    }
-
-    public void Dispose()
-    {
-        _entryAddedSubscription.Dispose();
+                }
+                else
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        AddEntry(entry);
+                    });
+                }
+            })
+            .DisposeWith(Disposables);
     }
 
     private void AddEntry(LogEntry entry)
