@@ -1,5 +1,6 @@
 using System;
 using Avalonia;
+using ReactiveUI.Avalonia;
 
 namespace Arbor.HttpClient.Desktop;
 
@@ -16,5 +17,6 @@ public sealed class Program
             .WithDeveloperTools()
 #endif
             .WithInterFont()
+            .UseReactiveUI(reactiveUiBuilder => reactiveUiBuilder.WithAvalonia())
             .LogToTrace();
 }
