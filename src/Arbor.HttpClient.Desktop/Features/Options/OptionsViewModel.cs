@@ -1,13 +1,14 @@
 using System.Reactive.Linq;
-using Dock.Model.ReactiveUI.Controls;
+using System.Reactive.Disposables;
 using ReactiveUI;
 using ReactiveUI.SourceGenerators;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Localization;
+using Arbor.HttpClient.Desktop.Shared;
 
 namespace Arbor.HttpClient.Desktop.Features.Options;
 
-public sealed partial class OptionsViewModel : Tool
+public sealed partial class OptionsViewModel : ReactiveToolBase
 {
     private const string OptionsPageBreadcrumbSeparator = " ›  ";
 
@@ -20,12 +21,14 @@ public sealed partial class OptionsViewModel : Tool
         _selectedOptionsPageTitle = this
             .WhenAnyValue(viewModel => viewModel.SelectedOptionsPage)
             .Select(GetOptionsPageTitle)
-            .ToProperty(this, viewModel => viewModel.SelectedOptionsPageTitle);
+            .ToProperty(this, viewModel => viewModel.SelectedOptionsPageTitle)
+            .DisposeWith(Disposables);
 
         _selectedOptionsPageBreadcrumb = this
             .WhenAnyValue(viewModel => viewModel.SelectedOptionsPageTitle)
             .Select(title => $"Options{OptionsPageBreadcrumbSeparator}{title}")
-            .ToProperty(this, viewModel => viewModel.SelectedOptionsPageBreadcrumb);
+            .ToProperty(this, viewModel => viewModel.SelectedOptionsPageBreadcrumb)
+            .DisposeWith(Disposables);
     }
 
     public MainWindowViewModel App { get; }
