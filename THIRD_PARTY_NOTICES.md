@@ -201,7 +201,7 @@ The SIL Open Font License 1.1 permits the font to be used, studied, modified, an
 
 ## Dock
 
-**Packages:** Dock.Avalonia, Dock.Avalonia.Themes.Fluent, Dock.Model.Mvvm  
+**Packages:** Dock.Avalonia, Dock.Avalonia.Themes.Fluent, Dock.Model.ReactiveUI  
 **Version:** 12.0.0.2  
 **Authors:** Wiesław Šoltés  
 **Copyright:** Copyright © Wiesław Šoltés 2026  

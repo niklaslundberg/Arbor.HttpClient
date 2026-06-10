@@ -1,4 +1,4 @@
-using Dock.Model.Mvvm.Controls;
+using Dock.Model.ReactiveUI.Controls;
 using ReactiveUI;
 using System.Reactive;
 using Arbor.HttpClient.Desktop.Features.Main;

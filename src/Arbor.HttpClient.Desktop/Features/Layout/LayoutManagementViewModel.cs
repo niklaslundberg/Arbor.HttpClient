@@ -1,5 +1,5 @@
-using CommunityToolkit.Mvvm.Input;
-using Dock.Model.Mvvm.Controls;
+using System.Windows.Input;
+using Dock.Model.ReactiveUI.Controls;
 using Arbor.HttpClient.Desktop.Features.Main;
 
 namespace Arbor.HttpClient.Desktop.Features.Layout;
@@ -15,11 +15,11 @@ public sealed class LayoutManagementViewModel : Tool
 
     public MainWindowViewModel App { get; }
 
-    public IRelayCommand SaveLayoutAsNewCommand => App.SaveLayoutAsNewCommand;
+    public ICommand SaveLayoutAsNewCommand => App.SaveLayoutAsNewCommand;
 
-    public IRelayCommand<string?> SaveLayoutToExistingCommand => App.SaveLayoutToExistingCommand;
+    public ICommand SaveLayoutToExistingCommand => App.SaveLayoutToExistingCommand;
 
-    public IRelayCommand<string?> RemoveLayoutCommand => App.RemoveLayoutCommand;
+    public ICommand RemoveLayoutCommand => App.RemoveLayoutCommand;
 
-    public IRelayCommand RestoreDefaultLayoutCommand => App.RestoreDefaultLayoutCommand;
+    public ICommand RestoreDefaultLayoutCommand => App.RestoreDefaultLayoutCommand;
 }

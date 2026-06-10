@@ -1,4 +1,4 @@
-using Dock.Model.Mvvm.Controls;
+using Dock.Model.ReactiveUI.Controls;
 using Arbor.HttpClient.Desktop.Features.Main;
 
 namespace Arbor.HttpClient.Desktop.Features.Logging;

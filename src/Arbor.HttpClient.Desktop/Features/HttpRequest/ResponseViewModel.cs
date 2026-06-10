@@ -1,4 +1,4 @@
-using Dock.Model.Mvvm.Controls;
+using Dock.Model.ReactiveUI.Controls;
 
 namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
 

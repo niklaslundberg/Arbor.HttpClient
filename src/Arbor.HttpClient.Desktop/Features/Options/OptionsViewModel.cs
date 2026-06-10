@@ -1,5 +1,7 @@
-using CommunityToolkit.Mvvm.ComponentModel;
-using Dock.Model.Mvvm.Controls;
+using System.Reactive.Linq;
+using Dock.Model.ReactiveUI.Controls;
+using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Localization;
 
@@ -14,28 +16,37 @@ public sealed partial class OptionsViewModel : Tool
         App = app;
         Id = "options";
         Title = "Options";
+
+        _selectedOptionsPageTitle = this
+            .WhenAnyValue(viewModel => viewModel.SelectedOptionsPage)
+            .Select(GetOptionsPageTitle)
+            .ToProperty(this, viewModel => viewModel.SelectedOptionsPageTitle);
+
+        _selectedOptionsPageBreadcrumb = this
+            .WhenAnyValue(viewModel => viewModel.SelectedOptionsPageTitle)
+            .Select(title => $"Options{OptionsPageBreadcrumbSeparator}{title}")
+            .ToProperty(this, viewModel => viewModel.SelectedOptionsPageBreadcrumb);
     }
 
     public MainWindowViewModel App { get; }
 
-    [ObservableProperty]
+    [Reactive]
     private string _selectedOptionsPage = "HTTP";
 
-    partial void OnSelectedOptionsPageChanged(string value)
-    {
-        OnPropertyChanged(nameof(SelectedOptionsPageTitle));
-        OnPropertyChanged(nameof(SelectedOptionsPageBreadcrumb));
-    }
+    private readonly ObservableAsPropertyHelper<string> _selectedOptionsPageTitle;
+    private readonly ObservableAsPropertyHelper<string> _selectedOptionsPageBreadcrumb;
 
-    public string SelectedOptionsPageTitle => SelectedOptionsPage switch
+    public string SelectedOptionsPageTitle => _selectedOptionsPageTitle.Value;
+
+    public string SelectedOptionsPageBreadcrumb => _selectedOptionsPageBreadcrumb.Value;
+
+    private static string GetOptionsPageTitle(string page) => page switch
     {
         "HTTP" => Strings.OptionsNavHttp,
         "ScheduledJobs" => Strings.OptionsNavScheduledJobs,
         "LookAndFeel" => Strings.OptionsNavLookAndFeel,
         "Diagnostics" => Strings.OptionsNavDiagnostics,
         "ManageOptions" => Strings.OptionsNavManageOptions,
-        _ => SelectedOptionsPage
+        _ => page
     };
-
-    public string SelectedOptionsPageBreadcrumb => $"Options{OptionsPageBreadcrumbSeparator}{SelectedOptionsPageTitle}";
 }

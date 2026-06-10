@@ -34,6 +34,6 @@ public class ViewLocator : IDataTemplate
 
     public bool Match(object? data)
     {
-        return data is ViewModelBase or ReactiveViewModelBase or Dock.Model.Mvvm.Core.DockableBase;
+        return data is ViewModelBase or ReactiveViewModelBase or Dock.Model.ReactiveUI.Core.DockableBase;
     }
 }

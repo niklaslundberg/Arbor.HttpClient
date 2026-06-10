@@ -562,7 +562,7 @@
           "CommunityToolkit.Mvvm": "[8.4.2, )",
           "Dock.Avalonia": "[12.0.0.2, )",
           "Dock.Avalonia.Themes.Fluent": "[12.0.0.2, )",
-          "Dock.Model.Mvvm": "[12.0.0.2, )",
+          "Dock.Model.ReactiveUI": "[12.0.0.2, )",
           "Microsoft.CodeAnalysis.CSharp.Scripting": "[5.3.0, )",
           "ReactiveUI": "[23.2.28, )",
           "ReactiveUI.Avalonia": "[12.0.3, )",
@@ -689,14 +689,14 @@
           "Dock.Avalonia": "12.0.0.2"
         }
       },
-      "Dock.Model.Mvvm": {
+      "Dock.Model.ReactiveUI": {
         "type": "CentralTransitive",
         "requested": "[12.0.0.2, )",
         "resolved": "12.0.0.2",
-        "contentHash": "+lK3PWXjSUiyWB8a++/9y1MwPFCs67zsNANNX9JKB9ZxpoeRzmamGAH5AYam31dLhluW2dul8r7FACGXyJsyYw==",
+        "contentHash": "iGWFh7Fylv8w6TzMJ79jzWfuDuZyiHwGoNFLHagIg3FyWVNL6B2ti17yY+4PnsySdJzKSYWutOtS5oRBOHxDug==",
         "dependencies": {
-          "CommunityToolkit.Mvvm": "8.4.0",
-          "Dock.Model": "12.0.0.2"
+          "Dock.Model": "12.0.0.2",
+          "reactiveui": "22.2.1"
         }
       },
       "Microsoft.CodeAnalysis.CSharp.Scripting": {

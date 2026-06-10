@@ -51,7 +51,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Controls;
 using Dock.Model.Core;
-using Dock.Model.Mvvm.Controls;
+using Dock.Model.ReactiveUI.Controls;
 using Serilog;
 using Arbor.HttpClient.Core.Collections;
 using Arbor.HttpClient.Core.Environments;
@@ -1252,13 +1252,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IResponse
         }
     }
 
-    public IRelayCommand AddEnvironmentVariableCommand => _environmentsViewModel.AddEnvironmentVariableCommand;
-    public IRelayCommand<EnvironmentVariableViewModel?> RemoveEnvironmentVariableCommand => _environmentsViewModel.RemoveEnvironmentVariableCommand;
-    public IAsyncRelayCommand SaveEnvironmentCommand => _environmentsViewModel.SaveEnvironmentCommand;
-    public IAsyncRelayCommand<RequestEnvironment?> DeleteEnvironmentCommand => _environmentsViewModel.DeleteEnvironmentCommand;
-    public IRelayCommand<RequestEnvironment?> EditEnvironmentCommand => _environmentsViewModel.EditEnvironmentCommand;
-    public IRelayCommand NewEnvironmentCommand => _environmentsViewModel.NewEnvironmentCommand;
-    public IAsyncRelayCommand ExportEnvironmentsCommand => _environmentsViewModel.ExportEnvironmentsCommand;
+    public System.Windows.Input.ICommand AddEnvironmentVariableCommand => _environmentsViewModel.AddEnvironmentVariableCommand;
+    public System.Windows.Input.ICommand RemoveEnvironmentVariableCommand => _environmentsViewModel.RemoveEnvironmentVariableCommand;
+    public System.Windows.Input.ICommand SaveEnvironmentCommand => _environmentsViewModel.SaveEnvironmentCommand;
+    public System.Windows.Input.ICommand DeleteEnvironmentCommand => _environmentsViewModel.DeleteEnvironmentCommand;
+    public System.Windows.Input.ICommand EditEnvironmentCommand => _environmentsViewModel.EditEnvironmentCommand;
+    public System.Windows.Input.ICommand NewEnvironmentCommand => _environmentsViewModel.NewEnvironmentCommand;
+    public System.Windows.Input.ICommand ExportEnvironmentsCommand => _environmentsViewModel.ExportEnvironmentsCommand;
 
     private ApplicationOptions BuildOptionsFromCurrentState()
     {

@@ -1,3 +1,4 @@
+using System.Reactive.Linq;
 using Arbor.HttpClient.Desktop.Features.Environments;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Testing.Repositories;
@@ -23,7 +24,7 @@ public class EnvironmentsViewModelTests
         viewModel.NewEnvironmentName = "old";
         viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
 
-        viewModel.NewEnvironmentCommand.Execute(null);
+        viewModel.NewEnvironmentCommand.Execute().Subscribe();
 
         viewModel.NewEnvironmentName.Should().BeEmpty();
         viewModel.ActiveEnvironment.Should().BeNull();
@@ -36,11 +37,11 @@ public class EnvironmentsViewModelTests
     {
         var repository = new InMemoryEnvironmentRepository();
         var viewModel = CreateViewModel(repository);
-        viewModel.NewEnvironmentCommand.Execute(null);
+        viewModel.NewEnvironmentCommand.Execute().Subscribe();
         viewModel.NewEnvironmentName = "dev";
         viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
 
-        await viewModel.SaveEnvironmentCommand.ExecuteAsync(null);
+        await viewModel.SaveEnvironmentCommand.Execute();
 
         viewModel.Environments.Should().ContainSingle(environment => environment.Name == "dev");
         viewModel.ActiveEnvironment.Should().NotBeNull();
@@ -61,7 +62,7 @@ public class EnvironmentsViewModelTests
         await viewModel.LoadEnvironmentsAsync();
         var environment = viewModel.Environments.Single(e => e.Id == environmentId);
 
-        viewModel.EditEnvironmentCommand.Execute(environment);
+        viewModel.EditEnvironmentCommand.Execute(environment).Subscribe();
 
         viewModel.NewEnvironmentName.Should().Be("prod");
         viewModel.ActiveEnvironmentVariables.Should().HaveCount(2);
@@ -78,7 +79,7 @@ public class EnvironmentsViewModelTests
         await viewModel.LoadEnvironmentsAsync();
         viewModel.ActiveEnvironment = viewModel.Environments.Single(environment => environment.Id == environmentId);
 
-        await viewModel.DeleteEnvironmentCommand.ExecuteAsync(viewModel.ActiveEnvironment);
+        await viewModel.DeleteEnvironmentCommand.Execute(viewModel.ActiveEnvironment);
 
         viewModel.Environments.Should().BeEmpty();
         viewModel.ActiveEnvironment.Should().BeNull();
@@ -127,7 +128,7 @@ public class EnvironmentsViewModelAutoSaveTests
         var requestEditor = new RequestEditorViewModel(new VariableResolver(), () => []);
         var viewModel = new EnvironmentsViewModel(repository, () => requestEditor, () => null);
 
-        viewModel.NewEnvironmentCommand.Execute(null);
+        viewModel.NewEnvironmentCommand.Execute().Subscribe();
         viewModel.NewEnvironmentName = "myenv";
         viewModel.ActiveEnvironmentVariables.Add(new EnvironmentVariableViewModel("host", "localhost"));
 
