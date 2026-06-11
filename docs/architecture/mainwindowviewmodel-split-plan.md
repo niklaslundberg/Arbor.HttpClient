@@ -2,9 +2,21 @@
 
 ## Context
 
-`MainWindowViewModel` currently contains multiple feature areas and coordination responsibilities in one class (about 4,000 lines). This slows down feature work, increases regression risk, and makes focused testing harder.
+`MainWindowViewModel` contains multiple feature areas and coordination responsibilities in one class (about 4,000 lines when this plan was written; about 3,430 lines as of 2026-06-11). This slows down feature work, increases regression risk, and makes focused testing harder.
 
 This document is a persisted implementation plan for splitting feature logic from `MainWindowViewModel` while keeping behavior stable.
+
+> **Status update (2026-06-11):** Several slices have been extracted since this plan was written, and the solution has since completed a full ReactiveUI/Rx.NET migration (see [`reactiveui-migration-progress.md`](reactiveui-migration-progress.md)), which changes the communication-pattern recommendation below. Current status per slice is tracked in [Extraction status](#extraction-status-2026-06-11) and the forward plan in [Remaining slices — ordered plan](#remaining-slices--ordered-plan-2026-06-11).
+
+## Established extraction convention (Workflow / Coordinator)
+
+The extractions completed so far converged on a two-layer convention. Follow it for the remaining slices:
+
+- **`*Workflow`** — a plain `sealed` class with constructor-injected dependencies that owns one feature pipeline (e.g. `HttpRequestWorkflow`, `CollectionsWorkflow`, `LayoutTreeWorkflow`). It holds no UI state and returns immutable result records (e.g. `HttpRequestExecutionResult`) instead of mutating the caller.
+- **`*Coordinator`** — a `sealed` class that orchestrates a workflow plus its side effects (persistence, reload callbacks, logging) and returns an outcome record (e.g. `ManualHttpRequestCoordinator` → `ManualHttpRequestOutcome`). Exception handling and cancellation semantics live here.
+- **`MainWindowViewModel`** — keeps the `[Reactive]` UI state and `[ReactiveCommand]` entry points, calls the coordinator, and projects the outcome record onto UI properties (e.g. via `HttpResponseProjectionWorkflow`).
+
+Both layers are headless-testable without the Avalonia runtime, which is the main reason for the split.
 
 ## Goals
 
@@ -79,11 +91,41 @@ Each extracted unit should own:
 Recommended extraction order (lowest coupling first):
 
 1. ✅ Response actions (copy/save/open external) — see below
-2. Demo server lifecycle
-3. Collections workflows
-4. Scheduled jobs workflows
-5. Request execution orchestration
-6. Draft/options autosave orchestration
+2. ✅ Demo server lifecycle — `DemoDataWorkflow` + `DemoServerLifecycleCoordinator` (`Features/Demo/`)
+3. 🔶 Collections workflows — `CollectionsWorkflow` + `CollectionsManagementCoordinator` exist (`Features/Collections/`), but the new/rename forms, inherited-headers sync/autosave, filter/sort/display-mode, and import/delete flows still live in `MainWindowViewModel`
+4. Scheduled jobs workflows — `ScheduledJobService` exists, but add/remove commands and persistence hooks are still in `MainWindowViewModel`
+5. ✅ Request execution orchestration — `HttpRequestWorkflow` + `ManualHttpRequestCoordinator` + `HttpResponseProjectionWorkflow` (`Features/HttpRequest/`), `GraphQlRequestWorkflow` + `ManualGraphQlRequestCoordinator` (`Features/GraphQl/`), `StreamingConnectionWorkflow` (`Features/Streaming/`)
+6. Draft/options autosave orchestration — options `Apply*`/save/import/export and the autosave subjects are still in `MainWindowViewModel`; layout has partial extraction via `LayoutWorkflow` + `LayoutTreeWorkflow` (`Features/Layout/`)
+
+<a id="extraction-status-2026-06-11"></a>
+#### Extraction status (2026-06-11)
+
+| Slice | Extracted classes | Status |
+|---|---|---|
+| Response actions | `ResponseActionsViewModel` | ✅ Done |
+| Request execution (HTTP) | `HttpRequestWorkflow`, `ManualHttpRequestCoordinator`, `HttpRequestExecutionResult`, `ManualHttpRequestOutcome` | ✅ Done |
+| Response projection | `HttpResponseProjectionWorkflow` | ✅ Done |
+| GraphQL execution | `GraphQlRequestWorkflow`, `ManualGraphQlRequestCoordinator` | ✅ Done |
+| WebSocket/SSE connection | `StreamingConnectionWorkflow` | ✅ Done |
+| Demo server lifecycle | `DemoDataWorkflow`, `DemoServerLifecycleCoordinator` | ✅ Done |
+| Collections persistence | `CollectionsWorkflow`, `CollectionsManagementCoordinator` | 🔶 Partial — UI workflows still in Main (see slice plan below) |
+| Layout tree/restore | `LayoutWorkflow`, `LayoutTreeWorkflow` | 🔶 Partial — named layouts, geometry, and persistence still in Main |
+| Options apply/import/export | — | ❌ Not started |
+| Scheduled jobs add/remove | — | ❌ Not started |
+| Request tabs + history | — | ❌ Not started |
+
+<a id="remaining-slices--ordered-plan-2026-06-11"></a>
+#### Remaining slices — ordered plan (2026-06-11)
+
+Execute one slice per PR, in this order (lowest coupling first), following the Workflow/Coordinator convention above:
+
+1. **Options workflow** *(next)* — extract the ~15 `Apply*` option methods, `ApplyOptions`, `SaveOptions`, `ExportOptionsAsync`, `ImportOptionsAsync`, and the options autosave subject into an `ApplicationOptionsWorkflow` (+ coordinator if side effects warrant it) under `Features/Options/`. Self-contained, no dock or collection coupling, easiest to test headlessly.
+2. **Collections UI workflows** — finish slice 3: move new/rename collection forms, inherited-headers sync + debounced autosave (~500 lines), filter/sort/display-mode, and import/delete into `CollectionsManagementCoordinator` or a new `CollectionsPanelViewModel`. Consider DynamicData for filter/sort here (see `docs/suggestions/DynamicDataCollections.md`).
+3. **Scheduled jobs workflow** — move `AddScheduledJob`/`RemoveScheduledJobAsync` and persistence hooks into a `ScheduledJobsWorkflow` next to `ScheduledJobService`.
+4. **Request tabs + history** — extract tab lifecycle (`NewRequestTab`, `CloseRequestTab`, `ApplyActiveRequestTab`, `SaveResponseStateForTab`) and history load/filter (`LoadHistoryAsync`, `ApplyHistoryFilter`, `LoadHistoryRequest`) into feature-scoped classes.
+5. **Layout management** — finish the layout slice: named layout save/restore/remove, window geometry, `PersistCurrentLayout`/`ApplyLayoutSnapshot`/`ReapplyStartupLayout` on top of the existing `LayoutWorkflow`/`LayoutTreeWorkflow`. Largest and riskiest; do it once the rest of Main is thin.
+6. **Phase 3 delegation cleanup** — remove `IResponseActionsContext` pass-throughs and other temporary delegation from Main once XAML binds to feature VMs directly.
+7. **DockFactory feature registrations** — only after the slices above: replace the `MainWindowViewModel` constructor dependency in `DockFactory` with per-feature dockable registrations (step 2 in `clean-feature-separation.md`). Deliberately deferred so registrations can point at clean feature VMs.
 
 #### Phase 2 Slice 1 — Response actions ✅ Implemented
 
@@ -146,6 +188,8 @@ Split `RequestEditorViewModelTests` by behavior area, for example:
 
 ## Communication pattern options between modules
 
+> **Superseded note (2026-06-11):** the table below predates the full ReactiveUI/Rx.NET migration (completed in PRs #218–#220). The original recommendation assumed CommunityToolkit.Mvvm as the baseline; that constraint no longer exists. The table is kept for historical context — current guidance follows in the next section.
+
 | Option | Description | Pros | Cons | Impact | Recommendation |
 |---|---|---|---|---|---|
 | A. Direct interface calls (default) | Feature VM/coordinator calls another via small interface contracts | Simple, explicit, easy to debug, minimal infrastructure | Can grow coupling if interfaces become broad | Low migration cost, low risk | **Start here** |
@@ -154,12 +198,16 @@ Split `RequestEditorViewModelTests` by behavior area, for example:
 | D. Mediator/command bus | Commands routed through mediator handlers | Strong separation, extensible for plugins/modules | Indirection, can hide ownership, overkill early | Medium-high cost | Re-evaluate after 1–2 successful extractions |
 | E. RX.NET observable streams | Feature VMs expose `IObservable<T>` endpoints; consumers subscribe with composable operators | Composable fan-out (throttle, filter, combine), `IScheduler` enables time-travel unit tests, pairs with DynamicData for collection transforms | Medium-high learning curve, subscription lifetime management, debugging stream chains | Low if additive alongside CommunityToolkit.Mvvm; high if replacing it | Use selectively for time-dependent features and cross-feature notifications once ≥ 2 features are extracted; see [`docs/architecture/rx-reactive-evaluation.md`](rx-reactive-evaluation.md) |
 
-### Practical recommendation
+### Current guidance (post-ReactiveUI migration, 2026-06-11)
 
-- Use **Option A** as baseline for first extractions.
-- Introduce **Option B** only for true fan-out notifications with no composition needs.
-- Introduce **Option E** where throttling, scheduling, or combining multiple streams adds clear value over raw C# events.
-- Reassess mediator/event-bus only if direct contracts start causing clear composition friction.
+ReactiveUI + Rx.NET is now the solution-wide MVVM stack, so the A-vs-E trade-off has collapsed: both are idiomatic and already in use. Pick per interaction shape:
+
+- **Command-style flows (request/response with a result)** — keep **Option A as direct Workflow/Coordinator calls returning immutable outcome records** (the established convention above). This is explicit, debuggable, and already proven by `ManualHttpRequestCoordinator`/`ManualHttpRequestOutcome`. Do not convert these to streams; a `Task<TOutcome>` is the right shape for one-shot operations.
+- **Notifications and derived state (fan-out, no reply expected)** — use **Option E**: the producing workflow/VM exposes an `IObservable<T>` (Subject-backed or `WhenAnyValue`-derived); consumers subscribe at the composition root with `.DisposeWith(Disposables)`. Already in use for the options-autosave, history-filter, and collection-search subjects in `MainWindowViewModel`; when extracting those slices, move the subject into the owning workflow and expose it as `IObservable<T>`.
+- **Time-dependent behavior (debounce/throttle/timers)** — model as Rx pipelines with an injectable `IScheduler` so tests can use `TestScheduler` (`Microsoft.Reactive.Testing` is already pinned; see `docs/suggestions/SchedulerInjection.md`).
+- **Dialogs and file pickers** — prefer ReactiveUI `Interaction<TInput, TOutput>` over the current `Action` delegates (`OpenAboutWindowAction` etc.) as slices are extracted; this is the planned follow-up from the migration (plan §3.3/§3.5).
+- **Collection filtering/sorting** — use DynamicData (`SourceList` + `Filter`/`Sort`/`Bind`) when extracting the collections and history slices (see `docs/suggestions/DynamicDataCollections.md`).
+- **Rejected: Option B (event aggregator) and `ReactiveUI.MessageBus`** — ReactiveUI's own documentation discourages MessageBus as a service-locator-style pattern that hides flows; explicit `IObservable<T>` endpoints on constructor-injected dependencies provide the same decoupling with visible ownership. **Option D (mediator)** stays rejected — the Workflow/Coordinator extractions have not produced composition friction that would justify it. **Option C (state store)** remains unnecessary.
 
 ## Risk controls
 
