@@ -85,17 +85,6 @@ This project makes use of third-party packages. Their licenses and attribution d
 
 ---
 
-## CommunityToolkit.Mvvm
-
-**Package:** CommunityToolkit.Mvvm  
-**Version:** 8.4.2  
-**Authors:** Microsoft  
-**Copyright:** © .NET Foundation and Contributors. All rights reserved.  
-**Project URL:** https://github.com/CommunityToolkit/dotnet  
-**License:** MIT  
-
----
-
 ## Microsoft.Data.Sqlite
 
 **Package:** Microsoft.Data.Sqlite  

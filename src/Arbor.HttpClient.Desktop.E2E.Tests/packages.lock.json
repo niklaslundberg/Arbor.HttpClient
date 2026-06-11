@@ -559,7 +559,6 @@
           "Avalonia.Themes.Fluent": "[12.0.4, )",
           "AvaloniaEdit.TextMate": "[12.0.0, )",
           "AvaloniaUI.DiagnosticsSupport": "[2.2.1, )",
-          "CommunityToolkit.Mvvm": "[8.4.2, )",
           "Dock.Avalonia": "[12.0.0.2, )",
           "Dock.Avalonia.Themes.Fluent": "[12.0.0.2, )",
           "Dock.Model.ReactiveUI": "[12.0.0.2, )",
@@ -657,12 +656,6 @@
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0",
           "Microsoft.IO.RecyclableMemoryStream": "3.0.1"
         }
-      },
-      "CommunityToolkit.Mvvm": {
-        "type": "CentralTransitive",
-        "requested": "[8.4.2, )",
-        "resolved": "8.4.2",
-        "contentHash": "WadCzGEc2U+3e20avRLng4qNtt4zoOGWrdUISqJWrHe3/FSnrYjuM5Sb4yQb09LhkBXrrI4Zt3dLKgRMbItsrg=="
       },
       "Dock.Avalonia": {
         "type": "CentralTransitive",
