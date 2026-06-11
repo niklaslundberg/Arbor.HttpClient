@@ -110,7 +110,7 @@ Recommended extraction order (lowest coupling first):
 | Demo server lifecycle | `DemoDataWorkflow`, `DemoServerLifecycleCoordinator` | ✅ Done |
 | Collections persistence | `CollectionsWorkflow`, `CollectionsManagementCoordinator` | 🔶 Partial — UI workflows still in Main (see slice plan below) |
 | Layout tree/restore | `LayoutWorkflow`, `LayoutTreeWorkflow` | 🔶 Partial — named layouts, geometry, and persistence still in Main |
-| Options apply/import/export | — | ❌ Not started |
+| Options persistence | `ApplicationOptionsWorkflow`, `ApplicationOptionsSnapshot`, `OptionsPersistenceOutcome` | ✅ Done — auto-save debounce, build/validate, save/export/import; the per-option `Apply*` UI projections stay in Main by design (they mutate Avalonia/app state) |
 | Scheduled jobs add/remove | — | ❌ Not started |
 | Request tabs + history | — | ❌ Not started |
 
@@ -119,8 +119,8 @@ Recommended extraction order (lowest coupling first):
 
 Execute one slice per PR, in this order (lowest coupling first), following the Workflow/Coordinator convention above:
 
-1. **Options workflow** *(next)* — extract the ~15 `Apply*` option methods, `ApplyOptions`, `SaveOptions`, `ExportOptionsAsync`, `ImportOptionsAsync`, and the options autosave subject into an `ApplicationOptionsWorkflow` (+ coordinator if side effects warrant it) under `Features/Options/`. Self-contained, no dock or collection coupling, easiest to test headlessly.
-2. **Collections UI workflows** — finish slice 3: move new/rename collection forms, inherited-headers sync + debounced autosave (~500 lines), filter/sort/display-mode, and import/delete into `CollectionsManagementCoordinator` or a new `CollectionsPanelViewModel`. Consider DynamicData for filter/sort here (see `docs/suggestions/DynamicDataCollections.md`).
+1. ~~**Options workflow**~~ ✅ Done — `ApplicationOptionsWorkflow` (`Features/Options/`) owns the debounced auto-save pipeline (injectable `IScheduler`, `TestScheduler`-tested), nesting auto-save suppression scopes, snapshot-based `BuildOptions` validation, and the save/export/import persistence flows with `OptionsPersistenceOutcome` results. Main keeps the option `[Reactive]` properties, the per-option `Apply*` UI projections (theme/font/TLS mutate Avalonia and service state), and the file pickers. Tests: `ApplicationOptionsWorkflowTests` + `ApplicationOptionsWorkflowPersistenceTests`.
+2. **Collections UI workflows** *(next)* — finish slice 3: move new/rename collection forms, inherited-headers sync + debounced autosave (~500 lines), filter/sort/display-mode, and import/delete into `CollectionsManagementCoordinator` or a new `CollectionsPanelViewModel`. Consider DynamicData for filter/sort here (see `docs/suggestions/DynamicDataCollections.md`).
 3. **Scheduled jobs workflow** — move `AddScheduledJob`/`RemoveScheduledJobAsync` and persistence hooks into a `ScheduledJobsWorkflow` next to `ScheduledJobService`.
 4. **Request tabs + history** — extract tab lifecycle (`NewRequestTab`, `CloseRequestTab`, `ApplyActiveRequestTab`, `SaveResponseStateForTab`) and history load/filter (`LoadHistoryAsync`, `ApplyHistoryFilter`, `LoadHistoryRequest`) into feature-scoped classes.
 5. **Layout management** — finish the layout slice: named layout save/restore/remove, window geometry, `PersistCurrentLayout`/`ApplyLayoutSnapshot`/`ReapplyStartupLayout` on top of the existing `LayoutWorkflow`/`LayoutTreeWorkflow`. Largest and riskiest; do it once the rest of Main is thin.

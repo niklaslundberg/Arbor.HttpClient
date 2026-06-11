@@ -12,7 +12,7 @@ This document answers the architecture questions raised in [issue #33](https://g
 
 ## Findings
 
-> **Update 2026-06-11:** extraction is well underway. Request execution (HTTP/GraphQL/WebSocket/SSE), response projection, response actions, and the demo-server lifecycle now live in feature-scoped Workflow/Coordinator classes; collections and layout are partially extracted. `MainWindowViewModel` is ~3,430 lines and still owns options apply/import/export, collections UI workflows (forms, inherited-headers autosave), named-layout management, request tabs, history, and scheduled-job commands. Current status and the ordered forward plan live in [`mainwindowviewmodel-split-plan.md`](mainwindowviewmodel-split-plan.md). The findings below describe the original state and are kept for context.
+> **Update 2026-06-11:** extraction is well underway. Request execution (HTTP/GraphQL/WebSocket/SSE), response projection, response actions, the demo-server lifecycle, and options persistence (auto-save/save/export/import via `ApplicationOptionsWorkflow`) now live in feature-scoped Workflow/Coordinator classes; collections and layout are partially extracted. `MainWindowViewModel` still owns the per-option UI projections, collections UI workflows (forms, inherited-headers autosave), named-layout management, request tabs, history, and scheduled-job commands. Current status and the ordered forward plan live in [`mainwindowviewmodel-split-plan.md`](mainwindowviewmodel-split-plan.md). The findings below describe the original state and are kept for context.
 
 - **Monolithic main view model**: `MainWindowViewModel` (~2,500 lines at the time of writing) owns request editing, response rendering, history, collections, environments, options, scheduling, layout persistence, and logging. All UI actions pass through this single type, so responsibilities are tightly coupled.
 - **Child view models are thin proxies**: dockable VMs such as `RequestViewModel`, `ResponseViewModel`, `LeftPanelViewModel`, and `OptionsViewModel` simply forward to `MainWindowViewModel`. Reusing them elsewhere still drags the entire main VM with it.
@@ -106,6 +106,7 @@ Features/
                             LogWindowViewModel, LogPanelView, LogWindow
   Main/                   — MainWindowViewModel, MainWindow, ResponseSaveFileNamePatternFormatter
   Options/                — ApplicationOptions, AppearanceOptions, HttpOptions, ApplicationOptionsStore,
+                            ApplicationOptionsWorkflow, ApplicationOptionsSnapshot, OptionsPersistenceOutcome,
                             OptionsViewModel, OptionsView, per-page option views (HttpOptionsPageView,
                             LookAndFeelOptionsPageView, DiagnosticsOptionsPageView, ManageOptionsPageView,
                             ScheduledJobsOptionsPageView)
