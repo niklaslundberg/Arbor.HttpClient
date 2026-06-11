@@ -116,7 +116,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private int _layoutNameCounter = 1;
     private bool _suppressLayoutRestore;
     private CancellationTokenSource? _sendRequestCts;
-    private ApplicationOptionsWorkflow _optionsWorkflow = null!;
+    private readonly ApplicationOptionsWorkflow _optionsWorkflow;
     private readonly CompositeDisposable _optionsAutoSaveDisposables = new();
     private bool _suppressCollectionInheritedHeadersAutoSave;
     private bool _suppressCollectionInheritedHeadersLivePreviewSync;

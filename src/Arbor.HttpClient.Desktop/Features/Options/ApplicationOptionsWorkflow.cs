@@ -141,9 +141,7 @@ public sealed class ApplicationOptionsWorkflow : IDisposable
             _debugLogger.Information("Saved application options");
             return OptionsPersistenceOutcome.Success();
         }
-        // Persistence failures must surface as an error message instead of crashing the app;
-        // the exception set (validation, IO, serialization) is open-ended, so no filter is applied.
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             return OptionsPersistenceOutcome.Failed($"Options could not be saved: {exception.Message}");
         }
@@ -170,9 +168,7 @@ public sealed class ApplicationOptionsWorkflow : IDisposable
             _debugLogger.Information("Exported options to {Path}", exportPath);
             return OptionsPersistenceOutcome.Success();
         }
-        // Persistence failures must surface as an error message instead of crashing the app;
-        // the exception set (validation, IO, serialization) is open-ended, so no filter is applied.
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             return OptionsPersistenceOutcome.Failed($"Options export failed: {exception.Message}");
         }
@@ -197,9 +193,7 @@ public sealed class ApplicationOptionsWorkflow : IDisposable
             _debugLogger.Information("Imported options from {Path}", path);
             return OptionsPersistenceOutcome.Success();
         }
-        // Persistence failures must surface as an error message instead of crashing the app;
-        // the exception set (validation, IO, serialization) is open-ended, so no filter is applied.
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             return OptionsPersistenceOutcome.Failed($"Options import failed: {exception.Message}");
         }

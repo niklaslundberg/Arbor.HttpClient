@@ -170,8 +170,8 @@ public sealed class ApplicationOptionsWorkflowTests
     {
         using var workflow = new ApplicationOptionsWorkflow(CreateTempStore(), CreateSilentLogger(), new TestScheduler());
 
-        var outerScope = workflow.SuppressAutoSave();
-        var innerScope = workflow.SuppressAutoSave();
+        using var outerScope = workflow.SuppressAutoSave();
+        using var innerScope = workflow.SuppressAutoSave();
 
         innerScope.Dispose();
         workflow.IsAutoSaveSuppressed.Should().BeTrue();
