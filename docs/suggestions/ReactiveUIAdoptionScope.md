@@ -1,5 +1,28 @@
 # Task: Determine the adoption scope for ReactiveUI
 
+## Decision: Full ReactiveUI migration
+
+The project has migrated the entire `Arbor.HttpClient.Desktop` ViewModel layer to
+**ReactiveUI** (`ReactiveObject`, `ReactiveCommand`, `ObservableAsPropertyHelper`,
+`WhenAnyValue`) on top of Rx.NET, replacing `CommunityToolkit.Mvvm`. This overrides the
+"additive only" recommendation in
+[`rx-reactive-evaluation.md`](../architecture/rx-reactive-evaluation.md) — the owner
+explicitly requested a full migration, preferring the functional reactive style.
+
+Migration tasks (see [`reactiveui-migration-plan.md`](../architecture/reactiveui-migration-plan.md)
+§4 for the checklist and [`reactiveui-migration-progress.md`](../architecture/reactiveui-migration-progress.md)
+for the session-by-session record):
+
+- [x] Add ReactiveUI/Rx.NET packages and `THIRD_PARTY_NOTICES.md` entries
+- [x] Call `.UseReactiveUI()` in `Program.cs`
+- [x] Introduce `ReactiveViewModelBase` / `ReactiveToolBase` and replace `ViewModelBase` inheritance everywhere
+- [x] Convert all `[ObservableProperty]`/`[RelayCommand]` view models to `[Reactive]`/`[ReactiveCommand]` (ReactiveUI.SourceGenerators)
+- [x] Switch `Dock.Model.Mvvm` → `Dock.Model.ReactiveUI`
+- [x] Delete `Shared/ViewModelBase.cs` and remove `CommunityToolkit.Mvvm` from the solution entirely
+- [ ] DynamicData for the Collections panel (tracked separately, see `DynamicDataCollections.md`)
+- [ ] `ScheduledJobService` timer → `Observable.Interval` + `IScheduler` (tracked separately, see `SchedulerInjection.md`)
+- [ ] `Interaction<TIn,TOut>` for dialogs (plan §3.3/§3.5, not started)
+
 **Description**
 - Decide whether the project will adopt only `System.Reactive` (lightweight observable streams) while keeping `CommunityToolkit.Mvvm` for property generation, or perform a full migration to `ReactiveUI` as the ViewModel base.
 - Document the decision, the expected migration steps, and any constraints.

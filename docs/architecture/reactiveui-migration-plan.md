@@ -2,6 +2,12 @@
 
 **Goal** – Introduce **ReactiveUI** (and the underlying **Rx.NET** streams) into the Avalonia UI layer while preserving the existing incremental feature‑slice architecture. The plan is additive: we keep `CommunityToolkit.Mvvm` for property generation where it already works and layer ReactiveUI on top for cross‑feature communication, async commands, and observable collections.
 
+> **Decision update** — see [`docs/suggestions/ReactiveUIAdoptionScope.md`](../suggestions/ReactiveUIAdoptionScope.md):
+> the owner chose a **full ReactiveUI migration** instead of the additive approach below.
+> `CommunityToolkit.Mvvm` has since been removed entirely; see
+> [`reactiveui-migration-progress.md`](reactiveui-migration-progress.md) for the
+> session-by-session record and deviations from this plan.
+
 ---
 
 ## 1️⃣ Prerequisites & Boilerplate
@@ -111,14 +117,14 @@ Implementation lives in the feature VM and is injected where needed (e.g., into 
 
 | ✅ Done | Item |
 |--------|------|
-| ☐ | Add ReactiveUI package references and license entry |
-| ☐ | Call `.UseReactiveUI()` in `Program.cs` |
-| ☐ | Introduce `ReactiveViewModelBase` and replace inheritance |
-| ☐ | Convert at least one **AsyncRelayCommand** to **ReactiveCommand** |
-| ☐ | Add an observable stream for a shared state (e.g., selected request) |
-| ☐ | Write unit tests covering the new reactive flow with `TestScheduler` |
-| ☐ | Verify UI still builds and all existing integration tests pass (`dotnet test`) |
-| ☐ | Update screenshots if UI changes (see `docs/screenshots/` workflow) |
+| ✅ | Add ReactiveUI package references and license entry |
+| ✅ | Call `.UseReactiveUI()` in `Program.cs` |
+| ✅ | Introduce `ReactiveViewModelBase` and replace inheritance (all VMs; `ViewModelBase` deleted) |
+| ✅ | Convert at least one **AsyncRelayCommand** to **ReactiveCommand** (all commands converted, solution-wide) |
+| ✅ | Add an observable stream for a shared state (e.g., `RequestTabViewModel.DisplayTitle` derived via `RequestEditor.WhenAnyValue(x => x.RequestName)`) |
+| ☐ | Write unit tests covering the new reactive flow with `TestScheduler` — `Microsoft.Reactive.Testing` is referenced but not yet consumed by a test project; deferred to the `SchedulerInjection` follow-up |
+| ✅ | Verify UI still builds and all existing integration tests pass (`dotnet test`) |
+| ✅ | Update screenshots if UI changes (see `docs/screenshots/` workflow) — no XAML changes in this migration, so none required |
 
 ---
 

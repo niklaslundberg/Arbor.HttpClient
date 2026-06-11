@@ -2,6 +2,10 @@
 
 This document evaluates [RX.NET (System.Reactive)](https://github.com/dotnet/reactive) and [ReactiveUI](https://reactiveui.net/) as complementary tools for the feature-separation work tracked in [`clean-feature-separation.md`](clean-feature-separation.md) and [`mainwindowviewmodel-split-plan.md`](mainwindowviewmodel-split-plan.md).
 
+> **Superseded by a later decision** — see [`docs/suggestions/ReactiveUIAdoptionScope.md`](../suggestions/ReactiveUIAdoptionScope.md):
+> the project performed a **full ReactiveUI migration** rather than the additive-only approach
+> recommended below. This evaluation is kept for historical context.
+
 ## What are these libraries?
 
 ### RX.NET (System.Reactive)

@@ -103,7 +103,7 @@ Features/
                             VariableNameHelper, VariableTextBox, VariableTokenColorizer
   WebSocket/              — WebSocketViewModel
   WebView/                — WebViewWindow
-Shared/                   — ViewModelBase, NotNullConverter, StringEqualityConverter, TabFontWeightConverter
+Shared/                   — ReactiveViewModelBase, ReactiveToolBase, NotNullConverter, StringEqualityConverter, TabFontWeightConverter
 ```
 
 ## Additional questions to track continuously

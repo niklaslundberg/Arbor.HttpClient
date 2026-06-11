@@ -1,10 +1,11 @@
 using Arbor.HttpClient.Desktop.Shared;
+using ReactiveUI;
 using System.ComponentModel;
 using System.Reactive.Linq;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
-public sealed class ViewModelBaseRxTests
+public sealed class ReactiveViewModelBaseRxTests
 {
     [Fact]
     public async Task PropertyChangedObservable_WhenPropertyChanges_PublishesEventArgs()
@@ -37,14 +38,14 @@ public sealed class ViewModelBaseRxTests
         observedEventCount.Should().Be(0);
     }
 
-    private sealed class TestViewModel : ViewModelBase
+    private sealed class TestViewModel : ReactiveViewModelBase
     {
         private string _name = string.Empty;
 
         public string Name
         {
             get => _name;
-            set => SetProperty(ref _name, value);
+            set => this.RaiseAndSetIfChanged(ref _name, value);
         }
     }
 }
