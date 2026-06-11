@@ -1,12 +1,15 @@
 # ReactiveUI Migration Plan for Arbor.HttpClient
 
-**Goal** – Introduce **ReactiveUI** (and the underlying **Rx.NET** streams) into the Avalonia UI layer while preserving the existing incremental feature‑slice architecture. The plan is additive: we keep `CommunityToolkit.Mvvm` for property generation where it already works and layer ReactiveUI on top for cross‑feature communication, async commands, and observable collections.
-
-> **Decision update** — see [`docs/suggestions/ReactiveUIAdoptionScope.md`](../suggestions/ReactiveUIAdoptionScope.md):
-> the owner chose a **full ReactiveUI migration** instead of the additive approach below.
-> `CommunityToolkit.Mvvm` has since been removed entirely; see
-> [`reactiveui-migration-progress.md`](reactiveui-migration-progress.md) for the
+> **Historical document.** The **Goal** below describes the *original, additive* proposal — keep
+> `CommunityToolkit.Mvvm` and layer ReactiveUI on top selectively. That proposal was
+> **superseded**: see [`docs/suggestions/ReactiveUIAdoptionScope.md`](../suggestions/ReactiveUIAdoptionScope.md)
+> for the **full ReactiveUI migration** decision that was implemented instead.
+> `CommunityToolkit.Mvvm` has since been removed entirely from the solution. The
+> feature-by-feature steps and §4 checklist below remain useful as a record of what was actually
+> done; see [`reactiveui-migration-progress.md`](reactiveui-migration-progress.md) for the
 > session-by-session record and deviations from this plan.
+
+**Goal (original, additive proposal — superseded, see above)** – Introduce **ReactiveUI** (and the underlying **Rx.NET** streams) into the Avalonia UI layer while preserving the existing incremental feature‑slice architecture. The plan is additive: we keep `CommunityToolkit.Mvvm` for property generation where it already works and layer ReactiveUI on top for cross‑feature communication, async commands, and observable collections.
 
 ---
 
@@ -123,7 +126,7 @@ Implementation lives in the feature VM and is injected where needed (e.g., into 
 | ✅ | Convert at least one **AsyncRelayCommand** to **ReactiveCommand** (all commands converted, solution-wide) |
 | ✅ | Add an observable stream for a shared state (e.g., `RequestTabViewModel.DisplayTitle` derived via `RequestEditor.WhenAnyValue(x => x.RequestName)`) |
 | ☐ | Write unit tests covering the new reactive flow with `TestScheduler` — `Microsoft.Reactive.Testing` is referenced but not yet consumed by a test project; deferred to the `SchedulerInjection` follow-up |
-| ✅ | Verify UI still builds and all existing integration tests pass (`dotnet test`) |
+| ☐ | Verify UI still builds and all existing integration tests pass (`dotnet test`) — pending; see "Outstanding" item 4 in `reactiveui-migration-progress.md` (no .NET SDK in the Phase 6 session) |
 | ✅ | Update screenshots if UI changes (see `docs/screenshots/` workflow) — no XAML changes in this migration, so none required |
 
 ---
