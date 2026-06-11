@@ -11,6 +11,7 @@
     <PackageReference Include="Avalonia.Headless.XUnit" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="Microsoft.Reactive.Testing" />
     <PackageReference Include="ReactiveUI" />
     <PackageReference Include="ReactiveUI.Avalonia" />
     <PackageReference Include="coverlet.collector">

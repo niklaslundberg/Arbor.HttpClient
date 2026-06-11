@@ -115,9 +115,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private readonly Dictionary<string, DockLayoutSnapshot> _savedLayouts = new(StringComparer.OrdinalIgnoreCase);
     private int _layoutNameCounter = 1;
     private bool _suppressLayoutRestore;
-    private bool _suppressOptionsAutoSave;
     private CancellationTokenSource? _sendRequestCts;
-    private readonly Subject<Unit> _optionsAutoSaveRequestedSubject = new();
+    private readonly ApplicationOptionsWorkflow _optionsWorkflow;
     private readonly CompositeDisposable _optionsAutoSaveDisposables = new();
     private bool _suppressCollectionInheritedHeadersAutoSave;
     private bool _suppressCollectionInheritedHeadersLivePreviewSync;
@@ -709,8 +708,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             .Throttle(TimeSpan.FromSeconds(1))
             .Subscribe(snapshot => Dispatcher.UIThread.Post(() => TriggerCollectionInheritedHeadersAutoSave(snapshot))));
 
-        _optionsAutoSaveDisposables.Add(_optionsAutoSaveRequestedSubject
-            .Throttle(TimeSpan.FromSeconds(1))
+        _optionsWorkflow = new ApplicationOptionsWorkflow(_applicationOptionsStore, _debugLogger);
+        _optionsAutoSaveDisposables.Add(_optionsWorkflow.AutoSaveRequested
             .Subscribe(_ => Dispatcher.UIThread.Post(SaveOptions)));
 
         _optionsAutoSaveDisposables.Add(Observable
@@ -1292,53 +1291,32 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     public System.Windows.Input.ICommand NewEnvironmentCommand => _environmentsViewModel.NewEnvironmentCommand;
     public System.Windows.Input.ICommand ExportEnvironmentsCommand => _environmentsViewModel.ExportEnvironmentsCommand;
 
-    private ApplicationOptions BuildOptionsFromCurrentState()
+    private ApplicationOptions BuildOptionsFromCurrentState() =>
+        ApplicationOptionsWorkflow.BuildOptions(BuildOptionsSnapshot(), BuildLayoutOptions());
+
+    private ApplicationOptionsSnapshot BuildOptionsSnapshot() => new()
     {
-        if (!double.TryParse(UiFontSizeText, NumberStyles.Float, CultureInfo.InvariantCulture, out var fontSize))
-        {
-            throw new InvalidDataException("Font size must be a number.");
-        }
-
-        var options = new ApplicationOptions
-        {
-            Http = new HttpOptions
-            {
-                HttpVersion = _requestEditor.SelectedHttpVersionOption,
-                TlsVersion = SelectedTlsVersionOption,
-                EnableHttpDiagnostics = EnableHttpDiagnostics,
-                DefaultContentType = DefaultContentType,
-                FollowRedirects = FollowHttpRedirects,
-                ShowRequestPreviewByDefault = ShowRequestPreviewByDefault,
-                DefaultRequestUrl = DefaultRequestUrl,
-                ResponseSaveDefaultFolder = ResponseSaveDefaultFolder,
-                ResponseSaveFileNamePattern = ResponseSaveFileNamePattern,
-                DemoServerPort = DemoServerPort,
-                DemoServerHttpsPort = DemoServerHttpsPort,
-                DemoServerHttpEnabled = IsDemoServerHttpEnabled,
-                DemoServerHttpsEnabled = IsDemoServerHttpsEnabled,
-                DefaultRequestTimeoutSeconds = DefaultRequestTimeoutSeconds
-            },
-            Appearance = new AppearanceOptions
-            {
-                Theme = SelectedThemeOption,
-                FontFamily = UiFontFamily,
-                FontSize = fontSize
-            },
-            ScheduledJobs = new ScheduledJobsOptions
-            {
-                AutoStartOnLaunch = AutoStartScheduledJobsOnLaunch,
-                DefaultIntervalSeconds = Math.Max(1, DefaultScheduledJobIntervalSeconds)
-            },
-            Layouts = BuildLayoutOptions(),
-            Diagnostics = new DiagnosticsOptions
-            {
-                CollectUnhandledExceptions = CollectUnhandledExceptions
-            }
-        };
-
-        ApplicationOptionsStore.Validate(options);
-        return options;
-    }
+        HttpVersion = _requestEditor.SelectedHttpVersionOption,
+        TlsVersion = SelectedTlsVersionOption,
+        EnableHttpDiagnostics = EnableHttpDiagnostics,
+        DefaultContentType = DefaultContentType,
+        FollowRedirects = FollowHttpRedirects,
+        ShowRequestPreviewByDefault = ShowRequestPreviewByDefault,
+        DefaultRequestUrl = DefaultRequestUrl,
+        ResponseSaveDefaultFolder = ResponseSaveDefaultFolder,
+        ResponseSaveFileNamePattern = ResponseSaveFileNamePattern,
+        DemoServerPort = DemoServerPort,
+        DemoServerHttpsPort = DemoServerHttpsPort,
+        DemoServerHttpEnabled = IsDemoServerHttpEnabled,
+        DemoServerHttpsEnabled = IsDemoServerHttpsEnabled,
+        DefaultRequestTimeoutSeconds = DefaultRequestTimeoutSeconds,
+        Theme = SelectedThemeOption,
+        FontFamily = UiFontFamily,
+        FontSizeText = UiFontSizeText,
+        AutoStartScheduledJobsOnLaunch = AutoStartScheduledJobsOnLaunch,
+        DefaultScheduledJobIntervalSeconds = DefaultScheduledJobIntervalSeconds,
+        CollectUnhandledExceptions = CollectUnhandledExceptions
+    };
 
     private void ApplyOptions(ApplicationOptions options, bool updateCurrentRequestUrl = true)
     {
@@ -1346,46 +1324,38 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         var previousDefaultUrl = _applicationOptions.Http.DefaultRequestUrl;
         _applicationOptions = options;
 
-        var previousSuppressOptionsAutoSave = _suppressOptionsAutoSave;
-        _suppressOptionsAutoSave = true;
+        using var autoSaveSuppression = _optionsWorkflow.SuppressAutoSave();
 
-        try
+        SelectedThemeOption = options.Appearance.Theme;
+        _requestEditor.SelectedHttpVersionOption = options.Http.HttpVersion;
+        SelectedTlsVersionOption = options.Http.TlsVersion;
+        EnableHttpDiagnostics = options.Http.EnableHttpDiagnostics;
+        FollowHttpRedirects = options.Http.FollowRedirects;
+        ShowRequestPreviewByDefault = options.Http.ShowRequestPreviewByDefault;
+        DefaultRequestUrl = options.Http.DefaultRequestUrl;
+        DefaultContentType = options.Http.DefaultContentType;
+        DefaultRequestTimeoutSeconds = options.Http.DefaultRequestTimeoutSeconds;
+        ResponseSaveDefaultFolder = options.Http.ResponseSaveDefaultFolder;
+        ResponseSaveFileNamePattern = options.Http.ResponseSaveFileNamePattern;
+        _requestEditor.DefaultContentType = options.Http.DefaultContentType;
+        UiFontFamily = options.Appearance.FontFamily;
+        UiFontSizeText = options.Appearance.FontSize.ToString("0.##", CultureInfo.InvariantCulture);
+        AutoStartScheduledJobsOnLaunch = options.ScheduledJobs.AutoStartOnLaunch;
+        DefaultScheduledJobIntervalSeconds = options.ScheduledJobs.DefaultIntervalSeconds;
+        DemoServerPort = options.Http.DemoServerPort;
+        DemoServerHttpsPort = options.Http.DemoServerHttpsPort;
+        IsDemoServerHttpEnabled = options.Http.DemoServerHttpEnabled;
+        IsDemoServerHttpsEnabled = options.Http.DemoServerHttpsEnabled;
+        CollectUnhandledExceptions = options.Diagnostics.CollectUnhandledExceptions;
+
+        if (_requestEditor.FollowRedirectsForRequest == previousDefaultFollowRedirects)
         {
-            SelectedThemeOption = options.Appearance.Theme;
-            _requestEditor.SelectedHttpVersionOption = options.Http.HttpVersion;
-            SelectedTlsVersionOption = options.Http.TlsVersion;
-            EnableHttpDiagnostics = options.Http.EnableHttpDiagnostics;
-            FollowHttpRedirects = options.Http.FollowRedirects;
-            ShowRequestPreviewByDefault = options.Http.ShowRequestPreviewByDefault;
-            DefaultRequestUrl = options.Http.DefaultRequestUrl;
-            DefaultContentType = options.Http.DefaultContentType;
-            DefaultRequestTimeoutSeconds = options.Http.DefaultRequestTimeoutSeconds;
-            ResponseSaveDefaultFolder = options.Http.ResponseSaveDefaultFolder;
-            ResponseSaveFileNamePattern = options.Http.ResponseSaveFileNamePattern;
-            _requestEditor.DefaultContentType = options.Http.DefaultContentType;
-            UiFontFamily = options.Appearance.FontFamily;
-            UiFontSizeText = options.Appearance.FontSize.ToString("0.##", CultureInfo.InvariantCulture);
-            AutoStartScheduledJobsOnLaunch = options.ScheduledJobs.AutoStartOnLaunch;
-            DefaultScheduledJobIntervalSeconds = options.ScheduledJobs.DefaultIntervalSeconds;
-            DemoServerPort = options.Http.DemoServerPort;
-            DemoServerHttpsPort = options.Http.DemoServerHttpsPort;
-            IsDemoServerHttpEnabled = options.Http.DemoServerHttpEnabled;
-            IsDemoServerHttpsEnabled = options.Http.DemoServerHttpsEnabled;
-            CollectUnhandledExceptions = options.Diagnostics.CollectUnhandledExceptions;
-
-            if (_requestEditor.FollowRedirectsForRequest == previousDefaultFollowRedirects)
-            {
-                _requestEditor.FollowRedirectsForRequest = options.Http.FollowRedirects;
-            }
-
-            if (updateCurrentRequestUrl || string.IsNullOrWhiteSpace(_requestEditor.RequestUrl) || string.Equals(_requestEditor.RequestUrl, previousDefaultUrl, StringComparison.Ordinal))
-            {
-                _requestEditor.RequestUrl = options.Http.DefaultRequestUrl;
-            }
+            _requestEditor.FollowRedirectsForRequest = options.Http.FollowRedirects;
         }
-        finally
+
+        if (updateCurrentRequestUrl || string.IsNullOrWhiteSpace(_requestEditor.RequestUrl) || string.Equals(_requestEditor.RequestUrl, previousDefaultUrl, StringComparison.Ordinal))
         {
-            _suppressOptionsAutoSave = previousSuppressOptionsAutoSave;
+            _requestEditor.RequestUrl = options.Http.DefaultRequestUrl;
         }
     }
 
@@ -2384,19 +2354,18 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [ReactiveCommand]
     private void SaveOptions()
     {
-        try
+        ErrorMessage = string.Empty;
+        var outcome = _optionsWorkflow.Save(BuildOptionsFromCurrentState, ApplySavedOptions);
+        if (!outcome.IsSuccessful)
         {
-            ErrorMessage = string.Empty;
-            var options = BuildOptionsFromCurrentState();
-            _applicationOptionsStore?.Save(options);
-            ApplyOptions(options, updateCurrentRequestUrl: false);
-            _onApplicationOptionsChanged?.Invoke(options);
-            _debugLogger.Information("Saved application options");
+            ErrorMessage = outcome.ErrorMessage;
         }
-        catch (Exception exception)
-        {
-            ErrorMessage = $"Options could not be saved: {exception.Message}";
-        }
+    }
+
+    private void ApplySavedOptions(ApplicationOptions options)
+    {
+        ApplyOptions(options, updateCurrentRequestUrl: false);
+        _onApplicationOptionsChanged?.Invoke(options);
     }
 
     [ReactiveCommand]
@@ -2407,41 +2376,36 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return;
         }
 
-        try
+        ErrorMessage = string.Empty;
+        var outcome = await _optionsWorkflow.ExportAsync(BuildOptionsFromCurrentState, PickOptionsExportPathAsync);
+        if (!outcome.IsSuccessful)
         {
-            ErrorMessage = string.Empty;
-            var options = BuildOptionsFromCurrentState();
-            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-            {
-                Title = "Export Options",
-                SuggestedFileName = "arbor-options.json",
-                FileTypeChoices =
-                [
-                    new FilePickerFileType("JSON")
-                    {
-                        Patterns = ["*.json"]
-                    }
-                ]
-            });
-
-            if (file is null)
-            {
-                return;
-            }
-
-            _applicationOptionsStore?.Export(file.Path.LocalPath, options);
-            _debugLogger.Information("Exported options to {Path}", file.Path.LocalPath);
+            ErrorMessage = outcome.ErrorMessage;
         }
-        catch (Exception exception)
+    }
+
+    private async Task<string?> PickOptionsExportPathAsync()
+    {
+        var file = await StorageProvider!.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            ErrorMessage = $"Options export failed: {exception.Message}";
-        }
+            Title = "Export Options",
+            SuggestedFileName = "arbor-options.json",
+            FileTypeChoices =
+            [
+                new FilePickerFileType("JSON")
+                {
+                    Patterns = ["*.json"]
+                }
+            ]
+        });
+
+        return file?.Path.LocalPath;
     }
 
     [ReactiveCommand]
     private async Task ImportOptionsAsync()
     {
-        if (StorageProvider is null || _applicationOptionsStore is null)
+        if (StorageProvider is null || !_optionsWorkflow.HasStore)
         {
             return;
         }
@@ -2464,18 +2428,11 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return;
         }
 
-        try
+        ErrorMessage = string.Empty;
+        var outcome = _optionsWorkflow.Import(files[0].Path.LocalPath, ApplySavedOptions);
+        if (!outcome.IsSuccessful)
         {
-            ErrorMessage = string.Empty;
-            var options = _applicationOptionsStore.Import(files[0].Path.LocalPath);
-            _applicationOptionsStore.Save(options);
-            ApplyOptions(options, updateCurrentRequestUrl: false);
-            _onApplicationOptionsChanged?.Invoke(options);
-            _debugLogger.Information("Imported options from {Path}", files[0].Path.LocalPath);
-        }
-        catch (Exception exception)
-        {
-            ErrorMessage = $"Options import failed: {exception.Message}";
+            ErrorMessage = outcome.ErrorMessage;
         }
     }
 
@@ -2568,7 +2525,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _historyFilterDisposables.Dispose();
         _collectionSearchFilterRequestedSubject.OnCompleted();
         _collectionSearchFilterDisposables.Dispose();
-        _optionsAutoSaveRequestedSubject.OnCompleted();
+        _optionsWorkflow.Dispose();
         _optionsAutoSaveDisposables.Dispose();
         _collectionInheritedHeadersAutoSaveRequestedSubject.OnCompleted();
         _collectionInheritedHeadersAutoSaveDisposables.Dispose();
@@ -3306,15 +3263,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         }
     }
 
-    private void QueueOptionsAutoSave()
-    {
-        if (_suppressOptionsAutoSave || _applicationOptionsStore is null)
-        {
-            return;
-        }
-
-        _optionsAutoSaveRequestedSubject.OnNext(Unit.Default);
-    }
+    private void QueueOptionsAutoSave() => _optionsWorkflow.QueueAutoSave();
 
 
     private async Task LoadScheduledJobsAsync(CancellationToken cancellationToken = default)
