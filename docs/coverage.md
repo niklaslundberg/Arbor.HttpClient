@@ -16,6 +16,17 @@ As of the latest build (2026-04-24, after adding Kestrel integration tests for W
 - **Arbor.HttpClient.Desktop:** 65.6% line coverage (3334/5081 lines), 51.8% branch coverage (822/1587 branches)
 - **Arbor.HttpClient.Testing:** ~13% line coverage (test infrastructure — indirect coverage is acceptable)
 
+### New code introduced in the collections UI workflows slice (2026-06-12)
+
+> Measured with the `dotnet-coverage` CLI (`dotnet-coverage collect -f cobertura -- dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/...`) because the test projects now run on Microsoft.Testing.Platform, which ignores the VSTest-based `coverlet.collector`. With this tool the Desktop project measured **70.4% line coverage** overall (not directly comparable to the coverlet baseline below, but no decrease).
+
+| Class | Line coverage | Notes |
+|---|---|---|
+| `CollectionFilterWorkflow` (+ `CollectionFilterResult`) | **100%** ✅ | Filter/sort/group pipeline incl. expansion-state preservation |
+| `CollectionInheritedHeadersWorkflow` (+ snapshot record) | **95.1%** ✅ | Debounce (TestScheduler), suppression scopes, persist/flush/save; uncovered lines are the flush await-in-flight-task branch and two defensive persist early-exits |
+| `CollectionsManagementCoordinator.ImportCollectionAsync` | **94.7%** ✅ | Valid spec, invalid spec, and stream-open failure paths |
+| `CollectionsManagementCoordinator.DeleteCollectionAsync` | **100%** ✅ | Null, selected, and unselected collection paths |
+
 ### New code introduced in UX idea 1.3 + Kestrel integration tests
 
 | Class | Line coverage | Notes |
