@@ -11,7 +11,7 @@ At the beginning of every session, read these files before making any decision o
 | File | Purpose |
 |------|---------|
 | `.github/copilot-instructions.md` | Full behavioral guidelines (canonical) |
-| `docs/review-checklist.md` | PR review items (CodeQL, security, UI, dependencies) |
+| `docs/reviews/implemented/review-checklist.md` | PR review items (CodeQL, security, UI, dependencies) |
 | `docs/ux-ideas.md` | UX backlog — update on every PR |
 | `docs/security-review.md` | Security posture and guidelines |
 | `docs/coding-guideline-suggestions.md` | Historical planning record — all items incorporated into copilot-instructions.md `[OPTIONAL]` |
@@ -34,5 +34,15 @@ At the beginning of every session, read these files before making any decision o
 - Test naming: `Method_Scenario_ExpectedResult` (e.g. `Parse_EmptyInput_ThrowsArgumentException`).
 - New or changed production code must include test coverage; new code must not lower overall coverage below the baseline in `docs/coverage.md`.
 - UI changes: run `./scripts/take-screenshots.sh`, commit output to `docs/screenshots/`, embed screenshots in PR description.
+
+## Claude Code on the web — getting the .NET SDK
+
+The remote session container does not ship with a .NET SDK, and the default network egress policy blocks the official .NET download hosts (`builds.dotnet.microsoft.com`, `download.visualstudio.microsoft.com`), so the official `dotnet-install.sh` script fails out of the box. Use one of these paths:
+
+1. **Automatic (preferred):** `.claude/hooks/session-start.sh` (registered in `.claude/settings.json`) runs at session start in remote sessions, installs `dotnet-sdk-10.0` from the Ubuntu apt archive, and restores NuGet packages.
+2. **Manual fallback inside a session:** `sudo apt-get update; sudo apt-get install -y dotnet-sdk-10.0` (the `apt-get update` may report failures for unrelated third-party sources — that is fine as long as the install succeeds).
+3. **Official SDK builds:** add `builds.dotnet.microsoft.com` (and `dotnet.microsoft.com`) to the Claude environment's network allowlist, then use the standard `dotnet-install.sh` with `--jsonfile global.json`.
+
+`global.json` pins SDK `10.0.100` with `rollForward: latestFeature` so both the Ubuntu-packaged `10.0.1xx` SDKs and newer official feature bands resolve. SDK roll-forward never selects a lower version, so do not raise the pinned feature band above what the Ubuntu archive ships unless the official download hosts are allowlisted in the Claude environment.
 
 For the full set of rules, always defer to `.github/copilot-instructions.md`.

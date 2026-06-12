@@ -20,6 +20,51 @@ var response = new HttpResponseMessage();
 using var response = new HttpResponseMessage();
 ```
 
+### No generic catch clauses — always filter
+
+Every `catch` must either enumerate concrete exception types or carry an exception filter. CodeQL reports an unfiltered `catch (Exception)` as "Generic catch clause" **even when a comment explains why it is intentional** (PR #221, alerts #302–#304).
+
+```csharp
+// ✗ Triggers CodeQL: Generic catch clause (the comment does not help)
+// Persistence failures must surface as an error message; the exception set is open-ended.
+catch (Exception exception)
+{
+    return Outcome.Failed(exception.Message);
+}
+
+// ✓ Correct — open-ended failure boundary with a negative filter
+catch (Exception exception) when (exception is not OutOfMemoryException)
+{
+    return Outcome.Failed(exception.Message);
+}
+
+// ✓ Correct — expected concrete types
+catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+{
+    ...
+}
+```
+
+Use `when (exception is not OperationCanceledException)` instead (or additionally) on paths where cancellation must propagate.
+
+### Dispose test-created scopes with `using`, even when disposed manually mid-test
+
+A disposable scope created in a test and disposed manually between assertions leaks if an earlier assertion throws — CodeQL reports "Dispose may not be called if an exception is thrown during execution" (PR #221, alert #305). Declare the scope with `using var` *and* keep the explicit mid-test `Dispose()` call; idempotent disposables (e.g. Rx `Disposable.Create`) make the second dispose a safe no-op.
+
+```csharp
+// ✗ Triggers CodeQL: leaked if the first assertion throws
+var outerScope = workflow.SuppressAutoSave();
+var innerScope = workflow.SuppressAutoSave();
+workflow.IsSuppressed.Should().BeTrue();
+innerScope.Dispose();
+
+// ✓ Correct — guaranteed disposal plus explicit mid-test disposal
+using var outerScope = workflow.SuppressAutoSave();
+using var innerScope = workflow.SuppressAutoSave();
+workflow.IsSuppressed.Should().BeTrue();
+innerScope.Dispose();
+```
+
 ### Use `.Where()` instead of implicit filtering in `foreach`
 
 When a `foreach` loop filters its target sequence with an inner `if` condition, replace the `if` with a `.Where()` call on the collection. This makes the intent explicit and avoids the CodeQL "Missed opportunity to use Where" diagnostic.

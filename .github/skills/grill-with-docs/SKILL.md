@@ -27,7 +27,7 @@ Before grilling a plan, read the canonical project instructions and the docs tha
 
 - [docs/vocabulary.md](../../../docs/vocabulary.md) for canonical terms and known ambiguities.
 - [docs/architecture/clean-feature-separation.md](../../../docs/architecture/clean-feature-separation.md) for feature-boundary guidance.
-- [docs/review-checklist.md](../../../docs/review-checklist.md) and [docs/security-review.md](../../../docs/security-review.md) when the plan touches PR readiness, security, networking, persistence, CI, or dependencies.
+- [docs/reviews/implemented/review-checklist.md](../../../docs/reviews/implemented/review-checklist.md) and [docs/security-review.md](../../../docs/security-review.md) when the plan touches PR readiness, security, networking, persistence, CI, or dependencies.
 - [docs/ux-ideas.md](../../../docs/ux-ideas.md) when the plan changes user workflows or introduces a new UX idea.
 
 Then inspect the relevant source files. If the user's claim and the code disagree, treat that disagreement as the next question to resolve.
@@ -39,7 +39,7 @@ Arbor.HttpClient already has a vocabulary document and architecture notes. Use t
 - Glossary and concept boundaries: update [docs/vocabulary.md](../../../docs/vocabulary.md). Follow [VOCABULARY-FORMAT.md](./VOCABULARY-FORMAT.md).
 - Architecture and hard-to-reverse decisions: prefer updating an existing file under [docs/architecture/](../../../docs/architecture/) when it is the natural home. If a formal ADR is genuinely warranted and no existing architecture document fits, create `docs/architecture/adr/` lazily and follow [ADR-FORMAT.md](./ADR-FORMAT.md).
 - UX backlog items: update [docs/ux-ideas.md](../../../docs/ux-ideas.md) using the repo's existing UX idea format.
-- Security or review guidance: update [docs/security-review.md](../../../docs/security-review.md), [docs/review-checklist.md](../../../docs/review-checklist.md), or [.github/copilot-instructions.md](../../copilot-instructions.md) only when the plan resolves a reusable process rule.
+- Security or review guidance: update [docs/security-review.md](../../../docs/security-review.md), [docs/reviews/implemented/review-checklist.md](../../../docs/reviews/implemented/review-checklist.md), or [.github/copilot-instructions.md](../../copilot-instructions.md) only when the plan resolves a reusable process rule.
 
 ## During The Session
 

@@ -82,8 +82,8 @@ public sealed class CollectionInheritedHeadersWorkflowTests
     {
         var harness = new Harness();
 
-        var outerScope = harness.Workflow.SuppressAutoSave();
-        var innerScope = harness.Workflow.SuppressAutoSave();
+        using var outerScope = harness.Workflow.SuppressAutoSave();
+        using var innerScope = harness.Workflow.SuppressAutoSave();
 
         harness.Workflow.IsAutoSaveSuppressed.Should().BeTrue();
         innerScope.Dispose();
