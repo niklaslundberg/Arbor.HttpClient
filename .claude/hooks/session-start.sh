@@ -14,6 +14,10 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
 
+# Run asynchronously so the session starts immediately; SDK install plus
+# NuGet restore can take a few minutes on a cold container.
+echo '{"async": true, "asyncTimeout": 600000}'
+
 # Idempotent: skip when an SDK that satisfies global.json is already installed.
 if command -v dotnet >/dev/null 2>&1 && dotnet --version >/dev/null 2>&1; then
   echo ".NET SDK already available: $(dotnet --version)"

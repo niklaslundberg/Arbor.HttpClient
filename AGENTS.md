@@ -39,7 +39,7 @@ At the beginning of every session, read these files before making any decision o
 
 The remote session container does not ship with a .NET SDK, and the default network egress policy blocks the official .NET download hosts (`builds.dotnet.microsoft.com`, `download.visualstudio.microsoft.com`), so the official `dotnet-install.sh` script fails out of the box. Use one of these paths:
 
-1. **Automatic (preferred):** `.claude/hooks/session-start.sh` (registered in `.claude/settings.json`) runs at session start in remote sessions, installs `dotnet-sdk-10.0` from the Ubuntu apt archive, and restores NuGet packages.
+1. **Automatic (preferred):** `.claude/hooks/session-start.sh` (registered in `.claude/settings.json`) runs at session start in remote sessions, installs `dotnet-sdk-10.0` from the Ubuntu apt archive, and restores NuGet packages. The hook runs **asynchronously** (up to 10 minutes) so the session starts immediately — early in a fresh session, if `dotnet` is not yet on `PATH`, the hook is still installing; wait for it to complete instead of installing in parallel.
 2. **Manual fallback inside a session:** `sudo apt-get update; sudo apt-get install -y dotnet-sdk-10.0` (the `apt-get update` may report failures for unrelated third-party sources — that is fine as long as the install succeeds).
 3. **Official SDK builds:** add `builds.dotnet.microsoft.com` (and `dotnet.microsoft.com`) to the Claude environment's network allowlist, then use the standard `dotnet-install.sh` with `--jsonfile global.json`.
 
