@@ -594,6 +594,73 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+  # Dedicated coverage job (see docs/coverage.md): kept separate from unit-tests
+  # so coverage instrumentation overhead does not affect its strict runtime budget.
+  code-coverage:
+    name: Code Coverage
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore Arbor.HttpClient.slnx --locked-mode
+
+      - name: Build
+        run: dotnet build Arbor.HttpClient.slnx --no-restore --configuration Release
+
+      - name: Run tests with coverage
+        run: |
+          run_with_coverage() {
+            local project_name="$1"
+            shift
+            dotnet test "src/${project_name}/${project_name}.csproj" \
+              --no-restore \
+              --no-build \
+              --configuration Release \
+              -- \
+              --coverage \
+              --coverage-output-format cobertura \
+              --coverage-output "$GITHUB_WORKSPACE/artifacts/coverage/${project_name}.cobertura.xml" \
+              "$@"
+          }
+
+          run_with_coverage Arbor.HttpClient.Core.Tests
+          run_with_coverage Arbor.HttpClient.Core.Integration.Tests
+          run_with_coverage Arbor.HttpClient.Storage.Sqlite.Tests
+          run_with_coverage Arbor.HttpClient.Desktop.E2E.Tests --filter-not-trait Category=Screenshots
+
+      - name: Generate coverage report
+        run: |
+          dotnet tool install -g dotnet-reportgenerator-globaltool
+          reportgenerator \
+            -reports:"artifacts/coverage/*.cobertura.xml" \
+            -targetdir:"artifacts/coverage/report" \
+            -reporttypes:"Html;MarkdownSummaryGithub"
+          {
+            echo "## Code Coverage"
+            cat artifacts/coverage/report/SummaryGithub.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: code-coverage
+          path: artifacts/coverage/*
+          retention-days: 14
+          if-no-files-found: error
+
   system-tests:
     name: System Tests (Runner UI Automation)
     needs: build
