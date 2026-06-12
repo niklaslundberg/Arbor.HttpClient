@@ -24,6 +24,15 @@ As of the latest build (2026-04-24, after adding Kestrel integration tests for W
 |---|---|---|
 | `ScheduledJobsWorkflow` | **100%** ✅ | Add (interval clamp), remove (null/persisted/unsaved), load (auto-start on/off, follow-redirects default, reload), dispose — all paths covered by `ScheduledJobsWorkflowTests` |
 
+### New code introduced in the request tabs + history slice (2026-06-12)
+
+> Measured with `dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/... -- --filter-class "...RequestTabsWorkflowTests" --filter-class "...RequestHistoryWorkflowTests" --coverage --coverage-output-format cobertura` (Microsoft.Testing.Extensions.CodeCoverage).
+
+| Class | Line coverage | Notes |
+|---|---|---|
+| `RequestTabsWorkflow` | **100%** ✅ | Add tab, close (null tab, only tab, inactive tab, active tab with later tab, active last tab) — all paths covered by `RequestTabsWorkflowTests` |
+| `RequestHistoryWorkflow` | **100%** ✅ | Load (ordering, search filter), `ApplyFilter` (case-insensitive match across name/url/method, empty-query restore, item identity preservation), `BuildEditorProjection` (null and non-null body) — all paths covered by `RequestHistoryWorkflowTests` |
+
 ### New code introduced in the collections UI workflows slice (2026-06-12)
 
 > Measured with the `dotnet-coverage` CLI (`dotnet-coverage collect -f cobertura -- dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/...`) because the test projects had moved to Microsoft.Testing.Platform, which ignores the VSTest-based `coverlet.collector`. With this tool the Desktop project measured **70.4% line coverage** overall (not directly comparable to the coverlet baseline below, but no decrease). The tooling gap has since been fixed: the test projects now reference `Microsoft.Testing.Extensions.CodeCoverage`, so plain `dotnet test ... -- --coverage` works again — see [Local Coverage Workflow](#locally) and [CI Integration](#ci-integration).

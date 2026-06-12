@@ -30,6 +30,7 @@ using Arbor.HttpClient.Desktop.Features.Diagnostics;
 using Arbor.HttpClient.Desktop.Features.Demo;
 using Arbor.HttpClient.Desktop.Features.Environments;
 using Arbor.HttpClient.Desktop.Features.GraphQl;
+using Arbor.HttpClient.Desktop.Features.History;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.Layout;
 using Arbor.HttpClient.Desktop.Features.Logging;
@@ -98,7 +99,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private SseViewModel _sseViewModel = null!;
     private CancellationTokenSource? _streamingCts;
     private readonly List<string> _tempFiles = [];
-    private readonly List<RequestHistoryEntry> _allHistory = [];
+    private readonly RequestHistoryWorkflow _requestHistoryWorkflow;
+    private readonly RequestTabsWorkflow _requestTabsWorkflow = new();
     private FileSystemWatcher? _requestBodyWatcher;
     private CancellationTokenSource? _fileWatcherCts;
     private int _requestBodyReadPending;
@@ -669,6 +671,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     {
         _httpRequestService = httpRequestService;
         _requestHistoryRepository = requestHistoryRepository;
+        _requestHistoryWorkflow = new RequestHistoryWorkflow(_requestHistoryRepository);
         _collectionRepository = collectionRepository;
         _scheduledJobService = scheduledJobService;
         _scheduledJobsWorkflow = new ScheduledJobsWorkflow(scheduledJobRepository, scheduledJobService);
@@ -819,7 +822,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _historyFilterDisposables.Add(_historyFilterRequestedSubject
             .Throttle(TimeSpan.FromMilliseconds(150))
             .DistinctUntilChanged(StringComparer.Ordinal)
-            .Subscribe(query => ApplyHistoryFilter(query)));
+            .Subscribe(query => _requestHistoryWorkflow.ApplyFilter(query)));
 
         _collectionSearchFilterDisposables.Add(_collectionSearchFilterRequestedSubject
             .Throttle(TimeSpan.FromMilliseconds(150))
@@ -880,12 +883,10 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             GetActiveVariablesForEditor,
             _debugLogger,
             QueueOptionsAutoSave);
-        RequestTabs = [];
         // NOTE: CreateRequestEditor() cannot be used here because it reads _applicationOptions
         // which is populated by ApplyOptions (called later in the constructor). The initial
         // tab is created with bare defaults; ApplyOptions then sets URL/content-type/etc.
-        var firstTab = new RequestTabViewModel(_requestEditor);
-        RequestTabs.Add(firstTab);
+        var firstTab = _requestTabsWorkflow.AddTab(_requestEditor);
         _activeRequestTab = firstTab;
         _lastAppliedRequestTab = firstTab;
         _environmentsViewModel = new EnvironmentsViewModel(
@@ -941,7 +942,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _sseViewModel = new SseViewModel(_protocolHttpClient, appLogger);
         _streamingConnectionWorkflow = new StreamingConnectionWorkflow(_requestEditor, _webSocketViewModel, _sseViewModel);
 
-        History = [];
         Collections = [];
         CollectionItems = [];
         CollectionInheritedHeaders = [];
@@ -1088,7 +1088,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _responseActions = new ResponseActionsViewModel(this);
     }
 
-    public ObservableCollection<RequestHistoryEntry> History { get; }
+    public ObservableCollection<RequestHistoryEntry> History => _requestHistoryWorkflow.History;
     public ObservableCollection<Collection> Collections { get; }
     public ObservableCollection<CollectionItemViewModel> CollectionItems { get; }
     public ObservableCollection<RequestHeaderViewModel> CollectionInheritedHeaders { get; }
@@ -1117,7 +1117,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     /// <summary>
     /// The collection of open request tabs. There is always at least one tab.
     /// </summary>
-    public ObservableCollection<RequestTabViewModel> RequestTabs { get; }
+    public ObservableCollection<RequestTabViewModel> RequestTabs => _requestTabsWorkflow.Tabs;
 
     private void ApplyActiveRequestTab()
     {
@@ -1148,32 +1148,16 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [ReactiveCommand]
     private void NewRequestTab()
     {
-        var tab = new RequestTabViewModel(CreateRequestEditor());
-        RequestTabs.Add(tab);
-        ActiveRequestTab = tab;
+        ActiveRequestTab = _requestTabsWorkflow.AddTab(CreateRequestEditor());
     }
 
     [ReactiveCommand]
     private void CloseRequestTab(RequestTabViewModel? tab)
     {
-        if (tab is null || RequestTabs.Count <= 1)
+        if (_requestTabsWorkflow.CloseTab(tab, ActiveRequestTab) is { } nextActiveTab)
         {
-            return;
+            ActiveRequestTab = nextActiveTab;
         }
-
-        if (ReferenceEquals(ActiveRequestTab, tab))
-        {
-            var index = RequestTabs.IndexOf(tab);
-            RequestTabs.Remove(tab);
-            var newIndex = Math.Max(0, Math.Min(index, RequestTabs.Count - 1));
-            ActiveRequestTab = RequestTabs[newIndex];
-        }
-        else
-        {
-            RequestTabs.Remove(tab);
-        }
-
-        tab.Dispose();
     }
 
     /// <summary>
@@ -2725,36 +2709,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         }
     }
 
-    private void ApplyHistoryFilter(string query)
-    {
-        var filtered = string.IsNullOrWhiteSpace(query)
-            ? _allHistory
-            : _allHistory
-                .Where(item =>
-                    item.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
-                    || item.Url.Contains(query, StringComparison.OrdinalIgnoreCase)
-                    || item.Method.Contains(query, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-        // Remove items no longer in the filtered set
-        for (var i = History.Count - 1; i >= 0; i--)
-        {
-            if (!filtered.Contains(History[i]))
-            {
-                History.RemoveAt(i);
-            }
-        }
-
-        // Append items that are missing, maintaining order
-        for (var i = 0; i < filtered.Count; i++)
-        {
-            if (i >= History.Count || !ReferenceEquals(History[i], filtered[i]))
-            {
-                History.Insert(i, filtered[i]);
-            }
-        }
-    }
-
     private async Task SendRequestAsync(CancellationToken cancellationToken)
     {
         ErrorMessage = string.Empty;
@@ -2852,17 +2806,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     public static string FormatByteSize(long byteCount) =>
         HttpResponseProjectionWorkflow.FormatByteSize(byteCount);
 
-    private async Task LoadHistoryAsync(CancellationToken cancellationToken = default)
-    {
-        var requests = (await _requestHistoryRepository.GetRecentAsync(100, cancellationToken))
-            .OrderByDescending(item => item.CreatedAtUtc)
-            .ToList();
-
-        _allHistory.Clear();
-        _allHistory.AddRange(requests);
-
-        ApplyHistoryFilter(HistorySearchQuery);
-    }
+    private Task LoadHistoryAsync(CancellationToken cancellationToken = default) =>
+        _requestHistoryWorkflow.LoadAsync(HistorySearchQuery, cancellationToken);
 
     [ReactiveCommand]
     private void LoadHistoryRequest(RequestHistoryEntry? request)
@@ -2872,11 +2817,12 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return;
         }
 
+        var projection = RequestHistoryWorkflow.BuildEditorProjection(request);
         _requestEditor.SelectedRequestType = RequestType.Http;
-        _requestEditor.SelectedMethod = request.Method;
-        _requestEditor.RequestName = request.Name;
-        _requestEditor.RequestUrl = request.Url;
-        _requestEditor.RequestBody = request.Body ?? string.Empty;
+        _requestEditor.SelectedMethod = projection.Method;
+        _requestEditor.RequestName = projection.Name;
+        _requestEditor.RequestUrl = projection.Url;
+        _requestEditor.RequestBody = projection.Body;
         _requestEditor.RequestHeaders.Clear();
         _requestEditor.EnsurePlaceholderRows();
         LeftPanelTab = "History";
