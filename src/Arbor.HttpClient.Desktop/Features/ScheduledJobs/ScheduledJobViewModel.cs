@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Diagnostics;
-using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Desktop.Features.WebView;
 using Arbor.HttpClient.Desktop.Shared;
@@ -165,7 +164,7 @@ public sealed partial class ScheduledJobViewModel : ReactiveViewModelBase
         new(Id, Name, Method, Url,
             string.IsNullOrWhiteSpace(Body) ? null : Body,
             null, // headers not yet supported in the scheduled-job editor
-            Math.Max(MainWindowViewModel.MinScheduledJobIntervalSeconds, IntervalSeconds),
+            Math.Max(ScheduledJobsWorkflow.MinIntervalSeconds, IntervalSeconds),
             AutoStart,
             FollowRedirects,
             UseWebView: UseWebView);

@@ -2,7 +2,7 @@
 
 ## Context
 
-`MainWindowViewModel` contains multiple feature areas and coordination responsibilities in one class (about 4,000 lines when this plan was written; about 3,140 lines as of 2026-06-12). This slows down feature work, increases regression risk, and makes focused testing harder.
+`MainWindowViewModel` contains multiple feature areas and coordination responsibilities in one class (about 4,000 lines when this plan was written; about 3,090 lines as of 2026-06-12 after the scheduled-jobs slice). This slows down feature work, increases regression risk, and makes focused testing harder.
 
 This document is a persisted implementation plan for splitting feature logic from `MainWindowViewModel` while keeping behavior stable.
 
@@ -93,7 +93,7 @@ Recommended extraction order (lowest coupling first):
 1. ✅ Response actions (copy/save/open external) — see below
 2. ✅ Demo server lifecycle — `DemoDataWorkflow` + `DemoServerLifecycleCoordinator` (`Features/Demo/`)
 3. ✅ Collections workflows — `CollectionsWorkflow` + `CollectionsManagementCoordinator` (create/rename/add/import/delete), `CollectionInheritedHeadersWorkflow` (debounced autosave + persistence), and `CollectionFilterWorkflow` (filter/sort/group) in `Features/Collections/`; Main keeps form-visibility state and editor live-preview projection
-4. Scheduled jobs workflows — `ScheduledJobService` exists, but add/remove commands and persistence hooks are still in `MainWindowViewModel`
+4. ✅ Scheduled jobs workflows — `ScheduledJobsWorkflow` (`Features/ScheduledJobs/`) owns the job-list lifecycle (add/remove/load incl. auto-start on launch); Main keeps the `[ReactiveCommand]` entry points and left-panel tab state
 5. ✅ Request execution orchestration — `HttpRequestWorkflow` + `ManualHttpRequestCoordinator` + `HttpResponseProjectionWorkflow` (`Features/HttpRequest/`), `GraphQlRequestWorkflow` + `ManualGraphQlRequestCoordinator` (`Features/GraphQl/`), `StreamingConnectionWorkflow` (`Features/Streaming/`)
 6. Draft/options autosave orchestration — options `Apply*`/save/import/export and the autosave subjects are still in `MainWindowViewModel`; layout has partial extraction via `LayoutWorkflow` + `LayoutTreeWorkflow` (`Features/Layout/`)
 
@@ -113,7 +113,7 @@ Recommended extraction order (lowest coupling first):
 | Collections inherited-headers auto-save | `CollectionInheritedHeadersWorkflow` | ✅ Done (2026-06-12) — debounce, suppression scopes, pending/flush, persistence; Main keeps dispatcher marshalling and the live-preview editor sync |
 | Layout tree/restore | `LayoutWorkflow`, `LayoutTreeWorkflow` | 🔶 Partial — named layouts, geometry, and persistence still in Main |
 | Options persistence | `ApplicationOptionsWorkflow`, `ApplicationOptionsSnapshot`, `OptionsPersistenceOutcome` | ✅ Done — auto-save debounce, build/validate, save/export/import; the per-option `Apply*` UI projections stay in Main by design (they mutate Avalonia/app state) |
-| Scheduled jobs add/remove | — | ❌ Not started |
+| Scheduled jobs add/remove | `ScheduledJobsWorkflow` | ✅ Done (2026-06-12) — add (interval clamped to `MinIntervalSeconds`), remove (stop + delete + dispose), load with auto-start-on-launch, and job VM disposal; Main keeps the commands and `LeftPanelTab` switch |
 | Request tabs + history | — | ❌ Not started |
 
 <a id="remaining-slices--ordered-plan-2026-06-11"></a>
@@ -123,8 +123,8 @@ Execute one slice per PR, in this order (lowest coupling first), following the W
 
 1. ~~**Options workflow**~~ ✅ Done — `ApplicationOptionsWorkflow` (`Features/Options/`) owns the debounced auto-save pipeline (injectable `IScheduler`, `TestScheduler`-tested), nesting auto-save suppression scopes, snapshot-based `BuildOptions` validation, and the save/export/import persistence flows with `OptionsPersistenceOutcome` results. Main keeps the option `[Reactive]` properties, the per-option `Apply*` UI projections (theme/font/TLS mutate Avalonia and service state), and the file pickers. Tests: `ApplicationOptionsWorkflowTests` + `ApplicationOptionsWorkflowPersistenceTests`.
 2. ~~**Collections UI workflows**~~ ✅ Done (2026-06-12) — `CollectionInheritedHeadersWorkflow` owns the inherited-headers debounced auto-save (injectable `IScheduler`, `TestScheduler`-tested), suppression scopes, pending/flush tracking, snapshot persistence, and the shared `BuildHeaders`/`MergeCollectionAndRequestHeaders`/`HeadersEqual` helpers; `CollectionFilterWorkflow` owns filter/sort/group with expansion-state preservation; import/delete moved into `CollectionsManagementCoordinator` (`ImportCollectionOutcome`/`DeleteCollectionOutcome`). Main keeps the `[Reactive]` form-visibility state (per the established convention), the dispatcher marshalling, the file picker, and the live-preview editor sync (`SyncActiveCollectionRequestInheritedHeaders` projects onto the request editor). DynamicData was considered and deliberately not adopted — the extracted pipeline stays behavior-identical; revisit if the history slice adopts it. Tests: `CollectionInheritedHeadersWorkflowTests`, `CollectionFilterWorkflowTests`, `CollectionsManagementCoordinatorTests`.
-3. **Scheduled jobs workflow** *(next)* — move `AddScheduledJob`/`RemoveScheduledJobAsync` and persistence hooks into a `ScheduledJobsWorkflow` next to `ScheduledJobService`.
-4. **Request tabs + history** — extract tab lifecycle (`NewRequestTab`, `CloseRequestTab`, `ApplyActiveRequestTab`, `SaveResponseStateForTab`) and history load/filter (`LoadHistoryAsync`, `ApplyHistoryFilter`, `LoadHistoryRequest`) into feature-scoped classes.
+3. ~~**Scheduled jobs workflow**~~ ✅ Done (2026-06-12) — `ScheduledJobsWorkflow` (`Features/ScheduledJobs/`) owns the `Jobs` collection and its lifecycle: `AddJob` (interval clamped to the moved `MinIntervalSeconds` constant), `RemoveJobAsync` (stop + repository delete + dispose), `LoadJobsAsync` (replace + optional auto-start on launch), and disposal of job view models. Main keeps the `[ReactiveCommand]` entry points, the `ScheduledJobs` pass-through property for XAML, and the `LeftPanelTab` switch. Tests: `ScheduledJobsWorkflowTests` (uses a never-advanced `TestScheduler` on `ScheduledJobService` so started jobs never tick).
+4. **Request tabs + history** *(next)* — extract tab lifecycle (`NewRequestTab`, `CloseRequestTab`, `ApplyActiveRequestTab`, `SaveResponseStateForTab`) and history load/filter (`LoadHistoryAsync`, `ApplyHistoryFilter`, `LoadHistoryRequest`) into feature-scoped classes.
 5. **Layout management** — finish the layout slice: named layout save/restore/remove, window geometry, `PersistCurrentLayout`/`ApplyLayoutSnapshot`/`ReapplyStartupLayout` on top of the existing `LayoutWorkflow`/`LayoutTreeWorkflow`. Largest and riskiest; do it once the rest of Main is thin.
 6. **Phase 3 delegation cleanup** — remove `IResponseActionsContext` pass-throughs and other temporary delegation from Main once XAML binds to feature VMs directly.
 7. **DockFactory feature registrations** — only after the slices above: replace the `MainWindowViewModel` constructor dependency in `DockFactory` with per-feature dockable registrations (step 2 in `clean-feature-separation.md`). Deliberately deferred so registrations can point at clean feature VMs.

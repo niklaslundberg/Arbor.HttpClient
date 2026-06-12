@@ -12,7 +12,7 @@ This document answers the architecture questions raised in [issue #33](https://g
 
 ## Findings
 
-> **Update 2026-06-12:** extraction is well underway. Request execution (HTTP/GraphQL/WebSocket/SSE), response projection, response actions, the demo-server lifecycle, options persistence (auto-save/save/export/import via `ApplicationOptionsWorkflow`), and the collections workflows (management incl. import/delete via `CollectionsManagementCoordinator`, inherited-headers autosave via `CollectionInheritedHeadersWorkflow`, filter/sort/group via `CollectionFilterWorkflow`) now live in feature-scoped Workflow/Coordinator classes; layout is partially extracted. `MainWindowViewModel` still owns the per-option UI projections, named-layout management, request tabs, history, and scheduled-job commands. Current status and the ordered forward plan live in [`mainwindowviewmodel-split-plan.md`](mainwindowviewmodel-split-plan.md). The findings below describe the original state and are kept for context.
+> **Update 2026-06-12:** extraction is well underway. Request execution (HTTP/GraphQL/WebSocket/SSE), response projection, response actions, the demo-server lifecycle, options persistence (auto-save/save/export/import via `ApplicationOptionsWorkflow`), the collections workflows (management incl. import/delete via `CollectionsManagementCoordinator`, inherited-headers autosave via `CollectionInheritedHeadersWorkflow`, filter/sort/group via `CollectionFilterWorkflow`), and the scheduled-jobs lifecycle (add/remove/load incl. auto-start via `ScheduledJobsWorkflow`) now live in feature-scoped Workflow/Coordinator classes; layout is partially extracted. `MainWindowViewModel` still owns the per-option UI projections, named-layout management, request tabs, and history. Current status and the ordered forward plan live in [`mainwindowviewmodel-split-plan.md`](mainwindowviewmodel-split-plan.md). The findings below describe the original state and are kept for context.
 
 - **Monolithic main view model**: `MainWindowViewModel` (~2,500 lines at the time of writing) owns request editing, response rendering, history, collections, environments, options, scheduling, layout persistence, and logging. All UI actions pass through this single type, so responsibilities are tightly coupled.
 - **Child view models are thin proxies**: dockable VMs such as `RequestViewModel`, `ResponseViewModel`, `LeftPanelViewModel`, and `OptionsViewModel` simply forward to `MainWindowViewModel`. Reusing them elsewhere still drags the entire main VM with it.
@@ -111,7 +111,7 @@ Features/
                             OptionsViewModel, OptionsView, per-page option views (HttpOptionsPageView,
                             LookAndFeelOptionsPageView, DiagnosticsOptionsPageView, ManageOptionsPageView,
                             ScheduledJobsOptionsPageView)
-  ScheduledJobs/          — ScheduledJobService, ScheduledJobViewModel, ScheduledJobsOptions
+  ScheduledJobs/          — ScheduledJobService, ScheduledJobsWorkflow, ScheduledJobViewModel, ScheduledJobsOptions
   Scripting/              — RoslynScriptRunner, ScriptViewModel
   Sse/                    — SseViewModel
   Streaming/              — StreamingConnectionWorkflow
@@ -135,7 +135,7 @@ Shared/                   — ReactiveViewModelBase, ReactiveToolBase, Disposabl
 
 ## Ordered next steps
 
-0. Use the execution plan in [`docs/architecture/mainwindowviewmodel-split-plan.md`](mainwindowviewmodel-split-plan.md) for incremental extraction work and communication-pattern decisions — see its "Remaining slices — ordered plan" section for the current slice order (next up: Scheduled jobs workflow).
+0. Use the execution plan in [`docs/architecture/mainwindowviewmodel-split-plan.md`](mainwindowviewmodel-split-plan.md) for incremental extraction work and communication-pattern decisions — see its "Remaining slices — ordered plan" section for the current slice order (next up: Request tabs + history).
 1. ~~Feature-centric folder structure~~ ✅ Complete — all projects now use vertical-slice feature folders.
 2. Refactor `DockFactory` to consume feature registrations and stop requiring a `MainWindowViewModel` reference. **Decision 2026-06-11: deliberately deferred until after the remaining `MainWindowViewModel` slices are extracted**, so registrations can target clean feature VMs.
 3. ~~Evaluate whether a mediator/event-bus is needed after 1–2 successful slice extractions.~~ ✅ Resolved — several extractions later, direct Workflow/Coordinator calls plus `IObservable<T>` endpoints cover all communication needs; mediator/event-bus rejected (see the split plan's "Current guidance" section).
