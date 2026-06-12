@@ -113,8 +113,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private readonly LayoutWorkflow _layoutWorkflow = new();
     private readonly LayoutTreeWorkflow _layoutTreeWorkflow = new();
     private ApplicationOptions _applicationOptions = new();
-    private readonly Dictionary<string, DockLayoutSnapshot> _savedLayouts = new(StringComparer.OrdinalIgnoreCase);
-    private int _layoutNameCounter = 1;
     private bool _suppressLayoutRestore;
     private CancellationTokenSource? _sendRequestCts;
     private readonly ApplicationOptionsWorkflow _optionsWorkflow;
@@ -947,7 +945,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         CollectionInheritedHeaders = [];
         FilteredCollectionItems = [];
         CollectionGroups = [];
-        SavedLayoutNames = [];
 
         // Cancellation: ExecutePrimaryAction cancels _sendRequestCts, which is linked to the
         // execution's CancellationToken — equivalent to the old AsyncRelayCommand.Cancel().
@@ -1104,7 +1101,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     public ObservableCollection<RequestEnvironment> Environments => _environmentsViewModel.Environments;
     public ObservableCollection<EnvironmentVariableViewModel> ActiveEnvironmentVariables => _environmentsViewModel.ActiveEnvironmentVariables;
     public ObservableCollection<ScheduledJobViewModel> ScheduledJobs => _scheduledJobsWorkflow.Jobs;
-    public ObservableCollection<string> SavedLayoutNames { get; }
+    public ObservableCollection<string> SavedLayoutNames => _layoutWorkflow.SavedLayoutNames;
     public LogWindowViewModel LogWindowViewModel => _logWindowViewModel;
     public RequestEditorViewModel RequestEditor => _requestEditor;
     public EnvironmentsViewModel EnvironmentsPanel => _environmentsViewModel;
@@ -1337,24 +1334,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     private void ApplyLayoutOptions(LayoutOptions? layouts)
     {
-        _savedLayouts.Clear();
-        SavedLayoutNames.Clear();
-
-        if (layouts?.SavedLayouts is { } savedLayouts)
-        {
-            foreach (var namedLayout in savedLayouts)
-            {
-                if (!string.IsNullOrWhiteSpace(namedLayout.Name) && namedLayout.Layout is { } layout)
-                {
-                    _savedLayouts[namedLayout.Name] = layout;
-                    SavedLayoutNames.Add(namedLayout.Name);
-                }
-            }
-        }
-
-        SelectedLayoutName = SavedLayoutNames.FirstOrDefault();
+        SelectedLayoutName = _layoutWorkflow.LoadFromOptions(layouts);
         ApplyLayoutSnapshot(layouts?.CurrentLayout);
-        UpdateLayoutNameCounter();
     }
 
     [ReactiveCommand]
@@ -1468,7 +1449,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return;
         }
 
-        if (_savedLayouts.TryGetValue(SelectedLayoutName, out var snapshot))
+        if (_layoutWorkflow.TryGetLayout(SelectedLayoutName, out var snapshot))
         {
             ApplyLayoutSnapshot(snapshot);
             PersistLayoutOptions();
@@ -1479,14 +1460,13 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private void SaveLayoutAsNew()
     {
         RefreshDockTreeCache();
-        var savedLayoutName = _layoutWorkflow.SaveLayoutAsNew(CaptureLayoutSnapshot, GenerateNextLayoutName, _savedLayouts);
+        var savedLayoutName = _layoutWorkflow.SaveLayoutAsNew(CaptureLayoutSnapshot);
         if (string.IsNullOrWhiteSpace(savedLayoutName))
         {
             return;
         }
 
         _suppressLayoutRestore = true;
-        RefreshSavedLayoutNames();
         SelectedLayoutName = savedLayoutName;
         _suppressLayoutRestore = false;
         PersistLayoutOptions();
@@ -1496,13 +1476,12 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private void SaveLayoutToExisting(string? layoutName)
     {
         RefreshDockTreeCache();
-        if (!_layoutWorkflow.SaveLayoutToExisting(layoutName, CaptureLayoutSnapshot, _savedLayouts))
+        if (!_layoutWorkflow.SaveLayoutToExisting(layoutName, CaptureLayoutSnapshot))
         {
             return;
         }
 
         _suppressLayoutRestore = true;
-        RefreshSavedLayoutNames();
         SelectedLayoutName = layoutName;
         _suppressLayoutRestore = false;
         PersistLayoutOptions();
@@ -1525,14 +1504,13 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [ReactiveCommand]
     private void RemoveLayout(string? layoutName)
     {
-        var removeLayoutResult = _layoutWorkflow.RemoveLayout(layoutName, _savedLayouts, SelectedLayoutName);
+        var removeLayoutResult = _layoutWorkflow.RemoveLayout(layoutName, SelectedLayoutName);
         if (!removeLayoutResult.Removed)
         {
             return;
         }
 
         _suppressLayoutRestore = true;
-        RefreshSavedLayoutNames();
         SelectedLayoutName = removeLayoutResult.SelectedLayoutName;
         _suppressLayoutRestore = false;
         PersistLayoutOptions();
@@ -2615,14 +2593,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         new()
         {
             CurrentLayout = CaptureLayoutSnapshot(),
-            SavedLayouts = _savedLayouts
-                .OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
-                .Select(item => new NamedDockLayout
-                {
-                    Name = item.Key,
-                    Layout = item.Value
-                })
-                .ToList()
+            SavedLayouts = _layoutWorkflow.BuildNamedLayouts().ToList()
         };
 
     private void PersistLayoutOptions()
@@ -2682,30 +2653,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         if (applyResult.Applied)
         {
             RefreshDockTreeCache();
-        }
-    }
-
-    private string GenerateNextLayoutName()
-    {
-        UpdateLayoutNameCounter();
-        return $"Layout {_layoutNameCounter++}";
-    }
-
-    private void RefreshSavedLayoutNames()
-    {
-        var names = _savedLayouts.Keys.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList();
-        SavedLayoutNames.Clear();
-        foreach (var name in names)
-        {
-            SavedLayoutNames.Add(name);
-        }
-    }
-
-    private void UpdateLayoutNameCounter()
-    {
-        while (_savedLayouts.ContainsKey($"Layout {_layoutNameCounter}"))
-        {
-            _layoutNameCounter++;
         }
     }
 
