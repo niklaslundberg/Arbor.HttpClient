@@ -14,7 +14,7 @@ Read these files before making any decision or change:
 | File | Why |
 |------|-----|
 | `.github/copilot-instructions.md` | Full behavioral guidelines (canonical) |
-| `docs/review-checklist.md` | PR review items (CodeQL, security, UI, dependencies) |
+| `docs/reviews/implemented/review-checklist.md` | PR review items (CodeQL, security, UI, dependencies) |
 | `docs/ux-ideas.md` | UX backlog — update on every PR |
 | `docs/security-review.md` | Security posture and guidelines |
 | `docs/coding-guideline-suggestions.md` | Historical planning record `[OPTIONAL]` — all items incorporated into copilot-instructions.md |

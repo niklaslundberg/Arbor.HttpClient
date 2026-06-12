@@ -154,14 +154,15 @@ This project makes use of third-party packages. Their licenses and attribution d
 
 ---
 
-## coverlet.collector
+## Microsoft.Testing.Extensions.CodeCoverage
 
-**Package:** coverlet.collector  
-**Version:** 10.0.0  
-**Authors:** tonerdo  
-**Project URL:** https://github.com/coverlet-coverage/coverlet  
-**License:** MIT  
-**Note:** Test-only dependency, not included in production builds.
+**Package:** Microsoft.Testing.Extensions.CodeCoverage  
+**Version:** 18.0.6  
+**Authors:** Microsoft  
+**Copyright:** © Microsoft Corporation. All rights reserved.  
+**Project URL:** https://github.com/microsoft/codecoverage  
+**License:** MICROSOFT SOFTWARE LICENSE TERMS — MICROSOFT .NET LIBRARY (proprietary, free to install and use for designing, developing, and testing applications)  
+**Note:** Test-only dependency, not included in production builds or redistributed. License reviewed per the repository license policy: the official Microsoft.Testing.Platform coverage extension (the MIT-licensed `coverlet.collector` only supports VSTest and is silently ignored under Microsoft.Testing.Platform); usage here (collecting coverage during test runs) is within the license's installation-and-use rights, and the package never ships with the application.
 
 ---
 

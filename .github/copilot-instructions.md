@@ -12,7 +12,7 @@ Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-s
 |------|---------|
 | `README.md` | Project overview and quick-start |
 | `docs/ux-ideas.md` | UX enhancement backlog with scope estimates |
-| `docs/review-checklist.md` | Common CodeQL / security / UI review items to check before every PR |
+| `docs/reviews/implemented/review-checklist.md` | Common CodeQL / security / UI review items to check before every PR |
 | `docs/security-review.md` | Security posture, findings, and guidelines for future PRs |
 | `docs/coding-guideline-suggestions.md` | Historical planning record — all items now incorporated into this file `[OPTIONAL]` |
 | `docs/coverage.md` | Code coverage baseline, targets, and CI integration — **single source of truth for coverage numbers** |
@@ -106,6 +106,7 @@ For multi-step tasks, state a brief plan with a verify step for each.
 | **Unit tests** | `dotnet test src/Arbor.HttpClient.Core.Tests/Arbor.HttpClient.Core.Tests.csproj --no-restore --configuration Release` |
 | **E2E tests** | `dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/Arbor.HttpClient.Desktop.E2E.Tests.csproj --no-restore --configuration Release` |
 | **UX screenshots** | `./scripts/take-screenshots.sh` *(UI changes only — commits to `docs/screenshots/`)* |
+| **CodeQL (GitHub Advanced Security)** | No local runner — before pushing, self-review every changed/added file against the "CodeQL / Static Analysis" section of `docs/reviews/implemented/review-checklist.md` (generic catch clauses, missed `readonly`, dispose-on-throw incl. test scopes, implicit `foreach` filtering). GHAS comments on the PR are late feedback; catching these locally avoids post-review fix commits. |
 | **Agent instructions sync** | PowerShell: `Compare-Object (Get-Content CLAUDE.md \| Select-Object -Skip 1) (Get-Content AGENTS.md \| Select-Object -Skip 1)` |
 
 ## 6. Runtime Validation Before PR Ready
@@ -187,6 +188,7 @@ For multi-step tasks, state a brief plan with a verify step for each.
 - Use bare `throw;` when rethrowing — never `throw ex;`.
 - Catch only exceptions you can handle; let the rest propagate.
 - **[REQUIRED][QUALITY]** Never use `catch {}` or unfiltered `catch (Exception) {}`. Use `catch (Exception ex) when (ex is X or Y)` to enumerate concrete expected types. Bare catches trigger CodeQL `cs/catch-of-all-exceptions`.
+- **[REQUIRED][QUALITY]** For open-ended failure boundaries (persistence/import/export flows that convert any failure into an outcome record or error message), enumerating concrete types is not possible — use a negative exception filter instead: `catch (Exception exception) when (exception is not OutOfMemoryException)`. Exclude `OperationCanceledException` too (`when (exception is not OperationCanceledException)`) when cancellation must propagate. An unfiltered `catch (Exception)` triggers the CodeQL "Generic catch clause" finding **even when a comment justifies it** (recurred in PR #221, alerts #302–#304); a filter is mandatory.
 - **[REQUIRED][QUALITY]** Remove `try/catch` wrappers entirely when the enclosed code cannot realistically throw.
 
 ## 12. Path-Handling Conventions
@@ -252,7 +254,7 @@ Apply self-contained improvements directly to `.github/copilot-instructions.md` 
 ```markdown
 ## PR Compliance Checklist
 
-### From docs/review-checklist.md
+### From docs/reviews/implemented/review-checklist.md
 - [ ] **[BLOCKING]** All tests pass (`dotnet test Arbor.HttpClient.slnx`)
 - [ ] **[BLOCKING]** No secrets or credentials committed
 - [ ] **[BLOCKING]** No compiler warnings introduced

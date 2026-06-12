@@ -78,7 +78,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private CollectionsManagementCoordinator _collectionsManagementCoordinator = null!;
     private readonly ScheduledJobService _scheduledJobService;
     private readonly LogWindowViewModel _logWindowViewModel;
-    private readonly OpenApiImportService _openApiImportService;
     private readonly VariableResolver _variableResolver;
     private readonly ApplicationOptionsStore? _applicationOptionsStore;
     private readonly Action<ApplicationOptions>? _onApplicationOptionsChanged;
@@ -118,15 +117,11 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private CancellationTokenSource? _sendRequestCts;
     private readonly ApplicationOptionsWorkflow _optionsWorkflow;
     private readonly CompositeDisposable _optionsAutoSaveDisposables = new();
-    private bool _suppressCollectionInheritedHeadersAutoSave;
     private bool _suppressCollectionInheritedHeadersLivePreviewSync;
-    private readonly Subject<CollectionInheritedHeadersAutoSaveSnapshot> _collectionInheritedHeadersAutoSaveRequestedSubject = new();
+    private readonly CollectionInheritedHeadersWorkflow _collectionInheritedHeadersWorkflow;
+    private readonly CollectionFilterWorkflow _collectionFilterWorkflow = new();
     private readonly CompositeDisposable _collectionInheritedHeadersAutoSaveDisposables = new();
     private readonly CompositeDisposable _crossFeatureDisposables = new();
-    private Task? _collectionInheritedHeadersAutoSaveTask;
-    private int _collectionInheritedHeadersAutoSaveVersion;
-    private bool _hasPendingCollectionInheritedHeadersAutoSave;
-    private CollectionInheritedHeadersAutoSaveSnapshot? _pendingCollectionInheritedHeadersAutoSaveSnapshot;
     private DockLayoutSnapshot? _defaultLayout;
     private byte[] _lastResponseBodyBytes = [];
     private readonly DraftPersistenceService? _draftPersistenceService;
@@ -171,21 +166,13 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     // re-measures with the saved proportions once all visual bindings are in place.
     private DockLayoutSnapshot? _startupLayoutSnapshot;
 
-    private sealed record CollectionInheritedHeadersAutoSaveSnapshot(
-        int CollectionId,
-        string CollectionName,
-        string? CollectionSourcePath,
-        string? CollectionBaseUrl,
-        IReadOnlyList<CollectionRequest> CollectionRequests,
-        IReadOnlyList<RequestHeader>? InheritedHeaders);
-
     // Needed for file picker – set by the view
     public IStorageProvider? StorageProvider { get; set; }
 
     // Needed for clipboard (e.g. "Copy as cURL" on history items) – set by the view
     public IClipboard? Clipboard { get; set; }
 
-    public bool HasPendingCollectionInheritedHeadersAutoSave => _hasPendingCollectionInheritedHeadersAutoSave;
+    public bool HasPendingCollectionInheritedHeadersAutoSave => _collectionInheritedHeadersWorkflow.HasPendingAutoSave;
 
     /// <summary>
     /// Exposes the extracted response-actions coordinator.
@@ -506,9 +493,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         IsRenameCollectionFormVisible = false;
         RenameCollectionName = string.Empty;
 
-        var previousSuppressCollectionInheritedHeadersAutoSave = _suppressCollectionInheritedHeadersAutoSave;
-        _suppressCollectionInheritedHeadersAutoSave = true;
-        try
+        using (_collectionInheritedHeadersWorkflow.SuppressAutoSave())
         {
             CollectionItems.Clear();
             CollectionInheritedHeaders.Clear();
@@ -532,10 +517,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
                     }
                 }
             }
-        }
-        finally
-        {
-            _suppressCollectionInheritedHeadersAutoSave = previousSuppressCollectionInheritedHeadersAutoSave;
         }
 
         ApplyCollectionFilter();
@@ -693,7 +674,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _scheduledJobRepository = scheduledJobRepository;
         _scheduledJobService = scheduledJobService;
         _logWindowViewModel = logWindowViewModel;
-        _openApiImportService = new OpenApiImportService();
         _variableResolver = new VariableResolver();
         _applicationOptionsStore = applicationOptionsStore;
         _onApplicationOptionsChanged = onApplicationOptionsChanged;
@@ -704,9 +684,22 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _debugLogger = appLogger.ForContext("LogTab", LogTab.Debug);
         _httpRequestsLogger = appLogger.ForContext("LogTab", LogTab.HttpRequests);
 
-        _collectionInheritedHeadersAutoSaveDisposables.Add(_collectionInheritedHeadersAutoSaveRequestedSubject
-            .Throttle(TimeSpan.FromSeconds(1))
-            .Subscribe(snapshot => Dispatcher.UIThread.Post(() => TriggerCollectionInheritedHeadersAutoSave(snapshot))));
+        _collectionInheritedHeadersWorkflow = new CollectionInheritedHeadersWorkflow(
+            _collectionRepository,
+            collectionId => Collections?.FirstOrDefault(collection => collection.Id == collectionId),
+            LoadCollectionsAsync,
+            collectionId =>
+            {
+                if (SelectedCollection?.Id == collectionId)
+                {
+                    SelectedCollection = Collections?.FirstOrDefault(collection => collection.Id == collectionId);
+                }
+            },
+            _debugLogger,
+            invokeOnUiThreadAsync: persistAsync => Dispatcher.UIThread.InvokeAsync(persistAsync, DispatcherPriority.Background));
+
+        _collectionInheritedHeadersAutoSaveDisposables.Add(_collectionInheritedHeadersWorkflow.AutoSaveRequested
+            .Subscribe(snapshot => Dispatcher.UIThread.Post(() => _ = _collectionInheritedHeadersWorkflow.TriggerAutoSave(snapshot))));
 
         _optionsWorkflow = new ApplicationOptionsWorkflow(_applicationOptionsStore, _debugLogger);
         _optionsAutoSaveDisposables.Add(_optionsWorkflow.AutoSaveRequested
@@ -910,6 +903,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             () => Collections?.ToList() ?? [],
             () => SelectedCollection,
             _requestEditor.BuildResolvedHttpRequestDraft,
+            new OpenApiImportService(),
             _debugLogger);
         _graphQlViewModel = new GraphQlViewModel(_protocolHttpClient, appLogger);
         _graphQlRequestWorkflow = new GraphQlRequestWorkflow(_requestEditor, _graphQlViewModel, _httpRequestsLogger);
@@ -1674,7 +1668,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _requestEditor.RequestHeaders.Clear();
 
         var inheritedHeaders = SelectedCollection?.Headers;
-        var mergedHeaders = MergeCollectionAndRequestHeaders(inheritedHeaders, item.Headers);
+        var mergedHeaders = CollectionInheritedHeadersWorkflow.MergeCollectionAndRequestHeaders(inheritedHeaders, item.Headers);
         if (mergedHeaders is null)
         {
             _requestEditor.EnsurePlaceholderRows();
@@ -1734,40 +1728,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _demoServer is { } server
         && !server.IsRunning
         && (IsDemoServerUrl(resolvedUrl, server.Port) || IsDemoServerUrl(resolvedUrl, server.HttpsPort));
-
-    private static IReadOnlyList<RequestHeader>? MergeCollectionAndRequestHeaders(
-        IReadOnlyList<RequestHeader>? collectionHeaders,
-        IReadOnlyList<RequestHeader>? requestHeaders)
-    {
-        var merged = new List<RequestHeader>();
-        var headerIndexes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        if (collectionHeaders is { })
-        {
-            foreach (var header in collectionHeaders)
-            {
-                headerIndexes[header.Name] = merged.Count;
-                merged.Add(header);
-            }
-        }
-
-        if (requestHeaders is { })
-        {
-            foreach (var requestHeader in requestHeaders)
-            {
-                if (headerIndexes.TryGetValue(requestHeader.Name, out var index))
-                {
-                    merged[index] = requestHeader;
-                }
-                else
-                {
-                    headerIndexes[requestHeader.Name] = merged.Count;
-                    merged.Add(requestHeader);
-                }
-            }
-        }
-
-        return merged.Count > 0 ? merged : null;
-    }
 
     /// <summary>Starts the embedded demo server on <see cref="DemoServerPort"/> and/or <see cref="DemoServerHttpsPort"/>.</summary>
     [ReactiveCommand]
@@ -1918,14 +1878,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     }
 
     [ReactiveCommand]
-    private async Task SaveCollectionInheritedHeadersAsync(CancellationToken cancellationToken)
-    {
-        if (BuildCollectionInheritedHeadersAutoSaveSnapshot() is { } snapshot)
-        {
-            await PersistCollectionInheritedHeadersSnapshotAsync(snapshot, cancellationToken, selectUpdatedCollection: true);
-            ClearPendingCollectionInheritedHeadersAutoSaveState();
-        }
-    }
+    private Task SaveCollectionInheritedHeadersAsync(CancellationToken cancellationToken) =>
+        _collectionInheritedHeadersWorkflow.SaveAsync(SelectedCollection, CollectionInheritedHeaders, cancellationToken);
 
     [ReactiveCommand]
     private void SetCollectionSortBy(string? sortBy) =>
@@ -1941,187 +1895,36 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     private void ApplyCollectionFilter()
     {
-        var items = CollectionItems.AsEnumerable();
+        // Preserve expansion state keyed by GroupKey so user-collapsed groups survive filter/sort changes.
+        var previousExpanded = CollectionGroups.ToDictionary(
+            group => group.GroupKey,
+            group => group.IsExpanded,
+            StringComparer.OrdinalIgnoreCase);
 
-        if (!string.IsNullOrWhiteSpace(CollectionSearchQuery))
-        {
-            items = items.Where(item =>
-                item.Name.Contains(CollectionSearchQuery, StringComparison.OrdinalIgnoreCase)
-                || item.Path.Contains(CollectionSearchQuery, StringComparison.OrdinalIgnoreCase)
-                || item.Method.Contains(CollectionSearchQuery, StringComparison.OrdinalIgnoreCase));
-        }
-
-        items = CollectionSortBy switch
-        {
-            "Name" => items.OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase),
-            "Method" => items.OrderBy(i => i.Method, StringComparer.OrdinalIgnoreCase),
-            "Path" => items.OrderBy(i => i.Path, StringComparer.OrdinalIgnoreCase),
-            _ => items
-        };
-
-        var filteredList = items.ToList();
+        var filterResult = _collectionFilterWorkflow.Apply(
+            CollectionItems,
+            CollectionSearchQuery,
+            CollectionSortBy,
+            previousExpanded);
 
         FilteredCollectionItems.Clear();
-        foreach (var item in filteredList)
+        foreach (var item in filterResult.Items)
         {
             FilteredCollectionItems.Add(item);
         }
 
-        // Preserve expansion state keyed by GroupKey so user-collapsed groups survive filter/sort changes.
-        var previousExpanded = CollectionGroups.ToDictionary(
-            g => g.GroupKey,
-            g => g.IsExpanded,
-            StringComparer.OrdinalIgnoreCase);
-
         CollectionGroups.Clear();
-        foreach (var group in filteredList
-            .GroupBy(i => i.GroupKey, StringComparer.OrdinalIgnoreCase))
+        foreach (var group in filterResult.Groups)
         {
-            var groupVm = new CollectionGroupViewModel(group.Key, group.ToList());
-            if (previousExpanded.TryGetValue(group.Key, out var wasExpanded))
-            {
-                groupVm.IsExpanded = wasExpanded;
-            }
-
-            CollectionGroups.Add(groupVm);
+            CollectionGroups.Add(group);
         }
     }
 
-    private static IReadOnlyList<RequestHeader>? BuildCollectionInheritedHeaders(
-        IEnumerable<RequestHeaderViewModel> headerViewModels)
-    {
-        var headers = headerViewModels
-            .Where(headerViewModel => !string.IsNullOrWhiteSpace(headerViewModel.Name))
-            .Select(headerViewModel => new RequestHeader(
-                headerViewModel.Name.Trim(),
-                headerViewModel.Value,
-                headerViewModel.IsEnabled))
-            .ToList();
+    private void QueueCollectionInheritedHeadersAutoSave() =>
+        _collectionInheritedHeadersWorkflow.QueueAutoSave(SelectedCollection, CollectionInheritedHeaders);
 
-        return headers is { Count: > 0 } ? headers : null;
-    }
-
-    private CollectionInheritedHeadersAutoSaveSnapshot? BuildCollectionInheritedHeadersAutoSaveSnapshot()
-    {
-        if (SelectedCollection is not { } collection)
-        {
-            return null;
-        }
-
-        var inheritedHeaders = BuildCollectionInheritedHeaders(CollectionInheritedHeaders);
-        return new CollectionInheritedHeadersAutoSaveSnapshot(
-            collection.Id,
-            collection.Name,
-            collection.SourcePath,
-            collection.BaseUrl,
-            collection.Requests,
-            inheritedHeaders);
-    }
-
-    private async Task PersistCollectionInheritedHeadersSnapshotAsync(
-        CollectionInheritedHeadersAutoSaveSnapshot snapshot,
-        CancellationToken cancellationToken,
-        bool selectUpdatedCollection)
-    {
-        var currentCollection = Collections.FirstOrDefault(collection => collection.Id == snapshot.CollectionId);
-        if (currentCollection is not { })
-        {
-            return;
-        }
-
-        if (CollectionHeadersEqual(currentCollection.Headers, snapshot.InheritedHeaders))
-        {
-            return;
-        }
-
-        await _collectionRepository.UpdateAsync(
-            snapshot.CollectionId,
-            snapshot.CollectionName,
-            snapshot.CollectionSourcePath,
-            snapshot.CollectionBaseUrl,
-            snapshot.CollectionRequests,
-            snapshot.InheritedHeaders,
-            cancellationToken);
-
-        await LoadCollectionsAsync(cancellationToken);
-        if (selectUpdatedCollection && SelectedCollection?.Id == snapshot.CollectionId)
-        {
-            SelectedCollection = Collections.FirstOrDefault(candidateCollection => candidateCollection.Id == snapshot.CollectionId);
-        }
-
-        _debugLogger.Information("Updated inherited headers for collection {CollectionName}", snapshot.CollectionName);
-    }
-
-    private void QueueCollectionInheritedHeadersAutoSave()
-    {
-        if (_suppressCollectionInheritedHeadersAutoSave)
-        {
-            return;
-        }
-
-        if (BuildCollectionInheritedHeadersAutoSaveSnapshot() is not { } snapshot)
-        {
-            return;
-        }
-
-        _hasPendingCollectionInheritedHeadersAutoSave = true;
-        _pendingCollectionInheritedHeadersAutoSaveSnapshot = snapshot;
-
-        _collectionInheritedHeadersAutoSaveVersion++;
-        _collectionInheritedHeadersAutoSaveRequestedSubject.OnNext(snapshot);
-    }
-
-    private void TriggerCollectionInheritedHeadersAutoSave(CollectionInheritedHeadersAutoSaveSnapshot snapshot)
-    {
-        var autoSaveVersion = _collectionInheritedHeadersAutoSaveVersion;
-        _collectionInheritedHeadersAutoSaveTask = TriggerCollectionInheritedHeadersAutoSaveAsync(snapshot, autoSaveVersion);
-    }
-
-    private async Task TriggerCollectionInheritedHeadersAutoSaveAsync(
-        CollectionInheritedHeadersAutoSaveSnapshot snapshot,
-        int autoSaveVersion)
-    {
-        try
-        {
-            await Dispatcher.UIThread.InvokeAsync(
-                async () => await PersistCollectionInheritedHeadersSnapshotAsync(
-                    snapshot,
-                    CancellationToken.None,
-                    selectUpdatedCollection: false),
-                DispatcherPriority.Background);
-
-            if (autoSaveVersion == _collectionInheritedHeadersAutoSaveVersion)
-            {
-                ClearPendingCollectionInheritedHeadersAutoSaveState();
-            }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _debugLogger.Warning(ex, "Collection inherited headers auto-save failed");
-        }
-    }
-
-    public async Task FlushPendingCollectionInheritedHeadersAutoSaveAsync()
-    {
-        if (!_hasPendingCollectionInheritedHeadersAutoSave || _pendingCollectionInheritedHeadersAutoSaveSnapshot is not { } snapshot)
-        {
-            return;
-        }
-
-        if (_collectionInheritedHeadersAutoSaveTask is { } autoSaveTask)
-        {
-            await autoSaveTask.ConfigureAwait(false);
-        }
-
-        await PersistCollectionInheritedHeadersSnapshotAsync(snapshot, CancellationToken.None, selectUpdatedCollection: true);
-        ClearPendingCollectionInheritedHeadersAutoSaveState();
-    }
-
-    private void ClearPendingCollectionInheritedHeadersAutoSaveState()
-    {
-        _hasPendingCollectionInheritedHeadersAutoSave = false;
-        _pendingCollectionInheritedHeadersAutoSaveSnapshot = null;
-    }
+    public Task FlushPendingCollectionInheritedHeadersAutoSaveAsync() =>
+        _collectionInheritedHeadersWorkflow.FlushPendingAutoSaveAsync();
 
     private IObservable<PropertyChangedEventArgs> ObserveCollectionInheritedHeaderPropertyChanges()
     {
@@ -2146,19 +1949,21 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return;
         }
 
-        var inheritedHeaders = BuildCollectionInheritedHeaders(CollectionInheritedHeaders);
+        var inheritedHeaders = CollectionInheritedHeadersWorkflow.BuildHeaders(CollectionInheritedHeaders);
         var manualRequestHeaders = _requestEditor.RequestHeaders
             .Where(header => !header.IsInherited)
             .ToList();
 
-        var manualHeaders = BuildCollectionInheritedHeaders(manualRequestHeaders);
-        var mergedHeaders = MergeCollectionAndRequestHeaders(inheritedHeaders, manualHeaders ?? matchingRequest.Headers);
+        var manualHeaders = CollectionInheritedHeadersWorkflow.BuildHeaders(manualRequestHeaders);
+        var mergedHeaders = CollectionInheritedHeadersWorkflow.MergeCollectionAndRequestHeaders(
+            inheritedHeaders,
+            manualHeaders ?? matchingRequest.Headers);
 
         ApplyInheritedHeaderPreview(manualRequestHeaders, inheritedHeaders, mergedHeaders);
     }
 
     private bool ShouldSkipInheritedHeaderSync() =>
-        _suppressCollectionInheritedHeadersLivePreviewSync || _suppressCollectionInheritedHeadersAutoSave;
+        _suppressCollectionInheritedHeadersLivePreviewSync || _collectionInheritedHeadersWorkflow.IsAutoSaveSuppressed;
 
     private bool TryGetActiveCollectionRequestContext(
         out Collection selectedCollection,
@@ -2257,33 +2062,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private static bool HasManualHeaderOverride(string headerName, IReadOnlyList<RequestHeaderViewModel> manualRequestHeaders) =>
         manualRequestHeaders.Any(header => string.Equals(header.Name, headerName, StringComparison.OrdinalIgnoreCase));
 
-    private static bool CollectionHeadersEqual(IReadOnlyList<RequestHeader>? left, IReadOnlyList<RequestHeader>? right)
-    {
-        if (left is null && right is null)
-        {
-            return true;
-        }
-
-        if (left is null || right is null || left.Count != right.Count)
-        {
-            return false;
-        }
-
-        for (var index = 0; index < left.Count; index++)
-        {
-            var leftHeader = left[index];
-            var rightHeader = right[index];
-            if (!string.Equals(leftHeader.Name, rightHeader.Name, StringComparison.Ordinal)
-                || !string.Equals(leftHeader.Value, rightHeader.Value, StringComparison.Ordinal)
-                || leftHeader.IsEnabled != rightHeader.IsEnabled)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     [ReactiveCommand]
     private async Task ImportCollectionAsync()
     {
@@ -2310,45 +2088,28 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return;
         }
 
-        try
+        ErrorMessage = string.Empty;
+        var outcome = await _collectionsManagementCoordinator.ImportCollectionAsync(
+            () => files[0].OpenReadAsync(),
+            files[0].Path.LocalPath);
+        if (outcome.ErrorMessage is { } errorMessage)
         {
-            ErrorMessage = string.Empty;
-            await using var stream = await files[0].OpenReadAsync();
-            var collection = _openApiImportService.Import(stream, files[0].Path.LocalPath);
-            var id = await _collectionRepository.SaveAsync(
-                collection.Name,
-                collection.SourcePath,
-                collection.BaseUrl,
-                collection.Requests,
-                collection.Headers);
+            ErrorMessage = errorMessage;
+            return;
+        }
 
-            await LoadCollectionsAsync();
-            SelectedCollection = Collections.FirstOrDefault(c => c.Id == id);
-            LeftPanelTab = "Collections";
-            _debugLogger.Information("Imported collection {CollectionName} from {Path}", collection.Name, files[0].Path.LocalPath);
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Import failed: {ex.Message}";
-        }
+        SelectedCollection = Collections.FirstOrDefault(collection => collection.Id == outcome.SelectedCollectionId);
+        LeftPanelTab = "Collections";
     }
 
     [ReactiveCommand]
     private async Task DeleteCollectionAsync(Collection? collection)
     {
-        if (collection is null)
-        {
-            return;
-        }
-
-        await _collectionRepository.DeleteAsync(collection.Id);
-        _debugLogger.Information("Deleted collection {CollectionName}", collection.Name);
-        if (SelectedCollection?.Id == collection.Id)
+        var outcome = await _collectionsManagementCoordinator.DeleteCollectionAsync(collection);
+        if (outcome.Changed && outcome.WasSelected)
         {
             SelectedCollection = null;
         }
-
-        await LoadCollectionsAsync();
     }
 
     [ReactiveCommand]
@@ -2527,8 +2288,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _collectionSearchFilterDisposables.Dispose();
         _optionsWorkflow.Dispose();
         _optionsAutoSaveDisposables.Dispose();
-        _collectionInheritedHeadersAutoSaveRequestedSubject.OnCompleted();
         _collectionInheritedHeadersAutoSaveDisposables.Dispose();
+        _collectionInheritedHeadersWorkflow.Dispose();
         _draftAutoSaveCts?.Cancel();
         _draftAutoSaveCts?.Dispose();
         _draftPersistenceService?.ClearDraft();

@@ -1,11 +1,13 @@
 using Arbor.HttpClient.Core.Collections;
 using Arbor.HttpClient.Core.HttpRequest;
+using Arbor.HttpClient.Core.OpenApiImport;
 using Serilog;
 
 namespace Arbor.HttpClient.Desktop.Features.Collections;
 
 /// <summary>
-/// Coordinates collection-management commands (create, rename, and add request) and persistence side effects.
+/// Coordinates collection-management commands (create, rename, add request, import, and delete)
+/// and persistence side effects.
 /// </summary>
 public sealed class CollectionsManagementCoordinator
 {
@@ -14,6 +16,7 @@ public sealed class CollectionsManagementCoordinator
     private readonly Func<IReadOnlyCollection<Collection>> _getCollections;
     private readonly Func<Collection?> _getSelectedCollection;
     private readonly Func<ResolvedHttpRequestDraft> _buildResolvedHttpRequestDraft;
+    private readonly OpenApiImportService _openApiImportService;
     private readonly ILogger _logger;
 
     public CollectionsManagementCoordinator(
@@ -22,6 +25,7 @@ public sealed class CollectionsManagementCoordinator
         Func<IReadOnlyCollection<Collection>> getCollections,
         Func<Collection?> getSelectedCollection,
         Func<ResolvedHttpRequestDraft> buildResolvedHttpRequestDraft,
+        OpenApiImportService openApiImportService,
         ILogger logger)
     {
         _collectionRepository = collectionRepository;
@@ -29,6 +33,7 @@ public sealed class CollectionsManagementCoordinator
         _getCollections = getCollections;
         _getSelectedCollection = getSelectedCollection;
         _buildResolvedHttpRequestDraft = buildResolvedHttpRequestDraft;
+        _openApiImportService = openApiImportService;
         _logger = logger;
     }
 
@@ -116,6 +121,59 @@ public sealed class CollectionsManagementCoordinator
 
         _logger.Information("Added request {RequestName} to collection {CollectionName}", newRequest.Name, collection.Name);
         return AddRequestToCollectionOutcome.Success(collection.Id);
+    }
+
+    /// <summary>
+    /// Imports an OpenAPI specification, persists it as a new collection, and reloads the
+    /// collection list. The stream is opened inside the failure boundary so picker/IO errors
+    /// also surface as a failed outcome.
+    /// </summary>
+    public async Task<ImportCollectionOutcome> ImportCollectionAsync(
+        Func<Task<Stream>> openSpecificationStreamAsync,
+        string sourcePath,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var specificationStream = await openSpecificationStreamAsync();
+            var importedCollection = _openApiImportService.Import(specificationStream, sourcePath);
+            var importedCollectionId = await _collectionRepository.SaveAsync(
+                importedCollection.Name,
+                importedCollection.SourcePath,
+                importedCollection.BaseUrl,
+                importedCollection.Requests,
+                importedCollection.Headers,
+                cancellationToken);
+
+            await _loadCollectionsAsync(cancellationToken);
+            _logger.Information("Imported collection {CollectionName} from {Path}", importedCollection.Name, sourcePath);
+            return ImportCollectionOutcome.Success(importedCollectionId);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            return ImportCollectionOutcome.Failed($"Import failed: {exception.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Deletes the collection and reloads the collection list. The outcome reports whether
+    /// the deleted collection was the selected one so the host can clear its selection.
+    /// </summary>
+    public async Task<DeleteCollectionOutcome> DeleteCollectionAsync(
+        Collection? collection,
+        CancellationToken cancellationToken = default)
+    {
+        if (collection is null)
+        {
+            return DeleteCollectionOutcome.NoChange();
+        }
+
+        await _collectionRepository.DeleteAsync(collection.Id, cancellationToken);
+        _logger.Information("Deleted collection {CollectionName}", collection.Name);
+
+        var wasSelected = _getSelectedCollection()?.Id == collection.Id;
+        await _loadCollectionsAsync(cancellationToken);
+        return DeleteCollectionOutcome.Deleted(wasSelected);
     }
 
     private static string BuildRequestPath(string? collectionBaseUrl, string resolvedUrl)
@@ -211,4 +269,46 @@ public sealed record AddRequestToCollectionOutcome
 
     public static AddRequestToCollectionOutcome NoChange() =>
         new(false, null);
+}
+
+public sealed record ImportCollectionOutcome
+{
+    private ImportCollectionOutcome(bool changed, int? selectedCollectionId, string? errorMessage)
+    {
+        Changed = changed;
+        SelectedCollectionId = selectedCollectionId;
+        ErrorMessage = errorMessage;
+    }
+
+    public bool Changed { get; }
+
+    public int? SelectedCollectionId { get; }
+
+    public string? ErrorMessage { get; }
+
+    public static ImportCollectionOutcome Success(int selectedCollectionId) =>
+        new(true, selectedCollectionId, null);
+
+    public static ImportCollectionOutcome Failed(string errorMessage) =>
+        new(false, null, errorMessage);
+}
+
+public sealed record DeleteCollectionOutcome
+{
+    private DeleteCollectionOutcome(bool changed, bool wasSelected)
+    {
+        Changed = changed;
+        WasSelected = wasSelected;
+    }
+
+    public bool Changed { get; }
+
+    /// <summary>True when the deleted collection was the selected one.</summary>
+    public bool WasSelected { get; }
+
+    public static DeleteCollectionOutcome Deleted(bool wasSelected) =>
+        new(true, wasSelected);
+
+    public static DeleteCollectionOutcome NoChange() =>
+        new(false, false);
 }
