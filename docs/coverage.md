@@ -16,6 +16,14 @@ As of the latest build (2026-04-24, after adding Kestrel integration tests for W
 - **Arbor.HttpClient.Desktop:** 65.6% line coverage (3334/5081 lines), 51.8% branch coverage (822/1587 branches)
 - **Arbor.HttpClient.Testing:** ~13% line coverage (test infrastructure — indirect coverage is acceptable)
 
+### New code introduced in the scheduled-jobs workflow slice (2026-06-12)
+
+> Measured with `dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/... -- --filter-class "...ScheduledJobsWorkflowTests" --coverage --coverage-output-format cobertura` (Microsoft.Testing.Extensions.CodeCoverage).
+
+| Class | Line coverage | Notes |
+|---|---|---|
+| `ScheduledJobsWorkflow` | **100%** ✅ | Add (interval clamp), remove (null/persisted/unsaved), load (auto-start on/off, follow-redirects default, reload), dispose — all paths covered by `ScheduledJobsWorkflowTests` |
+
 ### New code introduced in the collections UI workflows slice (2026-06-12)
 
 > Measured with the `dotnet-coverage` CLI (`dotnet-coverage collect -f cobertura -- dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/...`) because the test projects had moved to Microsoft.Testing.Platform, which ignores the VSTest-based `coverlet.collector`. With this tool the Desktop project measured **70.4% line coverage** overall (not directly comparable to the coverlet baseline below, but no decrease). The tooling gap has since been fixed: the test projects now reference `Microsoft.Testing.Extensions.CodeCoverage`, so plain `dotnet test ... -- --coverage` works again — see [Local Coverage Workflow](#locally) and [CI Integration](#ci-integration).

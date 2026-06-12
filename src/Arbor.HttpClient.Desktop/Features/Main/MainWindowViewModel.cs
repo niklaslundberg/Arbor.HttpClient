@@ -73,10 +73,10 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private readonly HttpResponseProjectionWorkflow _httpResponseProjectionWorkflow = new();
     private readonly IRequestHistoryRepository _requestHistoryRepository;
     private readonly ICollectionRepository _collectionRepository;
-    private readonly IScheduledJobRepository _scheduledJobRepository;
     private CollectionsWorkflow _collectionsWorkflow = null!;
     private CollectionsManagementCoordinator _collectionsManagementCoordinator = null!;
     private readonly ScheduledJobService _scheduledJobService;
+    private readonly ScheduledJobsWorkflow _scheduledJobsWorkflow;
     private readonly LogWindowViewModel _logWindowViewModel;
     private readonly VariableResolver _variableResolver;
     private readonly ApplicationOptionsStore? _applicationOptionsStore;
@@ -313,7 +313,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     public const string SystemThemeOption = "System";
     public const string DarkThemeOption = "Dark";
     public const string LightThemeOption = "Light";
-    public const int MinScheduledJobIntervalSeconds = 1;
 
     public IReadOnlyList<string> ThemeOptions { get; } =
     [
@@ -671,8 +670,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _httpRequestService = httpRequestService;
         _requestHistoryRepository = requestHistoryRepository;
         _collectionRepository = collectionRepository;
-        _scheduledJobRepository = scheduledJobRepository;
         _scheduledJobService = scheduledJobService;
+        _scheduledJobsWorkflow = new ScheduledJobsWorkflow(scheduledJobRepository, scheduledJobService);
         _logWindowViewModel = logWindowViewModel;
         _variableResolver = new VariableResolver();
         _applicationOptionsStore = applicationOptionsStore;
@@ -948,7 +947,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         CollectionInheritedHeaders = [];
         FilteredCollectionItems = [];
         CollectionGroups = [];
-        ScheduledJobs = [];
         SavedLayoutNames = [];
 
         // Cancellation: ExecutePrimaryAction cancels _sendRequestCts, which is linked to the
@@ -1105,7 +1103,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     public ObservableCollection<CollectionGroupViewModel> CollectionGroups { get; }
     public ObservableCollection<RequestEnvironment> Environments => _environmentsViewModel.Environments;
     public ObservableCollection<EnvironmentVariableViewModel> ActiveEnvironmentVariables => _environmentsViewModel.ActiveEnvironmentVariables;
-    public ObservableCollection<ScheduledJobViewModel> ScheduledJobs { get; }
+    public ObservableCollection<ScheduledJobViewModel> ScheduledJobs => _scheduledJobsWorkflow.Jobs;
     public ObservableCollection<string> SavedLayoutNames { get; }
     public LogWindowViewModel LogWindowViewModel => _logWindowViewModel;
     public RequestEditorViewModel RequestEditor => _requestEditor;
@@ -1378,32 +1376,13 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [ReactiveCommand]
     private void AddScheduledJob()
     {
-        var vm = new ScheduledJobViewModel(_scheduledJobRepository, _scheduledJobService)
-        {
-            IntervalSeconds = Math.Max(MinScheduledJobIntervalSeconds, DefaultScheduledJobIntervalSeconds),
-            FollowRedirects = FollowHttpRedirects
-        };
-        ScheduledJobs.Add(vm);
+        _scheduledJobsWorkflow.AddJob(DefaultScheduledJobIntervalSeconds, FollowHttpRedirects);
         LeftPanelTab = "ScheduledJobs";
     }
 
     [ReactiveCommand]
-    private async Task RemoveScheduledJobAsync(ScheduledJobViewModel? job)
-    {
-        if (job is null)
-        {
-            return;
-        }
-
-        _scheduledJobService.Stop(job.Id);
-        if (job.Id != 0)
-        {
-            await _scheduledJobRepository.DeleteAsync(job.Id);
-        }
-
-        ScheduledJobs.Remove(job);
-        job.Dispose();
-    }
+    private Task RemoveScheduledJobAsync(ScheduledJobViewModel? job) =>
+        _scheduledJobsWorkflow.RemoveJobAsync(job);
 
     [ReactiveCommand]
     private void ShowHistoryTab()
@@ -2294,10 +2273,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _draftAutoSaveCts?.Dispose();
         _draftPersistenceService?.ClearDraft();
         _scheduledJobService.Dispose();
-        foreach (var scheduledJobViewModel in ScheduledJobs)
-        {
-            scheduledJobViewModel.Dispose();
-        }
+        _scheduledJobsWorkflow.Dispose();
         _fileWatcherCts?.Cancel();
         _fileWatcherCts?.Dispose();
         _requestBodyWatcher?.Dispose();
@@ -2483,7 +2459,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             LoadHistoryAsync(cancellationToken),
             LoadCollectionsAsync(cancellationToken),
             _environmentsViewModel.LoadEnvironmentsAsync(cancellationToken),
-            LoadScheduledJobsAsync(cancellationToken)).ConfigureAwait(false);
+            _scheduledJobsWorkflow.LoadJobsAsync(AutoStartScheduledJobsOnLaunch, FollowHttpRedirects, cancellationToken)).ConfigureAwait(false);
 
         var demoSeedResult = await SeedDemoDataAsync(cancellationToken).ConfigureAwait(false);
         if (demoSeedResult.SeededCollectionId is { } newCollectionId)
@@ -3025,30 +3001,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     }
 
     private void QueueOptionsAutoSave() => _optionsWorkflow.QueueAutoSave();
-
-
-    private async Task LoadScheduledJobsAsync(CancellationToken cancellationToken = default)
-    {
-        var all = await _scheduledJobRepository.GetAllAsync(cancellationToken);
-
-        foreach (var scheduledJobViewModel in ScheduledJobs)
-        {
-            scheduledJobViewModel.Dispose();
-        }
-
-        ScheduledJobs.Clear();
-        foreach (var config in all)
-        {
-            var vm = ScheduledJobViewModel.FromConfig(config, _scheduledJobRepository, _scheduledJobService, FollowHttpRedirects);
-            ScheduledJobs.Add(vm);
-
-            if (AutoStartScheduledJobsOnLaunch && config.AutoStart && !_scheduledJobService.IsRunning(config.Id))
-            {
-                _scheduledJobService.Start(config, vm.IsWebViewEnabled ? vm.HandleResponseAsync : null);
-                vm.IsRunning = true;
-            }
-        }
-    }
 
     private IReadOnlyList<EnvironmentVariable> GetActiveVariablesForEditor() =>
         _environmentsViewModel.GetActiveVariablesForEditor();
