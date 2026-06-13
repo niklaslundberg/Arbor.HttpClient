@@ -30,6 +30,7 @@ using Arbor.HttpClient.Desktop.Features.Diagnostics;
 using Arbor.HttpClient.Desktop.Features.Demo;
 using Arbor.HttpClient.Desktop.Features.Environments;
 using Arbor.HttpClient.Desktop.Features.GraphQl;
+using Arbor.HttpClient.Desktop.Features.History;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.Layout;
 using Arbor.HttpClient.Desktop.Features.Logging;
@@ -98,7 +99,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private SseViewModel _sseViewModel = null!;
     private CancellationTokenSource? _streamingCts;
     private readonly List<string> _tempFiles = [];
-    private readonly List<RequestHistoryEntry> _allHistory = [];
+    private readonly RequestHistoryWorkflow _requestHistoryWorkflow;
+    private readonly RequestTabsWorkflow _requestTabsWorkflow = new();
     private FileSystemWatcher? _requestBodyWatcher;
     private CancellationTokenSource? _fileWatcherCts;
     private int _requestBodyReadPending;
@@ -111,8 +113,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private readonly LayoutWorkflow _layoutWorkflow = new();
     private readonly LayoutTreeWorkflow _layoutTreeWorkflow = new();
     private ApplicationOptions _applicationOptions = new();
-    private readonly Dictionary<string, DockLayoutSnapshot> _savedLayouts = new(StringComparer.OrdinalIgnoreCase);
-    private int _layoutNameCounter = 1;
     private bool _suppressLayoutRestore;
     private CancellationTokenSource? _sendRequestCts;
     private readonly ApplicationOptionsWorkflow _optionsWorkflow;
@@ -669,6 +669,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     {
         _httpRequestService = httpRequestService;
         _requestHistoryRepository = requestHistoryRepository;
+        _requestHistoryWorkflow = new RequestHistoryWorkflow(_requestHistoryRepository);
         _collectionRepository = collectionRepository;
         _scheduledJobService = scheduledJobService;
         _scheduledJobsWorkflow = new ScheduledJobsWorkflow(scheduledJobRepository, scheduledJobService);
@@ -819,7 +820,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _historyFilterDisposables.Add(_historyFilterRequestedSubject
             .Throttle(TimeSpan.FromMilliseconds(150))
             .DistinctUntilChanged(StringComparer.Ordinal)
-            .Subscribe(query => ApplyHistoryFilter(query)));
+            .Subscribe(query => _requestHistoryWorkflow.ApplyFilter(query)));
 
         _collectionSearchFilterDisposables.Add(_collectionSearchFilterRequestedSubject
             .Throttle(TimeSpan.FromMilliseconds(150))
@@ -880,12 +881,10 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             GetActiveVariablesForEditor,
             _debugLogger,
             QueueOptionsAutoSave);
-        RequestTabs = [];
         // NOTE: CreateRequestEditor() cannot be used here because it reads _applicationOptions
         // which is populated by ApplyOptions (called later in the constructor). The initial
         // tab is created with bare defaults; ApplyOptions then sets URL/content-type/etc.
-        var firstTab = new RequestTabViewModel(_requestEditor);
-        RequestTabs.Add(firstTab);
+        var firstTab = _requestTabsWorkflow.AddTab(_requestEditor);
         _activeRequestTab = firstTab;
         _lastAppliedRequestTab = firstTab;
         _environmentsViewModel = new EnvironmentsViewModel(
@@ -941,13 +940,11 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _sseViewModel = new SseViewModel(_protocolHttpClient, appLogger);
         _streamingConnectionWorkflow = new StreamingConnectionWorkflow(_requestEditor, _webSocketViewModel, _sseViewModel);
 
-        History = [];
         Collections = [];
         CollectionItems = [];
         CollectionInheritedHeaders = [];
         FilteredCollectionItems = [];
         CollectionGroups = [];
-        SavedLayoutNames = [];
 
         // Cancellation: ExecutePrimaryAction cancels _sendRequestCts, which is linked to the
         // execution's CancellationToken — equivalent to the old AsyncRelayCommand.Cancel().
@@ -1088,7 +1085,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _responseActions = new ResponseActionsViewModel(this);
     }
 
-    public ObservableCollection<RequestHistoryEntry> History { get; }
+    public ObservableCollection<RequestHistoryEntry> History => _requestHistoryWorkflow.History;
     public ObservableCollection<Collection> Collections { get; }
     public ObservableCollection<CollectionItemViewModel> CollectionItems { get; }
     public ObservableCollection<RequestHeaderViewModel> CollectionInheritedHeaders { get; }
@@ -1104,7 +1101,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     public ObservableCollection<RequestEnvironment> Environments => _environmentsViewModel.Environments;
     public ObservableCollection<EnvironmentVariableViewModel> ActiveEnvironmentVariables => _environmentsViewModel.ActiveEnvironmentVariables;
     public ObservableCollection<ScheduledJobViewModel> ScheduledJobs => _scheduledJobsWorkflow.Jobs;
-    public ObservableCollection<string> SavedLayoutNames { get; }
+    public ObservableCollection<string> SavedLayoutNames => _layoutWorkflow.SavedLayoutNames;
     public LogWindowViewModel LogWindowViewModel => _logWindowViewModel;
     public RequestEditorViewModel RequestEditor => _requestEditor;
     public EnvironmentsViewModel EnvironmentsPanel => _environmentsViewModel;
@@ -1117,7 +1114,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     /// <summary>
     /// The collection of open request tabs. There is always at least one tab.
     /// </summary>
-    public ObservableCollection<RequestTabViewModel> RequestTabs { get; }
+    public ObservableCollection<RequestTabViewModel> RequestTabs => _requestTabsWorkflow.Tabs;
 
     private void ApplyActiveRequestTab()
     {
@@ -1148,32 +1145,16 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [ReactiveCommand]
     private void NewRequestTab()
     {
-        var tab = new RequestTabViewModel(CreateRequestEditor());
-        RequestTabs.Add(tab);
-        ActiveRequestTab = tab;
+        ActiveRequestTab = _requestTabsWorkflow.AddTab(CreateRequestEditor());
     }
 
     [ReactiveCommand]
     private void CloseRequestTab(RequestTabViewModel? tab)
     {
-        if (tab is null || RequestTabs.Count <= 1)
+        if (_requestTabsWorkflow.CloseTab(tab, ActiveRequestTab) is { } nextActiveTab)
         {
-            return;
+            ActiveRequestTab = nextActiveTab;
         }
-
-        if (ReferenceEquals(ActiveRequestTab, tab))
-        {
-            var index = RequestTabs.IndexOf(tab);
-            RequestTabs.Remove(tab);
-            var newIndex = Math.Max(0, Math.Min(index, RequestTabs.Count - 1));
-            ActiveRequestTab = RequestTabs[newIndex];
-        }
-        else
-        {
-            RequestTabs.Remove(tab);
-        }
-
-        tab.Dispose();
     }
 
     /// <summary>
@@ -1353,24 +1334,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     private void ApplyLayoutOptions(LayoutOptions? layouts)
     {
-        _savedLayouts.Clear();
-        SavedLayoutNames.Clear();
-
-        if (layouts?.SavedLayouts is { } savedLayouts)
-        {
-            foreach (var namedLayout in savedLayouts)
-            {
-                if (!string.IsNullOrWhiteSpace(namedLayout.Name) && namedLayout.Layout is { } layout)
-                {
-                    _savedLayouts[namedLayout.Name] = layout;
-                    SavedLayoutNames.Add(namedLayout.Name);
-                }
-            }
-        }
-
-        SelectedLayoutName = SavedLayoutNames.FirstOrDefault();
+        SelectedLayoutName = _layoutWorkflow.LoadFromOptions(layouts);
         ApplyLayoutSnapshot(layouts?.CurrentLayout);
-        UpdateLayoutNameCounter();
     }
 
     [ReactiveCommand]
@@ -1484,7 +1449,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return;
         }
 
-        if (_savedLayouts.TryGetValue(SelectedLayoutName, out var snapshot))
+        if (_layoutWorkflow.TryGetLayout(SelectedLayoutName, out var snapshot))
         {
             ApplyLayoutSnapshot(snapshot);
             PersistLayoutOptions();
@@ -1495,14 +1460,13 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private void SaveLayoutAsNew()
     {
         RefreshDockTreeCache();
-        var savedLayoutName = _layoutWorkflow.SaveLayoutAsNew(CaptureLayoutSnapshot, GenerateNextLayoutName, _savedLayouts);
+        var savedLayoutName = _layoutWorkflow.SaveLayoutAsNew(CaptureLayoutSnapshot);
         if (string.IsNullOrWhiteSpace(savedLayoutName))
         {
             return;
         }
 
         _suppressLayoutRestore = true;
-        RefreshSavedLayoutNames();
         SelectedLayoutName = savedLayoutName;
         _suppressLayoutRestore = false;
         PersistLayoutOptions();
@@ -1512,13 +1476,12 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private void SaveLayoutToExisting(string? layoutName)
     {
         RefreshDockTreeCache();
-        if (!_layoutWorkflow.SaveLayoutToExisting(layoutName, CaptureLayoutSnapshot, _savedLayouts))
+        if (!_layoutWorkflow.SaveLayoutToExisting(layoutName, CaptureLayoutSnapshot))
         {
             return;
         }
 
         _suppressLayoutRestore = true;
-        RefreshSavedLayoutNames();
         SelectedLayoutName = layoutName;
         _suppressLayoutRestore = false;
         PersistLayoutOptions();
@@ -1541,14 +1504,13 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [ReactiveCommand]
     private void RemoveLayout(string? layoutName)
     {
-        var removeLayoutResult = _layoutWorkflow.RemoveLayout(layoutName, _savedLayouts, SelectedLayoutName);
+        var removeLayoutResult = _layoutWorkflow.RemoveLayout(layoutName, SelectedLayoutName);
         if (!removeLayoutResult.Removed)
         {
             return;
         }
 
         _suppressLayoutRestore = true;
-        RefreshSavedLayoutNames();
         SelectedLayoutName = removeLayoutResult.SelectedLayoutName;
         _suppressLayoutRestore = false;
         PersistLayoutOptions();
@@ -2631,14 +2593,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         new()
         {
             CurrentLayout = CaptureLayoutSnapshot(),
-            SavedLayouts = _savedLayouts
-                .OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
-                .Select(item => new NamedDockLayout
-                {
-                    Name = item.Key,
-                    Layout = item.Value
-                })
-                .ToList()
+            SavedLayouts = _layoutWorkflow.BuildNamedLayouts().ToList()
         };
 
     private void PersistLayoutOptions()
@@ -2698,60 +2653,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         if (applyResult.Applied)
         {
             RefreshDockTreeCache();
-        }
-    }
-
-    private string GenerateNextLayoutName()
-    {
-        UpdateLayoutNameCounter();
-        return $"Layout {_layoutNameCounter++}";
-    }
-
-    private void RefreshSavedLayoutNames()
-    {
-        var names = _savedLayouts.Keys.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList();
-        SavedLayoutNames.Clear();
-        foreach (var name in names)
-        {
-            SavedLayoutNames.Add(name);
-        }
-    }
-
-    private void UpdateLayoutNameCounter()
-    {
-        while (_savedLayouts.ContainsKey($"Layout {_layoutNameCounter}"))
-        {
-            _layoutNameCounter++;
-        }
-    }
-
-    private void ApplyHistoryFilter(string query)
-    {
-        var filtered = string.IsNullOrWhiteSpace(query)
-            ? _allHistory
-            : _allHistory
-                .Where(item =>
-                    item.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
-                    || item.Url.Contains(query, StringComparison.OrdinalIgnoreCase)
-                    || item.Method.Contains(query, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-        // Remove items no longer in the filtered set
-        for (var i = History.Count - 1; i >= 0; i--)
-        {
-            if (!filtered.Contains(History[i]))
-            {
-                History.RemoveAt(i);
-            }
-        }
-
-        // Append items that are missing, maintaining order
-        for (var i = 0; i < filtered.Count; i++)
-        {
-            if (i >= History.Count || !ReferenceEquals(History[i], filtered[i]))
-            {
-                History.Insert(i, filtered[i]);
-            }
         }
     }
 
@@ -2852,17 +2753,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     public static string FormatByteSize(long byteCount) =>
         HttpResponseProjectionWorkflow.FormatByteSize(byteCount);
 
-    private async Task LoadHistoryAsync(CancellationToken cancellationToken = default)
-    {
-        var requests = (await _requestHistoryRepository.GetRecentAsync(100, cancellationToken))
-            .OrderByDescending(item => item.CreatedAtUtc)
-            .ToList();
-
-        _allHistory.Clear();
-        _allHistory.AddRange(requests);
-
-        ApplyHistoryFilter(HistorySearchQuery);
-    }
+    private Task LoadHistoryAsync(CancellationToken cancellationToken = default) =>
+        _requestHistoryWorkflow.LoadAsync(HistorySearchQuery, cancellationToken);
 
     [ReactiveCommand]
     private void LoadHistoryRequest(RequestHistoryEntry? request)
@@ -2872,11 +2764,12 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return;
         }
 
+        var projection = RequestHistoryWorkflow.BuildEditorProjection(request);
         _requestEditor.SelectedRequestType = RequestType.Http;
-        _requestEditor.SelectedMethod = request.Method;
-        _requestEditor.RequestName = request.Name;
-        _requestEditor.RequestUrl = request.Url;
-        _requestEditor.RequestBody = request.Body ?? string.Empty;
+        _requestEditor.SelectedMethod = projection.Method;
+        _requestEditor.RequestName = projection.Name;
+        _requestEditor.RequestUrl = projection.Url;
+        _requestEditor.RequestBody = projection.Body;
         _requestEditor.RequestHeaders.Clear();
         _requestEditor.EnsurePlaceholderRows();
         LeftPanelTab = "History";
