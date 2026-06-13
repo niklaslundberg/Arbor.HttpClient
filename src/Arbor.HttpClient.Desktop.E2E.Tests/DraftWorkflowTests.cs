@@ -207,7 +207,7 @@ public sealed class DraftWorkflowTests
     {
         var scheduler = new TestScheduler();
         var service = new DraftPersistenceService(CreateTempDraftsFolder());
-        var workflow = new DraftWorkflow(service, CreateSilentLogger(), scheduler);
+        using var workflow = new DraftWorkflow(service, CreateSilentLogger(), scheduler);
         var tickCount = 0;
 
         workflow.StartAutoSave(() =>
