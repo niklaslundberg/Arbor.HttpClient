@@ -124,9 +124,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private readonly CompositeDisposable _crossFeatureDisposables = new();
     private DockLayoutSnapshot? _defaultLayout;
     private byte[] _lastResponseBodyBytes = [];
-    private readonly DraftPersistenceService? _draftPersistenceService;
-    private CancellationTokenSource? _draftAutoSaveCts;
-    private RequestEditorSnapshot? _pendingDraft;
+    private readonly DraftWorkflow _draftWorkflow;
     private readonly DemoServer? _demoServer;
     private readonly UnhandledExceptionCollector? _unhandledExceptionCollector;
     private readonly IScriptRunner _scriptRunner = new RoslynScriptRunner();
@@ -677,12 +675,12 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _variableResolver = new VariableResolver();
         _applicationOptionsStore = applicationOptionsStore;
         _onApplicationOptionsChanged = onApplicationOptionsChanged;
-        _draftPersistenceService = draftPersistenceService;
         _demoServer = demoServer;
         _unhandledExceptionCollector = unhandledExceptionCollector;
         var appLogger = (logger ?? Log.Logger).ForContext<MainWindowViewModel>();
         _debugLogger = appLogger.ForContext("LogTab", LogTab.Debug);
         _httpRequestsLogger = appLogger.ForContext("LogTab", LogTab.HttpRequests);
+        _draftWorkflow = new DraftWorkflow(draftPersistenceService, _debugLogger);
 
         _collectionInheritedHeadersWorkflow = new CollectionInheritedHeadersWorkflow(
             _collectionRepository,
@@ -2231,9 +2229,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _optionsAutoSaveDisposables.Dispose();
         _collectionInheritedHeadersAutoSaveDisposables.Dispose();
         _collectionInheritedHeadersWorkflow.Dispose();
-        _draftAutoSaveCts?.Cancel();
-        _draftAutoSaveCts?.Dispose();
-        _draftPersistenceService?.ClearDraft();
+        _draftWorkflow.Dispose();
+        _draftWorkflow.ClearPersistedDraft();
         _scheduledJobService.Dispose();
         _scheduledJobsWorkflow.Dispose();
         _fileWatcherCts?.Cancel();
@@ -2431,12 +2428,9 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             LeftPanelTab = "Collections";
         }
 
-        var savedDraft = _draftPersistenceService is { } draftService
-            ? await draftService.LoadDraftAsync(cancellationToken).ConfigureAwait(false)
-            : null;
+        var savedDraft = await _draftWorkflow.LoadPendingDraftAsync(cancellationToken).ConfigureAwait(false);
         if (savedDraft is { } draft)
         {
-            _pendingDraft = draft;
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 HasDraftToRestore = true;
@@ -2901,16 +2895,11 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [ReactiveCommand]
     private async Task RestoreDraftAsync()
     {
-        var draft = _pendingDraft
-            ?? (_draftPersistenceService is { } ds
-                ? await ds.LoadDraftAsync().ConfigureAwait(false)
-                : null);
-        if (draft is { } pendingDraft)
+        if (await _draftWorkflow.TakePendingDraftAsync().ConfigureAwait(false) is { } pendingDraft)
         {
             await Dispatcher.UIThread.InvokeAsync(() => DraftPersistenceService.RestoreToEditor(pendingDraft, _requestEditor));
         }
 
-        _pendingDraft = null;
         HasDraftToRestore = false;
         StartDraftAutoSave();
     }
@@ -2918,68 +2907,17 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [ReactiveCommand]
     private void DiscardDraft()
     {
-        _pendingDraft = null;
-        _draftPersistenceService?.ClearDraft();
+        _draftWorkflow.DiscardDraft();
         HasDraftToRestore = false;
         StartDraftAutoSave();
     }
 
-    private void StartDraftAutoSave()
+    private void StartDraftAutoSave() => _draftWorkflow.StartAutoSave(SaveDraftTickAsync);
+
+    private async Task SaveDraftTickAsync()
     {
-        if (_draftPersistenceService is null)
-        {
-            return;
-        }
-
-        _draftAutoSaveCts?.Cancel();
-        _draftAutoSaveCts?.Dispose();
-        _draftAutoSaveCts = new CancellationTokenSource();
-        _ = RunDraftAutoSaveAsync(_draftAutoSaveCts.Token);
-    }
-
-    private async Task RunDraftAutoSaveAsync(CancellationToken cancellationToken)
-    {
-        if (_draftPersistenceService is null)
-        {
-            return;
-        }
-
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        using var cancellationRegistration = cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
-        using var subscription = Observable.Interval(TimeSpan.FromSeconds(30))
-            .Subscribe(_tick =>
-            {
-                _ = SaveDraftTickAsync(cancellationToken);
-            });
-
-        try
-        {
-            await completion.Task.ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            // Normal shutdown — auto-save subscription cancelled.
-        }
-    }
-
-    private async Task SaveDraftTickAsync(CancellationToken cancellationToken)
-    {
-        if (_draftPersistenceService is null)
-        {
-            return;
-        }
-
-        try
-        {
-            var state = await Dispatcher.UIThread.InvokeAsync(
-                () => DraftPersistenceService.CaptureFromEditor(_requestEditor));
-            cancellationToken.ThrowIfCancellationRequested();
-            await _draftPersistenceService.SaveDraftAsync(state, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _debugLogger.Warning(ex, "Auto-save draft failed");
-        }
+        var state = await Dispatcher.UIThread.InvokeAsync(
+            () => DraftPersistenceService.CaptureFromEditor(_requestEditor));
+        await _draftWorkflow.SaveDraftAsync(state).ConfigureAwait(false);
     }
 }
