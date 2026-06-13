@@ -138,14 +138,14 @@ public partial class EmbeddedResponseView : UserControl
         }
 
         var extension = !string.IsNullOrWhiteSpace(_appVm.ResponseContentType)
-            ? MainWindowViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
-            : MainWindowViewModel.DetectExtensionFromContent(_appVm.ResponseBody);
+            ? ResponseActionsViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
+            : ResponseActionsViewModel.DetectExtensionFromContent(_appVm.ResponseBody);
 
         ApplyGrammarForContent(_responseTextMate, _registryOptions, extension, ref _responseGrammarScope);
 
         var rawExtension = !string.IsNullOrWhiteSpace(_appVm.ResponseContentType)
-            ? MainWindowViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
-            : MainWindowViewModel.DetectExtensionFromContent(_appVm.RawResponseBody);
+            ? ResponseActionsViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
+            : ResponseActionsViewModel.DetectExtensionFromContent(_appVm.RawResponseBody);
 
         ApplyGrammarForContent(_rawResponseTextMate, _registryOptions, rawExtension, ref _rawResponseGrammarScope);
         ApplyGrammarForContent(_responseRawEditorTextMate, _registryOptions, rawExtension, ref _responseRawEditorGrammarScope);

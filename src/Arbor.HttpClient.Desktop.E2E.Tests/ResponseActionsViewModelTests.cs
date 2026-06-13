@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Reactive.Linq;
+using System.Reactive.Threading.Tasks;
 using System.Threading.Tasks;
 using Arbor.HttpClient.Core.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
@@ -270,7 +272,7 @@ public class ResponseActionsViewModelTests
         var viewModel = new ResponseActionsViewModel(context);
 
         // Should complete without throwing even when body is empty.
-        var act = async () => await viewModel.OpenResponseBodyInExternalEditorAsync();
+        var act = async () => await viewModel.OpenResponseBodyInExternalEditorCommand.Execute();
 
         await act.Should().NotThrowAsync();
     }
@@ -285,7 +287,7 @@ public class ResponseActionsViewModelTests
         };
         var viewModel = new ResponseActionsViewModel(context);
 
-        await viewModel.OpenResponseBodyInExternalEditorAsync();
+        await viewModel.OpenResponseBodyInExternalEditorCommand.Execute();
 
         context.RecordedTempFiles.Should().HaveCount(1);
         context.RecordedTempFiles[0].Should().EndWith(".json");

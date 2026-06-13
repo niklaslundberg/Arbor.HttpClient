@@ -2165,50 +2165,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         ResponseActionsViewModel.OpenWithShell(path);
     }
 
-    // ReactiveUI.SourceGenerators strips the "Async" suffix when generating command properties,
-    // so the XAML binding target is OpenResponseBodyInExternalEditorCommand (not OpenResponseBodyInExternalEditorAsyncCommand).
-    [ReactiveCommand]
-    private Task OpenResponseBodyInExternalEditorAsync(CancellationToken cancellationToken) =>
-        _responseActions.OpenResponseBodyInExternalEditorAsync(cancellationToken);
-
-    [ReactiveCommand]
-    private Task SaveBinaryResponseAndOpenAsync(CancellationToken cancellationToken) =>
-        _responseActions.SaveBinaryResponseAndOpenAsync(cancellationToken);
-
-    /// <summary>
-    /// Copies the given history item to the clipboard formatted as a single-line
-    /// <c>curl</c> command. Matches the "Copy as cURL" action available in
-    /// Hoppscotch, Insomnia, and the browser devtools network panel.
-    /// No-op when the clipboard or request is unavailable.
-    /// </summary>
-    [ReactiveCommand]
-    private Task CopyHistoryItemAsCurlAsync(RequestHistoryEntry? request) =>
-        _responseActions.CopyHistoryItemAsCurlAsync(request);
-
-    /// <summary>
-    /// Copies the current (pretty-printed) response body text to the clipboard.
-    /// No-op when the clipboard is unavailable or the response body is empty.
-    /// </summary>
-    [ReactiveCommand]
-    private Task CopyResponseBodyAsync() => _responseActions.CopyResponseBodyAsync();
-
-    /// <summary>
-    /// Opens a save-file dialog and writes the currently selected response tab content to the chosen path.
-    /// The suggested file extension is derived from the response <c>Content-Type</c> when applicable.
-    /// No-op when the storage provider is unavailable or the selected tab has no saveable text content.
-    /// </summary>
-    [ReactiveCommand]
-    private Task SaveResponseBodyAsFileAsync(CancellationToken cancellationToken) =>
-        _responseActions.SaveResponseBodyAsFileAsync(cancellationToken);
-
-    /// <summary>
-    /// Copies the current request (as configured in the request editor) to the
-    /// clipboard formatted as a single-line <c>curl</c> command.
-    /// No-op when the clipboard is unavailable.
-    /// </summary>
-    [ReactiveCommand]
-    private Task CopyCurrentRequestAsCurlAsync() => _responseActions.CopyCurrentRequestAsCurlAsync();
-
     protected override void Dispose(bool disposing)
     {
         if (!disposing)
@@ -2220,6 +2176,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _crossFeatureDisposables.Dispose();
 
         _sendRequestCts?.Cancel();
+        _responseActions.Dispose();
         _environmentsViewModel.Dispose();
         _historyFilterRequestedSubject.OnCompleted();
         _historyFilterDisposables.Dispose();
@@ -2531,8 +2488,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private async Task<string> WriteTempFileAsync(string prefix, string content, CancellationToken cancellationToken = default)
     {
         var ext = !string.IsNullOrEmpty(_requestEditor.ContentType)
-            ? ExtensionFromContentType(_requestEditor.ContentType)
-            : DetectExtensionFromContent(content);
+            ? ResponseActionsViewModel.ExtensionFromContentType(_requestEditor.ContentType)
+            : ResponseActionsViewModel.DetectExtensionFromContent(content);
         var path = Path.Join(Path.GetTempPath(), $"{prefix}-{Guid.NewGuid():N}{ext}");
         await File.WriteAllTextAsync(path, content, cancellationToken).ConfigureAwait(false);
         _tempFiles.Add(path);
@@ -2549,13 +2506,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         return await StorageProvider.TryGetFolderFromPathAsync(ResponseSaveDefaultFolder);
     }
 
-    /// <summary>
-    /// Delegates to <see cref="ResponseActionsViewModel.TryGetSaveableResponseContent"/> for
-    /// backward-compatibility with existing tests and XAML bindings (Phase 2 delegation).
-    /// </summary>
-    internal bool TryGetSaveableResponseContent(out string content, out string extension) =>
-        _responseActions.TryGetSaveableResponseContent(out content, out extension);
-
     private void SyncDefaultContentTypeSelection(string value)
     {
         if (DefaultContentTypeOptions.Contains(value))
@@ -2568,20 +2518,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         SelectedDefaultContentTypeOption = DefaultContentTypeCustomOption;
         CustomDefaultContentType = value;
     }
-
-    /// <summary>
-    /// Delegates to <see cref="ResponseActionsViewModel.ExtensionFromContentType"/> for
-    /// backward-compatibility with existing tests and internal callers (Phase 2 delegation).
-    /// </summary>
-    internal static string ExtensionFromContentType(string contentType) =>
-        ResponseActionsViewModel.ExtensionFromContentType(contentType);
-
-    /// <summary>
-    /// Delegates to <see cref="ResponseActionsViewModel.DetectExtensionFromContent"/> for
-    /// backward-compatibility with existing tests and internal callers (Phase 2 delegation).
-    /// </summary>
-    internal static string DetectExtensionFromContent(string content) =>
-        ResponseActionsViewModel.DetectExtensionFromContent(content);
 
     private LayoutOptions BuildLayoutOptions() =>
         new()

@@ -3,6 +3,7 @@ using System.Reactive.Threading.Tasks;
 using System.Net;
 using System.Text;
 using Arbor.HttpClient.Desktop;
+using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.Logging;
 using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
@@ -104,7 +105,7 @@ public class ResponseShortcutsTests
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/api";
         await viewModel.SendRequestCommand.Execute();
 
-        await viewModel.CopyResponseBodyCommand.Execute();
+        await viewModel.ResponseActions.CopyResponseBodyCommand.Execute();
 
         var clipboardText = await (TopLevel.GetTopLevel(window)?.Clipboard?.TryGetTextAsync()
                          ?? Task.FromResult<string?>(null));
@@ -128,7 +129,7 @@ public class ResponseShortcutsTests
         await viewModel.SendRequestCommand.Execute();
 
         // Should not throw
-        await viewModel.CopyResponseBodyCommand.Execute();
+        await viewModel.ResponseActions.CopyResponseBodyCommand.Execute();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -149,7 +150,7 @@ public class ResponseShortcutsTests
         viewModel.RequestEditor.SelectedMethod = "POST";
         await viewModel.SendRequestCommand.Execute();
 
-        await viewModel.CopyCurrentRequestAsCurlCommand.Execute();
+        await viewModel.ResponseActions.CopyCurrentRequestAsCurlCommand.Execute();
 
         var clipboardText = await (TopLevel.GetTopLevel(window)?.Clipboard?.TryGetTextAsync()
                          ?? Task.FromResult<string?>(null));
@@ -175,7 +176,7 @@ public class ResponseShortcutsTests
         await viewModel.SendRequestCommand.Execute();
 
         // Should not throw
-        await viewModel.SaveResponseBodyAsFileCommand.Execute();
+        await viewModel.ResponseActions.SaveResponseBodyAsFileCommand.Execute();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -207,7 +208,7 @@ public class ResponseShortcutsTests
         viewModel.ResponseBody = "{\"ok\":true}";
         viewModel.ResponseContentType = "application/json";
 
-        var result = viewModel.TryGetSaveableResponseContent(out var content, out var extension);
+        var result = viewModel.ResponseActions.TryGetSaveableResponseContent(out var content, out var extension);
 
         result.Should().BeTrue();
         content.Should().Be("{\"ok\":true}");
@@ -225,7 +226,7 @@ public class ResponseShortcutsTests
         viewModel.RawResponseBody = "<raw>";
         viewModel.ResponseContentType = "text/plain";
 
-        var result = viewModel.TryGetSaveableResponseContent(out var content, out var extension);
+        var result = viewModel.ResponseActions.TryGetSaveableResponseContent(out var content, out var extension);
 
         result.Should().BeTrue();
         content.Should().Be("<raw>");
@@ -243,7 +244,7 @@ public class ResponseShortcutsTests
         viewModel.ResponseHeaders.Add("Content-Type: application/json");
         viewModel.ResponseHeaders.Add("X-Test: value");
 
-        var result = viewModel.TryGetSaveableResponseContent(out var content, out var extension);
+        var result = viewModel.ResponseActions.TryGetSaveableResponseContent(out var content, out var extension);
 
         result.Should().BeTrue();
         content.Should().Be($"Content-Type: application/json{Environment.NewLine}X-Test: value");
@@ -261,7 +262,7 @@ public class ResponseShortcutsTests
         viewModel.ResponseRawText = "HTTP/1.1 200 OK";
         viewModel.ResponseContentType = "application/json";
 
-        var result = viewModel.TryGetSaveableResponseContent(out var content, out var extension);
+        var result = viewModel.ResponseActions.TryGetSaveableResponseContent(out var content, out var extension);
 
         result.Should().BeTrue();
         content.Should().Be("HTTP/1.1 200 OK");
@@ -278,7 +279,7 @@ public class ResponseShortcutsTests
         viewModel.SelectedResponseTabIndex = 4;
         viewModel.ResponseBody = "<html></html>";
 
-        var result = viewModel.TryGetSaveableResponseContent(out var content, out var extension);
+        var result = viewModel.ResponseActions.TryGetSaveableResponseContent(out var content, out var extension);
 
         result.Should().BeFalse();
         content.Should().BeEmpty();
@@ -294,7 +295,7 @@ public class ResponseShortcutsTests
     [InlineData("application/atom+xml", ".xml")]
     public Task ExtensionFromContentType_ShouldReturnExpectedExtension(string contentType, string expectedExtension)
     {
-        var extension = MainWindowViewModel.ExtensionFromContentType(contentType);
+        var extension = ResponseActionsViewModel.ExtensionFromContentType(contentType);
 
         extension.Should().Be(expectedExtension);
         return Task.CompletedTask;

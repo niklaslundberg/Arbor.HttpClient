@@ -674,8 +674,8 @@ public partial class RequestView : UserControl
 
         var explicitContentType = _requestEditorVm?.ContentType ?? string.Empty;
         var ext = !string.IsNullOrEmpty(explicitContentType)
-            ? MainWindowViewModel.ExtensionFromContentType(explicitContentType)
-            : MainWindowViewModel.DetectExtensionFromContent(content);
+            ? ResponseActionsViewModel.ExtensionFromContentType(explicitContentType)
+            : ResponseActionsViewModel.DetectExtensionFromContent(content);
 
         var language = _registryOptions.GetLanguageByExtension(ext);
         var newScope = language is not null ? _registryOptions.GetScopeByLanguageId(language.Id) : string.Empty;
