@@ -77,7 +77,7 @@
                                 <Button.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="{x:Static loc:Strings.LeftPanelCopyAsCurl}"
-                                                  Command="{Binding $parent[UserControl].DataContext.App.CopyHistoryItemAsCurlCommand}"
+                                                  Command="{Binding $parent[UserControl].DataContext.App.ResponseActions.CopyHistoryItemAsCurlCommand}"
                                                   CommandParameter="{Binding}" />
                                     </ContextMenu>
                                 </Button.ContextMenu>

@@ -10,6 +10,7 @@ using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Shared;
 using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
+using ReactiveUI.SourceGenerators;
 
 namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
 
@@ -19,12 +20,11 @@ namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
 /// Depends on <see cref="IResponseActionsContext"/> for all response state; owns no observable
 /// state of its own so it can be tested without the full <c>MainWindowViewModel</c>.
 /// <para>
-/// <c>MainWindowViewModel</c> composes this class and delegates its <c>[RelayCommand]</c> methods
-/// to the corresponding public methods here (Phase 2). In a future Phase 3 cleanup the XAML
-/// bindings can be updated to point directly to this VM via a <c>ResponseActions</c> property.
+/// <c>MainWindowViewModel</c> composes this class and exposes it via the <c>ResponseActions</c>
+/// property; XAML bindings target <c>App.ResponseActions.*Command</c> directly.
 /// </para>
 /// </summary>
-public sealed class ResponseActionsViewModel
+public sealed partial class ResponseActionsViewModel : ReactiveViewModelBase
 {
     // Tab index constants mirror the tab order in ResponseView.axaml.
     private const int ResponseBodyTabIndex = 0;
@@ -46,7 +46,8 @@ public sealed class ResponseActionsViewModel
     /// Copies the current (pretty-printed) response body text to the clipboard.
     /// No-op when the clipboard is unavailable or the response body is empty.
     /// </summary>
-    public async Task CopyResponseBodyAsync()
+    [ReactiveCommand]
+    private async Task CopyResponseBodyAsync()
     {
         if (_context.Clipboard is null || string.IsNullOrEmpty(_context.ResponseBody))
         {
@@ -61,7 +62,8 @@ public sealed class ResponseActionsViewModel
     /// The suggested file extension is derived from the response <c>Content-Type</c> when applicable.
     /// No-op when the storage provider is unavailable or the selected tab has no saveable text content.
     /// </summary>
-    public async Task SaveResponseBodyAsFileAsync(CancellationToken cancellationToken)
+    [ReactiveCommand]
+    private async Task SaveResponseBodyAsFileAsync(CancellationToken cancellationToken)
     {
         if (_context.StorageProvider is null || !TryGetSaveableResponseContent(out var contentToSave, out var extension))
         {
@@ -95,7 +97,8 @@ public sealed class ResponseActionsViewModel
     /// Writes the current response body to a temporary file and opens it in the default
     /// external editor. The file is registered for cleanup on application exit.
     /// </summary>
-    public async Task OpenResponseBodyInExternalEditorAsync(CancellationToken cancellationToken = default)
+    [ReactiveCommand]
+    private async Task OpenResponseBodyInExternalEditorAsync(CancellationToken cancellationToken)
     {
         var ext = !string.IsNullOrEmpty(_context.ResponseContentType)
             ? ExtensionFromContentType(_context.ResponseContentType)
@@ -112,7 +115,8 @@ public sealed class ResponseActionsViewModel
     /// No-op when the last response was not binary, no bytes are available, or the storage
     /// provider is unavailable.
     /// </summary>
-    public async Task SaveBinaryResponseAndOpenAsync(CancellationToken cancellationToken)
+    [ReactiveCommand]
+    private async Task SaveBinaryResponseAndOpenAsync(CancellationToken cancellationToken)
     {
         var bytes = _context.GetLastResponseBodyBytes();
         if (!_context.IsBinaryResponse || bytes.Length == 0 || _context.StorageProvider is null)
@@ -150,7 +154,8 @@ public sealed class ResponseActionsViewModel
     /// <c>curl</c> command.
     /// No-op when the clipboard or request is unavailable.
     /// </summary>
-    public async Task CopyHistoryItemAsCurlAsync(RequestHistoryEntry? request)
+    [ReactiveCommand]
+    private async Task CopyHistoryItemAsCurlAsync(RequestHistoryEntry? request)
     {
         if (request is null || _context.Clipboard is null)
         {
@@ -166,7 +171,8 @@ public sealed class ResponseActionsViewModel
     /// clipboard formatted as a single-line <c>curl</c> command.
     /// No-op when the clipboard is unavailable.
     /// </summary>
-    public async Task CopyCurrentRequestAsCurlAsync()
+    [ReactiveCommand]
+    private async Task CopyCurrentRequestAsCurlAsync()
     {
         if (_context.Clipboard is null)
         {
