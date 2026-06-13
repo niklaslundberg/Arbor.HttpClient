@@ -139,14 +139,14 @@ public partial class ResponseView : UserControl
         }
 
         var ext = !string.IsNullOrWhiteSpace(_appVm.ResponseContentType)
-            ? MainWindowViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
-            : MainWindowViewModel.DetectExtensionFromContent(_appVm.ResponseBody);
+            ? ResponseActionsViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
+            : ResponseActionsViewModel.DetectExtensionFromContent(_appVm.ResponseBody);
 
         ApplyGrammarForContent(_responseTextMate, _registryOptions, ext, ref _responseGrammarScope);
 
         var rawExt = !string.IsNullOrWhiteSpace(_appVm.ResponseContentType)
-            ? MainWindowViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
-            : MainWindowViewModel.DetectExtensionFromContent(_appVm.RawResponseBody);
+            ? ResponseActionsViewModel.ExtensionFromContentType(_appVm.ResponseContentType)
+            : ResponseActionsViewModel.DetectExtensionFromContent(_appVm.RawResponseBody);
         ApplyGrammarForContent(_rawResponseTextMate, _registryOptions, rawExt, ref _rawResponseGrammarScope);
         ApplyGrammarForContent(_responseRawEditorTextMate, _registryOptions, rawExt, ref _responseRawEditorGrammarScope);
 

@@ -48,15 +48,15 @@
                 <Button Content="{x:Static loc:Strings.ResponseCopyBody}"
                         AutomationProperties.Name="Copy response body to clipboard"
                         ToolTip.Tip="Copy response body to clipboard"
-                        Command="{Binding App.CopyResponseBodyCommand}" />
+                        Command="{Binding App.ResponseActions.CopyResponseBodyCommand}" />
                 <Button Content="{x:Static loc:Strings.ResponseSaveAsFile}"
                         AutomationProperties.Name="Save response body as file"
                         ToolTip.Tip="Save response body as file"
-                        Command="{Binding App.SaveResponseBodyAsFileCommand}" />
+                        Command="{Binding App.ResponseActions.SaveResponseBodyAsFileCommand}" />
                 <Button Content="{x:Static loc:Strings.ResponseCopyAsCurl}"
                         AutomationProperties.Name="Copy current request as cURL"
                         ToolTip.Tip="Copy current request as cURL command"
-                        Command="{Binding App.CopyCurrentRequestAsCurlCommand}" />
+                        Command="{Binding App.ResponseActions.CopyCurrentRequestAsCurlCommand}" />
             </StackPanel>
 
             <Grid Grid.Row="1" ColumnDefinitions="*,Auto" IsVisible="{Binding App.IsBinaryResponse}">
@@ -64,7 +64,7 @@
                 <Button Grid.Column="1" Content="{x:Static loc:Strings.ResponseSaveAndOpen}"
                         AutomationProperties.Name="Save binary response and open in external application"
                         ToolTip.Tip="Save binary response and open in your default application"
-                        Command="{Binding App.SaveBinaryResponseAndOpenCommand}" />
+                        Command="{Binding App.ResponseActions.SaveBinaryResponseAndOpenCommand}" />
             </Grid>
 
             <TabControl x:Name="ResponseTabControl"
