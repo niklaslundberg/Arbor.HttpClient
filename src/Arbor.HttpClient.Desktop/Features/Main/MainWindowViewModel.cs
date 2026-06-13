@@ -130,6 +130,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private readonly IScriptRunner _scriptRunner = new RoslynScriptRunner();
     private readonly ScriptViewModel _scriptViewModel = new();
     private readonly ResponseActionsViewModel _responseActions = null!;
+    private readonly CollectionRequestEditorProjectionWorkflow _collectionRequestEditorProjectionWorkflow;
     private const string DefaultContentTypeCustomOption = "Custom...";
 
     private static readonly HashSet<string> AutoSaveOnlyOptionPropertyNames = new(StringComparer.Ordinal)
@@ -673,6 +674,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _scheduledJobsWorkflow = new ScheduledJobsWorkflow(scheduledJobRepository, scheduledJobService);
         _logWindowViewModel = logWindowViewModel;
         _variableResolver = new VariableResolver();
+        _collectionRequestEditorProjectionWorkflow = new CollectionRequestEditorProjectionWorkflow(_variableResolver);
         _applicationOptionsStore = applicationOptionsStore;
         _onApplicationOptionsChanged = onApplicationOptionsChanged;
         _demoServer = demoServer;
@@ -1553,120 +1555,51 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     {
         using (_requestEditor.BeginBulkUpdate())
         {
-            var requestType = ResolveCollectionRequestType(item.Method);
-            _requestEditor.SelectedRequestType = requestType;
-            if (requestType == RequestType.Http)
+            var projection = _collectionRequestEditorProjectionWorkflow.BuildProjection(
+                item,
+                SelectedCollection,
+                ActiveEnvironment,
+                _requestEditor.GetResolvedVariables(),
+                _requestEditor.ContentTypeOptions,
+                hasDemoServer: _demoServer is { },
+                isDemoServerRunning: _demoServer?.IsRunning ?? false,
+                demoServerPort: _demoServer?.Port ?? 0,
+                demoServerHttpsPort: _demoServer?.HttpsPort ?? 0);
+
+            _requestEditor.SelectedRequestType = projection.RequestType;
+            if (projection.RequestType == RequestType.Http)
             {
                 _requestEditor.SelectedMethod = item.Method;
             }
 
-            var resolvedUrl = BuildCollectionRequestUrl(item.Path, requestType);
-            _requestEditor.RequestUrl = resolvedUrl;
-            _requestEditor.RequestName = item.Name;
-            _requestEditor.RequestNotes = item.Notes ?? string.Empty;
+            _requestEditor.RequestUrl = projection.ResolvedUrl;
+            _requestEditor.RequestName = projection.Name;
+            _requestEditor.RequestNotes = projection.Notes;
 
-            ApplyCollectionRequestHeaders(item);
-            ApplyCollectionRequestContent(item);
-            IsDemoServerBannerVisible = ShouldShowDemoServerBanner(resolvedUrl);
+            _requestEditor.RequestHeaders.Clear();
+            foreach (var header in projection.Headers)
+            {
+                _requestEditor.RequestHeaders.Add(new RequestHeaderViewModel
+                {
+                    Name = header.Name,
+                    Value = header.Value,
+                    IsEnabled = header.IsEnabled,
+                    IsInherited = header.IsInherited
+                });
+            }
+
+            _requestEditor.EnsurePlaceholderRows();
+
+            _requestEditor.SelectedContentTypeOption = projection.SelectedContentTypeOption;
+            _requestEditor.CustomContentType = projection.CustomContentType;
+            _requestEditor.RequestBody = projection.Body;
+
+            IsDemoServerBannerVisible = projection.ShowDemoServerBanner;
 
             var collectionId = SelectedCollection?.Id ?? 0;
             ActiveRequestTab?.SetCollectionRequestSource(collectionId, item.Method, item.Path, item.Name);
         }
     }
-
-    private static RequestType ResolveCollectionRequestType(string method) =>
-        method switch
-        {
-            "WS" or "WSS" => RequestType.WebSocket,
-            "SSE" => RequestType.Sse,
-            _ => RequestType.Http
-        };
-
-    private string BuildCollectionRequestUrl(string path, RequestType requestType)
-    {
-        var collectionBaseUrl = SelectedCollection?.BaseUrl;
-        var activeEnvironment = ActiveEnvironment;
-
-        var baseUrl = activeEnvironment is { }
-            ? _variableResolver.Resolve(collectionBaseUrl ?? string.Empty, _requestEditor.GetResolvedVariables())
-            : (collectionBaseUrl ?? string.Empty);
-
-        var resolvedUrl = CollectionUrlHelper.BuildFullUrl(baseUrl, path);
-        if (requestType == RequestType.WebSocket)
-        {
-            resolvedUrl = resolvedUrl
-                .Replace("https://", "wss://", StringComparison.OrdinalIgnoreCase)
-                .Replace("http://", "ws://", StringComparison.OrdinalIgnoreCase);
-        }
-
-        return resolvedUrl;
-    }
-
-    private void ApplyCollectionRequestHeaders(CollectionItemViewModel item)
-    {
-        _requestEditor.RequestHeaders.Clear();
-
-        var inheritedHeaders = SelectedCollection?.Headers;
-        var mergedHeaders = CollectionInheritedHeadersWorkflow.MergeCollectionAndRequestHeaders(inheritedHeaders, item.Headers);
-        if (mergedHeaders is null)
-        {
-            _requestEditor.EnsurePlaceholderRows();
-            return;
-        }
-
-        foreach (var mergedHeader in mergedHeaders)
-        {
-            _requestEditor.RequestHeaders.Add(new RequestHeaderViewModel
-            {
-                Name = mergedHeader.Name,
-                Value = mergedHeader.Value,
-                IsEnabled = mergedHeader.IsEnabled,
-                IsInherited = inheritedHeaders?.Any(inheritedHeader =>
-                    string.Equals(inheritedHeader.Name, mergedHeader.Name, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(inheritedHeader.Value, mergedHeader.Value, StringComparison.Ordinal)
-                    && inheritedHeader.IsEnabled == mergedHeader.IsEnabled) == true
-            });
-        }
-
-        _requestEditor.EnsurePlaceholderRows();
-    }
-
-    private void ApplyCollectionRequestContent(CollectionItemViewModel item)
-    {
-        if (string.IsNullOrEmpty(item.ContentType))
-        {
-            _requestEditor.SelectedContentTypeOption = RequestEditorViewModel.NoneContentTypeOption;
-            _requestEditor.CustomContentType = string.Empty;
-        }
-        else if (_requestEditor.ContentTypeOptions.Contains(item.ContentType))
-        {
-            _requestEditor.SelectedContentTypeOption = item.ContentType;
-            _requestEditor.CustomContentType = string.Empty;
-        }
-        else
-        {
-            _requestEditor.SelectedContentTypeOption = RequestEditorViewModel.CustomContentTypeOption;
-            _requestEditor.CustomContentType = item.ContentType;
-        }
-
-        if (!string.IsNullOrEmpty(item.Body))
-        {
-            _requestEditor.RequestBody = item.Body;
-        }
-        else if (item.Method is "POST" or "PUT" or "PATCH")
-        {
-            _requestEditor.RequestBody = "{}";
-        }
-        else
-        {
-            _requestEditor.RequestBody = string.Empty;
-        }
-    }
-
-    private bool ShouldShowDemoServerBanner(string resolvedUrl) =>
-        _demoServer is { } server
-        && !server.IsRunning
-        && (IsDemoServerUrl(resolvedUrl, server.Port) || IsDemoServerUrl(resolvedUrl, server.HttpsPort));
 
     /// <summary>Starts the embedded demo server on <see cref="DemoServerPort"/> and/or <see cref="DemoServerHttpsPort"/>.</summary>
     [ReactiveCommand]
@@ -2405,16 +2338,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     private Task<DemoDataSeedResult> SeedDemoDataAsync(CancellationToken cancellationToken = default) =>
         _demoDataWorkflow.SeedDemoDataAsync(cancellationToken);
-
-    /// <summary>
-    /// Returns <see langword="true"/> when <paramref name="url"/> targets the local demo
-    /// server at the given <paramref name="port"/>.
-    /// </summary>
-    private static bool IsDemoServerUrl(string url, int port) =>
-        Uri.TryCreate(url, UriKind.Absolute, out var uri)
-        && (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(uri.Host, "127.0.0.1", StringComparison.Ordinal))
-        && uri.Port == port;
 
     private void ApplyHttpResponseProjection(HttpResponseDetails response)
     {

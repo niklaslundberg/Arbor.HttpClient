@@ -52,6 +52,14 @@ As of the latest build (2026-04-24, after adding Kestrel integration tests for W
 | `CollectionsManagementCoordinator.ImportCollectionAsync` | **94.7%** ✅ | Valid spec, invalid spec, and stream-open failure paths |
 | `CollectionsManagementCoordinator.DeleteCollectionAsync` | **100%** ✅ | Null, selected, and unselected collection paths |
 
+### New code introduced in the collection-request editor projection slice (2026-06-13)
+
+> Measured with `dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/... -- --filter-class "...CollectionRequestEditorProjectionWorkflowTests" --coverage --coverage-output-format cobertura` (Microsoft.Testing.Extensions.CodeCoverage).
+
+| Class | Line coverage | Notes |
+|---|---|---|
+| `CollectionRequestEditorProjectionWorkflow` | **100%** ✅ | Request-type resolution, URL/scheme resolution (incl. environment variable resolution), merged inherited/manual header projection, content-type/body projection, demo-server banner check, and request notes — all paths covered by `CollectionRequestEditorProjectionWorkflowTests` |
+
 ### New code introduced in UX idea 1.3 + Kestrel integration tests
 
 | Class | Line coverage | Notes |
