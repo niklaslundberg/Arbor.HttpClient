@@ -55,6 +55,8 @@ This document answers the architecture questions raised in [issue #33](https://g
 > `MainWindowViewModel` is now about 2,562 lines.
 >
 > **Update 2026-06-14 (later 9):** Started the DockFactory feature-registration work (step 2 below / split-plan item 7), decoupling two of the four dockable VMs from `MainWindowViewModel`. `LogPanelViewModel` now takes `LogWindowViewModel` directly (its view only ever bound `App.LogWindowViewModel.*`, now `Logs.*`); `LayoutManagementViewModel` now takes the narrow `ILayoutManagementContext` interface (`Features/Layout/`) implemented by `MainWindowViewModel`, instead of the whole main VM. `DockFactory` receives the `LogWindowViewModel` as a constructor parameter. `LeftPanelViewModel` and `RequestViewModel` (the ~40- and ~70-binding views) remain on the `App`/`MainWindowViewModel` proxy by design. Verified headlessly: the `Category=Screenshots` E2E tests render both dockables through the real `DockFactory` + compiled bindings, and `log-panel.png`/`layout-panel.png` are byte-identical before/after. New tests: `DockableViewModelDecouplingTests`.
+>
+> **Update 2026-06-14 (later 10):** Decoupled the third dockable, `LeftPanelViewModel` (Explorer), via the `ILeftPanelContext` interface (`Features/Collections/`) — the History/Collections/Scheduled-Jobs tab state, collection management commands/forms, inherited-headers editor, search/sort/display state, scheduled-jobs list, and the `RequestEditor`/`ResponseActions` sub-VMs the item templates use. `MainWindowViewModel` implements it (commands and `ActiveEnvironmentVariables` via explicit interface implementation). The shared `VariableTextBox.AppViewModel` was also narrowed from `MainWindowViewModel?` to `IVariableAutoCompleteHost?` (`Features/Variables/`, just `ActiveEnvironmentVariables`) so the control no longer depends on the whole VM. Only `RequestViewModel` still takes the full `MainWindowViewModel`. Verified headlessly: `collections-panel.png`/`collections-panel-tree.png`/`scheduled-jobs.png` and the request-editor `variables-*` showcases are byte-identical before/after. New tests in `DockableViewModelDecouplingTests`.
 
 - **Monolithic main view model**: `MainWindowViewModel` (~2,500 lines at the time of writing) owns request editing, response rendering, history, collections, environments, options, scheduling, layout persistence, and logging. All UI actions pass through this single type, so responsibilities are tightly coupled.
 - **Child view models are thin proxies**: dockable VMs such as `RequestViewModel`, `ResponseViewModel`, `LeftPanelViewModel`, and `OptionsViewModel` simply forward to `MainWindowViewModel`. Reusing them elsewhere still drags the entire main VM with it.
@@ -86,7 +88,7 @@ This document answers the architecture questions raised in [issue #33](https://g
 
 2. **Modular dock registrations** 🔶 In progress (2026-06-14)
    - Let each feature provide a `DockableRegistration` (view, VM factory, initial placement) consumed by `DockFactory`. Adding a new tool/document should mean adding one registration class, not touching existing ones.
-   - Progress: `DockFactory` already receives `OptionsViewModel`/`EnvironmentsViewModel`/`CookieJarViewModel`/`LogWindowViewModel` as constructor parameters rather than reaching through the main VM. `LogPanelViewModel` now depends on `LogWindowViewModel` and `LayoutManagementViewModel` on the narrow `ILayoutManagementContext`; `LeftPanelViewModel` and `RequestViewModel` still take the full `MainWindowViewModel` (`App`) and are the remaining migrations.
+   - Progress: `DockFactory` already receives `OptionsViewModel`/`EnvironmentsViewModel`/`CookieJarViewModel`/`LogWindowViewModel` as constructor parameters rather than reaching through the main VM. `LogPanelViewModel` now depends on `LogWindowViewModel`, `LayoutManagementViewModel` on the narrow `ILayoutManagementContext`, and `LeftPanelViewModel` on `ILeftPanelContext` (with the shared `VariableTextBox` retargeted to `IVariableAutoCompleteHost`); only `RequestViewModel` still takes the full `MainWindowViewModel` (`App`) and is the remaining migration.
 
 3. **Move infrastructure behind interfaces**
    - Wrap clipboard, storage provider, file system watcher, and timers behind interfaces injected into the relevant feature VMs. This enables headless unit testing and reduces Avalonia-specific coupling in business logic.
@@ -130,7 +132,7 @@ Features/
                             CollectionInheritedHeadersWorkflow, CollectionFilterWorkflow,
                             CollectionRequestEditorProjectionWorkflow,
                             CollectionGroupViewModel, CollectionItemViewModel, LeftPanelViewModel,
-                            LeftPanelView, BoolToExpandIconConverter
+                            ILeftPanelContext, LeftPanelView, BoolToExpandIconConverter
   Cookies/                — CookieJarViewModel, CookieEntryViewModel, CookieJarView
   Demo/                   — DemoDataWorkflow, DemoServerLifecycleCoordinator
   Diagnostics/            — DiagnosticsViewModel, DiagnosticsOptions, DiagnosticsWindow,
@@ -161,7 +163,7 @@ Features/
   Sse/                    — SseViewModel
   Streaming/              — StreamingConnectionWorkflow
   Variables/              — VariableAutoCompleteController, VariableCompletionData, VariableCompletionEngine,
-                            VariableNameHelper, VariableTextBox, VariableTokenColorizer
+                            VariableNameHelper, VariableTextBox, IVariableAutoCompleteHost, VariableTokenColorizer
   WebSocket/              — WebSocketViewModel
   WebView/                — WebViewWindow
 Localization/             — Strings.resx, Strings.Designer.cs

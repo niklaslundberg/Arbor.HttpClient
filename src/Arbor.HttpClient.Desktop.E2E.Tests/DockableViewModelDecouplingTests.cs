@@ -1,7 +1,13 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
+using Arbor.HttpClient.Core.Collections;
+using Arbor.HttpClient.Core.HttpRequest;
+using Arbor.HttpClient.Desktop.Features.Collections;
+using Arbor.HttpClient.Desktop.Features.Environments;
+using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.Layout;
 using Arbor.HttpClient.Desktop.Features.Logging;
+using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using ReactiveUI;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
@@ -43,6 +49,19 @@ public class DockableViewModelDecouplingTests
         dockable.RestoreDefaultLayoutCommand.Should().BeSameAs(context.RestoreDefaultLayoutCommand);
     }
 
+    [Fact]
+    public void LeftPanelViewModel_ExposesContextAndProxiesRemoveScheduledJobCommand()
+    {
+        var context = new FakeLeftPanelContext();
+
+        var dockable = new LeftPanelViewModel(context);
+
+        dockable.App.Should().BeSameAs(context);
+        dockable.Id.Should().Be("left-panel");
+        dockable.Title.Should().Be("Explorer");
+        dockable.RemoveScheduledJobCommand.Should().BeSameAs(context.RemoveScheduledJobCommand);
+    }
+
     private sealed class FakeLayoutManagementContext : ILayoutManagementContext
     {
         public ObservableCollection<string> SavedLayoutNames { get; } = [];
@@ -56,5 +75,65 @@ public class DockableViewModelDecouplingTests
         public ICommand RemoveLayoutCommand { get; } = ReactiveCommand.Create<string?>(_ => { });
 
         public ICommand RestoreDefaultLayoutCommand { get; } = ReactiveCommand.Create(() => { });
+    }
+
+    /// <summary>
+    /// Minimal <see cref="ILeftPanelContext"/> stub. Only the members the dockable VM touches in
+    /// C# (<see cref="ILeftPanelContext.RemoveScheduledJobCommand"/>) are asserted; the rest are
+    /// AXAML-bound and exercised by the rendering screenshot tests, so they return inert defaults.
+    /// </summary>
+    private sealed class FakeLeftPanelContext : ILeftPanelContext
+    {
+        private static readonly ICommand NoOp = ReactiveCommand.Create(() => { });
+
+        public IReadOnlyList<EnvironmentVariableViewModel> ActiveEnvironmentVariables { get; } = [];
+
+        public string LeftPanelTab => "History";
+        public ICommand ShowHistoryTabCommand => NoOp;
+        public ICommand ShowCollectionsTabCommand => NoOp;
+        public ICommand ShowScheduledJobsTabCommand => NoOp;
+
+        public string HistorySearchQuery { get; set; } = string.Empty;
+        public ObservableCollection<RequestHistoryEntry> History { get; } = [];
+        public ICommand LoadHistoryRequestCommand => NoOp;
+
+        public ObservableCollection<Collection> Collections { get; } = [];
+        public Collection? SelectedCollection { get; set; }
+        public ICommand LoadCollectionRequestCommand => NoOp;
+        public ICommand AddRequestToCollectionCommand => NoOp;
+        public ICommand ImportCollectionCommand => NoOp;
+        public ICommand DeleteCollectionCommand => NoOp;
+
+        public bool IsNewCollectionFormVisible => false;
+        public string NewCollectionName { get; set; } = string.Empty;
+        public ICommand ShowNewCollectionFormCommand => NoOp;
+        public ICommand CreateCollectionCommand => NoOp;
+        public ICommand CancelNewCollectionCommand => NoOp;
+        public bool IsRenameCollectionFormVisible => false;
+        public string RenameCollectionName { get; set; } = string.Empty;
+        public ICommand ShowRenameCollectionFormCommand => NoOp;
+        public ICommand ConfirmRenameCollectionCommand => NoOp;
+        public ICommand CancelRenameCollectionCommand => NoOp;
+
+        public ObservableCollection<RequestHeaderViewModel> CollectionInheritedHeaders { get; } = [];
+        public ICommand AddCollectionInheritedHeaderCommand => NoOp;
+        public ICommand RemoveCollectionInheritedHeaderCommand => NoOp;
+
+        public string CollectionSearchQuery { get; set; } = string.Empty;
+        public string CollectionSortBy => "Default";
+        public string CollectionDisplayMode => "NameAndPath";
+        public bool IsCollectionTreeView => false;
+        public ObservableCollection<CollectionItemViewModel> FilteredCollectionItems { get; } = [];
+        public ObservableCollection<CollectionGroupViewModel> CollectionGroups { get; } = [];
+        public ICommand SetCollectionSortByCommand => NoOp;
+        public ICommand SetCollectionDisplayModeCommand => NoOp;
+        public ICommand ToggleCollectionTreeViewCommand => NoOp;
+
+        public ObservableCollection<ScheduledJobViewModel> ScheduledJobs { get; } = [];
+        public ICommand AddScheduledJobCommand => NoOp;
+        public ICommand RemoveScheduledJobCommand { get; } = ReactiveCommand.Create<ScheduledJobViewModel?>(_ => { });
+
+        public RequestEditorViewModel RequestEditor => null!;
+        public ResponseActionsViewModel ResponseActions => null!;
     }
 }

@@ -35,6 +35,7 @@ using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Options;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Desktop.Features.Sse;
+using Arbor.HttpClient.Desktop.Features.Variables;
 using Arbor.HttpClient.Desktop.Features.WebSocket;
 using Arbor.HttpClient.Desktop.Features.Streaming;
 using Arbor.HttpClient.Desktop.Localization;
@@ -61,7 +62,7 @@ using Arbor.HttpClient.Desktop.Features.Scripting;
 namespace Arbor.HttpClient.Desktop.Features.Main;
 
 [SuppressMessage("Major Code Smell", "S3881", Justification = "Lifetime is managed as a UI root ViewModel with deterministic cleanup via Dispose.")]
-public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActionsContext, ILayoutManagementContext
+public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActionsContext, ILayoutManagementContext, ILeftPanelContext
 {
     private readonly HttpRequestService _httpRequestService;
     private HttpRequestWorkflow _httpRequestWorkflow = null!;
@@ -205,6 +206,37 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     System.Windows.Input.ICommand ILayoutManagementContext.RemoveLayoutCommand => RemoveLayoutCommand;
 
     System.Windows.Input.ICommand ILayoutManagementContext.RestoreDefaultLayoutCommand => RestoreDefaultLayoutCommand;
+
+    // ── ILeftPanelContext explicit implementations ────────────────────────────
+    // All bound properties (LeftPanelTab, History, Collections, the form state, the
+    // filtered/grouped lists, RequestEditor, ResponseActions, …) satisfy the interface
+    // implicitly. ActiveEnvironmentVariables and the commands are surfaced here because
+    // their concrete return types (ObservableCollection / ReactiveCommand<…>) don't match
+    // the interface's IReadOnlyList / ICommand by identity.
+
+    IReadOnlyList<EnvironmentVariableViewModel> IVariableAutoCompleteHost.ActiveEnvironmentVariables => ActiveEnvironmentVariables;
+
+    System.Windows.Input.ICommand ILeftPanelContext.ShowHistoryTabCommand => ShowHistoryTabCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.ShowCollectionsTabCommand => ShowCollectionsTabCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.ShowScheduledJobsTabCommand => ShowScheduledJobsTabCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.LoadHistoryRequestCommand => LoadHistoryRequestCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.LoadCollectionRequestCommand => LoadCollectionRequestCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.AddRequestToCollectionCommand => AddRequestToCollectionCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.ImportCollectionCommand => ImportCollectionCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.DeleteCollectionCommand => DeleteCollectionCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.ShowNewCollectionFormCommand => ShowNewCollectionFormCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.CreateCollectionCommand => CreateCollectionCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.CancelNewCollectionCommand => CancelNewCollectionCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.ShowRenameCollectionFormCommand => ShowRenameCollectionFormCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.ConfirmRenameCollectionCommand => ConfirmRenameCollectionCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.CancelRenameCollectionCommand => CancelRenameCollectionCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.AddCollectionInheritedHeaderCommand => AddCollectionInheritedHeaderCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.RemoveCollectionInheritedHeaderCommand => RemoveCollectionInheritedHeaderCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.SetCollectionSortByCommand => SetCollectionSortByCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.SetCollectionDisplayModeCommand => SetCollectionDisplayModeCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.ToggleCollectionTreeViewCommand => ToggleCollectionTreeViewCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.AddScheduledJobCommand => AddScheduledJobCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.RemoveScheduledJobCommand => RemoveScheduledJobCommand;
 
     // ─────────────────────────────────────────────────────────────────────────
 
