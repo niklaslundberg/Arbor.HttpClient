@@ -1908,7 +1908,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     {
         foreach (var mergedHeader in mergedHeaders)
         {
-            if (!IsInheritedHeader(mergedHeader, inheritedHeaders) || HasManualHeaderOverride(mergedHeader.Name, manualRequestHeaders))
+            if (!CollectionInheritedHeadersWorkflow.IsInheritedHeader(mergedHeader, inheritedHeaders)
+                || CollectionInheritedHeadersWorkflow.HasManualHeaderOverride(mergedHeader.Name, manualRequestHeaders))
             {
                 continue;
             }
@@ -1922,15 +1923,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             });
         }
     }
-
-    private static bool IsInheritedHeader(RequestHeader header, IReadOnlyList<RequestHeader>? inheritedHeaders) =>
-        inheritedHeaders?.Any(inheritedHeader =>
-            string.Equals(inheritedHeader.Name, header.Name, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(inheritedHeader.Value, header.Value, StringComparison.Ordinal)
-            && inheritedHeader.IsEnabled == header.IsEnabled) == true;
-
-    private static bool HasManualHeaderOverride(string headerName, IReadOnlyList<RequestHeaderViewModel> manualRequestHeaders) =>
-        manualRequestHeaders.Any(header => string.Equals(header.Name, headerName, StringComparison.OrdinalIgnoreCase));
 
     [ReactiveCommand]
     private async Task ImportCollectionAsync()

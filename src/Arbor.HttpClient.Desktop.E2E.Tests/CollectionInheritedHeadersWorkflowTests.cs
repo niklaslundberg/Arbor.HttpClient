@@ -314,4 +314,48 @@ public sealed class CollectionInheritedHeadersWorkflowTests
         CollectionInheritedHeadersWorkflow.HeadersEqual(baseline, [new RequestHeader("X-Trace", "1", true), new RequestHeader("X-Other", "1", true)])
             .Should().BeFalse();
     }
+
+    [Fact]
+    public void IsInheritedHeader_MatchingNameValueAndEnabledState_ReturnsTrue()
+    {
+        var inheritedHeaders = new List<RequestHeader> { new("X-Trace", "1", true) };
+
+        CollectionInheritedHeadersWorkflow.IsInheritedHeader(new RequestHeader("x-trace", "1", true), inheritedHeaders)
+            .Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("X-Trace", "2", true)]
+    [InlineData("X-Trace", "1", false)]
+    [InlineData("X-Other", "1", true)]
+    public void IsInheritedHeader_DifferingNameValueOrEnabledState_ReturnsFalse(string name, string value, bool isEnabled)
+    {
+        var inheritedHeaders = new List<RequestHeader> { new("X-Trace", "1", true) };
+
+        CollectionInheritedHeadersWorkflow.IsInheritedHeader(new RequestHeader(name, value, isEnabled), inheritedHeaders)
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsInheritedHeader_NullInheritedHeaders_ReturnsFalse()
+    {
+        CollectionInheritedHeadersWorkflow.IsInheritedHeader(new RequestHeader("X-Trace", "1", true), null)
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public void HasManualHeaderOverride_NameMatchesCaseInsensitive_ReturnsTrue()
+    {
+        var manualHeaders = new List<RequestHeaderViewModel> { HeaderViewModel("X-Trace") };
+
+        CollectionInheritedHeadersWorkflow.HasManualHeaderOverride("x-trace", manualHeaders).Should().BeTrue();
+    }
+
+    [Fact]
+    public void HasManualHeaderOverride_NoMatchingName_ReturnsFalse()
+    {
+        var manualHeaders = new List<RequestHeaderViewModel> { HeaderViewModel("X-Trace") };
+
+        CollectionInheritedHeadersWorkflow.HasManualHeaderOverride("X-Other", manualHeaders).Should().BeFalse();
+    }
 }
