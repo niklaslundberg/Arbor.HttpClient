@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
@@ -50,6 +52,19 @@ public sealed class RequestTabsWorkflow
         tab.Dispose();
         return nextActive;
     }
+
+    /// <summary>
+    /// Finds the open tab whose collection-request source matches the given identity
+    /// (<see cref="RequestTabViewModel.MatchesCollectionRequest"/>), or <see langword="null"/>
+    /// when no tab matches.
+    /// </summary>
+    public static RequestTabViewModel? FindMatchingTab(
+        IEnumerable<RequestTabViewModel> tabs,
+        int collectionId,
+        string method,
+        string path,
+        string name) =>
+        tabs.FirstOrDefault(tab => tab.MatchesCollectionRequest(collectionId, method, path, name));
 
     /// <summary>
     /// Returns the bytes of <paramref name="responseBodyBytes"/> as a <see cref="byte"/> array,

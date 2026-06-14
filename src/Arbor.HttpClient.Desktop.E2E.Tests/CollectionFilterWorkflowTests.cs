@@ -13,6 +13,35 @@ public sealed class CollectionFilterWorkflowTests
 
     private readonly CollectionFilterWorkflow _workflow = new();
 
+    // ── BuildCollectionItems tests ────────────────────────────────────────────
+
+    [Fact]
+    public void BuildCollectionItems_NoRequests_ReturnsEmptyList()
+    {
+        var collection = new Collection(1, "Test Collection", null, "https://api.example.com", []);
+
+        CollectionFilterWorkflow.BuildCollectionItems(collection).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BuildCollectionItems_MapsEachRequestUsingCollectionBaseUrl()
+    {
+        var collection = new Collection(
+            1,
+            "Test Collection",
+            null,
+            "https://api.example.com",
+            [
+                new CollectionRequest("List pets", "GET", "/pets", null),
+                new CollectionRequest("Create pet", "POST", "/pets", null)
+            ]);
+
+        var result = CollectionFilterWorkflow.BuildCollectionItems(collection);
+
+        result.Select(item => item.Name).Should().Equal("List pets", "Create pet");
+        result.Select(item => item.FullUrl).Should().Equal("https://api.example.com/pets", "https://api.example.com/pets");
+    }
+
     [Fact]
     public void Apply_EmptyQueryDefaultSort_ReturnsAllItemsInOriginalOrder()
     {

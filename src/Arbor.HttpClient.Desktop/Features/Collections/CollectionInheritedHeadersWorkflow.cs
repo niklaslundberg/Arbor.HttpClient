@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
@@ -89,6 +90,45 @@ public sealed class CollectionInheritedHeadersWorkflow : IDisposable
             .ToList();
 
         return headers is { Count: > 0 } ? headers : null;
+    }
+
+    /// <summary>
+    /// Builds the inherited-header view-model rows shown in the collection-headers editor from
+    /// a collection's persisted <paramref name="headers"/>. Returns an empty list when
+    /// <paramref name="headers"/> is null.
+    /// </summary>
+    public static IReadOnlyList<RequestHeaderViewModel> BuildHeaderViewModels(IReadOnlyList<RequestHeader>? headers)
+    {
+        if (headers is null)
+        {
+            return [];
+        }
+
+        return headers
+            .Select(header => new RequestHeaderViewModel
+            {
+                Name = header.Name,
+                Value = header.Value,
+                IsEnabled = header.IsEnabled
+            })
+            .ToList();
+    }
+
+    /// <summary>
+    /// Merges the <see cref="RequestHeaderViewModel.PropertyChangedObservable"/> streams of
+    /// <paramref name="headerViewModels"/> into a single observable, or an empty observable
+    /// when the collection is empty.
+    /// </summary>
+    public static IObservable<PropertyChangedEventArgs> ObservePropertyChanges(
+        IEnumerable<RequestHeaderViewModel> headerViewModels)
+    {
+        var itemStreams = headerViewModels
+            .Select(header => header.PropertyChangedObservable)
+            .ToArray();
+
+        return itemStreams.Length == 0
+            ? Observable.Empty<PropertyChangedEventArgs>()
+            : Observable.Merge(itemStreams);
     }
 
     /// <summary>

@@ -487,22 +487,14 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             CollectionInheritedHeaders.Clear();
             if (SelectedCollection is { } collection)
             {
-                foreach (var request in collection.Requests)
+                foreach (var item in CollectionFilterWorkflow.BuildCollectionItems(collection))
                 {
-                    CollectionItems.Add(new CollectionItemViewModel(request, collection.BaseUrl));
+                    CollectionItems.Add(item);
                 }
 
-                if (collection.Headers is { } inheritedHeaders)
+                foreach (var header in CollectionInheritedHeadersWorkflow.BuildHeaderViewModels(collection.Headers))
                 {
-                    foreach (var inheritedHeader in inheritedHeaders)
-                    {
-                        CollectionInheritedHeaders.Add(new RequestHeaderViewModel
-                        {
-                            Name = inheritedHeader.Name,
-                            Value = inheritedHeader.Value,
-                            IsEnabled = inheritedHeader.IsEnabled
-                        });
-                    }
+                    CollectionInheritedHeaders.Add(header);
                 }
             }
         }
@@ -1521,9 +1513,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private bool TryActivateExistingCollectionRequestTab(CollectionItemViewModel item)
     {
         var collectionId = SelectedCollection?.Id ?? 0;
-        var existingTab = RequestTabs.FirstOrDefault(tab =>
-            tab.MatchesCollectionRequest(collectionId, item.Method, item.Path, item.Name));
-        if (existingTab is null)
+        if (RequestTabsWorkflow.FindMatchingTab(RequestTabs, collectionId, item.Method, item.Path, item.Name) is not { } existingTab)
         {
             return false;
         }
@@ -1779,16 +1769,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     public Task FlushPendingCollectionInheritedHeadersAutoSaveAsync() =>
         _collectionInheritedHeadersWorkflow.FlushPendingAutoSaveAsync();
 
-    private IObservable<PropertyChangedEventArgs> ObserveCollectionInheritedHeaderPropertyChanges()
-    {
-        var itemStreams = CollectionInheritedHeaders
-            .Select(header => header.PropertyChangedObservable)
-            .ToArray();
-
-        return itemStreams.Length == 0
-            ? Observable.Empty<PropertyChangedEventArgs>()
-            : Observable.Merge(itemStreams);
-    }
+    private IObservable<PropertyChangedEventArgs> ObserveCollectionInheritedHeaderPropertyChanges() =>
+        CollectionInheritedHeadersWorkflow.ObservePropertyChanges(CollectionInheritedHeaders);
 
     private void SyncActiveCollectionRequestInheritedHeaders()
     {

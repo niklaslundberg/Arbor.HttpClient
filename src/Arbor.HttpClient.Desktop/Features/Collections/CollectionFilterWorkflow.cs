@@ -1,3 +1,5 @@
+using Arbor.HttpClient.Core.Collections;
+
 namespace Arbor.HttpClient.Desktop.Features.Collections;
 
 /// <summary>
@@ -7,6 +9,15 @@ namespace Arbor.HttpClient.Desktop.Features.Collections;
 /// </summary>
 public sealed class CollectionFilterWorkflow
 {
+    /// <summary>
+    /// Builds the flat list of <see cref="CollectionItemViewModel"/>s for every request in
+    /// <paramref name="collection"/>, in declaration order.
+    /// </summary>
+    public static IReadOnlyList<CollectionItemViewModel> BuildCollectionItems(Collection collection) =>
+        collection.Requests
+            .Select(request => new CollectionItemViewModel(request, collection.BaseUrl))
+            .ToList();
+
     public CollectionFilterResult Apply(
         IEnumerable<CollectionItemViewModel> items,
         string searchQuery,
