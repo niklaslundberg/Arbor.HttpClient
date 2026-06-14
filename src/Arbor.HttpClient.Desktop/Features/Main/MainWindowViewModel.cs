@@ -1098,7 +1098,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             .Where(eventArgs => string.Equals(eventArgs.PropertyName, nameof(RequestEditorViewModel.SelectedRequestType), StringComparison.Ordinal))
             .Subscribe(_ => this.RaisePropertyChanged(nameof(PrimaryActionLabel))));
 
-        _dockFactory = new DockFactory(this, _environmentsViewModel, _optionsViewModel, _cookieJarViewModel, _logWindowViewModel);
+        _dockFactory = new DockFactory(this, this, this, _environmentsViewModel, _optionsViewModel, _cookieJarViewModel, _logWindowViewModel);
         Layout = _dockFactory.CreateLayout();
         _dockFactory.InitLayout(Layout);
         _defaultLayout = CaptureLayoutSnapshot();
