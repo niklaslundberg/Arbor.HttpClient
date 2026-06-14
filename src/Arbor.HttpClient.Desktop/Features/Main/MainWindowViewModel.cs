@@ -6,11 +6,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Net;
-using System.Runtime.InteropServices;
-using System.Security;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -44,9 +41,7 @@ using Arbor.HttpClient.Desktop.Localization;
 using Arbor.HttpClient.Desktop.Shared;
 using Avalonia;
 using Avalonia.Input.Platform;
-using Avalonia.Media;
 using Avalonia.Platform.Storage;
-using Avalonia.Styling;
 using Avalonia.Threading;
 using ReactiveUI;
 using ReactiveUI.SourceGenerators;
@@ -406,10 +401,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [Reactive]
     private bool _collectUnhandledExceptions;
 
-    public double UiFontSize =>
-        double.TryParse(UiFontSizeText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
-            ? parsed
-            : 13d;
+    public double UiFontSize => ApplicationOptionsWorkflow.ParseFontSize(UiFontSizeText, fallback: 13d);
 
     public string RequestTimeoutDefaultWatermark =>
         $"{Strings.RequestTimeoutDefaultWatermark} ({DefaultRequestTimeoutSeconds})";
@@ -574,11 +566,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     {
         if (Application.Current is { } currentApp)
         {
-            var firstFamily = UiFontFamily.Split(',', 2, StringSplitOptions.TrimEntries)[0];
-            var fontFamily = string.IsNullOrEmpty(firstFamily)
-                ? FontFamily.Default
-                : new FontFamily(firstFamily);
-            currentApp.Resources["AppFontFamily"] = fontFamily;
+            currentApp.Resources["AppFontFamily"] = ApplicationOptionsWorkflow.ResolveFontFamily(UiFontFamily);
         }
 
         QueueOptionsAutoSave();
@@ -605,12 +593,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return;
         }
 
-        Application.Current.RequestedThemeVariant = SelectedThemeOption switch
-        {
-            DarkThemeOption => ThemeVariant.Dark,
-            LightThemeOption => ThemeVariant.Light,
-            _ => ThemeVariant.Default
-        };
+        Application.Current.RequestedThemeVariant = ApplicationOptionsWorkflow.ResolveThemeVariant(SelectedThemeOption);
 
         QueueOptionsAutoSave();
     }
@@ -1324,7 +1307,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             _requestEditor.FollowRedirectsForRequest = options.Http.FollowRedirects;
         }
 
-        if (updateCurrentRequestUrl || string.IsNullOrWhiteSpace(_requestEditor.RequestUrl) || string.Equals(_requestEditor.RequestUrl, previousDefaultUrl, StringComparison.Ordinal))
+        if (ApplicationOptionsWorkflow.ShouldUpdateRequestUrl(updateCurrentRequestUrl, _requestEditor.RequestUrl, previousDefaultUrl))
         {
             _requestEditor.RequestUrl = options.Http.DefaultRequestUrl;
         }
@@ -1853,11 +1836,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return false;
         }
 
-        var request = activeCollection.Requests.FirstOrDefault(collectionRequest =>
-            string.Equals(collectionRequest.Method, method, StringComparison.Ordinal)
-            && string.Equals(collectionRequest.Path, path, StringComparison.Ordinal)
-            && string.Equals(collectionRequest.Name, name, StringComparison.Ordinal));
-        if (request is null)
+        if (CollectionInheritedHeadersWorkflow.FindMatchingRequest(activeCollection, method, path, name) is not { } request)
         {
             return false;
         }
@@ -1908,7 +1887,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     {
         foreach (var mergedHeader in mergedHeaders)
         {
-            if (!IsInheritedHeader(mergedHeader, inheritedHeaders) || HasManualHeaderOverride(mergedHeader.Name, manualRequestHeaders))
+            if (!CollectionInheritedHeadersWorkflow.IsInheritedHeader(mergedHeader, inheritedHeaders)
+                || CollectionInheritedHeadersWorkflow.HasManualHeaderOverride(mergedHeader.Name, manualRequestHeaders))
             {
                 continue;
             }
@@ -1922,15 +1902,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             });
         }
     }
-
-    private static bool IsInheritedHeader(RequestHeader header, IReadOnlyList<RequestHeader>? inheritedHeaders) =>
-        inheritedHeaders?.Any(inheritedHeader =>
-            string.Equals(inheritedHeader.Name, header.Name, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(inheritedHeader.Value, header.Value, StringComparison.Ordinal)
-            && inheritedHeader.IsEnabled == header.IsEnabled) == true;
-
-    private static bool HasManualHeaderOverride(string headerName, IReadOnlyList<RequestHeaderViewModel> manualRequestHeaders) =>
-        manualRequestHeaders.Any(header => string.Equals(header.Name, headerName, StringComparison.OrdinalIgnoreCase));
 
     [ReactiveCommand]
     private async Task ImportCollectionAsync()
@@ -2118,15 +2089,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             tab.Dispose();
         }
 
-        foreach (var file in _tempFiles)
-        {
-            try { File.Delete(file); }
-            catch (UnauthorizedAccessException) { /* best-effort cleanup */ }
-            catch (SecurityException) { /* best-effort cleanup */ }
-            catch (PathTooLongException) { /* best-effort cleanup */ }
-            catch (NotSupportedException) { /* best-effort cleanup */ }
-            catch (IOException) { /* best-effort cleanup */ }
-        }
+        ResponseActionsViewModel.DeleteTempFiles(_tempFiles);
 
         base.Dispose(disposing);
     }
@@ -2315,15 +2278,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     private void SyncDefaultContentTypeSelection(string value)
     {
-        if (DefaultContentTypeOptions.Contains(value))
-        {
-            SelectedDefaultContentTypeOption = value;
-            CustomDefaultContentType = string.Empty;
-            return;
-        }
-
-        SelectedDefaultContentTypeOption = DefaultContentTypeCustomOption;
-        CustomDefaultContentType = value;
+        (SelectedDefaultContentTypeOption, CustomDefaultContentType) =
+            ApplicationOptionsWorkflow.ResolveDefaultContentTypeSelection(value, DefaultContentTypeOptions, DefaultContentTypeCustomOption);
     }
 
     private LayoutOptions BuildLayoutOptions() =>
@@ -2429,36 +2385,26 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private async Task SendHttpRequestAsync(CancellationToken cancellationToken)
     {
         var outcome = await _manualHttpRequestCoordinator.SendAsync(cancellationToken);
-        if (!outcome.IsSuccessful)
-        {
-            ErrorMessage = outcome.ErrorMessage;
-            if (outcome.ClearResponseMetadata)
-            {
-                ResponseStatusCode = 0;
-                ResponseTimeDisplay = string.Empty;
-                ResponseSizeDisplay = string.Empty;
-            }
-
-            return;
-        }
-
-        if (outcome.Response is not { } response)
-        {
-            ErrorMessage = string.Empty;
-            return;
-        }
-
-        ApplyHttpResponseProjection(response);
-        _cookieJarViewModel.RefreshCookies();
+        ApplyManualRequestOutcome(outcome.IsSuccessful, outcome.Response, outcome.ErrorMessage, outcome.ClearResponseMetadata);
     }
 
     private async Task SendGraphQlRequestAsync(CancellationToken cancellationToken = default)
     {
         var outcome = await _manualGraphQlRequestCoordinator.SendAsync(cancellationToken);
-        if (!outcome.IsSuccessful)
+        ApplyManualRequestOutcome(outcome.IsSuccessful, outcome.Response, outcome.ErrorMessage, outcome.ClearResponseMetadata);
+    }
+
+    /// <summary>
+    /// Applies the shared result-handling for a manual HTTP/GraphQL send: on failure sets
+    /// <see cref="ErrorMessage"/> (and optionally clears response metadata), otherwise projects
+    /// the response and refreshes the cookie jar.
+    /// </summary>
+    private void ApplyManualRequestOutcome(bool isSuccessful, HttpResponseDetails? response, string errorMessage, bool clearResponseMetadata)
+    {
+        if (!isSuccessful)
         {
-            ErrorMessage = outcome.ErrorMessage;
-            if (outcome.ClearResponseMetadata)
+            ErrorMessage = errorMessage;
+            if (clearResponseMetadata)
             {
                 ResponseStatusCode = 0;
                 ResponseTimeDisplay = string.Empty;
@@ -2468,7 +2414,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return;
         }
 
-        if (outcome.Response is not { } response)
+        if (response is null)
         {
             ErrorMessage = string.Empty;
             return;
@@ -2483,12 +2429,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     private async Task ToggleSseConnectionAsync() =>
         _streamingCts = await _streamingConnectionWorkflow.ToggleSseConnectionAsync(_streamingCts);
-
-    public static string FormatElapsedMilliseconds(double milliseconds) =>
-        HttpResponseProjectionWorkflow.FormatElapsedMilliseconds(milliseconds);
-
-    public static string FormatByteSize(long byteCount) =>
-        HttpResponseProjectionWorkflow.FormatByteSize(byteCount);
 
     private Task LoadHistoryAsync(CancellationToken cancellationToken = default) =>
         _requestHistoryWorkflow.LoadAsync(HistorySearchQuery, cancellationToken);
@@ -2558,7 +2498,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             ResponseWebViewUri = state.ResponseWebViewUri;
             HasResponseHeaders = state.HasResponseHeaders;
             HasTextResponse = state.HasTextResponse;
-            _lastResponseBodyBytes = GetResponseStateBytes(state.LastResponseBodyBytes);
+            _lastResponseBodyBytes = RequestTabsWorkflow.GetResponseStateBytes(state.LastResponseBodyBytes);
             ResponseHeaders.Clear();
             foreach (var header in state.ResponseHeaders)
             {
@@ -2569,27 +2509,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         {
             ClearResponseState();
         }
-    }
-
-    private static byte[] GetResponseStateBytes(ReadOnlyMemory<byte> responseBodyBytes)
-    {
-        if (responseBodyBytes.IsEmpty)
-        {
-            return [];
-        }
-
-        if (MemoryMarshal.TryGetArray(responseBodyBytes, out ArraySegment<byte> segment)
-            && segment.Array is { } array)
-        {
-            if (segment.Offset == 0 && segment.Count == array.Length)
-            {
-                return array;
-            }
-
-            return responseBodyBytes.ToArray();
-        }
-
-        return responseBodyBytes.ToArray();
     }
 
     private void ClearResponseState()

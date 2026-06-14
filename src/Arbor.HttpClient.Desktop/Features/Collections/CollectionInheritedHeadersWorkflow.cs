@@ -307,6 +307,33 @@ public sealed class CollectionInheritedHeadersWorkflow : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// True when <paramref name="header"/> matches one of <paramref name="inheritedHeaders"/>
+    /// by name (case-insensitive), value, and enabled state.
+    /// </summary>
+    public static bool IsInheritedHeader(RequestHeader header, IReadOnlyList<RequestHeader>? inheritedHeaders) =>
+        inheritedHeaders?.Any(inheritedHeader =>
+            string.Equals(inheritedHeader.Name, header.Name, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(inheritedHeader.Value, header.Value, StringComparison.Ordinal)
+            && inheritedHeader.IsEnabled == header.IsEnabled) == true;
+
+    /// <summary>
+    /// True when <paramref name="manualRequestHeaders"/> already contains a row named
+    /// <paramref name="headerName"/> (case-insensitive), i.e. the user manually overrode it.
+    /// </summary>
+    public static bool HasManualHeaderOverride(string headerName, IReadOnlyList<RequestHeaderViewModel> manualRequestHeaders) =>
+        manualRequestHeaders.Any(header => string.Equals(header.Name, headerName, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Finds the request within <paramref name="collection"/> whose method, path, and name
+    /// match the given values (all ordinal), or <see langword="null"/> when none match.
+    /// </summary>
+    public static CollectionRequest? FindMatchingRequest(Collection collection, string method, string path, string name) =>
+        collection.Requests.FirstOrDefault(request =>
+            string.Equals(request.Method, method, StringComparison.Ordinal)
+            && string.Equals(request.Path, path, StringComparison.Ordinal)
+            && string.Equals(request.Name, name, StringComparison.Ordinal));
+
     public void Dispose()
     {
         _autoSaveRequestedSubject.OnCompleted();

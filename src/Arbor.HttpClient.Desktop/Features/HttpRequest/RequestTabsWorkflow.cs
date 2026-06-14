@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Runtime.InteropServices;
 
 namespace Arbor.HttpClient.Desktop.Features.HttpRequest;
 
@@ -48,5 +49,31 @@ public sealed class RequestTabsWorkflow
 
         tab.Dispose();
         return nextActive;
+    }
+
+    /// <summary>
+    /// Returns the bytes of <paramref name="responseBodyBytes"/> as a <see cref="byte"/> array,
+    /// reusing the backing array without copying when <paramref name="responseBodyBytes"/>
+    /// already wraps a whole array (the common case for a freshly received response).
+    /// </summary>
+    public static byte[] GetResponseStateBytes(ReadOnlyMemory<byte> responseBodyBytes)
+    {
+        if (responseBodyBytes.IsEmpty)
+        {
+            return [];
+        }
+
+        if (MemoryMarshal.TryGetArray(responseBodyBytes, out ArraySegment<byte> segment)
+            && segment.Array is { } array)
+        {
+            if (segment.Offset == 0 && segment.Count == array.Length)
+            {
+                return array;
+            }
+
+            return responseBodyBytes.ToArray();
+        }
+
+        return responseBodyBytes.ToArray();
     }
 }

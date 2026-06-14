@@ -7,6 +7,8 @@ using System.Reactive.Subjects;
 using Arbor.HttpClient.Desktop.Features.Diagnostics;
 using Arbor.HttpClient.Desktop.Features.Layout;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
+using Avalonia.Media;
+using Avalonia.Styling;
 using Serilog;
 
 namespace Arbor.HttpClient.Desktop.Features.Options;
@@ -124,6 +126,66 @@ public sealed class ApplicationOptionsWorkflow : IDisposable
         ApplicationOptionsStore.Validate(options);
         return options;
     }
+
+    /// <summary>
+    /// Resolves the default-content-type picker selection for <paramref name="value"/>: when
+    /// <paramref name="value"/> matches one of <paramref name="options"/> it becomes the
+    /// selected option with an empty custom value, otherwise <paramref name="customOptionLabel"/>
+    /// is selected and <paramref name="value"/> becomes the custom value.
+    /// </summary>
+    public static (string SelectedOption, string CustomValue) ResolveDefaultContentTypeSelection(
+        string value,
+        IReadOnlyList<string> options,
+        string customOptionLabel)
+    {
+        if (options.Contains(value))
+        {
+            return (value, string.Empty);
+        }
+
+        return (customOptionLabel, value);
+    }
+
+    /// <summary>
+    /// True when applying newly loaded options should overwrite the current request URL: either
+    /// the caller explicitly requested it, the current URL is blank, or the current URL still
+    /// matches the previous default (i.e. the user has not customised it).
+    /// </summary>
+    public static bool ShouldUpdateRequestUrl(bool updateCurrentRequestUrl, string currentRequestUrl, string previousDefaultUrl) =>
+        updateCurrentRequestUrl
+        || string.IsNullOrWhiteSpace(currentRequestUrl)
+        || string.Equals(currentRequestUrl, previousDefaultUrl, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Resolves the <see cref="ThemeVariant"/> for a given <c>SelectedThemeOption</c> string
+    /// (<c>"Dark"</c>/<c>"Light"</c>/anything else, including <c>"System"</c>, maps to
+    /// <see cref="ThemeVariant.Default"/>).
+    /// </summary>
+    public static ThemeVariant ResolveThemeVariant(string themeOption) =>
+        themeOption switch
+        {
+            "Dark" => ThemeVariant.Dark,
+            "Light" => ThemeVariant.Light,
+            _ => ThemeVariant.Default
+        };
+
+    /// <summary>
+    /// Resolves the <see cref="FontFamily"/> for a comma-separated font-family fallback list
+    /// (e.g. <c>"Cascadia Code,Consolas,Menlo,monospace"</c>), using only the first entry.
+    /// Returns <see cref="FontFamily.Default"/> when the list is empty or the first entry is blank.
+    /// </summary>
+    public static FontFamily ResolveFontFamily(string fontFamilySetting)
+    {
+        var firstFamily = fontFamilySetting.Split(',', 2, StringSplitOptions.TrimEntries)[0];
+        return string.IsNullOrEmpty(firstFamily) ? FontFamily.Default : new FontFamily(firstFamily);
+    }
+
+    /// <summary>
+    /// Parses a font-size text setting, falling back to <paramref name="fallback"/> when the
+    /// text is not a valid number.
+    /// </summary>
+    public static double ParseFontSize(string fontSizeText, double fallback) =>
+        double.TryParse(fontSizeText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) ? parsed : fallback;
 
     /// <summary>
     /// Builds, persists, and re-applies the current options. <paramref name="onSaved"/> runs

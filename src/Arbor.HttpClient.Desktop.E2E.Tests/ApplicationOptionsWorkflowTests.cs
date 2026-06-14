@@ -1,6 +1,8 @@
 using System.Reactive;
 using Arbor.HttpClient.Desktop.Features.Layout;
 using Arbor.HttpClient.Desktop.Features.Options;
+using Avalonia.Media;
+using Avalonia.Styling;
 using Microsoft.Reactive.Testing;
 using Serilog;
 using Serilog.Core;
@@ -259,6 +261,115 @@ public sealed class ApplicationOptionsWorkflowTests
 
         outcome.IsSuccessful.Should().BeFalse();
         outcome.ErrorMessage.Should().Be("Options import failed: no options store is configured.");
+    }
+
+    // ── ResolveDefaultContentTypeSelection tests ──────────────────────────────
+
+    [Fact]
+    public void ResolveDefaultContentTypeSelection_KnownOption_SelectsOptionWithEmptyCustomValue()
+    {
+        string[] options = ["application/json", "application/xml", "Custom..."];
+
+        var (selectedOption, customValue) = ApplicationOptionsWorkflow.ResolveDefaultContentTypeSelection(
+            "application/xml", options, "Custom...");
+
+        selectedOption.Should().Be("application/xml");
+        customValue.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ResolveDefaultContentTypeSelection_UnknownValue_SelectsCustomOptionWithValue()
+    {
+        string[] options = ["application/json", "application/xml", "Custom..."];
+
+        var (selectedOption, customValue) = ApplicationOptionsWorkflow.ResolveDefaultContentTypeSelection(
+            "application/vnd.api+json", options, "Custom...");
+
+        selectedOption.Should().Be("Custom...");
+        customValue.Should().Be("application/vnd.api+json");
+    }
+
+    // ── ShouldUpdateRequestUrl tests ──────────────────────────────────────────
+
+    [Fact]
+    public void ShouldUpdateRequestUrl_ExplicitlyRequested_ReturnsTrue()
+    {
+        ApplicationOptionsWorkflow.ShouldUpdateRequestUrl(
+            updateCurrentRequestUrl: true, currentRequestUrl: "https://custom.example.com", previousDefaultUrl: "https://old.example.com")
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void ShouldUpdateRequestUrl_CurrentUrlBlank_ReturnsTrue()
+    {
+        ApplicationOptionsWorkflow.ShouldUpdateRequestUrl(
+            updateCurrentRequestUrl: false, currentRequestUrl: "  ", previousDefaultUrl: "https://old.example.com")
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void ShouldUpdateRequestUrl_CurrentUrlMatchesPreviousDefault_ReturnsTrue()
+    {
+        ApplicationOptionsWorkflow.ShouldUpdateRequestUrl(
+            updateCurrentRequestUrl: false, currentRequestUrl: "https://old.example.com", previousDefaultUrl: "https://old.example.com")
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void ShouldUpdateRequestUrl_CurrentUrlIsCustomized_ReturnsFalse()
+    {
+        ApplicationOptionsWorkflow.ShouldUpdateRequestUrl(
+            updateCurrentRequestUrl: false, currentRequestUrl: "https://custom.example.com", previousDefaultUrl: "https://old.example.com")
+            .Should().BeFalse();
+    }
+
+    // ── ResolveThemeVariant tests ─────────────────────────────────────────────
+
+    [Fact]
+    public void ResolveThemeVariant_Dark_ReturnsDarkVariant()
+    {
+        ApplicationOptionsWorkflow.ResolveThemeVariant("Dark").Should().Be(ThemeVariant.Dark);
+    }
+
+    [Fact]
+    public void ResolveThemeVariant_Light_ReturnsLightVariant()
+    {
+        ApplicationOptionsWorkflow.ResolveThemeVariant("Light").Should().Be(ThemeVariant.Light);
+    }
+
+    [Fact]
+    public void ResolveThemeVariant_System_ReturnsDefaultVariant()
+    {
+        ApplicationOptionsWorkflow.ResolveThemeVariant("System").Should().Be(ThemeVariant.Default);
+    }
+
+    // ── ResolveFontFamily tests ───────────────────────────────────────────────
+
+    [Fact]
+    public void ResolveFontFamily_CommaSeparatedList_UsesFirstEntry()
+    {
+        ApplicationOptionsWorkflow.ResolveFontFamily("Cascadia Code,Consolas,Menlo,monospace")
+            .Name.Should().Be("Cascadia Code");
+    }
+
+    [Fact]
+    public void ResolveFontFamily_EmptyString_ReturnsDefault()
+    {
+        ApplicationOptionsWorkflow.ResolveFontFamily(string.Empty).Should().Be(FontFamily.Default);
+    }
+
+    // ── ParseFontSize tests ───────────────────────────────────────────────────
+
+    [Fact]
+    public void ParseFontSize_ValidNumber_ReturnsParsedValue()
+    {
+        ApplicationOptionsWorkflow.ParseFontSize("14.5", fallback: 13d).Should().Be(14.5);
+    }
+
+    [Fact]
+    public void ParseFontSize_InvalidText_ReturnsFallback()
+    {
+        ApplicationOptionsWorkflow.ParseFontSize("not-a-number", fallback: 13d).Should().Be(13d);
     }
 }
 

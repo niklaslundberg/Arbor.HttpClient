@@ -314,4 +314,75 @@ public sealed class CollectionInheritedHeadersWorkflowTests
         CollectionInheritedHeadersWorkflow.HeadersEqual(baseline, [new RequestHeader("X-Trace", "1", true), new RequestHeader("X-Other", "1", true)])
             .Should().BeFalse();
     }
+
+    [Fact]
+    public void IsInheritedHeader_MatchingNameValueAndEnabledState_ReturnsTrue()
+    {
+        var inheritedHeaders = new List<RequestHeader> { new("X-Trace", "1", true) };
+
+        CollectionInheritedHeadersWorkflow.IsInheritedHeader(new RequestHeader("x-trace", "1", true), inheritedHeaders)
+            .Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("X-Trace", "2", true)]
+    [InlineData("X-Trace", "1", false)]
+    [InlineData("X-Other", "1", true)]
+    public void IsInheritedHeader_DifferingNameValueOrEnabledState_ReturnsFalse(string name, string value, bool isEnabled)
+    {
+        var inheritedHeaders = new List<RequestHeader> { new("X-Trace", "1", true) };
+
+        CollectionInheritedHeadersWorkflow.IsInheritedHeader(new RequestHeader(name, value, isEnabled), inheritedHeaders)
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsInheritedHeader_NullInheritedHeaders_ReturnsFalse()
+    {
+        CollectionInheritedHeadersWorkflow.IsInheritedHeader(new RequestHeader("X-Trace", "1", true), null)
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public void HasManualHeaderOverride_NameMatchesCaseInsensitive_ReturnsTrue()
+    {
+        var manualHeaders = new List<RequestHeaderViewModel> { HeaderViewModel("X-Trace") };
+
+        CollectionInheritedHeadersWorkflow.HasManualHeaderOverride("x-trace", manualHeaders).Should().BeTrue();
+    }
+
+    [Fact]
+    public void HasManualHeaderOverride_NoMatchingName_ReturnsFalse()
+    {
+        var manualHeaders = new List<RequestHeaderViewModel> { HeaderViewModel("X-Trace") };
+
+        CollectionInheritedHeadersWorkflow.HasManualHeaderOverride("X-Other", manualHeaders).Should().BeFalse();
+    }
+
+    // ── FindMatchingRequest tests ─────────────────────────────────────────────
+
+    private static Collection CollectionWithRequests(params CollectionRequest[] requests) =>
+        new(1, "Test Collection", null, "https://api.example.com", requests);
+
+    [Fact]
+    public void FindMatchingRequest_MethodPathAndNameMatch_ReturnsTheRequest()
+    {
+        var listPets = new CollectionRequest("List pets", "GET", "/pets", null);
+        var collection = CollectionWithRequests(listPets, new CollectionRequest("Create pet", "POST", "/pets", null));
+
+        CollectionInheritedHeadersWorkflow.FindMatchingRequest(collection, "GET", "/pets", "List pets")
+            .Should().Be(listPets);
+    }
+
+    [Theory]
+    [InlineData("POST", "/pets", "List pets")]
+    [InlineData("GET", "/other", "List pets")]
+    [InlineData("GET", "/pets", "Other name")]
+    public void FindMatchingRequest_MethodPathOrNameDiffers_ReturnsNull(string method, string path, string name)
+    {
+        var collection = CollectionWithRequests(new CollectionRequest("List pets", "GET", "/pets", null));
+
+        CollectionInheritedHeadersWorkflow.FindMatchingRequest(collection, method, path, name)
+            .Should().BeNull();
+    }
 }

@@ -86,4 +86,32 @@ public sealed class RequestTabsWorkflowTests
         result.Should().BeSameAs(first);
         workflow.Tabs.Should().ContainSingle().Which.Should().BeSameAs(first);
     }
+
+    [Fact]
+    public void GetResponseStateBytes_EmptyMemory_ReturnsEmptyArray()
+    {
+        RequestTabsWorkflow.GetResponseStateBytes(ReadOnlyMemory<byte>.Empty).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void GetResponseStateBytes_WholeArray_ReturnsSameArrayInstance()
+    {
+        byte[] array = [1, 2, 3];
+
+        var result = RequestTabsWorkflow.GetResponseStateBytes(array);
+
+        result.Should().BeSameAs(array);
+    }
+
+    [Fact]
+    public void GetResponseStateBytes_ArraySlice_ReturnsCopyOfTheSlice()
+    {
+        byte[] array = [1, 2, 3, 4, 5];
+        var slice = new ReadOnlyMemory<byte>(array, 1, 3);
+
+        var result = RequestTabsWorkflow.GetResponseStateBytes(slice);
+
+        result.Should().Equal(2, 3, 4);
+        result.Should().NotBeSameAs(array);
+    }
 }

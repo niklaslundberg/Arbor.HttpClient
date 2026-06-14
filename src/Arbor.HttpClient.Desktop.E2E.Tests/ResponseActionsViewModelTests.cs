@@ -293,6 +293,38 @@ public class ResponseActionsViewModelTests
         context.RecordedTempFiles[0].Should().EndWith(".json");
     }
 
+    // ── DeleteTempFiles tests ──────────────────────────────────────────────────
+
+    [Fact]
+    public void DeleteTempFiles_ExistingFiles_DeletesAllOfThem()
+    {
+        var first = Path.GetTempFileName();
+        var second = Path.GetTempFileName();
+
+        ResponseActionsViewModel.DeleteTempFiles([first, second]);
+
+        File.Exists(first).Should().BeFalse();
+        File.Exists(second).Should().BeFalse();
+    }
+
+    [Fact]
+    public void DeleteTempFiles_MissingFile_DoesNotThrow()
+    {
+        var missing = Path.Join(Path.GetTempPath(), $"arbor-missing-{Guid.NewGuid():N}.tmp");
+
+        var act = () => ResponseActionsViewModel.DeleteTempFiles([missing]);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void DeleteTempFiles_EmptyList_DoesNotThrow()
+    {
+        var act = () => ResponseActionsViewModel.DeleteTempFiles([]);
+
+        act.Should().NotThrow();
+    }
+
     // ── Test stubs ────────────────────────────────────────────────────────────
 
     private sealed class StubResponseActionsContext : IResponseActionsContext
