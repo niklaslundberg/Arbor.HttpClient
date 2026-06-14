@@ -60,6 +60,14 @@ As of the latest build (2026-04-24, after adding Kestrel integration tests for W
 |---|---|---|
 | `CollectionRequestEditorProjectionWorkflow` | **100%** ✅ | Request-type resolution, URL/scheme resolution (incl. environment variable resolution), merged inherited/manual header projection, content-type/body projection, demo-server banner check, and request notes — all paths covered by `CollectionRequestEditorProjectionWorkflowTests` |
 
+### New code introduced in the request-body external-edit slice (2026-06-14)
+
+> Measured with `dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/... -- --filter-class "...RequestBodyExternalEditWorkflowTests" --coverage --coverage-output-format cobertura` (Microsoft.Testing.Extensions.CodeCoverage).
+
+| Class | Line coverage | Notes |
+|---|---|---|
+| `RequestBodyExternalEditWorkflow` | **89.7%** ✅ | Temp-file creation + content-type/extension detection, watcher re-open cancelling the previous watcher, external-edit apply, read-pending debounce, and missing-file error handling — all covered by `RequestBodyExternalEditWorkflowTests`; uncovered lines are the defensive `ObjectDisposedException` catch around `CancellationTokenSource.Token` (narrow teardown race, mirrors the pre-extraction code) |
+
 ### New code introduced in UX idea 1.3 + Kestrel integration tests
 
 | Class | Line coverage | Notes |
