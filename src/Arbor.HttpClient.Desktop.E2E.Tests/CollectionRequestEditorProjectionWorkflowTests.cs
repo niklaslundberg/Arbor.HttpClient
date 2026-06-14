@@ -64,6 +64,7 @@ public sealed class CollectionRequestEditorProjectionWorkflowTests
             demoServerHttpsPort: 0);
 
         projection.RequestType.Should().Be(RequestType.Http);
+        projection.Method.Should().Be("GET");
         projection.ResolvedUrl.Should().Be("http://localhost:5000/pets/1");
         projection.Name.Should().Be("Get pet");
     }
@@ -86,6 +87,7 @@ public sealed class CollectionRequestEditorProjectionWorkflowTests
             demoServerHttpsPort: 0);
 
         projection.RequestType.Should().Be(RequestType.WebSocket);
+        projection.Method.Should().BeNull();
         projection.ResolvedUrl.Should().Be("ws://localhost:5000/chat");
     }
 

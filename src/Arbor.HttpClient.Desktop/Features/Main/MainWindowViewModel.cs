@@ -1538,9 +1538,9 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
                 demoServerHttpsPort: _demoServer?.HttpsPort ?? 0);
 
             _requestEditor.SelectedRequestType = projection.RequestType;
-            if (projection.RequestType == RequestType.Http)
+            if (projection.Method is { } method)
             {
-                _requestEditor.SelectedMethod = item.Method;
+                _requestEditor.SelectedMethod = method;
             }
 
             _requestEditor.RequestUrl = projection.ResolvedUrl;
