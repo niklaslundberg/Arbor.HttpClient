@@ -365,6 +365,13 @@ public sealed class CollectionInheritedHeadersWorkflow : IDisposable
         manualRequestHeaders.Any(header => string.Equals(header.Name, headerName, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
+    /// Returns the request-header rows in <paramref name="headerViewModels"/> that were added
+    /// or edited manually, i.e. not currently projected from the collection's inherited headers.
+    /// </summary>
+    public static IReadOnlyList<RequestHeaderViewModel> SelectManualHeaders(IEnumerable<RequestHeaderViewModel> headerViewModels) =>
+        headerViewModels.Where(header => !header.IsInherited).ToList();
+
+    /// <summary>
     /// Finds the request within <paramref name="collection"/> whose method, path, and name
     /// match the given values (all ordinal), or <see langword="null"/> when none match.
     /// </summary>

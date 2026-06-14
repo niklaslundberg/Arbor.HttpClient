@@ -108,6 +108,27 @@ public sealed class CollectionFilterWorkflowTests
         result.Groups[0].Items.Should().HaveCount(2);
     }
 
+    // ── CaptureExpansionState tests ───────────────────────────────────────────
+
+    [Fact]
+    public void CaptureExpansionState_NoGroups_ReturnsEmptyDictionary()
+    {
+        CollectionFilterWorkflow.CaptureExpansionState([]).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void CaptureExpansionState_MapsGroupKeyToIsExpandedCaseInsensitively()
+    {
+        var collapsedGroup = new CollectionGroupViewModel("users", []);
+        collapsedGroup.IsExpanded = false;
+        var expandedGroup = new CollectionGroupViewModel("pets", []);
+
+        var result = CollectionFilterWorkflow.CaptureExpansionState([collapsedGroup, expandedGroup]);
+
+        result["users"].Should().BeFalse();
+        result["PETS"].Should().BeTrue();
+    }
+
     [Fact]
     public void Apply_PreviousExpansionState_IsPreservedPerGroup()
     {

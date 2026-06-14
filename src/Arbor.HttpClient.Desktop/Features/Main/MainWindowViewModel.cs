@@ -1739,10 +1739,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private void ApplyCollectionFilter()
     {
         // Preserve expansion state keyed by GroupKey so user-collapsed groups survive filter/sort changes.
-        var previousExpanded = CollectionGroups.ToDictionary(
-            group => group.GroupKey,
-            group => group.IsExpanded,
-            StringComparer.OrdinalIgnoreCase);
+        var previousExpanded = CollectionFilterWorkflow.CaptureExpansionState(CollectionGroups);
 
         var filterResult = _collectionFilterWorkflow.Apply(
             CollectionItems,
@@ -1785,9 +1782,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         }
 
         var inheritedHeaders = CollectionInheritedHeadersWorkflow.BuildHeaders(CollectionInheritedHeaders);
-        var manualRequestHeaders = _requestEditor.RequestHeaders
-            .Where(header => !header.IsInherited)
-            .ToList();
+        var manualRequestHeaders = CollectionInheritedHeadersWorkflow.SelectManualHeaders(_requestEditor.RequestHeaders);
 
         var manualHeaders = CollectionInheritedHeadersWorkflow.BuildHeaders(manualRequestHeaders);
         var mergedHeaders = CollectionInheritedHeadersWorkflow.MergeCollectionAndRequestHeaders(
