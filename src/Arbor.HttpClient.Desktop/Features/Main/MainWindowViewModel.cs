@@ -62,7 +62,7 @@ using Arbor.HttpClient.Desktop.Features.Scripting;
 namespace Arbor.HttpClient.Desktop.Features.Main;
 
 [SuppressMessage("Major Code Smell", "S3881", Justification = "Lifetime is managed as a UI root ViewModel with deterministic cleanup via Dispose.")]
-public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActionsContext, ILayoutManagementContext, ILeftPanelContext
+public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActionsContext, ILayoutManagementContext, ILeftPanelContext, IRequestPanelContext
 {
     private readonly HttpRequestService _httpRequestService;
     private HttpRequestWorkflow _httpRequestWorkflow = null!;
@@ -237,6 +237,18 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     System.Windows.Input.ICommand ILeftPanelContext.ToggleCollectionTreeViewCommand => ToggleCollectionTreeViewCommand;
     System.Windows.Input.ICommand ILeftPanelContext.AddScheduledJobCommand => AddScheduledJobCommand;
     System.Windows.Input.ICommand ILeftPanelContext.RemoveScheduledJobCommand => RemoveScheduledJobCommand;
+
+    // ── IRequestPanelContext explicit command implementations ─────────────────
+    // All bound properties and sub-view-models (RequestTabs, ActiveRequestTab, RequestEditor,
+    // GraphQlEditor, WebSocketSession, SseSession, ScriptEditor, PrimaryActionLabel, font, …)
+    // satisfy the interface implicitly; only the ReactiveCommand<…> commands are surfaced here.
+
+    System.Windows.Input.ICommand IRequestPanelContext.NewRequestTabCommand => NewRequestTabCommand;
+    System.Windows.Input.ICommand IRequestPanelContext.CloseRequestTabCommand => CloseRequestTabCommand;
+    System.Windows.Input.ICommand IRequestPanelContext.ExecutePrimaryActionCommand => ExecutePrimaryActionCommand;
+    System.Windows.Input.ICommand IRequestPanelContext.OpenRequestBodyInExternalEditorCommand => OpenRequestBodyInExternalEditorCommand;
+    System.Windows.Input.ICommand IRequestPanelContext.StartDemoServerCommand => StartDemoServerCommand;
+    System.Windows.Input.ICommand IRequestPanelContext.DismissDemoServerBannerCommand => DismissDemoServerBannerCommand;
 
     // ─────────────────────────────────────────────────────────────────────────
 

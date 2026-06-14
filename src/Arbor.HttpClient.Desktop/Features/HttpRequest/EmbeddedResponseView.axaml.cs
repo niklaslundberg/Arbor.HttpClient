@@ -1,6 +1,5 @@
 using System;
 using System.ComponentModel;
-using Arbor.HttpClient.Desktop.Features.Main;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -17,7 +16,7 @@ public partial class EmbeddedResponseView : UserControl
     private TextEditor? _rawResponseBodyEditor;
     private TextEditor? _responseRawEditor;
     private NativeWebView? _responseWebView;
-    private MainWindowViewModel? _appVm;
+    private IRequestPanelContext? _appVm;
     private RegistryOptions? _registryOptions;
     private TextMate.Installation? _responseTextMate;
     private TextMate.Installation? _rawResponseTextMate;
@@ -37,7 +36,7 @@ public partial class EmbeddedResponseView : UserControl
         ActualThemeVariantChanged += OnActualThemeVariantChanged;
     }
 
-    private MainWindowViewModel? GetAppVm() => (DataContext as RequestViewModel)?.App;
+    private IRequestPanelContext? GetAppVm() => (DataContext as RequestViewModel)?.App;
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
@@ -96,20 +95,20 @@ public partial class EmbeddedResponseView : UserControl
             return;
         }
 
-        if (e.PropertyName is nameof(MainWindowViewModel.ResponseBody)
-            or nameof(MainWindowViewModel.RawResponseBody)
-            or nameof(MainWindowViewModel.ResponseRawText)
-            or nameof(MainWindowViewModel.ResponseContentType)
-            or nameof(MainWindowViewModel.IsBinaryResponse)
-            or nameof(MainWindowViewModel.ResponseBodyTabLabel)
-            or nameof(MainWindowViewModel.IsResponseWebViewAvailable)
-            or nameof(MainWindowViewModel.ResponseWebViewUri))
+        if (e.PropertyName is nameof(IRequestPanelContext.ResponseBody)
+            or nameof(IRequestPanelContext.RawResponseBody)
+            or nameof(IRequestPanelContext.ResponseRawText)
+            or nameof(IRequestPanelContext.ResponseContentType)
+            or nameof(IRequestPanelContext.IsBinaryResponse)
+            or nameof(IRequestPanelContext.ResponseBodyTabLabel)
+            or nameof(IRequestPanelContext.IsResponseWebViewAvailable)
+            or nameof(IRequestPanelContext.ResponseWebViewUri))
         {
             UpdateEditorsFromViewModel();
         }
 
-        if (e.PropertyName is nameof(MainWindowViewModel.UiFontFamily)
-            or nameof(MainWindowViewModel.UiFontSize))
+        if (e.PropertyName is nameof(IRequestPanelContext.UiFontFamily)
+            or nameof(IRequestPanelContext.UiFontSize))
         {
             ApplyEditorFonts();
         }
@@ -278,7 +277,7 @@ public partial class EmbeddedResponseView : UserControl
         }
     }
 
-    private static void ApplyEditorFont(TextEditor editor, MainWindowViewModel appVm)
+    private static void ApplyEditorFont(TextEditor editor, IRequestPanelContext appVm)
     {
         editor.FontFamily = new FontFamily(appVm.UiFontFamily);
         editor.FontSize = appVm.UiFontSize;

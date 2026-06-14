@@ -1,13 +1,20 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Windows.Input;
 using Arbor.HttpClient.Core.Collections;
+using Arbor.HttpClient.Core.Environments;
 using Arbor.HttpClient.Core.HttpRequest;
+using Arbor.HttpClient.Core.Variables;
 using Arbor.HttpClient.Desktop.Features.Collections;
 using Arbor.HttpClient.Desktop.Features.Environments;
+using Arbor.HttpClient.Desktop.Features.GraphQl;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.Layout;
 using Arbor.HttpClient.Desktop.Features.Logging;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
+using Arbor.HttpClient.Desktop.Features.Scripting;
+using Arbor.HttpClient.Desktop.Features.Sse;
+using Arbor.HttpClient.Desktop.Features.WebSocket;
 using ReactiveUI;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
@@ -60,6 +67,21 @@ public class DockableViewModelDecouplingTests
         dockable.Id.Should().Be("left-panel");
         dockable.Title.Should().Be("Explorer");
         dockable.RemoveScheduledJobCommand.Should().BeSameAs(context.RemoveScheduledJobCommand);
+    }
+
+    [Fact]
+    public void RequestViewModel_ExposesContextAndProxiesEditorCommands()
+    {
+        var editor = new RequestEditorViewModel(new VariableResolver(), () => []);
+        var context = new FakeRequestPanelContext(editor);
+
+        var dockable = new RequestViewModel(context);
+
+        dockable.App.Should().BeSameAs(context);
+        dockable.Id.Should().Be("request");
+        dockable.Title.Should().Be("Request");
+        dockable.RemoveHeaderCommand.Should().BeSameAs(editor.RemoveHeaderCommand);
+        dockable.RemoveQueryParameterCommand.Should().BeSameAs(editor.RemoveQueryParameterCommand);
     }
 
     private sealed class FakeLayoutManagementContext : ILayoutManagementContext
@@ -135,5 +157,65 @@ public class DockableViewModelDecouplingTests
 
         public RequestEditorViewModel RequestEditor => null!;
         public ResponseActionsViewModel ResponseActions => null!;
+    }
+
+    /// <summary>
+    /// Minimal <see cref="IRequestPanelContext"/> stub. Only the editor-command proxies the
+    /// dockable VM exposes in C# are asserted; the rest of the (large) surface is AXAML-bound and
+    /// exercised by the rendering screenshot tests, so it returns inert defaults.
+    /// </summary>
+    private sealed class FakeRequestPanelContext(RequestEditorViewModel requestEditor) : IRequestPanelContext
+    {
+        private static readonly ICommand NoOp = ReactiveCommand.Create(() => { });
+
+#pragma warning disable CS0067 // event is part of the contract but never raised by this stub
+        public event PropertyChangedEventHandler? PropertyChanged;
+#pragma warning restore CS0067
+
+        public IReadOnlyList<EnvironmentVariableViewModel> ActiveEnvironmentVariables { get; } = [];
+
+        public ObservableCollection<RequestTabViewModel> RequestTabs { get; } = [];
+        public RequestTabViewModel? ActiveRequestTab { get; set; }
+        public ICommand NewRequestTabCommand => NoOp;
+        public ICommand CloseRequestTabCommand => NoOp;
+
+        public RequestEditorViewModel RequestEditor { get; } = requestEditor;
+        public GraphQlViewModel GraphQlEditor => null!;
+        public WebSocketViewModel WebSocketSession => null!;
+        public SseViewModel SseSession => null!;
+        public ScriptViewModel ScriptEditor => null!;
+
+        public string PrimaryActionLabel => "Send";
+        public string ErrorMessage => string.Empty;
+        public string RequestTimeoutDefaultWatermark => string.Empty;
+        public ICommand ExecutePrimaryActionCommand => NoOp;
+        public ICommand OpenRequestBodyInExternalEditorCommand => NoOp;
+
+        public bool IsDemoServerBannerVisible => false;
+        public ICommand StartDemoServerCommand => NoOp;
+        public ICommand DismissDemoServerBannerCommand => NoOp;
+
+        public bool IsRequestInProgress => false;
+
+        public string ResponseStatus => string.Empty;
+        public int ResponseStatusCode => 0;
+        public string ResponseTimeDisplay => string.Empty;
+        public string ResponseSizeDisplay => string.Empty;
+        public string ResponseBody => string.Empty;
+        public string RawResponseBody => string.Empty;
+        public string ResponseRawText => string.Empty;
+        public string ResponseContentType => string.Empty;
+        public string ResponseBodyTabLabel => "Body";
+        public int SelectedResponseTabIndex { get; set; }
+        public bool IsResponseWebViewAvailable => false;
+        public string ResponseWebViewUri => "about:blank";
+        public bool IsBinaryResponse => false;
+        public bool HasResponseHeaders => false;
+        public bool HasTextResponse => false;
+        public ObservableCollection<string> ResponseHeaders { get; } = [];
+        public ResponseActionsViewModel ResponseActions => null!;
+
+        public string UiFontFamily => "Cascadia Code";
+        public double UiFontSize => 13d;
     }
 }
