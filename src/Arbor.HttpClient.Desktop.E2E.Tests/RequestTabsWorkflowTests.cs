@@ -104,7 +104,7 @@ public sealed class RequestTabsWorkflowTests
     public void FindMatchingTab_TabWithMatchingSource_ReturnsThatTab()
     {
         var workflow = new RequestTabsWorkflow();
-        var first = workflow.AddTab(CreateEditor());
+        workflow.AddTab(CreateEditor());
         var second = workflow.AddTab(CreateEditor());
         second.SetCollectionRequestSource(1, "GET", "/pets", "List pets");
 
