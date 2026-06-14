@@ -22,8 +22,8 @@ namespace Arbor.HttpClient.Desktop.E2E.Tests;
 /// <summary>
 /// Verifies that the dockable view models no longer depend on the whole
 /// <c>MainWindowViewModel</c>: <see cref="LogPanelViewModel"/> takes the log feature VM
-/// directly, and <see cref="LayoutManagementViewModel"/> takes the narrow
-/// <see cref="ILayoutManagementContext"/> contract.
+/// directly, and <see cref="LayoutManagementViewModel"/> owns its saved-layout state and
+/// commands directly (taking only the dock-tree/persistence delegates it needs).
 /// </summary>
 public class DockableViewModelDecouplingTests
 {
@@ -41,19 +41,23 @@ public class DockableViewModelDecouplingTests
     }
 
     [Fact]
-    public void LayoutManagementViewModel_ProxiesCommandsFromContext()
+    public void LayoutManagementViewModel_OwnsSavedLayoutStateAndCommands()
     {
-        var context = new FakeLayoutManagementContext();
+        using var dockable = new LayoutManagementViewModel(
+            refreshDockTreeCache: () => { },
+            captureLayoutSnapshot: () => null,
+            applyLayoutSnapshot: _ => { },
+            persistLayoutOptions: () => { },
+            getDefaultLayout: () => null);
 
-        var dockable = new LayoutManagementViewModel(context);
-
-        dockable.App.Should().BeSameAs(context);
         dockable.Id.Should().Be("layout-management");
         dockable.Title.Should().Be("Layout");
-        dockable.SaveLayoutAsNewCommand.Should().BeSameAs(context.SaveLayoutAsNewCommand);
-        dockable.SaveLayoutToExistingCommand.Should().BeSameAs(context.SaveLayoutToExistingCommand);
-        dockable.RemoveLayoutCommand.Should().BeSameAs(context.RemoveLayoutCommand);
-        dockable.RestoreDefaultLayoutCommand.Should().BeSameAs(context.RestoreDefaultLayoutCommand);
+        dockable.SavedLayoutNames.Should().BeEmpty();
+        dockable.SelectedLayoutName.Should().BeNull();
+        dockable.SaveLayoutAsNewCommand.Should().NotBeNull();
+        dockable.SaveLayoutToExistingCommand.Should().NotBeNull();
+        dockable.RemoveLayoutCommand.Should().NotBeNull();
+        dockable.RestoreDefaultLayoutCommand.Should().NotBeNull();
     }
 
     [Fact]
@@ -82,21 +86,6 @@ public class DockableViewModelDecouplingTests
         dockable.Title.Should().Be("Request");
         dockable.RemoveHeaderCommand.Should().BeSameAs(editor.RemoveHeaderCommand);
         dockable.RemoveQueryParameterCommand.Should().BeSameAs(editor.RemoveQueryParameterCommand);
-    }
-
-    private sealed class FakeLayoutManagementContext : ILayoutManagementContext
-    {
-        public ObservableCollection<string> SavedLayoutNames { get; } = [];
-
-        public string? SelectedLayoutName { get; set; }
-
-        public ICommand SaveLayoutAsNewCommand { get; } = ReactiveCommand.Create(() => { });
-
-        public ICommand SaveLayoutToExistingCommand { get; } = ReactiveCommand.Create<string?>(_ => { });
-
-        public ICommand RemoveLayoutCommand { get; } = ReactiveCommand.Create<string?>(_ => { });
-
-        public ICommand RestoreDefaultLayoutCommand { get; } = ReactiveCommand.Create(() => { });
     }
 
     /// <summary>

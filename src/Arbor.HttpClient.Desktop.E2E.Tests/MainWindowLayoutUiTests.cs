@@ -115,24 +115,24 @@ public class MainWindowLayoutUiTests
         documentLayout.Proportion = 0.65;
         leftToolDock.ActiveDockable = leftToolDock.VisibleDockables!.First(d => d.Id == "options");
 
-        viewModel.SaveLayoutAsNewCommand.Execute().Subscribe();
-        viewModel.SavedLayoutNames.Should().ContainSingle();
-        var layoutName = viewModel.SavedLayoutNames.Single();
+        viewModel.LayoutManagement.SaveLayoutAsNewCommand.Execute().Subscribe();
+        viewModel.LayoutManagement.SavedLayoutNames.Should().ContainSingle();
+        var layoutName = viewModel.LayoutManagement.SavedLayoutNames.Single();
 
         leftToolDock.Proportion = 0.2;
         documentLayout.Proportion = 0.8;
         leftToolDock.ActiveDockable = leftToolDock.VisibleDockables!.First(d => d.Id == "left-panel");
 
         // Selection was already layoutName after save; clear it first so the re-selection triggers restore
-        viewModel.SelectedLayoutName = null;
-        viewModel.SelectedLayoutName = layoutName;
+        viewModel.LayoutManagement.SelectedLayoutName = null;
+        viewModel.LayoutManagement.SelectedLayoutName = layoutName;
 
         leftToolDock.Proportion.Should().BeApproximately(0.35, 0.0001);
         documentLayout.Proportion.Should().BeApproximately(0.65, 0.0001);
         leftToolDock.ActiveDockable?.Id.Should().Be("options");
 
-        viewModel.RemoveLayoutCommand.Execute(layoutName).Subscribe();
-        viewModel.SavedLayoutNames.Should().BeEmpty();
+        viewModel.LayoutManagement.RemoveLayoutCommand.Execute(layoutName).Subscribe();
+        viewModel.LayoutManagement.SavedLayoutNames.Should().BeEmpty();
     }
 
     [AvaloniaFact(Timeout = 10_000)]
@@ -578,13 +578,13 @@ public class MainWindowLayoutUiTests
                 }
             });
 
-        viewModel.SavedLayoutNames.Should().ContainSingle(n => n == "Floating Layout");
+        viewModel.LayoutManagement.SavedLayoutNames.Should().ContainSingle(n => n == "Floating Layout");
         viewModel.Layout!.Windows?.Count.Should().Be(0, "no windows before selecting the layout");
 
         // SelectedLayoutName was pre-set during init (with suppress=true), so set to null
         // first to force a change event when we select it again.
-        viewModel.SelectedLayoutName = null;
-        viewModel.SelectedLayoutName = "Floating Layout";
+        viewModel.LayoutManagement.SelectedLayoutName = null;
+        viewModel.LayoutManagement.SelectedLayoutName = "Floating Layout";
 
         viewModel.Layout!.Windows.Should().HaveCount(1);
         var floatWin = viewModel.Layout.Windows![0];

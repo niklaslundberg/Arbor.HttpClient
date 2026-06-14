@@ -20,8 +20,8 @@
                 <TextBlock Text="{x:Static loc:Strings.LayoutSavedLayouts}" />
                 <ComboBox MinWidth="180"
                           HorizontalAlignment="Stretch"
-                          ItemsSource="{Binding App.SavedLayoutNames}"
-                          SelectedItem="{Binding App.SelectedLayoutName, Mode=TwoWay}" />
+                          ItemsSource="{Binding SavedLayoutNames}"
+                          SelectedItem="{Binding SelectedLayoutName, Mode=TwoWay}" />
             </StackPanel>
 
             <StackPanel Spacing="6">
@@ -31,11 +31,11 @@
                 <Button Content="{x:Static loc:Strings.LayoutSaveToSelected}"
                         HorizontalAlignment="Stretch"
                         Command="{Binding SaveLayoutToExistingCommand}"
-                        CommandParameter="{Binding App.SelectedLayoutName}" />
+                        CommandParameter="{Binding SelectedLayoutName}" />
                 <Button Content="{x:Static loc:Strings.LayoutRemoveSelected}"
                         HorizontalAlignment="Stretch"
                         Command="{Binding RemoveLayoutCommand}"
-                        CommandParameter="{Binding App.SelectedLayoutName}" />
+                        CommandParameter="{Binding SelectedLayoutName}" />
                 <Button Content="{x:Static loc:Strings.LayoutRestoreDefault}"
                         HorizontalAlignment="Stretch"
                         Command="{Binding RestoreDefaultLayoutCommand}" />
