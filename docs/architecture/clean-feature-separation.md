@@ -17,6 +17,8 @@ This document answers the architecture questions raised in [issue #33](https://g
 > **Update 2026-06-13:** Phase 3 delegation cleanup completed for the response-actions slice — `ResponseActionsViewModel` now exposes `[ReactiveCommand]`-generated command properties directly (`ResponseActions.CopyResponseBodyCommand`, etc.), and `MainWindowViewModel`'s pass-through commands and static delegation helpers for that slice were removed. The next remaining step toward "new feature requires touching only one folder" is `DockFactory` feature registrations (step 7 in the split plan), still deferred until the request-tabs/history and layout slices are fully closed out.
 >
 > **Update 2026-06-13 (later):** Extracted the collection-request → editor projection into `CollectionRequestEditorProjectionWorkflow` (`Features/Collections/`) — request-type resolution, environment-aware URL/scheme resolution, merged inherited/manual header projection, content-type/body projection, and the demo-server banner check are now a pure, independently-tested projection builder. `MainWindowViewModel.ApplyCollectionRequestToEditor` applies the resulting `CollectionRequestEditorProjection` to the editor inside `BeginBulkUpdate`. `MainWindowViewModel` is now about 2,782 lines.
+>
+> **Update 2026-06-14:** Extracted the "open request body in external editor" pipeline into `RequestBodyExternalEditWorkflow` (`Features/HttpRequest/`) — temp-file creation (incl. extension detection from content-type/content), `FileSystemWatcher` setup/teardown, and the debounced external-edit-apply loop are now an independently-tested, UI-agnostic class. `MainWindowViewModel.OpenRequestBodyInExternalEditorAsync` now just calls the workflow and passes a UI-thread-marshalled apply callback; `Dispose` delegates teardown to the workflow. `MainWindowViewModel` is now about 2,710 lines.
 
 - **Monolithic main view model**: `MainWindowViewModel` (~2,500 lines at the time of writing) owns request editing, response rendering, history, collections, environments, options, scheduling, layout persistence, and logging. All UI actions pass through this single type, so responsibilities are tightly coupled.
 - **Child view models are thin proxies**: dockable VMs such as `RequestViewModel`, `ResponseViewModel`, `LeftPanelViewModel`, and `OptionsViewModel` simply forward to `MainWindowViewModel`. Reusing them elsewhere still drags the entire main VM with it.
@@ -101,7 +103,7 @@ Features/
   History/                — RequestHistoryWorkflow
   HttpRequest/            — RequestEditorViewModel, RequestViewModel, RequestTabViewModel, RequestTabsWorkflow, ResponseViewModel,
                             HttpRequestWorkflow, ManualHttpRequestCoordinator, HttpResponseProjectionWorkflow,
-                            ResponseActionsViewModel, IResponseActionsContext,
+                            ResponseActionsViewModel, IResponseActionsContext, RequestBodyExternalEditWorkflow,
                             RequestHeaderViewModel, RequestQueryParameterViewModel,
                             RequestView, ResponseView, EmbeddedResponseView,
                             MethodToColorConverter, StatusCodeToColorConverter

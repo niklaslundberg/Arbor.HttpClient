@@ -2,8 +2,6 @@ using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
-using System.Diagnostics;
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using Arbor.HttpClient.Desktop;
@@ -44,77 +42,6 @@ public class MainWindowUiTests
 {
     private static async Task WaitForUiThreadAsync() =>
         await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
-
-    [AvaloniaFact(Timeout = 10_000)]
-    public async Task OnRequestBodyFileChanged_WhenWatcherTokenAlreadyCancelled_ResetsPendingFlag()
-    {
-        var repository = new InMemoryRequestHistoryRepository();
-        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-        using var httpClient = new System.Net.Http.HttpClient(handler);
-        var httpRequestService = new HttpRequestService(httpClient, repository);
-        var inMemorySink = new InMemorySink();
-        var logger = new LoggerConfiguration().WriteTo.Sink(inMemorySink).CreateLogger();
-        using var scheduledJobService = new ScheduledJobService(httpRequestService, logger);
-        var logWindowViewModel = new LogWindowViewModel(inMemorySink);
-
-        using var viewModel = new MainWindowViewModel(
-            httpRequestService,
-            repository,
-            new InMemoryCollectionRepository(),
-            new InMemoryEnvironmentRepository(),
-            new InMemoryScheduledJobRepository(),
-            scheduledJobService,
-            logWindowViewModel);
-
-        using var cancelledCts = new CancellationTokenSource();
-        await cancelledCts.CancelAsync();
-
-        var ctsField = typeof(MainWindowViewModel).GetField("_fileWatcherCts", BindingFlags.Instance | BindingFlags.NonPublic);
-        var pendingField = typeof(MainWindowViewModel).GetField("_requestBodyReadPending", BindingFlags.Instance | BindingFlags.NonPublic);
-        var onChangedMethod = typeof(MainWindowViewModel).GetMethod("OnRequestBodyFileChanged", BindingFlags.Instance | BindingFlags.NonPublic);
-
-        ctsField.Should().NotBeNull();
-        pendingField.Should().NotBeNull();
-        onChangedMethod.Should().NotBeNull();
-
-        ctsField!.SetValue(viewModel, cancelledCts);
-
-        var tempDirectory = Path.Join(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDirectory);
-        var tempFile = Path.Join(tempDirectory, "request-body.json");
-        await File.WriteAllTextAsync(tempFile, "{\"updated\":true}", TestContext.Current.CancellationToken);
-
-        try
-        {
-            var args = new FileSystemEventArgs(WatcherChangeTypes.Changed, tempDirectory, Path.GetFileName(tempFile));
-
-            var action = () => onChangedMethod!.Invoke(viewModel, [new object(), args]);
-            action.Should().NotThrow();
-
-            await WaitForConditionAsync(
-                () => Equals(pendingField!.GetValue(viewModel), 0),
-                TimeSpan.FromSeconds(2),
-                TestContext.Current.CancellationToken);
-
-            pendingField!.GetValue(viewModel).Should().Be(0);
-        }
-        finally
-        {
-            ctsField.SetValue(viewModel, null);
-            Directory.Delete(tempDirectory, recursive: true);
-        }
-    }
-
-    private static async Task WaitForConditionAsync(Func<bool> condition, TimeSpan timeout, CancellationToken cancellationToken)
-    {
-        var stopwatch = Stopwatch.StartNew();
-
-        while (!condition())
-        {
-            stopwatch.Elapsed.Should().BeLessThan(timeout);
-            await Task.Delay(50, cancellationToken);
-        }
-    }
 
     [AvaloniaFact(Timeout = 10_000)]
     public async Task MainWindowViewModel_ShouldRestoreImplicitLayoutFromInitialOptions()

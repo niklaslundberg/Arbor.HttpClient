@@ -101,9 +101,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private readonly List<string> _tempFiles = [];
     private readonly RequestHistoryWorkflow _requestHistoryWorkflow;
     private readonly RequestTabsWorkflow _requestTabsWorkflow = new();
-    private FileSystemWatcher? _requestBodyWatcher;
-    private CancellationTokenSource? _fileWatcherCts;
-    private int _requestBodyReadPending;
+    private readonly RequestBodyExternalEditWorkflow _requestBodyExternalEditWorkflow = new();
     private readonly Subject<string> _historyFilterRequestedSubject = new();
     private readonly CompositeDisposable _historyFilterDisposables = new();
     private RequestTabViewModel? _lastAppliedRequestTab;
@@ -2074,26 +2072,11 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [ReactiveCommand]
     private async Task OpenRequestBodyInExternalEditorAsync()
     {
-        if (_fileWatcherCts is { })
-        {
-            await _fileWatcherCts.CancelAsync();
-        }
-
-        _fileWatcherCts?.Dispose();
-        _requestBodyWatcher?.Dispose();
-        _requestBodyWatcher = null;
-
-        _fileWatcherCts = new CancellationTokenSource();
-
-        var path = await WriteTempFileAsync("arbor-request", _requestEditor.RequestBody);
-
-        var watcher = new FileSystemWatcher(Path.GetDirectoryName(path)!, Path.GetFileName(path))
-        {
-            NotifyFilter = NotifyFilters.LastWrite,
-            EnableRaisingEvents = true
-        };
-        watcher.Changed += OnRequestBodyFileChanged;
-        _requestBodyWatcher = watcher;
+        var path = await _requestBodyExternalEditWorkflow.OpenInExternalEditorAsync(
+            _requestEditor.RequestBody,
+            _requestEditor.ContentType,
+            async content => await Dispatcher.UIThread.InvokeAsync(() => _requestEditor.RequestBody = content),
+            _tempFiles.Add);
 
         ResponseActionsViewModel.OpenWithShell(path);
     }
@@ -2123,10 +2106,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _draftWorkflow.ClearPersistedDraft();
         _scheduledJobService.Dispose();
         _scheduledJobsWorkflow.Dispose();
-        _fileWatcherCts?.Cancel();
-        _fileWatcherCts?.Dispose();
-        _requestBodyWatcher?.Dispose();
-        _requestBodyWatcher = null;
+        _requestBodyExternalEditWorkflow.Dispose();
         _streamingCts?.Cancel();
         _streamingCts?.Dispose();
         _webSocketViewModel.Dispose();
@@ -2365,58 +2345,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         ResponseWebViewUri = projection.ResponseWebViewUri;
         ResponseRawText = projection.ResponseRawText;
         HasTextResponse = projection.HasTextResponse;
-    }
-
-    private void OnRequestBodyFileChanged(object sender, FileSystemEventArgs e)
-    {
-        if (Interlocked.Exchange(ref _requestBodyReadPending, 1) == 1)
-        {
-            return;
-        }
-
-        var cancellationToken = CancellationToken.None;
-
-        if (_fileWatcherCts is { } fileWatcherCts)
-        {
-            try
-            {
-                cancellationToken = fileWatcherCts.Token;
-            }
-            catch (ObjectDisposedException)
-            {
-                // The watcher is being torn down; fall back to an uncancelable token so the
-                // pending flag can still be reset by the background task.
-            }
-        }
-
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(200, cancellationToken).ConfigureAwait(false);
-                var content = await File.ReadAllTextAsync(e.FullPath, cancellationToken).ConfigureAwait(false);
-                await Dispatcher.UIThread.InvokeAsync(() => _requestEditor.RequestBody = content);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
-            {
-                // Transient read errors while the editor is still writing, or task cancelled during shutdown
-            }
-            finally
-            {
-                Interlocked.Exchange(ref _requestBodyReadPending, 0);
-            }
-        });
-    }
-
-    private async Task<string> WriteTempFileAsync(string prefix, string content, CancellationToken cancellationToken = default)
-    {
-        var ext = !string.IsNullOrEmpty(_requestEditor.ContentType)
-            ? ResponseActionsViewModel.ExtensionFromContentType(_requestEditor.ContentType)
-            : ResponseActionsViewModel.DetectExtensionFromContent(content);
-        var path = Path.Join(Path.GetTempPath(), $"{prefix}-{Guid.NewGuid():N}{ext}");
-        await File.WriteAllTextAsync(path, content, cancellationToken).ConfigureAwait(false);
-        _tempFiles.Add(path);
-        return path;
     }
 
     private async Task<IStorageFolder?> GetResponseSaveSuggestedStartLocationAsync()
