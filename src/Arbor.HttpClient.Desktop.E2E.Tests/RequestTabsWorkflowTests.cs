@@ -87,6 +87,31 @@ public sealed class RequestTabsWorkflowTests
         workflow.Tabs.Should().ContainSingle().Which.Should().BeSameAs(first);
     }
 
+    // ── FindMatchingTab tests ─────────────────────────────────────────────────
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public void FindMatchingTab_NoTabHasMatchingSource_ReturnsNull()
+    {
+        var workflow = new RequestTabsWorkflow();
+        var tab = workflow.AddTab(CreateEditor());
+        tab.SetCollectionRequestSource(1, "GET", "/pets", "List pets");
+
+        RequestTabsWorkflow.FindMatchingTab(workflow.Tabs, 2, "GET", "/pets", "List pets")
+            .Should().BeNull();
+    }
+
+    [AvaloniaFact(Timeout = 10_000)]
+    public void FindMatchingTab_TabWithMatchingSource_ReturnsThatTab()
+    {
+        var workflow = new RequestTabsWorkflow();
+        workflow.AddTab(CreateEditor());
+        var second = workflow.AddTab(CreateEditor());
+        second.SetCollectionRequestSource(1, "GET", "/pets", "List pets");
+
+        RequestTabsWorkflow.FindMatchingTab(workflow.Tabs, 1, "GET", "/pets", "List pets")
+            .Should().BeSameAs(second);
+    }
+
     [Fact]
     public void GetResponseStateBytes_EmptyMemory_ReturnsEmptyArray()
     {

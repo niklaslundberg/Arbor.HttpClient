@@ -385,4 +385,65 @@ public sealed class CollectionInheritedHeadersWorkflowTests
         CollectionInheritedHeadersWorkflow.FindMatchingRequest(collection, method, path, name)
             .Should().BeNull();
     }
+
+    // ── BuildHeaderViewModels tests ───────────────────────────────────────────
+
+    [Fact]
+    public void BuildHeaderViewModels_NullHeaders_ReturnsEmptyList()
+    {
+        CollectionInheritedHeadersWorkflow.BuildHeaderViewModels(null).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BuildHeaderViewModels_MapsNameValueAndEnabledStateInOrder()
+    {
+        IReadOnlyList<RequestHeader> headers =
+        [
+            new RequestHeader("X-Trace", "1", true),
+            new RequestHeader("X-Disabled", "2", false)
+        ];
+
+        var result = CollectionInheritedHeadersWorkflow.BuildHeaderViewModels(headers);
+
+        result.Should().SatisfyRespectively(
+            first =>
+            {
+                first.Name.Should().Be("X-Trace");
+                first.Value.Should().Be("1");
+                first.IsEnabled.Should().BeTrue();
+            },
+            second =>
+            {
+                second.Name.Should().Be("X-Disabled");
+                second.Value.Should().Be("2");
+                second.IsEnabled.Should().BeFalse();
+            });
+    }
+
+    // ── ObservePropertyChanges tests ──────────────────────────────────────────
+
+    [Fact]
+    public void ObservePropertyChanges_EmptyCollection_CompletesImmediately()
+    {
+        var completed = false;
+
+        CollectionInheritedHeadersWorkflow.ObservePropertyChanges([])
+            .Subscribe(_ => { }, () => completed = true);
+
+        completed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ObservePropertyChanges_PropertyChangeOnAnyHeader_IsObserved()
+    {
+        var headers = new List<RequestHeaderViewModel> { HeaderViewModel("X-Trace"), HeaderViewModel("X-Other") };
+        var observedNames = new List<string?>();
+
+        using var subscription = CollectionInheritedHeadersWorkflow.ObservePropertyChanges(headers)
+            .Subscribe(eventArgs => observedNames.Add(eventArgs.PropertyName));
+
+        headers[1].Value = "2";
+
+        observedNames.Should().Contain(nameof(RequestHeaderViewModel.Value));
+    }
 }
