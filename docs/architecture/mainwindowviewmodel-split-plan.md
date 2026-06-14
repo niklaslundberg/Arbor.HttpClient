@@ -132,6 +132,7 @@ Recommended extraction order (lowest coupling first):
 | Existing-tab lookup for a collection request | `RequestTabsWorkflow` | ✅ Done (2026-06-14, later 5) — moved the `RequestTabs` scan from `TryActivateExistingCollectionRequestTab` to `RequestTabsWorkflow.FindMatchingTab(tabs, collectionId, method, path, name)` (`Features/HttpRequest/`), alongside `AddTab`/`CloseTab`. `TryActivateExistingCollectionRequestTab` stays in Main (writes `ActiveRequestTab`). Tests: new cases in `RequestTabsWorkflowTests`. |
 | Inherited-header property-change merge | `CollectionInheritedHeadersWorkflow` | ✅ Done (2026-06-14, later 5) — moved the `CollectionInheritedHeaders` item `PropertyChangedObservable` merge from `ObserveCollectionInheritedHeaderPropertyChanges` to `CollectionInheritedHeadersWorkflow.ObservePropertyChanges(IEnumerable<RequestHeaderViewModel>)` (`Features/Collections/`), alongside the other header helpers. `ObserveCollectionInheritedHeaderPropertyChanges` is now a one-line delegation. Tests: new cases in `CollectionInheritedHeadersWorkflowTests`. |
 | Selected-collection item/header projection | `CollectionFilterWorkflow`, `CollectionInheritedHeadersWorkflow` | ✅ Done (2026-06-14, later 5) — moved the `collection.Requests` → `CollectionItemViewModel` loop from `ApplySelectedCollection` to `CollectionFilterWorkflow.BuildCollectionItems(Collection)`, and the `collection.Headers` → `RequestHeaderViewModel` loop to `CollectionInheritedHeadersWorkflow.BuildHeaderViewModels(IReadOnlyList<RequestHeader>?)`. `ApplySelectedCollection` stays in Main (mutates `CollectionItems`/`CollectionInheritedHeaders`) and now just iterates the built lists. Tests: new cases in `CollectionFilterWorkflowTests`/`CollectionInheritedHeadersWorkflowTests`. |
+| Collection-request method resolution | `CollectionRequestEditorProjectionWorkflow` | ✅ Done (2026-06-14, later 6) — moved the "is this an HTTP request, and if so which method to apply" decision from `ApplyCollectionRequestToEditor` into a new `Method` field on `CollectionRequestEditorProjection`, computed by `BuildProjection` (`item.Method` when `RequestType.Http`, otherwise `null`). `ApplyCollectionRequestToEditor` now just does `if (projection.Method is { } method) { _requestEditor.SelectedMethod = method; }`. Tests: new assertions in `CollectionRequestEditorProjectionWorkflowTests`. |
 
 <a id="remaining-slices--ordered-plan-2026-06-11"></a>
 #### Remaining slices — ordered plan (2026-06-11)
@@ -145,6 +146,14 @@ Execute one slice per PR, in this order (lowest coupling first), following the W
 5. ~~**Layout management**~~ 🔶 Partial (2026-06-12) — `LayoutWorkflow` (`Features/Layout/`) now owns the named-layout collection: `SavedLayoutNames` (ordered alphabetically), the saved-layout dictionary, and the `Layout {N}` name counter; `LoadFromOptions` (replaces `ApplyLayoutOptions`'s dictionary/name bookkeeping), `TryGetLayout`, `SaveLayoutAsNew`, `SaveLayoutToExisting`, `RestoreDefaultLayout`, `RemoveLayout`, and `BuildNamedLayouts` (for persistence). Main keeps `SelectedLayoutName` (`[Reactive]`, bound to the layout combo box), the `[ReactiveCommand]` entry points, and the dock-tree/geometry pipeline (`CaptureLayoutSnapshot`/`ApplyLayoutSnapshot`/`ReapplyStartupLayout`/`PersistCurrentLayout`/`SetWindowGeometry`/`CloseFloatingWindows`) since these read/write `Layout` (`IRootDock`) and Avalonia window state directly — consistent with the "Apply* UI projections stay in Main" precedent. Tests: `LayoutWorkflowTests`.
 6. ~~**Phase 3 delegation cleanup**~~ ✅ Done (2026-06-13) — `ResponseActionsViewModel` is now `sealed partial class ResponseActionsViewModel : ReactiveViewModelBase` and its six action methods (`CopyResponseBodyAsync`, `SaveResponseBodyAsFileAsync`, `OpenResponseBodyInExternalEditorAsync`, `SaveBinaryResponseAndOpenAsync`, `CopyHistoryItemAsCurlAsync`, `CopyCurrentRequestAsCurlAsync`) are private `[ReactiveCommand]`-decorated members exposing `*Command` properties directly. `MainWindowViewModel`'s pass-through `[ReactiveCommand]` wrappers and the `TryGetSaveableResponseContent`/`ExtensionFromContentType`/`DetectExtensionFromContent` static delegations are removed; XAML (`ResponseView.axaml`, `EmbeddedResponseView.axaml`, `LeftPanelView.axaml`) and code-behind (`ResponseView.axaml.cs`, `EmbeddedResponseView.axaml.cs`, `RequestView.axaml.cs`) bind/call `App.ResponseActions.*Command` and `ResponseActionsViewModel.ExtensionFromContentType`/`DetectExtensionFromContent` directly. `IResponseActionsContext` (the explicit-interface state/IO boundary implemented by Main) is retained — it is the dependency-inversion contract, not delegation. Main now disposes `_responseActions` in `Dispose(bool)`. Tests updated in `ResponseActionsViewModelTests` and `ResponseShortcutsTests`.
 7. **DockFactory feature registrations** — only after the slices above: replace the `MainWindowViewModel` constructor dependency in `DockFactory` with per-feature dockable registrations (step 2 in `clean-feature-separation.md`). Deliberately deferred so registrations can point at clean feature VMs.
+
+> **Status check (2026-06-14, later 6):** Slices 1–6 above are now done or partial-by-design, so this is the only remaining item in the ordered plan. Scoping it out: `DockFactory.CreateLayout()` constructs four dockable VMs — `LeftPanelViewModel`, `LogPanelViewModel` (`Features/Logging/`), `RequestViewModel` (`Features/HttpRequest/`), and `LayoutManagementViewModel` (`Features/Layout/`) — each a ~20-line "thin proxy" whose entire surface is a single `public MainWindowViewModel App { get; }` property (the "Limited reuse boundaries" finding in `clean-feature-separation.md`). Their corresponding AXAML views (`LeftPanelView.axaml`, `RequestView.axaml`, `LogPanelView.axaml`, `LayoutManagementView.axaml`) bind through `App.*` to dozens of `MainWindowViewModel` members each (commands, `[Reactive]` properties, sub-VMs). Replacing `App` with narrow per-feature interfaces means rewriting every one of those binding paths across four AXAML files and re-verifying the UI visually — a multi-PR binding migration with UI regression testing, not a pure-C# extraction like slices 1–6. It cannot be done safely headless (this environment has no display for Avalonia). Recommendation: treat as its own dedicated effort, one dockable VM/view at a time, with `./scripts/take-screenshots.sh` before/after each.
+
+#### Remaining work beyond this plan
+
+With the Workflow/Coordinator extraction backlog (items 1–6) essentially exhausted — further rounds now find only marginal pure-helper moves like the `Method` projection above — and the [Test split plan](#test-split-plan) now done (2026-06-14, later 7), the one substantive item left for "split MainWindowViewModel into separate features" is:
+
+- **Item 7 above** (DockFactory feature registrations) — large, UI-binding-migration risk, needs visual verification.
 
 #### Phase 2 Slice 1 — Response actions ✅ Implemented
 
@@ -180,26 +189,32 @@ Execute one slice per PR, in this order (lowest coupling first), following the W
 
 ## Test split plan
 
+> **Status (2026-06-14, later 7): ✅ Done.** Both files below have been split as described. `MainWindowUiTests.cs` and `RequestEditorViewModelTests.cs` no longer exist; their shared private helpers were promoted to `internal static` members of new `UiTestHelpers`/`RequestEditorTestHelpers` classes (imported via `using static` so call sites in the split test classes are unchanged). All 47 + 53 = 100 tests were moved verbatim (no behavior changes); `dotnet test Arbor.HttpClient.slnx` still reports 861 tests total, all passing.
+
 Current large classes should be incrementally split by behavior area.
 
 ### MainWindow UI tests
 
-Split `MainWindowUiTests` into focused classes, for example:
+Split `MainWindowUiTests` into focused classes:
 
-- `MainWindowLayoutUiTests`
-- `MainWindowCollectionsUiTests`
-- `MainWindowScheduledJobsUiTests`
-- `MainWindowRequestExecutionUiTests`
-- `MainWindowOptionsUiTests`
+- `MainWindowLayoutUiTests` — layout/docking, dockable panel activation, floating windows, startup-layout restoration (13 tests).
+- `MainWindowCollectionsUiTests` — collections/history explorer panel switching, implicit-collection persistence (incl. GraphQL and sensitive-header redaction), collection tree sorting (9 tests).
+- `MainWindowScheduledJobsUiTests` — scheduled-job auto-start, auto-save, the scheduled-jobs explorer tab, and follow-redirects overrides for scheduled jobs (4 tests).
+- `MainWindowRequestExecutionUiTests` — manual send/cancel/timeout, response projections, request tabs, URL/query-parameter and variable-resolution behavior in the request view, and follow-redirects overrides for manual sends (16 tests).
+- `MainWindowOptionsUiTests` — the Options view's scheduled-jobs/manage pages, options/environment auto-save, and environment selection on load (5 tests).
+
+Shared helpers (`WaitForUiThreadAsync`, `VerifyTabRealized`, `FindDockById<T>`, `RedirectTestServer`, `AsyncStubHttpMessageHandler`) live in `UiTestHelpers` (internal static class) and are brought into scope via `using static Arbor.HttpClient.Desktop.E2E.Tests.UiTestHelpers;`.
 
 ### Request editor tests
 
-Split `RequestEditorViewModelTests` by behavior area, for example:
+Split `RequestEditorViewModelTests` by behavior area:
 
-- `RequestEditorHeadersTests`
-- `RequestEditorQueryParametersTests`
-- `RequestEditorBodyFormattingTests`
-- `RequestEditorDraftPersistenceTests`
+- `RequestEditorQueryParametersTests` — URL ↔ query-parameter sync and query-parameter placeholder rows (8 tests).
+- `RequestEditorHeadersTests` — request/auth header CRUD and placeholder rows, auth-header preview, and content-type header projection (10 tests).
+- `RequestEditorBodyFormattingTests` — content-type resolution and request-body pretty-printing (11 tests).
+- `RequestEditorDraftPersistenceTests` — `BuildResolvedHttpRequestDraft` (variables, timeouts, TLS/HTTP-version overrides), `GetResolvedVariables`, and bulk-update suppression (24 tests).
+
+The shared `CreateEditor` factory lives in `RequestEditorTestHelpers` (internal static class), imported via `using static Arbor.HttpClient.Desktop.E2E.Tests.RequestEditorTestHelpers;`.
 
 ### Test design rules during split
 

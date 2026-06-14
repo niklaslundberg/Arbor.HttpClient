@@ -19,6 +19,7 @@ public sealed record CollectionRequestHeaderProjection(string Name, string Value
 /// </summary>
 public sealed record CollectionRequestEditorProjection(
     RequestType RequestType,
+    string? Method,
     string ResolvedUrl,
     string Name,
     string Notes,
@@ -54,6 +55,7 @@ public sealed class CollectionRequestEditorProjectionWorkflow(VariableResolver v
 
         return new CollectionRequestEditorProjection(
             requestType,
+            requestType == RequestType.Http ? item.Method : null,
             resolvedUrl,
             item.Name,
             item.Notes ?? string.Empty,
