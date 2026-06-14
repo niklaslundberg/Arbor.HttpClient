@@ -41,9 +41,7 @@ using Arbor.HttpClient.Desktop.Localization;
 using Arbor.HttpClient.Desktop.Shared;
 using Avalonia;
 using Avalonia.Input.Platform;
-using Avalonia.Media;
 using Avalonia.Platform.Storage;
-using Avalonia.Styling;
 using Avalonia.Threading;
 using ReactiveUI;
 using ReactiveUI.SourceGenerators;
@@ -403,10 +401,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [Reactive]
     private bool _collectUnhandledExceptions;
 
-    public double UiFontSize =>
-        double.TryParse(UiFontSizeText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
-            ? parsed
-            : 13d;
+    public double UiFontSize => ApplicationOptionsWorkflow.ParseFontSize(UiFontSizeText, fallback: 13d);
 
     public string RequestTimeoutDefaultWatermark =>
         $"{Strings.RequestTimeoutDefaultWatermark} ({DefaultRequestTimeoutSeconds})";
@@ -571,11 +566,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     {
         if (Application.Current is { } currentApp)
         {
-            var firstFamily = UiFontFamily.Split(',', 2, StringSplitOptions.TrimEntries)[0];
-            var fontFamily = string.IsNullOrEmpty(firstFamily)
-                ? FontFamily.Default
-                : new FontFamily(firstFamily);
-            currentApp.Resources["AppFontFamily"] = fontFamily;
+            currentApp.Resources["AppFontFamily"] = ApplicationOptionsWorkflow.ResolveFontFamily(UiFontFamily);
         }
 
         QueueOptionsAutoSave();
@@ -602,12 +593,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return;
         }
 
-        Application.Current.RequestedThemeVariant = SelectedThemeOption switch
-        {
-            DarkThemeOption => ThemeVariant.Dark,
-            LightThemeOption => ThemeVariant.Light,
-            _ => ThemeVariant.Default
-        };
+        Application.Current.RequestedThemeVariant = ApplicationOptionsWorkflow.ResolveThemeVariant(SelectedThemeOption);
 
         QueueOptionsAutoSave();
     }
@@ -1321,7 +1307,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             _requestEditor.FollowRedirectsForRequest = options.Http.FollowRedirects;
         }
 
-        if (updateCurrentRequestUrl || string.IsNullOrWhiteSpace(_requestEditor.RequestUrl) || string.Equals(_requestEditor.RequestUrl, previousDefaultUrl, StringComparison.Ordinal))
+        if (ApplicationOptionsWorkflow.ShouldUpdateRequestUrl(updateCurrentRequestUrl, _requestEditor.RequestUrl, previousDefaultUrl))
         {
             _requestEditor.RequestUrl = options.Http.DefaultRequestUrl;
         }
@@ -1850,11 +1836,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return false;
         }
 
-        var request = activeCollection.Requests.FirstOrDefault(collectionRequest =>
-            string.Equals(collectionRequest.Method, method, StringComparison.Ordinal)
-            && string.Equals(collectionRequest.Path, path, StringComparison.Ordinal)
-            && string.Equals(collectionRequest.Name, name, StringComparison.Ordinal));
-        if (request is null)
+        if (CollectionInheritedHeadersWorkflow.FindMatchingRequest(activeCollection, method, path, name) is not { } request)
         {
             return false;
         }

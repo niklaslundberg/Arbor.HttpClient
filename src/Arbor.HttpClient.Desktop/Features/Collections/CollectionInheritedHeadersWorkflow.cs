@@ -324,6 +324,16 @@ public sealed class CollectionInheritedHeadersWorkflow : IDisposable
     public static bool HasManualHeaderOverride(string headerName, IReadOnlyList<RequestHeaderViewModel> manualRequestHeaders) =>
         manualRequestHeaders.Any(header => string.Equals(header.Name, headerName, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Finds the request within <paramref name="collection"/> whose method, path, and name
+    /// match the given values (all ordinal), or <see langword="null"/> when none match.
+    /// </summary>
+    public static CollectionRequest? FindMatchingRequest(Collection collection, string method, string path, string name) =>
+        collection.Requests.FirstOrDefault(request =>
+            string.Equals(request.Method, method, StringComparison.Ordinal)
+            && string.Equals(request.Path, path, StringComparison.Ordinal)
+            && string.Equals(request.Name, name, StringComparison.Ordinal));
+
     public void Dispose()
     {
         _autoSaveRequestedSubject.OnCompleted();

@@ -32,6 +32,15 @@ This document answers the architecture questions raised in [issue #33](https://g
 > 5. Moved the pure decision logic from `SyncDefaultContentTypeSelection` — whether a content-type value matches a known picker option or falls back to the "Custom..." option — into `ApplicationOptionsWorkflow.ResolveDefaultContentTypeSelection` (`Features/Options/`) as a public static method, alongside `BuildOptions`. `SyncDefaultContentTypeSelection` itself stays in Main (it writes `SelectedDefaultContentTypeOption`/`CustomDefaultContentType`) but now just applies the resolved tuple. Tests: new cases in `ApplicationOptionsWorkflowTests`.
 >
 > `MainWindowViewModel` is now about 2,603 lines.
+>
+> **Update 2026-06-14 (later 4):** Five more small pure-helper extractions continuing the same pattern:
+> 1. Moved the request-matching lookup from `TryGetActiveCollectionRequestContext` into `CollectionInheritedHeadersWorkflow.FindMatchingRequest(Collection, method, path, name)` (`Features/Collections/`), alongside the other header/request helpers. Tests: new cases in `CollectionInheritedHeadersWorkflowTests`.
+> 2. Moved the "should the loaded options overwrite the current request URL" decision from `ApplyOptions` into `ApplicationOptionsWorkflow.ShouldUpdateRequestUrl` (`Features/Options/`). Tests: new cases in `ApplicationOptionsWorkflowTests`.
+> 3. Moved the theme-string → `ThemeVariant` mapping from `ApplyThemeOption` into `ApplicationOptionsWorkflow.ResolveThemeVariant`. Tests: new cases in `ApplicationOptionsWorkflowTests`.
+> 4. Moved the comma-separated font-family fallback resolution from `ApplyUiFontFamily` into `ApplicationOptionsWorkflow.ResolveFontFamily`. Tests: new cases in `ApplicationOptionsWorkflowTests`.
+> 5. Moved the `UiFontSize` parse-with-fallback logic into `ApplicationOptionsWorkflow.ParseFontSize`. Tests: new cases in `ApplicationOptionsWorkflowTests`.
+>
+> All five `Apply*`/sync methods stay in Main (they read/write `[Reactive]` properties and `Application.Current`), but now delegate their pure decision logic to the workflow classes. The now-unused `Avalonia.Media`/`Avalonia.Styling` usings were removed from `MainWindowViewModel`. `MainWindowViewModel` is now about 2,585 lines.
 
 - **Monolithic main view model**: `MainWindowViewModel` (~2,500 lines at the time of writing) owns request editing, response rendering, history, collections, environments, options, scheduling, layout persistence, and logging. All UI actions pass through this single type, so responsibilities are tightly coupled.
 - **Child view models are thin proxies**: dockable VMs such as `RequestViewModel`, `ResponseViewModel`, `LeftPanelViewModel`, and `OptionsViewModel` simply forward to `MainWindowViewModel`. Reusing them elsewhere still drags the entire main VM with it.

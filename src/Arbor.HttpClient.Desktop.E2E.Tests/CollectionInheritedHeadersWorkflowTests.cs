@@ -358,4 +358,31 @@ public sealed class CollectionInheritedHeadersWorkflowTests
 
         CollectionInheritedHeadersWorkflow.HasManualHeaderOverride("X-Other", manualHeaders).Should().BeFalse();
     }
+
+    // ── FindMatchingRequest tests ─────────────────────────────────────────────
+
+    private static Collection CollectionWithRequests(params CollectionRequest[] requests) =>
+        new(1, "Test Collection", null, "https://api.example.com", requests);
+
+    [Fact]
+    public void FindMatchingRequest_MethodPathAndNameMatch_ReturnsTheRequest()
+    {
+        var listPets = new CollectionRequest("List pets", "GET", "/pets", null);
+        var collection = CollectionWithRequests(listPets, new CollectionRequest("Create pet", "POST", "/pets", null));
+
+        CollectionInheritedHeadersWorkflow.FindMatchingRequest(collection, "GET", "/pets", "List pets")
+            .Should().Be(listPets);
+    }
+
+    [Theory]
+    [InlineData("POST", "/pets", "List pets")]
+    [InlineData("GET", "/other", "List pets")]
+    [InlineData("GET", "/pets", "Other name")]
+    public void FindMatchingRequest_MethodPathOrNameDiffers_ReturnsNull(string method, string path, string name)
+    {
+        var collection = CollectionWithRequests(new CollectionRequest("List pets", "GET", "/pets", null));
+
+        CollectionInheritedHeadersWorkflow.FindMatchingRequest(collection, method, path, name)
+            .Should().BeNull();
+    }
 }
