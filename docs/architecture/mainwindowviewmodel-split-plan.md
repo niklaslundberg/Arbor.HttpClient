@@ -151,10 +151,9 @@ Execute one slice per PR, in this order (lowest coupling first), following the W
 
 #### Remaining work beyond this plan
 
-With the Workflow/Coordinator extraction backlog (items 1–6) essentially exhausted — further rounds now find only marginal pure-helper moves like the `Method` projection above — the two substantive items left for "split MainWindowViewModel into separate features" are:
+With the Workflow/Coordinator extraction backlog (items 1–6) essentially exhausted — further rounds now find only marginal pure-helper moves like the `Method` projection above — and the [Test split plan](#test-split-plan) now done (2026-06-14, later 7), the one substantive item left for "split MainWindowViewModel into separate features" is:
 
 - **Item 7 above** (DockFactory feature registrations) — large, UI-binding-migration risk, needs visual verification.
-- **Test split plan** (below) — `MainWindowUiTests.cs` (~2,430 lines) and `RequestEditorViewModelTests.cs` (~738 lines) have not yet been split into the focused per-feature test classes described in [Test split plan](#test-split-plan). This is lower-risk (compile + `dotnet test` verified, no UI binding changes) and can be done incrementally, one behavior area per PR.
 
 #### Phase 2 Slice 1 — Response actions ✅ Implemented
 
@@ -190,26 +189,32 @@ With the Workflow/Coordinator extraction backlog (items 1–6) essentially exhau
 
 ## Test split plan
 
+> **Status (2026-06-14, later 7): ✅ Done.** Both files below have been split as described. `MainWindowUiTests.cs` and `RequestEditorViewModelTests.cs` no longer exist; their shared private helpers were promoted to `internal static` members of new `UiTestHelpers`/`RequestEditorTestHelpers` classes (imported via `using static` so call sites in the split test classes are unchanged). All 47 + 53 = 100 tests were moved verbatim (no behavior changes); `dotnet test Arbor.HttpClient.slnx` still reports 861 tests total, all passing.
+
 Current large classes should be incrementally split by behavior area.
 
 ### MainWindow UI tests
 
-Split `MainWindowUiTests` into focused classes, for example:
+Split `MainWindowUiTests` into focused classes:
 
-- `MainWindowLayoutUiTests`
-- `MainWindowCollectionsUiTests`
-- `MainWindowScheduledJobsUiTests`
-- `MainWindowRequestExecutionUiTests`
-- `MainWindowOptionsUiTests`
+- `MainWindowLayoutUiTests` — layout/docking, dockable panel activation, floating windows, startup-layout restoration (13 tests).
+- `MainWindowCollectionsUiTests` — collections/history explorer panel switching, implicit-collection persistence (incl. GraphQL and sensitive-header redaction), collection tree sorting (9 tests).
+- `MainWindowScheduledJobsUiTests` — scheduled-job auto-start, auto-save, the scheduled-jobs explorer tab, and follow-redirects overrides for scheduled jobs (4 tests).
+- `MainWindowRequestExecutionUiTests` — manual send/cancel/timeout, response projections, request tabs, URL/query-parameter and variable-resolution behavior in the request view, and follow-redirects overrides for manual sends (16 tests).
+- `MainWindowOptionsUiTests` — the Options view's scheduled-jobs/manage pages, options/environment auto-save, and environment selection on load (5 tests).
+
+Shared helpers (`WaitForUiThreadAsync`, `VerifyTabRealized`, `FindDockById<T>`, `RedirectTestServer`, `AsyncStubHttpMessageHandler`) live in `UiTestHelpers` (internal static class) and are brought into scope via `using static Arbor.HttpClient.Desktop.E2E.Tests.UiTestHelpers;`.
 
 ### Request editor tests
 
-Split `RequestEditorViewModelTests` by behavior area, for example:
+Split `RequestEditorViewModelTests` by behavior area:
 
-- `RequestEditorHeadersTests`
-- `RequestEditorQueryParametersTests`
-- `RequestEditorBodyFormattingTests`
-- `RequestEditorDraftPersistenceTests`
+- `RequestEditorQueryParametersTests` — URL ↔ query-parameter sync and query-parameter placeholder rows (8 tests).
+- `RequestEditorHeadersTests` — request/auth header CRUD and placeholder rows, auth-header preview, and content-type header projection (10 tests).
+- `RequestEditorBodyFormattingTests` — content-type resolution and request-body pretty-printing (11 tests).
+- `RequestEditorDraftPersistenceTests` — `BuildResolvedHttpRequestDraft` (variables, timeouts, TLS/HTTP-version overrides), `GetResolvedVariables`, and bulk-update suppression (24 tests).
+
+The shared `CreateEditor` factory lives in `RequestEditorTestHelpers` (internal static class), imported via `using static Arbor.HttpClient.Desktop.E2E.Tests.RequestEditorTestHelpers;`.
 
 ### Test design rules during split
 
