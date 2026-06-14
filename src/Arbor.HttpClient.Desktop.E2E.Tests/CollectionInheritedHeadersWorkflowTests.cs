@@ -359,6 +359,29 @@ public sealed class CollectionInheritedHeadersWorkflowTests
         CollectionInheritedHeadersWorkflow.HasManualHeaderOverride("X-Other", manualHeaders).Should().BeFalse();
     }
 
+    // ── SelectManualHeaders tests ─────────────────────────────────────────────
+
+    [Fact]
+    public void SelectManualHeaders_FiltersOutInheritedHeaders()
+    {
+        var manual = HeaderViewModel("X-Manual");
+        var inherited = HeaderViewModel("X-Inherited");
+        inherited.IsInherited = true;
+
+        CollectionInheritedHeadersWorkflow.SelectManualHeaders([manual, inherited])
+            .Should().Equal(manual);
+    }
+
+    [Fact]
+    public void SelectManualHeaders_NoInheritedHeaders_ReturnsAllHeaders()
+    {
+        var first = HeaderViewModel("X-First");
+        var second = HeaderViewModel("X-Second");
+
+        CollectionInheritedHeadersWorkflow.SelectManualHeaders([first, second])
+            .Should().Equal(first, second);
+    }
+
     // ── FindMatchingRequest tests ─────────────────────────────────────────────
 
     private static Collection CollectionWithRequests(params CollectionRequest[] requests) =>

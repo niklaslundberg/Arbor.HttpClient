@@ -35,6 +35,7 @@ using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Options;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Desktop.Features.Sse;
+using Arbor.HttpClient.Desktop.Features.Variables;
 using Arbor.HttpClient.Desktop.Features.WebSocket;
 using Arbor.HttpClient.Desktop.Features.Streaming;
 using Arbor.HttpClient.Desktop.Localization;
@@ -61,7 +62,7 @@ using Arbor.HttpClient.Desktop.Features.Scripting;
 namespace Arbor.HttpClient.Desktop.Features.Main;
 
 [SuppressMessage("Major Code Smell", "S3881", Justification = "Lifetime is managed as a UI root ViewModel with deterministic cleanup via Dispose.")]
-public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActionsContext
+public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActionsContext, ILayoutManagementContext, ILeftPanelContext, IRequestPanelContext
 {
     private readonly HttpRequestService _httpRequestService;
     private HttpRequestWorkflow _httpRequestWorkflow = null!;
@@ -193,6 +194,61 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     void IResponseActionsContext.SetResponseSaveFileNamePatternValidationError(string validationMessage) =>
         ResponseSaveFileNamePatternValidationError = validationMessage;
+
+    // ── ILayoutManagementContext explicit command implementations ─────────────
+    // SavedLayoutNames/SelectedLayoutName satisfy the interface implicitly; the generated
+    // command properties return ReactiveCommand<…> so they are surfaced as ICommand here.
+
+    System.Windows.Input.ICommand ILayoutManagementContext.SaveLayoutAsNewCommand => SaveLayoutAsNewCommand;
+
+    System.Windows.Input.ICommand ILayoutManagementContext.SaveLayoutToExistingCommand => SaveLayoutToExistingCommand;
+
+    System.Windows.Input.ICommand ILayoutManagementContext.RemoveLayoutCommand => RemoveLayoutCommand;
+
+    System.Windows.Input.ICommand ILayoutManagementContext.RestoreDefaultLayoutCommand => RestoreDefaultLayoutCommand;
+
+    // ── ILeftPanelContext explicit implementations ────────────────────────────
+    // All bound properties (LeftPanelTab, History, Collections, the form state, the
+    // filtered/grouped lists, RequestEditor, ResponseActions, …) satisfy the interface
+    // implicitly. ActiveEnvironmentVariables and the commands are surfaced here because
+    // their concrete return types (ObservableCollection / ReactiveCommand<…>) don't match
+    // the interface's IReadOnlyList / ICommand by identity.
+
+    IReadOnlyList<EnvironmentVariableViewModel> IVariableAutoCompleteHost.ActiveEnvironmentVariables => ActiveEnvironmentVariables;
+
+    System.Windows.Input.ICommand ILeftPanelContext.ShowHistoryTabCommand => ShowHistoryTabCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.ShowCollectionsTabCommand => ShowCollectionsTabCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.ShowScheduledJobsTabCommand => ShowScheduledJobsTabCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.LoadHistoryRequestCommand => LoadHistoryRequestCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.LoadCollectionRequestCommand => LoadCollectionRequestCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.AddRequestToCollectionCommand => AddRequestToCollectionCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.ImportCollectionCommand => ImportCollectionCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.DeleteCollectionCommand => DeleteCollectionCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.ShowNewCollectionFormCommand => ShowNewCollectionFormCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.CreateCollectionCommand => CreateCollectionCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.CancelNewCollectionCommand => CancelNewCollectionCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.ShowRenameCollectionFormCommand => ShowRenameCollectionFormCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.ConfirmRenameCollectionCommand => ConfirmRenameCollectionCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.CancelRenameCollectionCommand => CancelRenameCollectionCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.AddCollectionInheritedHeaderCommand => AddCollectionInheritedHeaderCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.RemoveCollectionInheritedHeaderCommand => RemoveCollectionInheritedHeaderCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.SetCollectionSortByCommand => SetCollectionSortByCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.SetCollectionDisplayModeCommand => SetCollectionDisplayModeCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.ToggleCollectionTreeViewCommand => ToggleCollectionTreeViewCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.AddScheduledJobCommand => AddScheduledJobCommand;
+    System.Windows.Input.ICommand ILeftPanelContext.RemoveScheduledJobCommand => RemoveScheduledJobCommand;
+
+    // ── IRequestPanelContext explicit command implementations ─────────────────
+    // All bound properties and sub-view-models (RequestTabs, ActiveRequestTab, RequestEditor,
+    // GraphQlEditor, WebSocketSession, SseSession, ScriptEditor, PrimaryActionLabel, font, …)
+    // satisfy the interface implicitly; only the ReactiveCommand<…> commands are surfaced here.
+
+    System.Windows.Input.ICommand IRequestPanelContext.NewRequestTabCommand => NewRequestTabCommand;
+    System.Windows.Input.ICommand IRequestPanelContext.CloseRequestTabCommand => CloseRequestTabCommand;
+    System.Windows.Input.ICommand IRequestPanelContext.ExecutePrimaryActionCommand => ExecutePrimaryActionCommand;
+    System.Windows.Input.ICommand IRequestPanelContext.OpenRequestBodyInExternalEditorCommand => OpenRequestBodyInExternalEditorCommand;
+    System.Windows.Input.ICommand IRequestPanelContext.StartDemoServerCommand => StartDemoServerCommand;
+    System.Windows.Input.ICommand IRequestPanelContext.DismissDemoServerBannerCommand => DismissDemoServerBannerCommand;
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -1042,7 +1098,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             .Where(eventArgs => string.Equals(eventArgs.PropertyName, nameof(RequestEditorViewModel.SelectedRequestType), StringComparison.Ordinal))
             .Subscribe(_ => this.RaisePropertyChanged(nameof(PrimaryActionLabel))));
 
-        _dockFactory = new DockFactory(this, _environmentsViewModel, _optionsViewModel, _cookieJarViewModel);
+        _dockFactory = new DockFactory(this, this, this, _environmentsViewModel, _optionsViewModel, _cookieJarViewModel, _logWindowViewModel);
         Layout = _dockFactory.CreateLayout();
         _dockFactory.InitLayout(Layout);
         _defaultLayout = CaptureLayoutSnapshot();
@@ -1739,10 +1795,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private void ApplyCollectionFilter()
     {
         // Preserve expansion state keyed by GroupKey so user-collapsed groups survive filter/sort changes.
-        var previousExpanded = CollectionGroups.ToDictionary(
-            group => group.GroupKey,
-            group => group.IsExpanded,
-            StringComparer.OrdinalIgnoreCase);
+        var previousExpanded = CollectionFilterWorkflow.CaptureExpansionState(CollectionGroups);
 
         var filterResult = _collectionFilterWorkflow.Apply(
             CollectionItems,
@@ -1785,9 +1838,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         }
 
         var inheritedHeaders = CollectionInheritedHeadersWorkflow.BuildHeaders(CollectionInheritedHeaders);
-        var manualRequestHeaders = _requestEditor.RequestHeaders
-            .Where(header => !header.IsInherited)
-            .ToList();
+        var manualRequestHeaders = CollectionInheritedHeadersWorkflow.SelectManualHeaders(_requestEditor.RequestHeaders);
 
         var manualHeaders = CollectionInheritedHeadersWorkflow.BuildHeaders(manualRequestHeaders);
         var mergedHeaders = CollectionInheritedHeadersWorkflow.MergeCollectionAndRequestHeaders(

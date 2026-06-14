@@ -18,6 +18,14 @@ public sealed class CollectionFilterWorkflow
             .Select(request => new CollectionItemViewModel(request, collection.BaseUrl))
             .ToList();
 
+    /// <summary>
+    /// Captures the current expansion state of <paramref name="groups"/> keyed by
+    /// <see cref="CollectionGroupViewModel.GroupKey"/> (case-insensitive), so it can be
+    /// restored across a subsequent <see cref="Apply"/> rebuild.
+    /// </summary>
+    public static IReadOnlyDictionary<string, bool> CaptureExpansionState(IEnumerable<CollectionGroupViewModel> groups) =>
+        groups.ToDictionary(group => group.GroupKey, group => group.IsExpanded, StringComparer.OrdinalIgnoreCase);
+
     public CollectionFilterResult Apply(
         IEnumerable<CollectionItemViewModel> items,
         string searchQuery,

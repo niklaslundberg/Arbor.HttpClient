@@ -1,19 +1,18 @@
 using System.Windows.Input;
 using Dock.Model.ReactiveUI.Controls;
-using Arbor.HttpClient.Desktop.Features.Main;
 
 namespace Arbor.HttpClient.Desktop.Features.Layout;
 
 public sealed class LayoutManagementViewModel : Tool
 {
-    public LayoutManagementViewModel(MainWindowViewModel app)
+    public LayoutManagementViewModel(ILayoutManagementContext app)
     {
         App = app;
         Id = "layout-management";
         Title = "Layout";
     }
 
-    public MainWindowViewModel App { get; }
+    public ILayoutManagementContext App { get; }
 
     public ICommand SaveLayoutAsNewCommand => App.SaveLayoutAsNewCommand;
 

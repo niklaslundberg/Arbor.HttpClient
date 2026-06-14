@@ -1,16 +1,16 @@
 using Dock.Model.ReactiveUI.Controls;
-using Arbor.HttpClient.Desktop.Features.Main;
 
 namespace Arbor.HttpClient.Desktop.Features.Logging;
 
 public sealed class LogPanelViewModel : Tool
 {
-    public LogPanelViewModel(MainWindowViewModel app)
+    public LogPanelViewModel(LogWindowViewModel logs)
     {
-        App = app;
+        Logs = logs;
         Id = "log-panel";
         Title = "Logs";
     }
 
-    public MainWindowViewModel App { get; }
+    /// <summary>The log feature view model this dockable surfaces; bound directly by <c>LogPanelView</c>.</summary>
+    public LogWindowViewModel Logs { get; }
 }

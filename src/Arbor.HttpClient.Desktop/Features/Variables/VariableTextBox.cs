@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Variables;
 using Arbor.HttpClient.Desktop.Shared;
 using Avalonia;
@@ -23,8 +22,8 @@ public sealed class VariableTextBox : UserControl
     public static readonly StyledProperty<string> PlaceholderTextProperty =
         AvaloniaProperty.Register<VariableTextBox, string>(nameof(PlaceholderText), defaultValue: string.Empty);
 
-    public static readonly StyledProperty<MainWindowViewModel?> AppViewModelProperty =
-        AvaloniaProperty.Register<VariableTextBox, MainWindowViewModel?>(nameof(AppViewModel));
+    public static readonly StyledProperty<IVariableAutoCompleteHost?> AppViewModelProperty =
+        AvaloniaProperty.Register<VariableTextBox, IVariableAutoCompleteHost?>(nameof(AppViewModel));
 
     public static readonly StyledProperty<IReadOnlyList<string>?> AutoCompleteSourceProperty =
         AvaloniaProperty.Register<VariableTextBox, IReadOnlyList<string>?>(nameof(AutoCompleteSource));
@@ -48,7 +47,7 @@ public sealed class VariableTextBox : UserControl
         set => SetValue(PlaceholderTextProperty, value);
     }
 
-    public MainWindowViewModel? AppViewModel
+    public IVariableAutoCompleteHost? AppViewModel
     {
         get => GetValue(AppViewModelProperty);
         set => SetValue(AppViewModelProperty, value);

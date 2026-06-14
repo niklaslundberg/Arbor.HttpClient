@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Arbor.HttpClient.Desktop.Features.GraphQl;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
-using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Scripting;
 using Arbor.HttpClient.Desktop.Features.Variables;
 using Arbor.HttpClient.Desktop.Shared;
@@ -30,7 +29,7 @@ public partial class RequestView : UserControl
     private GridLength _requestDraftTopRowHeightBeforePreviewHidden = new(3, GridUnitType.Star);
     private GridLength _requestDraftPreviewRowHeightBeforePreviewHidden = new(2, GridUnitType.Star);
     private double _requestDraftPreviewRowMinHeightBeforePreviewHidden = 100;
-    private MainWindowViewModel? _appVm;
+    private IRequestPanelContext? _appVm;
     private RequestEditorViewModel? _requestEditorVm;
     private GraphQlViewModel? _graphQlVm;
     private ScriptViewModel? _scriptVm;
@@ -54,7 +53,7 @@ public partial class RequestView : UserControl
     internal TextEditor? RequestUrlEditorForTests => _requestUrlEditor;
     internal VariableAutoCompleteController? RequestUrlAutoCompleteControllerForTests => _requestUrlAutoCompleteController;
 
-    private MainWindowViewModel? GetAppVm() => (DataContext as RequestViewModel)?.App;
+    private IRequestPanelContext? GetAppVm() => (DataContext as RequestViewModel)?.App;
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
@@ -437,7 +436,7 @@ public partial class RequestView : UserControl
             return;
         }
 
-        if (e.PropertyName == nameof(MainWindowViewModel.RequestEditor) && _appVm is not null)
+        if (e.PropertyName == nameof(IRequestPanelContext.RequestEditor) && _appVm is not null)
         {
             // Active tab switched — detach old editor wiring and attach to the new one.
             if (_requestEditorVm is not null)
@@ -482,7 +481,7 @@ public partial class RequestView : UserControl
             return;
         }
 
-        if (e.PropertyName is nameof(MainWindowViewModel.UiFontFamily) or nameof(MainWindowViewModel.UiFontSize)
+        if (e.PropertyName is nameof(IRequestPanelContext.UiFontFamily) or nameof(IRequestPanelContext.UiFontSize)
             && _appVm is not null)
         {
             if (_requestUrlEditor is not null)
@@ -689,7 +688,7 @@ public partial class RequestView : UserControl
         installation.SetGrammar(string.IsNullOrEmpty(newScope) ? null : newScope);
     }
 
-    private static void ApplyEditorFont(TextEditor editor, MainWindowViewModel appVm)
+    private static void ApplyEditorFont(TextEditor editor, IRequestPanelContext appVm)
     {
         editor.FontFamily = new FontFamily(appVm.UiFontFamily);
         editor.FontSize = appVm.UiFontSize;

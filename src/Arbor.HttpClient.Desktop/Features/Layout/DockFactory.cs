@@ -8,7 +8,6 @@ using Arbor.HttpClient.Desktop.Features.Cookies;
 using Arbor.HttpClient.Desktop.Features.Environments;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.Logging;
-using Arbor.HttpClient.Desktop.Features.Main;
 using Arbor.HttpClient.Desktop.Features.Options;
 
 namespace Arbor.HttpClient.Desktop.Features.Layout;
@@ -19,17 +18,30 @@ namespace Arbor.HttpClient.Desktop.Features.Layout;
 /// </summary>
 public sealed class DockFactory : Factory
 {
-    private readonly MainWindowViewModel _mainVm;
+    private readonly ILayoutManagementContext _layoutManagementContext;
+    private readonly ILeftPanelContext _leftPanelContext;
+    private readonly IRequestPanelContext _requestPanelContext;
     private readonly EnvironmentsViewModel _environmentsViewModel;
     private readonly OptionsViewModel _optionsViewModel;
     private readonly CookieJarViewModel _cookieJarViewModel;
+    private readonly LogWindowViewModel _logWindowViewModel;
 
-    public DockFactory(MainWindowViewModel mainVm, EnvironmentsViewModel environmentsViewModel, OptionsViewModel optionsViewModel, CookieJarViewModel cookieJarViewModel)
+    public DockFactory(
+        ILayoutManagementContext layoutManagementContext,
+        ILeftPanelContext leftPanelContext,
+        IRequestPanelContext requestPanelContext,
+        EnvironmentsViewModel environmentsViewModel,
+        OptionsViewModel optionsViewModel,
+        CookieJarViewModel cookieJarViewModel,
+        LogWindowViewModel logWindowViewModel)
     {
-        _mainVm = mainVm;
+        _layoutManagementContext = layoutManagementContext;
+        _leftPanelContext = leftPanelContext;
+        _requestPanelContext = requestPanelContext;
         _environmentsViewModel = environmentsViewModel;
         _optionsViewModel = optionsViewModel;
         _cookieJarViewModel = cookieJarViewModel;
+        _logWindowViewModel = logWindowViewModel;
     }
 
     /// <summary>The left-side ToolDock; used to activate the Options tool programmatically.</summary>
@@ -62,12 +74,12 @@ public sealed class DockFactory : Factory
 
     public override IRootDock CreateLayout()
     {
-        var leftPanel = new LeftPanelViewModel(_mainVm);
+        var leftPanel = new LeftPanelViewModel(_leftPanelContext);
         var options = _optionsViewModel;
         var environments = _environmentsViewModel;
-        var logs = new LogPanelViewModel(_mainVm);
+        var logs = new LogPanelViewModel(_logWindowViewModel);
         var cookieJar = _cookieJarViewModel;
-        var layoutManagement = new LayoutManagementViewModel(_mainVm);
+        var layoutManagement = new LayoutManagementViewModel(_layoutManagementContext);
         LeftPanelViewModel = leftPanel;
         OptionsViewModel = options;
         EnvironmentsViewModel = environments;
@@ -86,7 +98,7 @@ public sealed class DockFactory : Factory
         };
         LeftToolDock = leftToolDock;
 
-        var request = new RequestViewModel(_mainVm);
+        var request = new RequestViewModel(_requestPanelContext);
 
         var requestDock = new DocumentDock
         {

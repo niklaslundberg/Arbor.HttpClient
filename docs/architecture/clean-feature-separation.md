@@ -47,6 +47,20 @@ This document answers the architecture questions raised in [issue #33](https://g
 > **Status check (2026-06-14, later 6):** The Workflow/Coordinator pure-helper extraction backlog (`mainwindowviewmodel-split-plan.md` items 1–6) is now done or partial-by-design; further rounds find only marginal moves like the one above. The two substantive items remaining for "new feature requires touching only one folder" are (a) **`DockFactory` feature registrations** (step 7/2) — found to require migrating AXAML binding paths across four "thin proxy" dockable VMs (`LeftPanelViewModel`, `LogPanelViewModel`, `RequestViewModel`, `LayoutManagementViewModel`), each of which exposes only `App` (the full `MainWindowViewModel`) — a multi-PR UI-binding migration needing visual regression testing that can't be done safely headless; and (b) the **test split plan** (`MainWindowUiTests.cs` ~2,430 lines, `RequestEditorViewModelTests.cs` ~738 lines, not yet split into focused per-area classes) — lower-risk and `dotnet test`-verifiable. See the "Remaining work beyond this plan" section of `mainwindowviewmodel-split-plan.md` for details.
 >
 > **Update 2026-06-14 (later 7):** Completed the test split plan from (b) above. `MainWindowUiTests.cs` (2,430 lines, 47 tests) is now `MainWindowLayoutUiTests`, `MainWindowCollectionsUiTests`, `MainWindowScheduledJobsUiTests`, `MainWindowRequestExecutionUiTests`, and `MainWindowOptionsUiTests`, plus a shared `UiTestHelpers` internal static class for the helpers (`WaitForUiThreadAsync`, `VerifyTabRealized`, `FindDockById<T>`, `RedirectTestServer`, `AsyncStubHttpMessageHandler`) used across them. `RequestEditorViewModelTests.cs` (738 lines, 53 tests) is now `RequestEditorQueryParametersTests`, `RequestEditorHeadersTests`, `RequestEditorBodyFormattingTests`, and `RequestEditorDraftPersistenceTests`, plus a shared `RequestEditorTestHelpers` class for `CreateEditor`. No test bodies changed; `dotnet test Arbor.HttpClient.slnx` still reports 861 tests, all passing. The only item remaining from the split-plan backlog is `DockFactory` feature registrations (item 7 / (a) above).
+>
+> **Update 2026-06-14 (later 8):** Two more marginal pure-helper moves continuing the same pattern:
+> 1. Moved the `CollectionGroups` expansion-state capture (`GroupKey` → `IsExpanded`, case-insensitive) from `ApplySelectedCollection`'s sibling `ApplyCollectionFilter` into `CollectionFilterWorkflow.CaptureExpansionState(IEnumerable<CollectionGroupViewModel>)` (`Features/Collections/`), alongside `BuildCollectionItems`/`Apply`. `ApplyCollectionFilter` now just calls it before `_collectionFilterWorkflow.Apply`. Tests: new cases in `CollectionFilterWorkflowTests`.
+> 2. Moved the "which request-header rows were added/edited manually" filter (`!IsInherited`) from `SyncActiveCollectionRequestInheritedHeaders` into `CollectionInheritedHeadersWorkflow.SelectManualHeaders(IEnumerable<RequestHeaderViewModel>)`, alongside the other header helpers. `SyncActiveCollectionRequestInheritedHeaders` now just calls it. Tests: new cases in `CollectionInheritedHeadersWorkflowTests`.
+>
+> `MainWindowViewModel` is now about 2,562 lines.
+>
+> **Update 2026-06-14 (later 9):** Started the DockFactory feature-registration work (step 2 below / split-plan item 7), decoupling two of the four dockable VMs from `MainWindowViewModel`. `LogPanelViewModel` now takes `LogWindowViewModel` directly (its view only ever bound `App.LogWindowViewModel.*`, now `Logs.*`); `LayoutManagementViewModel` now takes the narrow `ILayoutManagementContext` interface (`Features/Layout/`) implemented by `MainWindowViewModel`, instead of the whole main VM. `DockFactory` receives the `LogWindowViewModel` as a constructor parameter. `LeftPanelViewModel` and `RequestViewModel` (the ~40- and ~70-binding views) remain on the `App`/`MainWindowViewModel` proxy by design. Verified headlessly: the `Category=Screenshots` E2E tests render both dockables through the real `DockFactory` + compiled bindings, and `log-panel.png`/`layout-panel.png` are byte-identical before/after. New tests: `DockableViewModelDecouplingTests`.
+>
+> **Update 2026-06-14 (later 10):** Decoupled the third dockable, `LeftPanelViewModel` (Explorer), via the `ILeftPanelContext` interface (`Features/Collections/`) — the History/Collections/Scheduled-Jobs tab state, collection management commands/forms, inherited-headers editor, search/sort/display state, scheduled-jobs list, and the `RequestEditor`/`ResponseActions` sub-VMs the item templates use. `MainWindowViewModel` implements it (commands and `ActiveEnvironmentVariables` via explicit interface implementation). The shared `VariableTextBox.AppViewModel` was also narrowed from `MainWindowViewModel?` to `IVariableAutoCompleteHost?` (`Features/Variables/`, just `ActiveEnvironmentVariables`) so the control no longer depends on the whole VM. Only `RequestViewModel` still takes the full `MainWindowViewModel`. Verified headlessly: `collections-panel.png`/`collections-panel-tree.png`/`scheduled-jobs.png` and the request-editor `variables-*` showcases are byte-identical before/after. New tests in `DockableViewModelDecouplingTests`.
+>
+> **Update 2026-06-14 (later 11):** Decoupled the fourth and last dockable, `RequestViewModel` (the Request document, including its integrated `EmbeddedResponseView` response panel), via the `IRequestPanelContext` interface (`Features/HttpRequest/`) — the request-tab strip, the per-tab `RequestEditorViewModel`, the GraphQL/WebSocket/SSE/scripting sub-VMs, the primary-action/demo-server state, the full response-state projection the embedded response panel renders, and the editor font settings. Both view code-behinds had their app-VM field/helpers/`nameof` change-dispatch checks retyped from `MainWindowViewModel` to the interface. **Step 2 below is now complete**: no dockable VM (or its view code-behind) references the concrete `MainWindowViewModel` type — each depends on a clean feature VM (`LogWindowViewModel`) or a narrow context interface (`ILayoutManagementContext`/`ILeftPanelContext`/`IRequestPanelContext`), all implemented by `MainWindowViewModel` as the composition root. Verified headlessly: `state-initial.png`/`request-tabs.png`/`variables-*.png` byte-identical, `state-response.png` renders the response body/status/actions correctly (differs only in non-deterministic elapsed-time text). New tests in `DockableViewModelDecouplingTests`.
+>
+> **Update 2026-06-14 (later 12):** Final cleanup — `DockFactory` no longer takes `MainWindowViewModel` at all. Its constructor now takes `ILayoutManagementContext`, `ILeftPanelContext`, and `IRequestPanelContext` directly (plus the existing `EnvironmentsViewModel`/`OptionsViewModel`/`CookieJarViewModel`/`LogWindowViewModel`), and `CreateLayout()` constructs `LeftPanelViewModel`/`LayoutManagementViewModel`/`RequestViewModel` from those typed fields, dropping `using Features.Main`. `MainWindowViewModel`'s constructor passes `this` three times (once per interface) at the `new DockFactory(...)` call site. Verified headlessly: `layout-panel.png`, `log-panel.png`, `collections-panel.png`, `collections-panel-tree.png`, `scheduled-jobs.png`, `state-initial.png`, `request-tabs.png`, and the `variables-*` screenshots are byte-identical before/after.
 
 - **Monolithic main view model**: `MainWindowViewModel` (~2,500 lines at the time of writing) owns request editing, response rendering, history, collections, environments, options, scheduling, layout persistence, and logging. All UI actions pass through this single type, so responsibilities are tightly coupled.
 - **Child view models are thin proxies**: dockable VMs such as `RequestViewModel`, `ResponseViewModel`, `LeftPanelViewModel`, and `OptionsViewModel` simply forward to `MainWindowViewModel`. Reusing them elsewhere still drags the entire main VM with it.
@@ -76,8 +90,10 @@ This document answers the architecture questions raised in [issue #33](https://g
    - Introduce feature-specific VMs (e.g., `RequestEditorViewModel`, `EnvironmentPanelViewModel`, `OptionsPanelViewModel`, `SchedulerPanelViewModel`) that own their state and behavior.
    - Expose only the minimal interfaces each panel needs and have `MainWindowViewModel` compose them rather than implement everything itself.
 
-2. **Modular dock registrations**
+2. **Modular dock registrations** ✅ Dockable decoupling complete (2026-06-14)
    - Let each feature provide a `DockableRegistration` (view, VM factory, initial placement) consumed by `DockFactory`. Adding a new tool/document should mean adding one registration class, not touching existing ones.
+   - Done: no dockable VM (or its view code-behind) references the concrete `MainWindowViewModel` anymore. `LogPanelViewModel` depends on `LogWindowViewModel`; `LayoutManagementViewModel` on `ILayoutManagementContext`; `LeftPanelViewModel` on `ILeftPanelContext`; `RequestViewModel`/`EmbeddedResponseView` on `IRequestPanelContext`; and the shared `VariableTextBox` on `IVariableAutoCompleteHost`. `MainWindowViewModel` implements all the context interfaces as the composition root. `DockFactory` also receives `OptionsViewModel`/`EnvironmentsViewModel`/`CookieJarViewModel`/`LogWindowViewModel` directly.
+   - Done (2026-06-14, later 12): `DockFactory` itself no longer depends on `MainWindowViewModel` either — its constructor takes `ILayoutManagementContext`, `ILeftPanelContext`, and `IRequestPanelContext` directly (alongside the existing feature VMs), and `CreateLayout()` builds `LeftPanelViewModel`/`LayoutManagementViewModel`/`RequestViewModel` from those typed fields. `MainWindowViewModel`'s constructor passes `this` for each interface via implicit conversion. A registration-list `DockFactory` remains optional/incremental future work.
 
 3. **Move infrastructure behind interfaces**
    - Wrap clipboard, storage provider, file system watcher, and timers behind interfaces injected into the relevant feature VMs. This enables headless unit testing and reduces Avalonia-specific coupling in business logic.
@@ -121,7 +137,7 @@ Features/
                             CollectionInheritedHeadersWorkflow, CollectionFilterWorkflow,
                             CollectionRequestEditorProjectionWorkflow,
                             CollectionGroupViewModel, CollectionItemViewModel, LeftPanelViewModel,
-                            LeftPanelView, BoolToExpandIconConverter
+                            ILeftPanelContext, LeftPanelView, BoolToExpandIconConverter
   Cookies/                — CookieJarViewModel, CookieEntryViewModel, CookieJarView
   Demo/                   — DemoDataWorkflow, DemoServerLifecycleCoordinator
   Diagnostics/            — DiagnosticsViewModel, DiagnosticsOptions, DiagnosticsWindow,
@@ -129,7 +145,7 @@ Features/
   Environments/           — EnvironmentsViewModel, EnvironmentVariableViewModel, EnvironmentsView
   GraphQl/                — GraphQlViewModel, GraphQlRequestWorkflow, ManualGraphQlRequestCoordinator
   History/                — RequestHistoryWorkflow
-  HttpRequest/            — RequestEditorViewModel, RequestViewModel, RequestTabViewModel, RequestTabsWorkflow, ResponseViewModel,
+  HttpRequest/            — RequestEditorViewModel, RequestViewModel, IRequestPanelContext, RequestTabViewModel, RequestTabsWorkflow, ResponseViewModel,
                             HttpRequestWorkflow, ManualHttpRequestCoordinator, HttpResponseProjectionWorkflow,
                             ResponseActionsViewModel, IResponseActionsContext, RequestBodyExternalEditWorkflow,
                             RequestHeaderViewModel, RequestQueryParameterViewModel,
@@ -137,7 +153,7 @@ Features/
                             MethodToColorConverter, StatusCodeToColorConverter
   Layout/                 — DockFactory, DockLayoutSnapshot, DockTreeNode, FloatingWindowSnapshot,
                             LayoutWorkflow, LayoutTreeWorkflow, LayoutManagementViewModel,
-                            LayoutManagementView, LayoutOptions, NamedDockLayout,
+                            ILayoutManagementContext, LayoutManagementView, LayoutOptions, NamedDockLayout,
                             DraftPersistenceService, DraftHeaderDto, RequestEditorSnapshot
   Logging/                — InMemorySink, LogEntry, LogTab, LogPanelViewModel,
                             LogWindowViewModel, LogPanelView, LogWindow
@@ -152,7 +168,7 @@ Features/
   Sse/                    — SseViewModel
   Streaming/              — StreamingConnectionWorkflow
   Variables/              — VariableAutoCompleteController, VariableCompletionData, VariableCompletionEngine,
-                            VariableNameHelper, VariableTextBox, VariableTokenColorizer
+                            VariableNameHelper, VariableTextBox, IVariableAutoCompleteHost, VariableTokenColorizer
   WebSocket/              — WebSocketViewModel
   WebView/                — WebViewWindow
 Localization/             — Strings.resx, Strings.Designer.cs
