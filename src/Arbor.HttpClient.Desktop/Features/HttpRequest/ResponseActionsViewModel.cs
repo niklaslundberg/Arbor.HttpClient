@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Security;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -375,6 +376,24 @@ public sealed partial class ResponseActionsViewModel : ReactiveViewModelBase
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or FileNotFoundException or PlatformNotSupportedException)
         {
             // No associated application or platform does not support shell execution — silently ignore.
+        }
+    }
+
+    /// <summary>
+    /// Best-effort deletes each path in <paramref name="paths"/> (e.g. temp files created for
+    /// "open in external editor"/"open binary response"). Failures are silently ignored since
+    /// the files live in the OS temp directory and will eventually be cleaned up regardless.
+    /// </summary>
+    internal static void DeleteTempFiles(IEnumerable<string> paths)
+    {
+        foreach (var path in paths)
+        {
+            try { File.Delete(path); }
+            catch (UnauthorizedAccessException) { /* best-effort cleanup */ }
+            catch (SecurityException) { /* best-effort cleanup */ }
+            catch (PathTooLongException) { /* best-effort cleanup */ }
+            catch (NotSupportedException) { /* best-effort cleanup */ }
+            catch (IOException) { /* best-effort cleanup */ }
         }
     }
 }

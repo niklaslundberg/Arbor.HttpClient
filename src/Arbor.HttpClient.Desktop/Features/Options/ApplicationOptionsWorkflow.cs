@@ -126,6 +126,25 @@ public sealed class ApplicationOptionsWorkflow : IDisposable
     }
 
     /// <summary>
+    /// Resolves the default-content-type picker selection for <paramref name="value"/>: when
+    /// <paramref name="value"/> matches one of <paramref name="options"/> it becomes the
+    /// selected option with an empty custom value, otherwise <paramref name="customOptionLabel"/>
+    /// is selected and <paramref name="value"/> becomes the custom value.
+    /// </summary>
+    public static (string SelectedOption, string CustomValue) ResolveDefaultContentTypeSelection(
+        string value,
+        IReadOnlyList<string> options,
+        string customOptionLabel)
+    {
+        if (options.Contains(value))
+        {
+            return (value, string.Empty);
+        }
+
+        return (customOptionLabel, value);
+    }
+
+    /// <summary>
     /// Builds, persists, and re-applies the current options. <paramref name="onSaved"/> runs
     /// inside the failure boundary so projection errors also surface as a failed outcome.
     /// </summary>

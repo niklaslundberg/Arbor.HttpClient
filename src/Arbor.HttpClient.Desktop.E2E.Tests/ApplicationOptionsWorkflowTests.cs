@@ -260,6 +260,32 @@ public sealed class ApplicationOptionsWorkflowTests
         outcome.IsSuccessful.Should().BeFalse();
         outcome.ErrorMessage.Should().Be("Options import failed: no options store is configured.");
     }
+
+    // ── ResolveDefaultContentTypeSelection tests ──────────────────────────────
+
+    [Fact]
+    public void ResolveDefaultContentTypeSelection_KnownOption_SelectsOptionWithEmptyCustomValue()
+    {
+        string[] options = ["application/json", "application/xml", "Custom..."];
+
+        var (selectedOption, customValue) = ApplicationOptionsWorkflow.ResolveDefaultContentTypeSelection(
+            "application/xml", options, "Custom...");
+
+        selectedOption.Should().Be("application/xml");
+        customValue.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ResolveDefaultContentTypeSelection_UnknownValue_SelectsCustomOptionWithValue()
+    {
+        string[] options = ["application/json", "application/xml", "Custom..."];
+
+        var (selectedOption, customValue) = ApplicationOptionsWorkflow.ResolveDefaultContentTypeSelection(
+            "application/vnd.api+json", options, "Custom...");
+
+        selectedOption.Should().Be("Custom...");
+        customValue.Should().Be("application/vnd.api+json");
+    }
 }
 
 [Trait("Category", "Integration")]

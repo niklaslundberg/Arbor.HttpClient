@@ -6,11 +6,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Net;
-using System.Runtime.InteropServices;
-using System.Security;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -2110,15 +2107,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             tab.Dispose();
         }
 
-        foreach (var file in _tempFiles)
-        {
-            try { File.Delete(file); }
-            catch (UnauthorizedAccessException) { /* best-effort cleanup */ }
-            catch (SecurityException) { /* best-effort cleanup */ }
-            catch (PathTooLongException) { /* best-effort cleanup */ }
-            catch (NotSupportedException) { /* best-effort cleanup */ }
-            catch (IOException) { /* best-effort cleanup */ }
-        }
+        ResponseActionsViewModel.DeleteTempFiles(_tempFiles);
 
         base.Dispose(disposing);
     }
@@ -2307,15 +2296,8 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     private void SyncDefaultContentTypeSelection(string value)
     {
-        if (DefaultContentTypeOptions.Contains(value))
-        {
-            SelectedDefaultContentTypeOption = value;
-            CustomDefaultContentType = string.Empty;
-            return;
-        }
-
-        SelectedDefaultContentTypeOption = DefaultContentTypeCustomOption;
-        CustomDefaultContentType = value;
+        (SelectedDefaultContentTypeOption, CustomDefaultContentType) =
+            ApplicationOptionsWorkflow.ResolveDefaultContentTypeSelection(value, DefaultContentTypeOptions, DefaultContentTypeCustomOption);
     }
 
     private LayoutOptions BuildLayoutOptions() =>
@@ -2421,36 +2403,26 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private async Task SendHttpRequestAsync(CancellationToken cancellationToken)
     {
         var outcome = await _manualHttpRequestCoordinator.SendAsync(cancellationToken);
-        if (!outcome.IsSuccessful)
-        {
-            ErrorMessage = outcome.ErrorMessage;
-            if (outcome.ClearResponseMetadata)
-            {
-                ResponseStatusCode = 0;
-                ResponseTimeDisplay = string.Empty;
-                ResponseSizeDisplay = string.Empty;
-            }
-
-            return;
-        }
-
-        if (outcome.Response is not { } response)
-        {
-            ErrorMessage = string.Empty;
-            return;
-        }
-
-        ApplyHttpResponseProjection(response);
-        _cookieJarViewModel.RefreshCookies();
+        ApplyManualRequestOutcome(outcome.IsSuccessful, outcome.Response, outcome.ErrorMessage, outcome.ClearResponseMetadata);
     }
 
     private async Task SendGraphQlRequestAsync(CancellationToken cancellationToken = default)
     {
         var outcome = await _manualGraphQlRequestCoordinator.SendAsync(cancellationToken);
-        if (!outcome.IsSuccessful)
+        ApplyManualRequestOutcome(outcome.IsSuccessful, outcome.Response, outcome.ErrorMessage, outcome.ClearResponseMetadata);
+    }
+
+    /// <summary>
+    /// Applies the shared result-handling for a manual HTTP/GraphQL send: on failure sets
+    /// <see cref="ErrorMessage"/> (and optionally clears response metadata), otherwise projects
+    /// the response and refreshes the cookie jar.
+    /// </summary>
+    private void ApplyManualRequestOutcome(bool isSuccessful, HttpResponseDetails? response, string errorMessage, bool clearResponseMetadata)
+    {
+        if (!isSuccessful)
         {
-            ErrorMessage = outcome.ErrorMessage;
-            if (outcome.ClearResponseMetadata)
+            ErrorMessage = errorMessage;
+            if (clearResponseMetadata)
             {
                 ResponseStatusCode = 0;
                 ResponseTimeDisplay = string.Empty;
@@ -2460,7 +2432,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return;
         }
 
-        if (outcome.Response is not { } response)
+        if (response is null)
         {
             ErrorMessage = string.Empty;
             return;
@@ -2475,12 +2447,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     private async Task ToggleSseConnectionAsync() =>
         _streamingCts = await _streamingConnectionWorkflow.ToggleSseConnectionAsync(_streamingCts);
-
-    public static string FormatElapsedMilliseconds(double milliseconds) =>
-        HttpResponseProjectionWorkflow.FormatElapsedMilliseconds(milliseconds);
-
-    public static string FormatByteSize(long byteCount) =>
-        HttpResponseProjectionWorkflow.FormatByteSize(byteCount);
 
     private Task LoadHistoryAsync(CancellationToken cancellationToken = default) =>
         _requestHistoryWorkflow.LoadAsync(HistorySearchQuery, cancellationToken);
@@ -2550,7 +2516,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             ResponseWebViewUri = state.ResponseWebViewUri;
             HasResponseHeaders = state.HasResponseHeaders;
             HasTextResponse = state.HasTextResponse;
-            _lastResponseBodyBytes = GetResponseStateBytes(state.LastResponseBodyBytes);
+            _lastResponseBodyBytes = RequestTabsWorkflow.GetResponseStateBytes(state.LastResponseBodyBytes);
             ResponseHeaders.Clear();
             foreach (var header in state.ResponseHeaders)
             {
@@ -2561,27 +2527,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         {
             ClearResponseState();
         }
-    }
-
-    private static byte[] GetResponseStateBytes(ReadOnlyMemory<byte> responseBodyBytes)
-    {
-        if (responseBodyBytes.IsEmpty)
-        {
-            return [];
-        }
-
-        if (MemoryMarshal.TryGetArray(responseBodyBytes, out ArraySegment<byte> segment)
-            && segment.Array is { } array)
-        {
-            if (segment.Offset == 0 && segment.Count == array.Length)
-            {
-                return array;
-            }
-
-            return responseBodyBytes.ToArray();
-        }
-
-        return responseBodyBytes.ToArray();
     }
 
     private void ClearResponseState()

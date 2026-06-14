@@ -1,5 +1,4 @@
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
-using Arbor.HttpClient.Desktop.Features.Main;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
@@ -21,13 +20,13 @@ public class ResponseStatusFormatTests
     [InlineData(75_500, "1 min 15 s")]
     public void FormatElapsedMilliseconds_ShouldProduceHumanReadableOutput(double milliseconds, string expected)
     {
-        MainWindowViewModel.FormatElapsedMilliseconds(milliseconds).Should().Be(expected);
+        HttpResponseProjectionWorkflow.FormatElapsedMilliseconds(milliseconds).Should().Be(expected);
     }
 
     [AvaloniaFact(Timeout = 10_000)]
     public void FormatElapsedMilliseconds_ShouldClampNegativeInput()
     {
-        MainWindowViewModel.FormatElapsedMilliseconds(-5).Should().Be("0 ms");
+        HttpResponseProjectionWorkflow.FormatElapsedMilliseconds(-5).Should().Be("0 ms");
     }
 
     [AvaloniaTheory(Timeout = 10_000)]
@@ -41,13 +40,13 @@ public class ResponseStatusFormatTests
     [InlineData(1024L * 1024 * 1024, "1 GB")]
     public void FormatByteSize_ShouldProduceHumanReadableOutput(long bytes, string expected)
     {
-        MainWindowViewModel.FormatByteSize(bytes).Should().Be(expected);
+        HttpResponseProjectionWorkflow.FormatByteSize(bytes).Should().Be(expected);
     }
 
     [AvaloniaFact(Timeout = 10_000)]
     public void FormatByteSize_ShouldClampNegativeInput()
     {
-        MainWindowViewModel.FormatByteSize(-42).Should().Be("0 B");
+        HttpResponseProjectionWorkflow.FormatByteSize(-42).Should().Be("0 B");
     }
 
     [AvaloniaTheory(Timeout = 10_000)]
