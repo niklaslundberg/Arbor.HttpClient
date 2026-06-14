@@ -18,7 +18,7 @@ namespace Arbor.HttpClient.Desktop.Features.Layout;
 /// </summary>
 public sealed class DockFactory : Factory
 {
-    private readonly ILayoutManagementContext _layoutManagementContext;
+    private readonly LayoutManagementViewModel _layoutManagementViewModel;
     private readonly ILeftPanelContext _leftPanelContext;
     private readonly IRequestPanelContext _requestPanelContext;
     private readonly EnvironmentsViewModel _environmentsViewModel;
@@ -27,7 +27,7 @@ public sealed class DockFactory : Factory
     private readonly LogWindowViewModel _logWindowViewModel;
 
     public DockFactory(
-        ILayoutManagementContext layoutManagementContext,
+        LayoutManagementViewModel layoutManagementViewModel,
         ILeftPanelContext leftPanelContext,
         IRequestPanelContext requestPanelContext,
         EnvironmentsViewModel environmentsViewModel,
@@ -35,7 +35,7 @@ public sealed class DockFactory : Factory
         CookieJarViewModel cookieJarViewModel,
         LogWindowViewModel logWindowViewModel)
     {
-        _layoutManagementContext = layoutManagementContext;
+        _layoutManagementViewModel = layoutManagementViewModel;
         _leftPanelContext = leftPanelContext;
         _requestPanelContext = requestPanelContext;
         _environmentsViewModel = environmentsViewModel;
@@ -79,7 +79,7 @@ public sealed class DockFactory : Factory
         var environments = _environmentsViewModel;
         var logs = new LogPanelViewModel(_logWindowViewModel);
         var cookieJar = _cookieJarViewModel;
-        var layoutManagement = new LayoutManagementViewModel(_layoutManagementContext);
+        var layoutManagement = _layoutManagementViewModel;
         LeftPanelViewModel = leftPanel;
         OptionsViewModel = options;
         EnvironmentsViewModel = environments;

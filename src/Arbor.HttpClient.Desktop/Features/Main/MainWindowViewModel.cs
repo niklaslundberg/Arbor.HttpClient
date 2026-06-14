@@ -62,7 +62,7 @@ using Arbor.HttpClient.Desktop.Features.Scripting;
 namespace Arbor.HttpClient.Desktop.Features.Main;
 
 [SuppressMessage("Major Code Smell", "S3881", Justification = "Lifetime is managed as a UI root ViewModel with deterministic cleanup via Dispose.")]
-public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActionsContext, ILayoutManagementContext, ILeftPanelContext, IRequestPanelContext
+public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActionsContext, ILeftPanelContext, IRequestPanelContext
 {
     private readonly HttpRequestService _httpRequestService;
     private HttpRequestWorkflow _httpRequestWorkflow = null!;
@@ -104,10 +104,9 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private readonly Subject<string> _collectionSearchFilterRequestedSubject = new();
     private readonly CompositeDisposable _collectionSearchFilterDisposables = new();
     private DockFactory? _dockFactory;
-    private readonly LayoutWorkflow _layoutWorkflow = new();
+    private readonly LayoutManagementViewModel _layoutManagementViewModel;
     private readonly LayoutTreeWorkflow _layoutTreeWorkflow = new();
     private ApplicationOptions _applicationOptions = new();
-    private bool _suppressLayoutRestore;
     private CancellationTokenSource? _sendRequestCts;
     private readonly ApplicationOptionsWorkflow _optionsWorkflow;
     private readonly CompositeDisposable _optionsAutoSaveDisposables = new();
@@ -194,18 +193,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     void IResponseActionsContext.SetResponseSaveFileNamePatternValidationError(string validationMessage) =>
         ResponseSaveFileNamePatternValidationError = validationMessage;
-
-    // ── ILayoutManagementContext explicit command implementations ─────────────
-    // SavedLayoutNames/SelectedLayoutName satisfy the interface implicitly; the generated
-    // command properties return ReactiveCommand<…> so they are surfaced as ICommand here.
-
-    System.Windows.Input.ICommand ILayoutManagementContext.SaveLayoutAsNewCommand => SaveLayoutAsNewCommand;
-
-    System.Windows.Input.ICommand ILayoutManagementContext.SaveLayoutToExistingCommand => SaveLayoutToExistingCommand;
-
-    System.Windows.Input.ICommand ILayoutManagementContext.RemoveLayoutCommand => RemoveLayoutCommand;
-
-    System.Windows.Input.ICommand ILayoutManagementContext.RestoreDefaultLayoutCommand => RestoreDefaultLayoutCommand;
 
     // ── ILeftPanelContext explicit implementations ────────────────────────────
     // All bound properties (LeftPanelTab, History, Collections, the form state, the
@@ -354,9 +341,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     [Reactive]
     private bool _isRenameCollectionFormVisible;
-
-    [Reactive]
-    private string? _selectedLayoutName;
 
     public const string SystemThemeOption = "System";
     public const string DarkThemeOption = "Dark";
@@ -897,14 +881,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             .Where(propertyName => string.Equals(propertyName, nameof(ActiveRequestTab), StringComparison.Ordinal))
             .Subscribe(_ => ApplyActiveRequestTab()));
 
-        _crossFeatureDisposables.Add(Observable
-            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
-                handler => PropertyChanged += handler,
-                handler => PropertyChanged -= handler)
-            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
-            .Where(propertyName => string.Equals(propertyName, nameof(SelectedLayoutName), StringComparison.Ordinal))
-            .Subscribe(_ => ApplySelectedLayoutName()));
-
         _requestEditor = new RequestEditorViewModel(
             _variableResolver,
             GetActiveVariablesForEditor,
@@ -1098,17 +1074,21 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             .Where(eventArgs => string.Equals(eventArgs.PropertyName, nameof(RequestEditorViewModel.SelectedRequestType), StringComparison.Ordinal))
             .Subscribe(_ => this.RaisePropertyChanged(nameof(PrimaryActionLabel))));
 
-        _dockFactory = new DockFactory(this, this, this, _environmentsViewModel, _optionsViewModel, _cookieJarViewModel, _logWindowViewModel);
+        _layoutManagementViewModel = new LayoutManagementViewModel(
+            RefreshDockTreeCache,
+            CaptureLayoutSnapshot,
+            ApplyLayoutSnapshot,
+            PersistLayoutOptions,
+            () => _defaultLayout);
+        _dockFactory = new DockFactory(_layoutManagementViewModel, this, this, _environmentsViewModel, _optionsViewModel, _cookieJarViewModel, _logWindowViewModel);
         Layout = _dockFactory.CreateLayout();
         _dockFactory.InitLayout(Layout);
         _defaultLayout = CaptureLayoutSnapshot();
 
-        _suppressLayoutRestore = true;
         var options = initialOptions ?? new ApplicationOptions();
         ApplyOptions(options);
         ApplyLayoutOptions(options.Layouts);
         _startupLayoutSnapshot = options.Layouts?.CurrentLayout;
-        _suppressLayoutRestore = false;
         _httpRequestService.SetDefaultRequestTimeout(TimeSpan.FromSeconds(DefaultRequestTimeoutSeconds));
         _requestEditor.RefreshRequestPreview();
         _responseActions = new ResponseActionsViewModel(this);
@@ -1130,7 +1110,9 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     public ObservableCollection<RequestEnvironment> Environments => _environmentsViewModel.Environments;
     public ObservableCollection<EnvironmentVariableViewModel> ActiveEnvironmentVariables => _environmentsViewModel.ActiveEnvironmentVariables;
     public ObservableCollection<ScheduledJobViewModel> ScheduledJobs => _scheduledJobsWorkflow.Jobs;
-    public ObservableCollection<string> SavedLayoutNames => _layoutWorkflow.SavedLayoutNames;
+
+    /// <summary>The layout-management dockable; owns the saved-layout collection and layout commands.</summary>
+    public LayoutManagementViewModel LayoutManagement => _layoutManagementViewModel;
     public LogWindowViewModel LogWindowViewModel => _logWindowViewModel;
     public RequestEditorViewModel RequestEditor => _requestEditor;
     public EnvironmentsViewModel EnvironmentsPanel => _environmentsViewModel;
@@ -1363,7 +1345,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     private void ApplyLayoutOptions(LayoutOptions? layouts)
     {
-        SelectedLayoutName = _layoutWorkflow.LoadFromOptions(layouts);
+        _layoutManagementViewModel.LoadFromOptions(layouts);
         ApplyLayoutSnapshot(layouts?.CurrentLayout);
     }
 
@@ -1469,80 +1451,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         {
             ownerDock.ActiveDockable = layoutVm;
         }
-    }
-
-    private void ApplySelectedLayoutName()
-    {
-        if (_suppressLayoutRestore || string.IsNullOrWhiteSpace(SelectedLayoutName))
-        {
-            return;
-        }
-
-        if (_layoutWorkflow.TryGetLayout(SelectedLayoutName, out var snapshot))
-        {
-            ApplyLayoutSnapshot(snapshot);
-            PersistLayoutOptions();
-        }
-    }
-
-    [ReactiveCommand]
-    private void SaveLayoutAsNew()
-    {
-        RefreshDockTreeCache();
-        var savedLayoutName = _layoutWorkflow.SaveLayoutAsNew(CaptureLayoutSnapshot);
-        if (string.IsNullOrWhiteSpace(savedLayoutName))
-        {
-            return;
-        }
-
-        _suppressLayoutRestore = true;
-        SelectedLayoutName = savedLayoutName;
-        _suppressLayoutRestore = false;
-        PersistLayoutOptions();
-    }
-
-    [ReactiveCommand]
-    private void SaveLayoutToExisting(string? layoutName)
-    {
-        RefreshDockTreeCache();
-        if (!_layoutWorkflow.SaveLayoutToExisting(layoutName, CaptureLayoutSnapshot))
-        {
-            return;
-        }
-
-        _suppressLayoutRestore = true;
-        SelectedLayoutName = layoutName;
-        _suppressLayoutRestore = false;
-        PersistLayoutOptions();
-    }
-
-    [ReactiveCommand]
-    private void RestoreDefaultLayout()
-    {
-        if (!_layoutWorkflow.RestoreDefaultLayout(_defaultLayout, ApplyLayoutSnapshot))
-        {
-            return;
-        }
-
-        _suppressLayoutRestore = true;
-        SelectedLayoutName = null;
-        _suppressLayoutRestore = false;
-        PersistLayoutOptions();
-    }
-
-    [ReactiveCommand]
-    private void RemoveLayout(string? layoutName)
-    {
-        var removeLayoutResult = _layoutWorkflow.RemoveLayout(layoutName, SelectedLayoutName);
-        if (!removeLayoutResult.Removed)
-        {
-            return;
-        }
-
-        _suppressLayoutRestore = true;
-        SelectedLayoutName = removeLayoutResult.SelectedLayoutName;
-        _suppressLayoutRestore = false;
-        PersistLayoutOptions();
     }
 
     [ReactiveCommand]
@@ -2098,6 +2006,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _sendRequestCts?.Cancel();
         _responseActions.Dispose();
         _environmentsViewModel.Dispose();
+        _layoutManagementViewModel.Dispose();
         _historyFilterRequestedSubject.OnCompleted();
         _historyFilterDisposables.Dispose();
         _collectionSearchFilterRequestedSubject.OnCompleted();
@@ -2319,7 +2228,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         new()
         {
             CurrentLayout = CaptureLayoutSnapshot(),
-            SavedLayouts = _layoutWorkflow.BuildNamedLayouts().ToList()
+            SavedLayouts = _layoutManagementViewModel.BuildNamedLayouts().ToList()
         };
 
     private void PersistLayoutOptions()
