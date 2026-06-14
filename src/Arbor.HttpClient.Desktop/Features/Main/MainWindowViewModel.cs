@@ -61,7 +61,7 @@ using Arbor.HttpClient.Desktop.Features.Scripting;
 namespace Arbor.HttpClient.Desktop.Features.Main;
 
 [SuppressMessage("Major Code Smell", "S3881", Justification = "Lifetime is managed as a UI root ViewModel with deterministic cleanup via Dispose.")]
-public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActionsContext
+public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActionsContext, ILayoutManagementContext
 {
     private readonly HttpRequestService _httpRequestService;
     private HttpRequestWorkflow _httpRequestWorkflow = null!;
@@ -193,6 +193,18 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     void IResponseActionsContext.SetResponseSaveFileNamePatternValidationError(string validationMessage) =>
         ResponseSaveFileNamePatternValidationError = validationMessage;
+
+    // ── ILayoutManagementContext explicit command implementations ─────────────
+    // SavedLayoutNames/SelectedLayoutName satisfy the interface implicitly; the generated
+    // command properties return ReactiveCommand<…> so they are surfaced as ICommand here.
+
+    System.Windows.Input.ICommand ILayoutManagementContext.SaveLayoutAsNewCommand => SaveLayoutAsNewCommand;
+
+    System.Windows.Input.ICommand ILayoutManagementContext.SaveLayoutToExistingCommand => SaveLayoutToExistingCommand;
+
+    System.Windows.Input.ICommand ILayoutManagementContext.RemoveLayoutCommand => RemoveLayoutCommand;
+
+    System.Windows.Input.ICommand ILayoutManagementContext.RestoreDefaultLayoutCommand => RestoreDefaultLayoutCommand;
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -1042,7 +1054,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             .Where(eventArgs => string.Equals(eventArgs.PropertyName, nameof(RequestEditorViewModel.SelectedRequestType), StringComparison.Ordinal))
             .Subscribe(_ => this.RaisePropertyChanged(nameof(PrimaryActionLabel))));
 
-        _dockFactory = new DockFactory(this, _environmentsViewModel, _optionsViewModel, _cookieJarViewModel);
+        _dockFactory = new DockFactory(this, _environmentsViewModel, _optionsViewModel, _cookieJarViewModel, _logWindowViewModel);
         Layout = _dockFactory.CreateLayout();
         _dockFactory.InitLayout(Layout);
         _defaultLayout = CaptureLayoutSnapshot();

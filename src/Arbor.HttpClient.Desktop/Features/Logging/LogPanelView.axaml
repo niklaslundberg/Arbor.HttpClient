@@ -9,7 +9,7 @@
         <Grid ColumnDefinitions="*,Auto">
             <TextBlock Text="{x:Static loc:Strings.LogPanelTitle}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
             <CheckBox Grid.Column="1" Content="{x:Static loc:Strings.LogPanelAutoScroll}"
-                      IsChecked="{Binding App.LogWindowViewModel.AutoScroll, Mode=TwoWay}"
+                      IsChecked="{Binding Logs.AutoScroll, Mode=TwoWay}"
                       VerticalAlignment="Center" />
         </Grid>
 
@@ -17,7 +17,7 @@
             <TabItem Header="{x:Static loc:Strings.LogPanelTabScheduled}">
                 <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
                     <ListBox x:Name="ScheduledLogList"
-                             ItemsSource="{Binding App.LogWindowViewModel.Entries}"
+                             ItemsSource="{Binding Logs.Entries}"
                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              Background="{DynamicResource SurfaceBackgroundBrush}">
@@ -50,7 +50,7 @@
             <TabItem Header="{x:Static loc:Strings.LogPanelTabHttpDiagnostics}">
                 <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
                     <ListBox x:Name="DiagnosticsLogList"
-                             ItemsSource="{Binding App.LogWindowViewModel.HttpDiagnosticsEntries}"
+                             ItemsSource="{Binding Logs.HttpDiagnosticsEntries}"
                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              Background="{DynamicResource SurfaceBackgroundBrush}">
@@ -83,7 +83,7 @@
             <TabItem Header="{x:Static loc:Strings.LogPanelTabHttpRequests}">
                 <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
                     <ListBox x:Name="RequestLogList"
-                             ItemsSource="{Binding App.LogWindowViewModel.HttpRequestEntries}"
+                             ItemsSource="{Binding Logs.HttpRequestEntries}"
                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              Background="{DynamicResource SurfaceBackgroundBrush}">
@@ -116,7 +116,7 @@
             <TabItem Header="{x:Static loc:Strings.LogPanelTabDebug}">
                 <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4">
                     <ListBox x:Name="DebugLogList"
-                             ItemsSource="{Binding App.LogWindowViewModel.DebugEntries}"
+                             ItemsSource="{Binding Logs.DebugEntries}"
                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              Background="{DynamicResource SurfaceBackgroundBrush}">

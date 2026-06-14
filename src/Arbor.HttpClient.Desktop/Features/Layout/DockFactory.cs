@@ -23,13 +23,20 @@ public sealed class DockFactory : Factory
     private readonly EnvironmentsViewModel _environmentsViewModel;
     private readonly OptionsViewModel _optionsViewModel;
     private readonly CookieJarViewModel _cookieJarViewModel;
+    private readonly LogWindowViewModel _logWindowViewModel;
 
-    public DockFactory(MainWindowViewModel mainVm, EnvironmentsViewModel environmentsViewModel, OptionsViewModel optionsViewModel, CookieJarViewModel cookieJarViewModel)
+    public DockFactory(
+        MainWindowViewModel mainVm,
+        EnvironmentsViewModel environmentsViewModel,
+        OptionsViewModel optionsViewModel,
+        CookieJarViewModel cookieJarViewModel,
+        LogWindowViewModel logWindowViewModel)
     {
         _mainVm = mainVm;
         _environmentsViewModel = environmentsViewModel;
         _optionsViewModel = optionsViewModel;
         _cookieJarViewModel = cookieJarViewModel;
+        _logWindowViewModel = logWindowViewModel;
     }
 
     /// <summary>The left-side ToolDock; used to activate the Options tool programmatically.</summary>
@@ -65,7 +72,7 @@ public sealed class DockFactory : Factory
         var leftPanel = new LeftPanelViewModel(_mainVm);
         var options = _optionsViewModel;
         var environments = _environmentsViewModel;
-        var logs = new LogPanelViewModel(_mainVm);
+        var logs = new LogPanelViewModel(_logWindowViewModel);
         var cookieJar = _cookieJarViewModel;
         var layoutManagement = new LayoutManagementViewModel(_mainVm);
         LeftPanelViewModel = leftPanel;

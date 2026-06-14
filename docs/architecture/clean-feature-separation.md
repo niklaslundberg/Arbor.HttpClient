@@ -53,6 +53,8 @@ This document answers the architecture questions raised in [issue #33](https://g
 > 2. Moved the "which request-header rows were added/edited manually" filter (`!IsInherited`) from `SyncActiveCollectionRequestInheritedHeaders` into `CollectionInheritedHeadersWorkflow.SelectManualHeaders(IEnumerable<RequestHeaderViewModel>)`, alongside the other header helpers. `SyncActiveCollectionRequestInheritedHeaders` now just calls it. Tests: new cases in `CollectionInheritedHeadersWorkflowTests`.
 >
 > `MainWindowViewModel` is now about 2,562 lines.
+>
+> **Update 2026-06-14 (later 9):** Started the DockFactory feature-registration work (step 2 below / split-plan item 7), decoupling two of the four dockable VMs from `MainWindowViewModel`. `LogPanelViewModel` now takes `LogWindowViewModel` directly (its view only ever bound `App.LogWindowViewModel.*`, now `Logs.*`); `LayoutManagementViewModel` now takes the narrow `ILayoutManagementContext` interface (`Features/Layout/`) implemented by `MainWindowViewModel`, instead of the whole main VM. `DockFactory` receives the `LogWindowViewModel` as a constructor parameter. `LeftPanelViewModel` and `RequestViewModel` (the ~40- and ~70-binding views) remain on the `App`/`MainWindowViewModel` proxy by design. Verified headlessly: the `Category=Screenshots` E2E tests render both dockables through the real `DockFactory` + compiled bindings, and `log-panel.png`/`layout-panel.png` are byte-identical before/after. New tests: `DockableViewModelDecouplingTests`.
 
 - **Monolithic main view model**: `MainWindowViewModel` (~2,500 lines at the time of writing) owns request editing, response rendering, history, collections, environments, options, scheduling, layout persistence, and logging. All UI actions pass through this single type, so responsibilities are tightly coupled.
 - **Child view models are thin proxies**: dockable VMs such as `RequestViewModel`, `ResponseViewModel`, `LeftPanelViewModel`, and `OptionsViewModel` simply forward to `MainWindowViewModel`. Reusing them elsewhere still drags the entire main VM with it.
@@ -82,8 +84,9 @@ This document answers the architecture questions raised in [issue #33](https://g
    - Introduce feature-specific VMs (e.g., `RequestEditorViewModel`, `EnvironmentPanelViewModel`, `OptionsPanelViewModel`, `SchedulerPanelViewModel`) that own their state and behavior.
    - Expose only the minimal interfaces each panel needs and have `MainWindowViewModel` compose them rather than implement everything itself.
 
-2. **Modular dock registrations**
+2. **Modular dock registrations** 🔶 In progress (2026-06-14)
    - Let each feature provide a `DockableRegistration` (view, VM factory, initial placement) consumed by `DockFactory`. Adding a new tool/document should mean adding one registration class, not touching existing ones.
+   - Progress: `DockFactory` already receives `OptionsViewModel`/`EnvironmentsViewModel`/`CookieJarViewModel`/`LogWindowViewModel` as constructor parameters rather than reaching through the main VM. `LogPanelViewModel` now depends on `LogWindowViewModel` and `LayoutManagementViewModel` on the narrow `ILayoutManagementContext`; `LeftPanelViewModel` and `RequestViewModel` still take the full `MainWindowViewModel` (`App`) and are the remaining migrations.
 
 3. **Move infrastructure behind interfaces**
    - Wrap clipboard, storage provider, file system watcher, and timers behind interfaces injected into the relevant feature VMs. This enables headless unit testing and reduces Avalonia-specific coupling in business logic.
@@ -143,7 +146,7 @@ Features/
                             MethodToColorConverter, StatusCodeToColorConverter
   Layout/                 — DockFactory, DockLayoutSnapshot, DockTreeNode, FloatingWindowSnapshot,
                             LayoutWorkflow, LayoutTreeWorkflow, LayoutManagementViewModel,
-                            LayoutManagementView, LayoutOptions, NamedDockLayout,
+                            ILayoutManagementContext, LayoutManagementView, LayoutOptions, NamedDockLayout,
                             DraftPersistenceService, DraftHeaderDto, RequestEditorSnapshot
   Logging/                — InMemorySink, LogEntry, LogTab, LogPanelViewModel,
                             LogWindowViewModel, LogPanelView, LogWindow

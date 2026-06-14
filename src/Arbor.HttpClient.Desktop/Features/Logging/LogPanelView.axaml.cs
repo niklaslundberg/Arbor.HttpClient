@@ -24,7 +24,7 @@ public partial class LogPanelView : UserControl
             prevVm.DebugEntries.CollectionChanged -= OnDebugEntriesChanged;
         }
 
-        _viewModel = (DataContext as LogPanelViewModel)?.App.LogWindowViewModel;
+        _viewModel = (DataContext as LogPanelViewModel)?.Logs;
 
         if (_viewModel is { } newVm)
         {
