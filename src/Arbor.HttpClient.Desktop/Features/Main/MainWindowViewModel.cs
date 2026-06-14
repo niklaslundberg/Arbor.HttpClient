@@ -2176,14 +2176,14 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             // Re-apply all proportions recorded in the full tree snapshot so that
             // ProportionalStackPanel re-measures with the correct values after the
             // visual tree and all PSP bindings are established.
-            ReapplyProportionsFromTree(Layout, treeNode);
+            LayoutTreeWorkflow.ReapplyProportionsFromTree(Layout, treeNode);
             return;
         }
 
         // Legacy path: re-apply the four well-known dock proportions.
-        var leftToolDock = FindDockById<ToolDock>(Layout, "left-tool-dock");
-        var documentLayout = FindDockById<ProportionalDock>(Layout, "document-layout");
-        var requestDock = FindDockById<DocumentDock>(Layout, "request-dock");
+        var leftToolDock = LayoutTreeWorkflow.FindDockById<ToolDock>(Layout, "left-tool-dock");
+        var documentLayout = LayoutTreeWorkflow.FindDockById<ProportionalDock>(Layout, "document-layout");
+        var requestDock = LayoutTreeWorkflow.FindDockById<DocumentDock>(Layout, "request-dock");
         if (leftToolDock is null || documentLayout is null || requestDock is null)
         {
             return;
@@ -2203,50 +2203,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         {
             requestDock.Proportion = snapshot.RequestDockProportion;
         }
-    }
-
-    /// <summary>
-    /// Walks the saved <see cref="DockTreeNode"/> tree and re-applies each node's
-    /// proportion to the matching dockable in the current <see cref="Layout"/> tree
-    /// (matched by ID). Nodes without an ID or with a zero proportion are skipped.
-    /// </summary>
-    private void ReapplyProportionsFromTree(IDockable currentRoot, DockTreeNode node)
-    {
-        if (!string.IsNullOrWhiteSpace(node.Id) && node.Proportion > 0)
-        {
-            var dockable = FindDockById<IDockable>(currentRoot, node.Id);
-            if (dockable is { })
-            {
-                dockable.Proportion = node.Proportion;
-            }
-        }
-
-        foreach (var child in node.Children)
-        {
-            ReapplyProportionsFromTree(currentRoot, child);
-        }
-    }
-
-    private static T? FindDockById<T>(IDockable dockable, string id) where T : class, IDockable
-    {
-        if (dockable is T foundDockable && string.Equals(foundDockable.Id, id, StringComparison.OrdinalIgnoreCase))
-        {
-            return foundDockable;
-        }
-
-        if (dockable is IDock dock && dock.VisibleDockables is { } childDockables)
-        {
-            foreach (var child in childDockables)
-            {
-                var childDock = FindDockById<T>(child, id);
-                if (childDock is { } found)
-                {
-                    return found;
-                }
-            }
-        }
-
-        return null;
     }
 
     /// <summary>

@@ -624,7 +624,29 @@ public sealed class LayoutTreeWorkflow
         }
     }
 
-    private static T? FindDockById<T>(IDockable dockable, string id) where T : class, IDockable
+    /// <summary>
+    /// Walks the saved <see cref="DockTreeNode"/> tree and re-applies each node's
+    /// proportion to the matching dockable in the current dock tree
+    /// (matched by ID). Nodes without an ID or with a zero proportion are skipped.
+    /// </summary>
+    public static void ReapplyProportionsFromTree(IDockable currentRoot, DockTreeNode node)
+    {
+        if (!string.IsNullOrWhiteSpace(node.Id) && node.Proportion > 0)
+        {
+            var dockable = FindDockById<IDockable>(currentRoot, node.Id);
+            if (dockable is { })
+            {
+                dockable.Proportion = node.Proportion;
+            }
+        }
+
+        foreach (var child in node.Children)
+        {
+            ReapplyProportionsFromTree(currentRoot, child);
+        }
+    }
+
+    public static T? FindDockById<T>(IDockable dockable, string id) where T : class, IDockable
     {
         if (dockable is T foundDockable && string.Equals(foundDockable.Id, id, StringComparison.OrdinalIgnoreCase))
         {
