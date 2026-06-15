@@ -53,6 +53,7 @@ using Serilog;
 using Arbor.HttpClient.Core.Collections;
 using Arbor.HttpClient.Core.Environments;
 using Arbor.HttpClient.Core.HttpRequest;
+using Arbor.HttpClient.Core.Messaging;
 using Arbor.HttpClient.Core.OpenApiImport;
 using Arbor.HttpClient.Core.ScheduledJobs;
 using Arbor.HttpClient.Core.Scripting;
@@ -68,7 +69,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private HttpRequestWorkflow _httpRequestWorkflow = null!;
     private ManualHttpRequestCoordinator _manualHttpRequestCoordinator = null!;
     private readonly HttpResponseProjectionWorkflow _httpResponseProjectionWorkflow = new();
-    private readonly IRequestHistoryRepository _requestHistoryRepository;
     private readonly ICollectionRepository _collectionRepository;
     private CollectionsWorkflow _collectionsWorkflow = null!;
     private CollectionsManagementCoordinator _collectionsManagementCoordinator = null!;
@@ -95,11 +95,10 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private SseViewModel _sseViewModel = null!;
     private CancellationTokenSource? _streamingCts;
     private readonly List<string> _tempFiles = [];
-    private readonly RequestHistoryWorkflow _requestHistoryWorkflow;
+    private readonly HistoryPanelViewModel _historyPanel;
+    private readonly IMessageBus _messageBus;
     private readonly RequestTabsWorkflow _requestTabsWorkflow = new();
     private readonly RequestBodyExternalEditWorkflow _requestBodyExternalEditWorkflow = new();
-    private readonly Subject<string> _historyFilterRequestedSubject = new();
-    private readonly CompositeDisposable _historyFilterDisposables = new();
     private RequestTabViewModel? _lastAppliedRequestTab;
     private readonly Subject<string> _collectionSearchFilterRequestedSubject = new();
     private readonly CompositeDisposable _collectionSearchFilterDisposables = new();
@@ -206,7 +205,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     System.Windows.Input.ICommand ILeftPanelContext.ShowHistoryTabCommand => ShowHistoryTabCommand;
     System.Windows.Input.ICommand ILeftPanelContext.ShowCollectionsTabCommand => ShowCollectionsTabCommand;
     System.Windows.Input.ICommand ILeftPanelContext.ShowScheduledJobsTabCommand => ShowScheduledJobsTabCommand;
-    System.Windows.Input.ICommand ILeftPanelContext.LoadHistoryRequestCommand => LoadHistoryRequestCommand;
     System.Windows.Input.ICommand ILeftPanelContext.LoadCollectionRequestCommand => LoadCollectionRequestCommand;
     System.Windows.Input.ICommand ILeftPanelContext.AddRequestToCollectionCommand => AddRequestToCollectionCommand;
     System.Windows.Input.ICommand ILeftPanelContext.ImportCollectionCommand => ImportCollectionCommand;
@@ -302,9 +300,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     [Reactive]
     private string _errorMessage = string.Empty;
-
-    [Reactive]
-    private string _historySearchQuery = string.Empty;
 
     [Reactive]
     private string _leftPanelTab = "History"; // "History" | "Collections"
@@ -677,11 +672,11 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         CookieContainer? cookieContainer = null,
         DraftPersistenceService? draftPersistenceService = null,
         DemoServer? demoServer = null,
-        UnhandledExceptionCollector? unhandledExceptionCollector = null)
+        UnhandledExceptionCollector? unhandledExceptionCollector = null,
+        IMessageBus? messageBus = null)
     {
         _httpRequestService = httpRequestService;
-        _requestHistoryRepository = requestHistoryRepository;
-        _requestHistoryWorkflow = new RequestHistoryWorkflow(_requestHistoryRepository);
+        _messageBus = messageBus ?? new MessageBus();
         _collectionRepository = collectionRepository;
         _scheduledJobService = scheduledJobService;
         _scheduledJobsWorkflow = new ScheduledJobsWorkflow(scheduledJobRepository, scheduledJobService);
@@ -696,6 +691,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _debugLogger = appLogger.ForContext("LogTab", LogTab.Debug);
         _httpRequestsLogger = appLogger.ForContext("LogTab", LogTab.HttpRequests);
         _draftWorkflow = new DraftWorkflow(draftPersistenceService, _debugLogger);
+        _historyPanel = new HistoryPanelViewModel(requestHistoryRepository, _messageBus, appLogger);
 
         _collectionInheritedHeadersWorkflow = new CollectionInheritedHeadersWorkflow(
             _collectionRepository,
@@ -830,11 +826,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             .Where(propertyName => string.Equals(propertyName, nameof(DefaultRequestTimeoutSeconds), StringComparison.Ordinal))
             .Subscribe(_ => ApplyDefaultRequestTimeoutSeconds()));
 
-        _historyFilterDisposables.Add(_historyFilterRequestedSubject
-            .Throttle(TimeSpan.FromMilliseconds(150))
-            .DistinctUntilChanged(StringComparer.Ordinal)
-            .Subscribe(query => _requestHistoryWorkflow.ApplyFilter(query)));
-
         _collectionSearchFilterDisposables.Add(_collectionSearchFilterRequestedSubject
             .Throttle(TimeSpan.FromMilliseconds(150))
             .DistinctUntilChanged(StringComparer.Ordinal)
@@ -865,13 +856,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
                 or nameof(IsCollectionTreeView))
             .Subscribe(_ => ApplyCollectionFilter()));
 
-        _historyFilterDisposables.Add(Observable
-            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
-                handler => PropertyChanged += handler,
-                handler => PropertyChanged -= handler)
-            .Select(eventPattern => eventPattern.EventArgs.PropertyName)
-            .Where(propertyName => string.Equals(propertyName, nameof(HistorySearchQuery), StringComparison.Ordinal))
-            .Subscribe(_ => _historyFilterRequestedSubject.OnNext(HistorySearchQuery)));
 
         _crossFeatureDisposables.Add(Observable
             .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
@@ -892,6 +876,14 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         var firstTab = _requestTabsWorkflow.AddTab(_requestEditor);
         _activeRequestTab = firstTab;
         _lastAppliedRequestTab = firstTab;
+
+        // The History panel publishes load requests instead of touching the editor directly.
+        // This flow is always initiated on the UI thread (a button click), so the synchronous
+        // handler runs on the UI thread without an explicit ObserveOn.
+        _crossFeatureDisposables.Add(_messageBus
+            .Listen<HistoryRequestLoadRequested>()
+            .Subscribe(message => ApplyHistoryRequestToEditor(message.Entry)));
+
         _environmentsViewModel = new EnvironmentsViewModel(
             environmentRepository,
             () => _requestEditor,
@@ -914,7 +906,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             _graphQlRequestWorkflow,
             _collectionsWorkflow,
             LoadCollectionsAsync,
-            LoadHistoryAsync,
+            _historyPanel.ReloadAsync,
             () => new GraphQlRequestCollectionState(
                 _requestEditor.RequestName,
                 _requestEditor.RequestNotes,
@@ -939,7 +931,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             _requestEditor,
             _collectionsWorkflow,
             LoadCollectionsAsync,
-            LoadHistoryAsync,
+            _historyPanel.ReloadAsync,
             _httpRequestsLogger);
         _webSocketViewModel = new WebSocketViewModel(appLogger);
         _sseViewModel = new SseViewModel(_protocolHttpClient, appLogger);
@@ -968,13 +960,9 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
                 _sendRequestCts = null;
             }
         });
-        LoadHistoryCommand = ReactiveCommand.CreateFromTask(LoadHistoryAsync);
 
         SendRequestCommand.ThrownExceptions
             .Subscribe(exception => _debugLogger.Error(exception, "Send request failed unexpectedly"))
-            .DisposeWith(_crossFeatureDisposables);
-        LoadHistoryCommand.ThrownExceptions
-            .Subscribe(exception => _debugLogger.Error(exception, "Loading history failed unexpectedly"))
             .DisposeWith(_crossFeatureDisposables);
 
         _isRequestInProgress = SendRequestCommand.IsExecuting
@@ -1104,7 +1092,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _responseActions = new ResponseActionsViewModel(this);
     }
 
-    public ObservableCollection<RequestHistoryEntry> History => _requestHistoryWorkflow.History;
+    public HistoryPanelViewModel HistoryPanel => _historyPanel;
     public ObservableCollection<Collection> Collections { get; }
     public ObservableCollection<CollectionItemViewModel> CollectionItems { get; }
     public ObservableCollection<RequestHeaderViewModel> CollectionInheritedHeaders { get; }
@@ -1257,7 +1245,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     }
 
     public ReactiveCommand<Unit, Unit> SendRequestCommand { get; }
-    public ReactiveCommand<Unit, Unit> LoadHistoryCommand { get; }
 
     private readonly ObservableAsPropertyHelper<bool> _isRequestInProgress;
     public bool IsRequestInProgress => _isRequestInProgress.Value;
@@ -2017,8 +2004,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _responseActions.Dispose();
         _environmentsViewModel.Dispose();
         _layoutManagementViewModel.Dispose();
-        _historyFilterRequestedSubject.OnCompleted();
-        _historyFilterDisposables.Dispose();
+        _historyPanel.Dispose();
         _collectionSearchFilterRequestedSubject.OnCompleted();
         _collectionSearchFilterDisposables.Dispose();
         _optionsWorkflow.Dispose();
@@ -2156,7 +2142,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         await Task.WhenAll(
-            LoadHistoryAsync(cancellationToken),
+            _historyPanel.ReloadAsync(cancellationToken),
             LoadCollectionsAsync(cancellationToken),
             _environmentsViewModel.LoadEnvironmentsAsync(cancellationToken),
             _scheduledJobsWorkflow.LoadJobsAsync(AutoStartScheduledJobsOnLaunch, FollowHttpRedirects, cancellationToken)).ConfigureAwait(false);
@@ -2382,17 +2368,10 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private async Task ToggleSseConnectionAsync() =>
         _streamingCts = await _streamingConnectionWorkflow.ToggleSseConnectionAsync(_streamingCts);
 
-    private Task LoadHistoryAsync(CancellationToken cancellationToken = default) =>
-        _requestHistoryWorkflow.LoadAsync(HistorySearchQuery, cancellationToken);
-
-    [ReactiveCommand]
-    private void LoadHistoryRequest(RequestHistoryEntry? request)
+    // Applies a history entry to the active request editor in response to a
+    // HistoryRequestLoadRequested message published by the History panel.
+    private void ApplyHistoryRequestToEditor(RequestHistoryEntry request)
     {
-        if (request is null)
-        {
-            return;
-        }
-
         var projection = RequestHistoryWorkflow.BuildEditorProjection(request);
         _requestEditor.SelectedRequestType = RequestType.Http;
         _requestEditor.SelectedMethod = projection.Method;

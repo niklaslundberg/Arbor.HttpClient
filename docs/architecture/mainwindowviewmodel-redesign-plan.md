@@ -76,8 +76,14 @@ public sealed class MessageBus : IMessageBus
 
 **Scheduler discipline:** the bus is scheduler-agnostic. Publishers may publish from any thread;
 **UI consumers marshal explicitly** with `.ObserveOn(RxApp.MainThreadScheduler)` at the
-subscription site. The bus never touches a UI scheduler, which is what keeps it in `Core` and
-unit-testable with `TestScheduler` at the consumer.
+subscription site — except flows always initiated on the UI thread (a button click), where the
+synchronous handler already runs on the UI thread and no `ObserveOn` is needed. The bus never
+touches a UI scheduler, which is what keeps it in `Core` and unit-testable at the consumer.
+
+**Naming note:** ReactiveUI also ships an (unused) `IMessageBus`/`MessageBus`. Because our bus
+lives in the ReactiveUI-free `Core` assembly the names are clean there; the Desktop and E2E.Tests
+projects add a project-wide `global using` alias (`GlobalUsings.cs`) pointing the unqualified names
+at our bus so view models that import ReactiveUI compile without `CS0104` ambiguity.
 
 **Lifetime:** one `IMessageBus` instance per application, owned by the composition root and
 injected into feature VMs. Every subscription is `.DisposeWith(...)` a feature-owned
@@ -185,12 +191,12 @@ One slice per PR; `dotnet test Arbor.HttpClient.slnx` green throughout; UI slice
 the `Category=Screenshots` headless E2E suite (byte-compare before/after, per the established
 verification habit).
 
-| # | Slice | Outcome | Risk |
-|---|---|---|---|
-| 0 | **`IMessageBus` in Core** | Bus + `MessageBusTests` land; nothing wired yet. Add `System.Reactive` ref to `Core`. | Very low |
-| 1 | **DI at the composition root** | Register the *existing* object graph in MS.DI with no behavior change; `App` resolves `MainWindowViewModel` from the container. | Low |
-| 2 | **Explorer → History panel VM** | Extract `HistoryPanelViewModel`; History state leaves Main; `HistoryRequestLoadRequested` is the first real message. | Medium |
-| 3 | **Explorer → Collections VM** | Extract `CollectionsExplorerViewModel`; `CollectionRequestLoadRequested`; live-preview header sync via message. | Medium-high (largest Explorer surface) |
+| # | Slice | Outcome | Risk | Status |
+|---|---|---|---|---|
+| 0 | **`IMessageBus` in Core** | Bus + `MessageBusTests` land; nothing wired yet. Add `System.Reactive` ref to `Core`. | Very low | **Done** |
+| 1 | **DI at the composition root** | Register the *existing* object graph in MS.DI with no behavior change; `App` resolves `MainWindowViewModel` from the container. | Low | **Deferred** — premature while `App.axaml.cs` is one hand-wired chain with stateful closures and a single composed VM; revisit once several feature VMs exist. |
+| 2 | **Explorer → History panel VM** | Extract `HistoryPanelViewModel`; History state leaves Main; `HistoryRequestLoadRequested` is the first real message. | Medium | **Done** — Main drops its History members; `LoadHistoryRequest` now publishes the message, Main applies it to the editor on receipt. |
+| 3 | **Explorer → Collections VM** | Extract `CollectionsExplorerViewModel`; `CollectionRequestLoadRequested`; live-preview header sync via message. | Medium-high (largest Explorer surface) | Next |
 | 4 | **Explorer → Scheduled jobs VM** + retire `ILeftPanelContext` | `ScheduledJobsPanelViewModel`; `LeftPanelViewModel` becomes a thin container. | Medium |
 | 5 | **Request panel VM** + retire `IRequestPanelContext` | `RequestPanelViewModel` owns tabs/editor/response projection; `RequestCompleted` drives History reload + cookie refresh. | High (response-projection surface) |
 | 6 | **Environment & demo notifications** | `ActiveEnvironmentChanged` / `DemoServerStateChanged` replace pull-through-Main access. | Medium |
