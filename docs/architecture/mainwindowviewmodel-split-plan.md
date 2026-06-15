@@ -6,6 +6,8 @@
 
 This document is a persisted implementation plan for splitting feature logic from `MainWindowViewModel` while keeping behavior stable.
 
+> **Successor plan (2026-06-15):** the remaining state-ownership work (moving Explorer/Request panel state out of Main into feature VMs, retiring the `ILeftPanelContext`/`IRequestPanelContext` façades, and adopting a UI-agnostic Rx message bus for cross-feature notifications) is now planned holistically in [`mainwindowviewmodel-redesign-plan.md`](mainwindowviewmodel-redesign-plan.md). The Workflow/Coordinator status tables below remain the authoritative record of what has already been extracted.
+
 > **Status update (2026-06-11):** Several slices have been extracted since this plan was written, and the solution has since completed a full ReactiveUI/Rx.NET migration (see [`reactiveui-migration-progress.md`](reactiveui-migration-progress.md)), which changes the communication-pattern recommendation below. Current status per slice is tracked in [Extraction status](#extraction-status-2026-06-11) and the forward plan in [Remaining slices — ordered plan](#remaining-slices--ordered-plan-2026-06-11).
 
 ## Established extraction convention (Workflow / Coordinator)
