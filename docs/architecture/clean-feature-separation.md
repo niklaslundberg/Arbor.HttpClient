@@ -194,6 +194,7 @@ Shared/                   — ReactiveViewModelBase, ReactiveToolBase, Disposabl
 ## Ordered next steps
 
 0. Use the execution plan in [`docs/architecture/mainwindowviewmodel-split-plan.md`](mainwindowviewmodel-split-plan.md) for incremental extraction work and communication-pattern decisions — see its "Remaining slices — ordered plan" section for the current slice order (next up: Request tabs + history).
+   - **2026-06-15:** A new holistic target — moving the remaining Explorer/Request panel state out of `MainWindowViewModel` into feature VMs and replacing the `ILeftPanelContext`/`IRequestPanelContext` façades with a UI-agnostic Rx message bus — is captured in [`mainwindowviewmodel-redesign-plan.md`](mainwindowviewmodel-redesign-plan.md). It is delivered incrementally (one slice per PR).
 1. ~~Feature-centric folder structure~~ ✅ Complete — all projects now use vertical-slice feature folders.
 2. ~~Refactor `DockFactory` to consume feature registrations and stop requiring a `MainWindowViewModel` reference.~~ ✅ Complete (2026-06-15) — `DockFactory` takes `IReadOnlyList<IDockPanelRegistration>`; each panel's registration lives in its own feature folder.
 3. ~~Evaluate whether a mediator/event-bus is needed after 1–2 successful slice extractions.~~ ✅ Resolved — several extractions later, direct Workflow/Coordinator calls plus `IObservable<T>` endpoints cover all communication needs; mediator/event-bus rejected (see the split plan's "Current guidance" section).

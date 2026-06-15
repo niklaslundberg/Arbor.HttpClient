@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Arbor.HttpClient.Core.Collections;
-using Arbor.HttpClient.Core.HttpRequest;
+using Arbor.HttpClient.Desktop.Features.History;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Desktop.Features.Variables;
@@ -26,10 +26,8 @@ public interface ILeftPanelContext : IVariableAutoCompleteHost
     ICommand ShowCollectionsTabCommand { get; }
     ICommand ShowScheduledJobsTabCommand { get; }
 
-    // History tab
-    string HistorySearchQuery { get; set; }
-    ObservableCollection<RequestHistoryEntry> History { get; }
-    ICommand LoadHistoryRequestCommand { get; }
+    // History tab — owns its own state (search query, list, load commands)
+    HistoryPanelViewModel HistoryPanel { get; }
 
     // Collections tab — selection and management
     ObservableCollection<Collection> Collections { get; }
@@ -67,10 +65,8 @@ public interface ILeftPanelContext : IVariableAutoCompleteHost
     ICommand SetCollectionDisplayModeCommand { get; }
     ICommand ToggleCollectionTreeViewCommand { get; }
 
-    // Scheduled jobs tab
-    ObservableCollection<ScheduledJobViewModel> ScheduledJobs { get; }
-    ICommand AddScheduledJobCommand { get; }
-    ICommand RemoveScheduledJobCommand { get; }
+    // Scheduled jobs tab — owns its own state (job list, add/remove commands)
+    ScheduledJobsPanelViewModel ScheduledJobsPanel { get; }
 
     // Sub-view-models the item templates bind into
     RequestEditorViewModel RequestEditor { get; }

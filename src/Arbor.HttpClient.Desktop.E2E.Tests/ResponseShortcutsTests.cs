@@ -205,8 +205,8 @@ public class ResponseShortcutsTests
         using var viewModel = CreateViewModel(response);
 
         viewModel.SelectedResponseTabIndex = 0;
-        viewModel.ResponseBody = "{\"ok\":true}";
-        viewModel.ResponseContentType = "application/json";
+        viewModel.Response.ResponseBody = "{\"ok\":true}";
+        viewModel.Response.ResponseContentType = "application/json";
 
         var result = viewModel.ResponseActions.TryGetSaveableResponseContent(out var content, out var extension);
 
@@ -223,8 +223,8 @@ public class ResponseShortcutsTests
         using var viewModel = CreateViewModel(response);
 
         viewModel.SelectedResponseTabIndex = 1;
-        viewModel.RawResponseBody = "<raw>";
-        viewModel.ResponseContentType = "text/plain";
+        viewModel.Response.RawResponseBody = "<raw>";
+        viewModel.Response.ResponseContentType = "text/plain";
 
         var result = viewModel.ResponseActions.TryGetSaveableResponseContent(out var content, out var extension);
 
@@ -259,8 +259,8 @@ public class ResponseShortcutsTests
         using var viewModel = CreateViewModel(response);
 
         viewModel.SelectedResponseTabIndex = 3;
-        viewModel.ResponseRawText = "HTTP/1.1 200 OK";
-        viewModel.ResponseContentType = "application/json";
+        viewModel.Response.ResponseRawText = "HTTP/1.1 200 OK";
+        viewModel.Response.ResponseContentType = "application/json";
 
         var result = viewModel.ResponseActions.TryGetSaveableResponseContent(out var content, out var extension);
 
@@ -277,7 +277,7 @@ public class ResponseShortcutsTests
         using var viewModel = CreateViewModel(response);
 
         viewModel.SelectedResponseTabIndex = 4;
-        viewModel.ResponseBody = "<html></html>";
+        viewModel.Response.ResponseBody = "<html></html>";
 
         var result = viewModel.ResponseActions.TryGetSaveableResponseContent(out var content, out var extension);
 

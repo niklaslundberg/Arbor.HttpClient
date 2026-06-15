@@ -61,8 +61,8 @@
                 IsVisible="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=History}">
             <Grid RowDefinitions="Auto,*">
                 <TextBox PlaceholderText="{x:Static loc:Strings.LeftPanelSearchHistory}"
-                         Text="{Binding App.HistorySearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                <ListBox Grid.Row="1" ItemsSource="{Binding App.History}" Margin="0,6,0,0"
+                         Text="{Binding App.HistoryPanel.HistorySearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <ListBox Grid.Row="1" ItemsSource="{Binding App.HistoryPanel.History}" Margin="0,6,0,0"
                           Background="{DynamicResource PanelBackgroundBrush}">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="httpRequest:RequestHistoryEntry">
@@ -72,7 +72,7 @@
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Left"
                                     AutomationProperties.Name="{Binding Name}"
-                                    Command="{Binding $parent[UserControl].DataContext.App.LoadHistoryRequestCommand}"
+                                    Command="{Binding $parent[UserControl].DataContext.App.HistoryPanel.LoadHistoryRequestCommand}"
                                     CommandParameter="{Binding}">
                                 <Button.ContextMenu>
                                     <ContextMenu>
@@ -375,9 +375,9 @@
         <Border Grid.Row="1" Background="{DynamicResource PanelBackgroundBrush}" Padding="12" CornerRadius="8"
                 IsVisible="{Binding App.LeftPanelTab, Converter={x:Static conv:StringEqualityConverter.Instance}, ConverterParameter=ScheduledJobs}">
             <Grid RowDefinitions="Auto,*">
-                <Button Content="{x:Static loc:Strings.LeftPanelAddJob}" Command="{Binding App.AddScheduledJobCommand}" />
+                <Button Content="{x:Static loc:Strings.LeftPanelAddJob}" Command="{Binding App.ScheduledJobsPanel.AddJobCommand}" />
                 <ScrollViewer Grid.Row="1" Margin="0,6,0,0">
-                    <ItemsControl ItemsSource="{Binding App.ScheduledJobs}">
+                    <ItemsControl ItemsSource="{Binding App.ScheduledJobsPanel.Jobs}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="scheduledVm:ScheduledJobViewModel">
                                 <Border BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" CornerRadius="4"

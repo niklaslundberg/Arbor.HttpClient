@@ -16,6 +16,7 @@ using Serilog;
 using Arbor.HttpClient.Core.Collections;
 using Arbor.HttpClient.Core.Environments;
 using Arbor.HttpClient.Core.HttpRequest;
+using Arbor.HttpClient.Core.Messaging;
 using Arbor.HttpClient.Core.ScheduledJobs;
 
 namespace Arbor.HttpClient.Desktop;
@@ -130,6 +131,9 @@ public partial class App : Application
             var scheduledJobService = new ScheduledJobService(httpRequestService, Log.Logger, exceptionCollector);
             var demoServer = new DemoServer();
 
+            // Application-wide message bus for cross-feature notifications.
+            var messageBus = new MessageBus();
+
             // ViewModels
             var logWindowViewModel = new LogWindowViewModel(inMemorySink);
             var viewModel = new MainWindowViewModel(
@@ -154,7 +158,8 @@ public partial class App : Application
                 cookieContainer: sharedCookieContainer,
                 draftPersistenceService: draftPersistenceService,
                 demoServer: demoServer,
-                unhandledExceptionCollector: exceptionCollector);
+                unhandledExceptionCollector: exceptionCollector,
+                messageBus: messageBus);
 
             var window = new MainWindow
             {

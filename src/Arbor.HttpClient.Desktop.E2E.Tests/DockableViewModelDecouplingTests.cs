@@ -4,10 +4,12 @@ using System.Windows.Input;
 using Arbor.HttpClient.Core.Collections;
 using Arbor.HttpClient.Core.Environments;
 using Arbor.HttpClient.Core.HttpRequest;
+using Arbor.HttpClient.Core.Messaging;
 using Arbor.HttpClient.Core.Variables;
 using Arbor.HttpClient.Desktop.Features.Collections;
 using Arbor.HttpClient.Desktop.Features.Environments;
 using Arbor.HttpClient.Desktop.Features.GraphQl;
+using Arbor.HttpClient.Desktop.Features.History;
 using Arbor.HttpClient.Desktop.Features.HttpRequest;
 using Arbor.HttpClient.Desktop.Features.Layout;
 using Arbor.HttpClient.Desktop.Features.Logging;
@@ -15,7 +17,9 @@ using Arbor.HttpClient.Desktop.Features.ScheduledJobs;
 using Arbor.HttpClient.Desktop.Features.Scripting;
 using Arbor.HttpClient.Desktop.Features.Sse;
 using Arbor.HttpClient.Desktop.Features.WebSocket;
+using Arbor.HttpClient.Testing.Repositories;
 using ReactiveUI;
+using Serilog;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
@@ -70,7 +74,7 @@ public class DockableViewModelDecouplingTests
         dockable.App.Should().BeSameAs(context);
         dockable.Id.Should().Be("left-panel");
         dockable.Title.Should().Be("Explorer");
-        dockable.RemoveScheduledJobCommand.Should().BeSameAs(context.RemoveScheduledJobCommand);
+        dockable.RemoveScheduledJobCommand.Should().BeSameAs(context.ScheduledJobsPanel.RemoveJobCommand);
     }
 
     [Fact]
@@ -104,9 +108,8 @@ public class DockableViewModelDecouplingTests
         public ICommand ShowCollectionsTabCommand => NoOp;
         public ICommand ShowScheduledJobsTabCommand => NoOp;
 
-        public string HistorySearchQuery { get; set; } = string.Empty;
-        public ObservableCollection<RequestHistoryEntry> History { get; } = [];
-        public ICommand LoadHistoryRequestCommand => NoOp;
+        public HistoryPanelViewModel HistoryPanel { get; } =
+            new(new InMemoryRequestHistoryRepository(), new MessageBus());
 
         public ObservableCollection<Collection> Collections { get; } = [];
         public Collection? SelectedCollection { get; set; }
@@ -140,9 +143,14 @@ public class DockableViewModelDecouplingTests
         public ICommand SetCollectionDisplayModeCommand => NoOp;
         public ICommand ToggleCollectionTreeViewCommand => NoOp;
 
-        public ObservableCollection<ScheduledJobViewModel> ScheduledJobs { get; } = [];
-        public ICommand AddScheduledJobCommand => NoOp;
-        public ICommand RemoveScheduledJobCommand { get; } = ReactiveCommand.Create<ScheduledJobViewModel?>(_ => { });
+        public ScheduledJobsPanelViewModel ScheduledJobsPanel { get; } = new(
+            new InMemoryScheduledJobRepository(),
+            new ScheduledJobService(
+                new HttpRequestService(new System.Net.Http.HttpClient(), new InMemoryRequestHistoryRepository()),
+                new LoggerConfiguration().CreateLogger()),
+            defaultIntervalSeconds: () => 60,
+            followRedirects: () => false,
+            autoStartOnLaunch: () => false);
 
         public RequestEditorViewModel RequestEditor => null!;
         public ResponseActionsViewModel ResponseActions => null!;

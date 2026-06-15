@@ -140,8 +140,8 @@ public class MainWindowCollectionsUiTests
 
         await viewModel.InitializeAsync();
 
-        var historyItem = viewModel.History.Should().ContainSingle().Subject;
-        viewModel.LoadHistoryRequestCommand.Execute(historyItem).Subscribe();
+        var historyItem = viewModel.HistoryPanel.History.Should().ContainSingle().Subject;
+        viewModel.HistoryPanel.LoadHistoryRequestCommand.Execute(historyItem).Subscribe();
 
         viewModel.RequestEditor.SelectedMethod.Should().Be("POST");
         viewModel.RequestEditor.RequestUrl.Should().Be("http://localhost:5000/api/items");

@@ -117,9 +117,9 @@ public class MainWindowScheduledJobsUiTests
 
         await viewModel.InitializeAsync();
 
-        viewModel.ScheduledJobs.Should().HaveCount(1);
-        viewModel.ScheduledJobs.Single().AutoStart.Should().BeTrue();
-        viewModel.ScheduledJobs.Single().IsRunning.Should().BeFalse();
+        viewModel.ScheduledJobsPanel.Jobs.Should().HaveCount(1);
+        viewModel.ScheduledJobsPanel.Jobs.Single().AutoStart.Should().BeTrue();
+        viewModel.ScheduledJobsPanel.Jobs.Single().IsRunning.Should().BeFalse();
         scheduledJobService.IsRunning(jobId).Should().BeFalse();
     }
 
@@ -145,8 +145,8 @@ public class MainWindowScheduledJobsUiTests
             scheduledJobService,
             logWindowViewModel);
 
-        viewModel.AddScheduledJobCommand.Execute().Subscribe();
-        var job = viewModel.ScheduledJobs.Should().ContainSingle().Subject;
+        viewModel.ScheduledJobsPanel.AddJobCommand.Execute().Subscribe();
+        var job = viewModel.ScheduledJobsPanel.Jobs.Should().ContainSingle().Subject;
         job.Name = "sync job";
         job.Url = "http://localhost:5000/sync";
 
