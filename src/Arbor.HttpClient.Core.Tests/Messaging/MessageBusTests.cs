@@ -98,4 +98,26 @@ public class MessageBusTests
 
         received.Should().Equal(1, 2, 3);
     }
+
+    [Fact]
+    public void Publish_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var bus = new MessageBus();
+        bus.Dispose();
+
+        var publish = () => bus.Publish(new SampleMessage(1));
+
+        publish.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public void Listen_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var bus = new MessageBus();
+        bus.Dispose();
+
+        var listen = () => bus.Listen<SampleMessage>();
+
+        listen.Should().Throw<ObjectDisposedException>();
+    }
 }

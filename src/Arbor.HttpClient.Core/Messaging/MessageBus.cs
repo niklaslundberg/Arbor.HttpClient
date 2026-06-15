@@ -13,18 +13,52 @@ namespace Arbor.HttpClient.Core.Messaging;
 /// Subjects are wrapped with <see cref="Subject.Synchronize{T}(ISubject{T})" /> so the bus is safe
 /// to publish to from multiple threads; consumers still marshal to their own scheduler.
 /// </remarks>
-public sealed class MessageBus : IMessageBus
+public sealed class MessageBus : IMessageBus, IDisposable
 {
-    private readonly ConcurrentDictionary<Type, object> _subjects = new();
+    private readonly ConcurrentDictionary<Type, ISubjectEntry> _subjects = new();
+    private bool _disposed;
 
     /// <inheritdoc />
-    public void Publish<TMessage>(TMessage message) => SubjectFor<TMessage>().OnNext(message);
+    public void Publish<TMessage>(TMessage message) => EntryFor<TMessage>().Synchronized.OnNext(message);
 
     /// <inheritdoc />
-    public IObservable<TMessage> Listen<TMessage>() => SubjectFor<TMessage>();
+    public IObservable<TMessage> Listen<TMessage>() => EntryFor<TMessage>().Synchronized;
 
-    private ISubject<TMessage> SubjectFor<TMessage>() =>
-        (ISubject<TMessage>)_subjects.GetOrAdd(
-            typeof(TMessage),
-            static _ => Subject.Synchronize<TMessage>(new Subject<TMessage>()));
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        foreach (var entry in _subjects.Values)
+        {
+            entry.Dispose();
+        }
+
+        _subjects.Clear();
+    }
+
+    private SubjectEntry<TMessage> EntryFor<TMessage>()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        return (SubjectEntry<TMessage>)_subjects.GetOrAdd(typeof(TMessage), static _ => new SubjectEntry<TMessage>());
+    }
+
+    private interface ISubjectEntry : IDisposable { }
+
+    private sealed class SubjectEntry<TMessage> : ISubjectEntry
+    {
+        private readonly Subject<TMessage> _inner = new();
+
+        public SubjectEntry() => Synchronized = Subject.Synchronize<TMessage>(_inner);
+
+        public ISubject<TMessage> Synchronized { get; }
+
+        public void Dispose() => _inner.Dispose();
+    }
 }
