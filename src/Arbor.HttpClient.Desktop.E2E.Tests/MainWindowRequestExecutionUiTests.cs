@@ -228,12 +228,12 @@ public class MainWindowRequestExecutionUiTests
             scheduledJobService,
             logWindowViewModel);
 
-        viewModel.ResponseBody = "{\"previous\":true}";
-        viewModel.RawResponseBody = "{\"previous\":true}";
-        viewModel.ResponseStatus = "200 OK";
+        viewModel.Response.ResponseBody = "{\"previous\":true}";
+        viewModel.Response.RawResponseBody = "{\"previous\":true}";
+        viewModel.Response.ResponseStatus = "200 OK";
         viewModel.ResponseHeaders.Add("Content-Type: application/json");
-        viewModel.HasResponseHeaders = true;
-        viewModel.HasTextResponse = true;
+        viewModel.Response.HasResponseHeaders = true;
+        viewModel.Response.HasTextResponse = true;
 
         viewModel.RequestEditor.RequestName = "clear response state";
         viewModel.RequestEditor.RequestUrl = "http://localhost:5000/slow";

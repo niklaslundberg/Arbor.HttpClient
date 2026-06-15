@@ -68,7 +68,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private readonly HttpRequestService _httpRequestService;
     private HttpRequestWorkflow _httpRequestWorkflow = null!;
     private ManualHttpRequestCoordinator _manualHttpRequestCoordinator = null!;
-    private readonly HttpResponseProjectionWorkflow _httpResponseProjectionWorkflow = new();
+    private readonly ResponseStateViewModel _response = new();
     private readonly ICollectionRepository _collectionRepository;
     private CollectionsWorkflow _collectionsWorkflow = null!;
     private CollectionsManagementCoordinator _collectionsManagementCoordinator = null!;
@@ -115,7 +115,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private readonly CompositeDisposable _collectionInheritedHeadersAutoSaveDisposables = new();
     private readonly CompositeDisposable _crossFeatureDisposables = new();
     private DockLayoutSnapshot? _defaultLayout;
-    private byte[] _lastResponseBodyBytes = [];
     private readonly DraftWorkflow _draftWorkflow;
     private readonly DemoServer? _demoServer;
     private readonly UnhandledExceptionCollector? _unhandledExceptionCollector;
@@ -176,7 +175,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     IReadOnlyList<string> IResponseActionsContext.ResponseHeaders => ResponseHeaders;
 
-    byte[] IResponseActionsContext.GetLastResponseBodyBytes() => _lastResponseBodyBytes;
+    byte[] IResponseActionsContext.GetLastResponseBodyBytes() => _response.GetLastResponseBodyBytes();
 
     string IResponseActionsContext.SelectedCollectionName => SelectedCollection?.Name ?? string.Empty;
 
@@ -244,57 +243,27 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     /// <summary>Dock factory; bound to DockControl.Factory in MainWindow.</summary>
     public IFactory? Factory => _dockFactory;
 
-    [Reactive]
-    private string _responseStatus = string.Empty;
+    // Integrated response panel state is owned by _response; these delegate to it (PropertyChanged
+    // is forwarded from _response in the constructor so existing bindings keep working).
+    public ResponseStateViewModel Response => _response;
+    public string ResponseStatus => _response.ResponseStatus;
+    public int ResponseStatusCode => _response.ResponseStatusCode;
+    public string ResponseTimeDisplay => _response.ResponseTimeDisplay;
+    public string ResponseSizeDisplay => _response.ResponseSizeDisplay;
+    public string ResponseBody => _response.ResponseBody;
+    public string RawResponseBody => _response.RawResponseBody;
+    public string ResponseBodyTabLabel => _response.ResponseBodyTabLabel;
+    public string ResponseContentType => _response.ResponseContentType;
+    public string ResponseRawText => _response.ResponseRawText;
+    public bool IsResponseWebViewAvailable => _response.IsResponseWebViewAvailable;
+    public string ResponseWebViewUri => _response.ResponseWebViewUri;
+    public bool IsBinaryResponse => _response.IsBinaryResponse;
 
-    /// <summary>
-    /// Numeric HTTP status code for the last completed response (0 when no response yet
-    /// or the request failed before receiving one). Used by the UI to color-code the
-    /// response status by family (1xx/2xx/3xx/4xx/5xx).
-    /// </summary>
-    [Reactive]
-    private int _responseStatusCode;
-
-    /// <summary>
-    /// Human-readable elapsed time for the last response, e.g. "142 ms" or "1.23 s".
-    /// Empty when no response has been received.
-    /// </summary>
-    [Reactive]
-    private string _responseTimeDisplay = string.Empty;
-
-    /// <summary>
-    /// Human-readable size of the last response body, e.g. "512 B", "1.3 KB", "4.7 MB".
-    /// Empty when no response has been received.
-    /// </summary>
-    [Reactive]
-    private string _responseSizeDisplay = string.Empty;
-
-    [Reactive]
-    private string _responseBody = string.Empty;
-
-    [Reactive]
-    private string _rawResponseBody = string.Empty;
-
-    [Reactive]
-    private string _responseBodyTabLabel = "Body";
-
-    [Reactive]
-    private string _responseContentType = string.Empty;
-
-    [Reactive]
-    private string _responseRawText = string.Empty;
-
-    [Reactive]
-    private int _selectedResponseTabIndex;
-
-    [Reactive]
-    private bool _isResponseWebViewAvailable;
-
-    [Reactive]
-    private string _responseWebViewUri = "about:blank";
-
-    [Reactive]
-    private bool _isBinaryResponse;
+    public int SelectedResponseTabIndex
+    {
+        get => _response.SelectedResponseTabIndex;
+        set => _response.SelectedResponseTabIndex = value;
+    }
 
     [Reactive]
     private string _errorMessage = string.Empty;
@@ -440,17 +409,15 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         $"{Strings.RequestTimeoutDefaultWatermark} ({DefaultRequestTimeoutSeconds})";
 
     // Response headers panel (populated after each successful request)
-    public ObservableCollection<string> ResponseHeaders { get; } = [];
+    public ObservableCollection<string> ResponseHeaders => _response.ResponseHeaders;
 
-    [Reactive]
-    private bool _hasResponseHeaders;
+    public bool HasResponseHeaders => _response.HasResponseHeaders;
 
     /// <summary>
     /// True when a non-binary text response has been received and the response shortcuts
     /// toolbar (Copy body / Save as file / Copy as cURL) should be visible.
     /// </summary>
-    [Reactive]
-    private bool _hasTextResponse;
+    public bool HasTextResponse => _response.HasTextResponse;
 
     [Reactive]
     private bool _hasDraftToRestore;
@@ -881,6 +848,15 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         var firstTab = _requestTabsWorkflow.AddTab(_requestEditor);
         _activeRequestTab = firstTab;
         _lastAppliedRequestTab = firstTab;
+
+        // The integrated response state lives in _response; forward its PropertyChanged as our own
+        // so the existing IRequestPanelContext/IResponseActionsContext bindings keep working while
+        // the state ownership moves out of this view model.
+        _crossFeatureDisposables.Add(Observable
+            .FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                handler => _response.PropertyChanged += handler,
+                handler => _response.PropertyChanged -= handler)
+            .Subscribe(eventPattern => this.RaisePropertyChanged(eventPattern.EventArgs.PropertyName)));
 
         // The History panel publishes load requests instead of touching the editor directly.
         // This flow is always initiated on the UI thread (a button click), so the synchronous
@@ -1999,6 +1975,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _environmentsViewModel.Dispose();
         _layoutManagementViewModel.Dispose();
         _historyPanel.Dispose();
+        _response.Dispose();
         _collectionSearchFilterRequestedSubject.OnCompleted();
         _collectionSearchFilterDisposables.Dispose();
         _optionsWorkflow.Dispose();
@@ -2170,33 +2147,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private Task<DemoDataSeedResult> SeedDemoDataAsync(CancellationToken cancellationToken = default) =>
         _demoDataWorkflow.SeedDemoDataAsync(cancellationToken);
 
-    private void ApplyHttpResponseProjection(HttpResponseDetails response)
-    {
-        var projection = _httpResponseProjectionWorkflow.BuildProjection(response);
-
-        ResponseStatus = projection.ResponseStatus;
-        ResponseStatusCode = projection.ResponseStatusCode;
-        ResponseTimeDisplay = projection.ResponseTimeDisplay;
-        ResponseSizeDisplay = projection.ResponseSizeDisplay;
-        _lastResponseBodyBytes = projection.LastResponseBodyBytes;
-        RawResponseBody = projection.RawResponseBody;
-
-        ResponseHeaders.Clear();
-        foreach (var responseHeader in projection.ResponseHeaders)
-        {
-            ResponseHeaders.Add(responseHeader);
-        }
-
-        HasResponseHeaders = projection.HasResponseHeaders;
-        ResponseContentType = projection.ResponseContentType;
-        ResponseBodyTabLabel = projection.ResponseBodyTabLabel;
-        IsBinaryResponse = projection.IsBinaryResponse;
-        ResponseBody = projection.ResponseBody;
-        IsResponseWebViewAvailable = projection.IsResponseWebViewAvailable;
-        ResponseWebViewUri = projection.ResponseWebViewUri;
-        ResponseRawText = projection.ResponseRawText;
-        HasTextResponse = projection.HasTextResponse;
-    }
+    private void ApplyHttpResponseProjection(HttpResponseDetails response) => _response.Apply(response);
 
     private async Task<IStorageFolder?> GetResponseSaveSuggestedStartLocationAsync()
     {
@@ -2338,9 +2289,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             ErrorMessage = errorMessage;
             if (clearResponseMetadata)
             {
-                ResponseStatusCode = 0;
-                ResponseTimeDisplay = string.Empty;
-                ResponseSizeDisplay = string.Empty;
+                _response.ClearMetadata();
             }
 
             return;
@@ -2384,78 +2333,12 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             return;
         }
 
-        tab.ResponseState = new RequestTabViewModel.ResponseStateSnapshot(
-            ResponseStatus,
-            ResponseStatusCode,
-            ResponseTimeDisplay,
-            ResponseSizeDisplay,
-            ResponseBody,
-            RawResponseBody,
-            ResponseBodyTabLabel,
-            ResponseContentType,
-            ResponseRawText,
-            SelectedResponseTabIndex,
-            IsResponseWebViewAvailable,
-            ResponseWebViewUri,
-            IsBinaryResponse,
-            HasResponseHeaders,
-            HasTextResponse,
-            ResponseHeaders.ToList(),
-            _lastResponseBodyBytes);
+        tab.ResponseState = _response.CaptureSnapshot();
     }
 
-    private void RestoreResponseStateForTab(RequestTabViewModel tab)
-    {
-        if (tab.ResponseState is { } state)
-        {
-            ResponseStatus = state.ResponseStatus;
-            ResponseStatusCode = state.ResponseStatusCode;
-            ResponseTimeDisplay = state.ResponseTimeDisplay;
-            ResponseSizeDisplay = state.ResponseSizeDisplay;
-            ResponseBody = state.ResponseBody;
-            RawResponseBody = state.RawResponseBody;
-            ResponseRawText = state.ResponseRawText;
-            ResponseContentType = state.ResponseContentType;
-            ResponseBodyTabLabel = state.ResponseBodyTabLabel;
-            SelectedResponseTabIndex = state.SelectedResponseTabIndex;
-            IsBinaryResponse = state.IsBinaryResponse;
-            IsResponseWebViewAvailable = state.IsResponseWebViewAvailable;
-            ResponseWebViewUri = state.ResponseWebViewUri;
-            HasResponseHeaders = state.HasResponseHeaders;
-            HasTextResponse = state.HasTextResponse;
-            _lastResponseBodyBytes = RequestTabsWorkflow.GetResponseStateBytes(state.LastResponseBodyBytes);
-            ResponseHeaders.Clear();
-            foreach (var header in state.ResponseHeaders)
-            {
-                ResponseHeaders.Add(header);
-            }
-        }
-        else
-        {
-            ClearResponseState();
-        }
-    }
+    private void RestoreResponseStateForTab(RequestTabViewModel tab) => _response.Restore(tab.ResponseState);
 
-    private void ClearResponseState()
-    {
-        ResponseStatus = string.Empty;
-        ResponseStatusCode = 0;
-        ResponseTimeDisplay = string.Empty;
-        ResponseSizeDisplay = string.Empty;
-        ResponseBody = string.Empty;
-        RawResponseBody = string.Empty;
-        ResponseRawText = string.Empty;
-        ResponseContentType = string.Empty;
-        ResponseBodyTabLabel = "Body";
-        SelectedResponseTabIndex = 0;
-        IsBinaryResponse = false;
-        IsResponseWebViewAvailable = false;
-        ResponseWebViewUri = "about:blank";
-        HasResponseHeaders = false;
-        HasTextResponse = false;
-        _lastResponseBodyBytes = [];
-        ResponseHeaders.Clear();
-    }
+    private void ClearResponseState() => _response.Clear();
 
     private async Task LoadCollectionsAsync(CancellationToken cancellationToken = default)
     {

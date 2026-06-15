@@ -63,9 +63,9 @@ public class ResponseViewDeadlockTests
         await Task.Run(() =>
         {
             Dispatcher.UIThread.CheckAccess().Should().BeFalse();
-            viewModel.ResponseBody = "{\"test\":\"value\"}";
-            viewModel.RawResponseBody = "{\"test\":\"value\"}";
-            viewModel.ResponseContentType = "application/json";
+            viewModel.Response.ResponseBody = "{\"test\":\"value\"}";
+            viewModel.Response.RawResponseBody = "{\"test\":\"value\"}";
+            viewModel.Response.ResponseContentType = "application/json";
         }, TestContext.Current.CancellationToken);
 
         await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
@@ -86,8 +86,8 @@ public class ResponseViewDeadlockTests
         {
             for (int i = 0; i < 20; i++)
             {
-                viewModel.ResponseBody = $"{{\"iteration\":{i}}}";
-                viewModel.ResponseContentType = "application/json";
+                viewModel.Response.ResponseBody = $"{{\"iteration\":{i}}}";
+                viewModel.Response.ResponseContentType = "application/json";
                 await Task.Yield();
             }
         }, TestContext.Current.CancellationToken);
