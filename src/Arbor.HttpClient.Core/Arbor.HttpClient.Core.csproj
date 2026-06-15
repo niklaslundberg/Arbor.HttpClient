@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.OpenApi.Readers" />
+    <PackageReference Include="System.Reactive" />
   </ItemGroup>
 
 </Project>

@@ -567,7 +567,8 @@
       "arbor.httpclient.core": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi.Readers": "[1.6.29, )"
+          "Microsoft.OpenApi.Readers": "[1.6.29, )",
+          "System.Reactive": "[6.1.0, )"
         }
       },
       "arbor.httpclient.desktop": {

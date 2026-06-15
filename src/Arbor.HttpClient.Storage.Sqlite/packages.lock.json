@@ -61,7 +61,8 @@
       "arbor.httpclient.core": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi.Readers": "[1.6.29, )"
+          "Microsoft.OpenApi.Readers": "[1.6.29, )",
+          "System.Reactive": "[6.1.0, )"
         }
       },
       "Microsoft.OpenApi.Readers": {
@@ -73,6 +74,12 @@
           "Microsoft.OpenApi": "1.6.29",
           "SharpYaml": "2.1.1"
         }
+      },
+      "System.Reactive": {
+        "type": "CentralTransitive",
+        "requested": "[6.1.0, )",
+        "resolved": "6.1.0",
+        "contentHash": "M5cCC1ZMkZr9jbSQGTHnVkb5TDN67qWCV7AP8TAHdGkvDlu0puT5NzemESNn9+HkYIDpWpocP68/i+/ame2/2w=="
       }
     }
   }
