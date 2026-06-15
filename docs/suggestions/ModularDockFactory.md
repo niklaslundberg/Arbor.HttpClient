@@ -1,3 +1,5 @@
+> **Status: Implemented (2026-06-15).** See [`docs/architecture/clean-feature-separation.md`](../architecture/clean-feature-separation.md) (Update 2026-06-15). `IDockPanelRegistration` (`Features/Layout/IDockPanelRegistration.cs`) replaces the `IDockRegistration` shape proposed below (it carries `DockPanelLocation` + `Dockable` rather than `ViewType`/`ViewModelFactory`, since Avalonia views are resolved via the existing `ViewLocator`). Each feature folder has one registration class (`LeftPanelDockRegistration`, `OptionsDockRegistration`, `EnvironmentsDockRegistration`, `LogPanelDockRegistration`, `CookieJarDockRegistration`, `LayoutManagementDockRegistration`, `RequestDockRegistration`); `DockFactory` composes the layout from `IReadOnlyList<IDockPanelRegistration>` and exposes `GetDockable<T>()` instead of per-panel typed properties. New tests: `DockFactoryRegistrationTests`.
+
 # Task: Refactor DockFactory to use feature registrations
 
 **Description**

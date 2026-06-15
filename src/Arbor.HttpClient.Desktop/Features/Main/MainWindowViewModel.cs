@@ -1080,7 +1080,17 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             ApplyLayoutSnapshot,
             PersistLayoutOptions,
             () => _defaultLayout);
-        _dockFactory = new DockFactory(_layoutManagementViewModel, this, this, _environmentsViewModel, _optionsViewModel, _cookieJarViewModel, _logWindowViewModel);
+        var dockRegistrations = new List<IDockPanelRegistration>
+        {
+            new LeftPanelDockRegistration(this),
+            new OptionsDockRegistration(_optionsViewModel),
+            new EnvironmentsDockRegistration(_environmentsViewModel),
+            new LogPanelDockRegistration(_logWindowViewModel),
+            new CookieJarDockRegistration(_cookieJarViewModel),
+            new LayoutManagementDockRegistration(_layoutManagementViewModel),
+            new RequestDockRegistration(this)
+        };
+        _dockFactory = new DockFactory(dockRegistrations);
         Layout = _dockFactory.CreateLayout();
         _dockFactory.InitLayout(Layout);
         _defaultLayout = CaptureLayoutSnapshot();
@@ -1383,7 +1393,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
 
     private void ActivateLeftPanel()
     {
-        if (_dockFactory?.LeftPanelViewModel is { Owner: IDock ownerDock } leftPanelVm)
+        if (_dockFactory?.GetDockable<LeftPanelViewModel>() is { Owner: IDock ownerDock } leftPanelVm)
         {
             ownerDock.ActiveDockable = leftPanelVm;
         }
@@ -1407,7 +1417,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [ReactiveCommand]
     private void OpenLogWindow()
     {
-        if (_dockFactory?.LogPanelViewModel is { Owner: IDock ownerDock } logPanelVm)
+        if (_dockFactory?.GetDockable<LogPanelViewModel>() is { Owner: IDock ownerDock } logPanelVm)
         {
             ownerDock.ActiveDockable = logPanelVm;
         }
@@ -1416,7 +1426,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [ReactiveCommand]
     private void OpenCookieJar()
     {
-        if (_dockFactory?.CookieJarViewModel is { Owner: IDock ownerDock } cookieJarVm)
+        if (_dockFactory?.GetDockable<CookieJarViewModel>() is { Owner: IDock ownerDock } cookieJarVm)
         {
             cookieJarVm.RefreshCookies();
             ownerDock.ActiveDockable = cookieJarVm;
@@ -1429,7 +1439,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [ReactiveCommand]
     private void OpenOptions()
     {
-        if (_dockFactory?.OptionsViewModel is { Owner: IDock ownerDock } optVm)
+        if (_dockFactory?.GetDockable<OptionsViewModel>() is { Owner: IDock ownerDock } optVm)
         {
             ownerDock.ActiveDockable = optVm;
         }
@@ -1438,7 +1448,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [ReactiveCommand]
     private void OpenEnvironments()
     {
-        if (_dockFactory?.EnvironmentsViewModel is { Owner: IDock ownerDock } environmentsVm)
+        if (_dockFactory?.GetDockable<EnvironmentsViewModel>() is { Owner: IDock ownerDock } environmentsVm)
         {
             ownerDock.ActiveDockable = environmentsVm;
         }
@@ -1447,7 +1457,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     [ReactiveCommand]
     private void OpenLayoutPanel()
     {
-        if (_dockFactory?.LayoutManagementViewModel is { Owner: IDock ownerDock } layoutVm)
+        if (_dockFactory?.GetDockable<LayoutManagementViewModel>() is { Owner: IDock ownerDock } layoutVm)
         {
             ownerDock.ActiveDockable = layoutVm;
         }

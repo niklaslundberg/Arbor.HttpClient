@@ -1,72 +1,49 @@
+using System.Collections.Generic;
+using System.Linq;
 using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.ReactiveUI;
 using Dock.Model.ReactiveUI.Controls;
-using Arbor.HttpClient.Desktop.Features.Collections;
-using Arbor.HttpClient.Desktop.Features.Cookies;
-using Arbor.HttpClient.Desktop.Features.Environments;
-using Arbor.HttpClient.Desktop.Features.HttpRequest;
-using Arbor.HttpClient.Desktop.Features.Logging;
-using Arbor.HttpClient.Desktop.Features.Options;
 
 namespace Arbor.HttpClient.Desktop.Features.Layout;
 
 /// <summary>
-/// Builds the initial Dock layout for the main window.
-/// Panels: Explorer tool (left), Options tool (left), Environments tool (left), Logs tool (left), Cookie Jar tool (left), and a single Request document that contains the integrated response panel.
+/// Builds the initial Dock layout for the main window from a set of feature-provided
+/// <see cref="IDockPanelRegistration"/> entries. Adding a new dock panel requires only a new
+/// registration; this factory does not reference feature view models directly.
 /// </summary>
 public sealed class DockFactory : Factory
 {
-    private readonly LayoutManagementViewModel _layoutManagementViewModel;
-    private readonly ILeftPanelContext _leftPanelContext;
-    private readonly IRequestPanelContext _requestPanelContext;
-    private readonly EnvironmentsViewModel _environmentsViewModel;
-    private readonly OptionsViewModel _optionsViewModel;
-    private readonly CookieJarViewModel _cookieJarViewModel;
-    private readonly LogWindowViewModel _logWindowViewModel;
+    private readonly IReadOnlyList<IDockPanelRegistration> _registrations;
 
-    public DockFactory(
-        LayoutManagementViewModel layoutManagementViewModel,
-        ILeftPanelContext leftPanelContext,
-        IRequestPanelContext requestPanelContext,
-        EnvironmentsViewModel environmentsViewModel,
-        OptionsViewModel optionsViewModel,
-        CookieJarViewModel cookieJarViewModel,
-        LogWindowViewModel logWindowViewModel)
+    public DockFactory(IReadOnlyList<IDockPanelRegistration> registrations)
     {
-        _layoutManagementViewModel = layoutManagementViewModel;
-        _leftPanelContext = leftPanelContext;
-        _requestPanelContext = requestPanelContext;
-        _environmentsViewModel = environmentsViewModel;
-        _optionsViewModel = optionsViewModel;
-        _cookieJarViewModel = cookieJarViewModel;
-        _logWindowViewModel = logWindowViewModel;
+        _registrations = registrations;
     }
 
     /// <summary>The left-side ToolDock; used to activate the Options tool programmatically.</summary>
     public ToolDock? LeftToolDock { get; private set; }
 
-    /// <summary>The Explorer (left panel) tool dockable.</summary>
-    public LeftPanelViewModel? LeftPanelViewModel { get; private set; }
-
-    /// <summary>The Options tool dockable.</summary>
-    public OptionsViewModel? OptionsViewModel { get; private set; }
-    public EnvironmentsViewModel? EnvironmentsViewModel { get; private set; }
-    public LogPanelViewModel? LogPanelViewModel { get; private set; }
-    public CookieJarViewModel? CookieJarViewModel { get; private set; }
-    public LayoutManagementViewModel? LayoutManagementViewModel { get; private set; }
+    /// <summary>Returns the registered dockable of type <typeparamref name="T"/>, if any.</summary>
+    public T? GetDockable<T>() where T : IDockable =>
+        _registrations.Select(registration => registration.Dockable).OfType<T>().FirstOrDefault();
 
     /// <summary>
     /// Updates <see cref="LeftToolDock"/> after a layout tree has been rebuilt from a saved
-    /// snapshot. The new reference is the ToolDock that currently owns "left-panel" (as
+    /// snapshot. The new reference is the ToolDock that currently owns the left-tool dockables (as
     /// reported by <see cref="IDockable.Owner"/> after <see cref="Factory.InitLayout"/> has run).
-    /// Falls back to the original "left-tool-dock" reference when <see cref="LeftPanelViewModel"/>
-    /// is <see langword="null"/> or its owner is not a <see cref="ToolDock"/>.
+    /// Falls back to the original "left-tool-dock" reference when none of the left-tool dockables
+    /// have a <see cref="ToolDock"/> owner.
     /// </summary>
     public void UpdateLeftToolDock()
     {
-        if (LeftPanelViewModel is { Owner: ToolDock ownerDock })
+        var leftToolDockable = _registrations
+            .Where(registration => registration.Location == DockPanelLocation.LeftTool)
+            .Select(registration => registration.Dockable)
+            .FirstOrDefault();
+
+        if (leftToolDockable is { Owner: ToolDock ownerDock })
         {
             LeftToolDock = ownerDock;
         }
@@ -74,38 +51,33 @@ public sealed class DockFactory : Factory
 
     public override IRootDock CreateLayout()
     {
-        var leftPanel = new LeftPanelViewModel(_leftPanelContext);
-        var options = _optionsViewModel;
-        var environments = _environmentsViewModel;
-        var logs = new LogPanelViewModel(_logWindowViewModel);
-        var cookieJar = _cookieJarViewModel;
-        var layoutManagement = _layoutManagementViewModel;
-        LeftPanelViewModel = leftPanel;
-        OptionsViewModel = options;
-        EnvironmentsViewModel = environments;
-        LogPanelViewModel = logs;
-        CookieJarViewModel = cookieJar;
-        LayoutManagementViewModel = layoutManagement;
+        var leftToolDockables = _registrations
+            .Where(registration => registration.Location == DockPanelLocation.LeftTool)
+            .Select(registration => registration.Dockable)
+            .ToArray();
 
         var leftToolDock = new ToolDock
         {
             Id = "left-tool-dock",
             Proportion = 0.25,
-            ActiveDockable = leftPanel,
-            VisibleDockables = CreateList<IDockable>(leftPanel, options, environments, logs, cookieJar, layoutManagement),
+            ActiveDockable = leftToolDockables.FirstOrDefault(),
+            VisibleDockables = CreateList(leftToolDockables),
             Alignment = Alignment.Left,
             GripMode = GripMode.Visible
         };
         LeftToolDock = leftToolDock;
 
-        var request = new RequestViewModel(_requestPanelContext);
+        var documentDockables = _registrations
+            .Where(registration => registration.Location == DockPanelLocation.Document)
+            .Select(registration => registration.Dockable)
+            .ToArray();
 
         var requestDock = new DocumentDock
         {
             Id = "request-dock",
             Proportion = 1,
-            ActiveDockable = request,
-            VisibleDockables = CreateList<IDockable>(request),
+            ActiveDockable = documentDockables.FirstOrDefault(),
+            VisibleDockables = CreateList(documentDockables),
             IsCollapsable = false
         };
 

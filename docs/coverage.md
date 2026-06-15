@@ -68,6 +68,15 @@ As of the latest build (2026-04-24, after adding Kestrel integration tests for W
 |---|---|---|
 | `RequestBodyExternalEditWorkflow` | **89.7%** ✅ | Temp-file creation + content-type/extension detection, watcher re-open cancelling the previous watcher, external-edit apply, read-pending debounce, and missing-file error handling — all covered by `RequestBodyExternalEditWorkflowTests`; uncovered lines are the defensive `ObjectDisposedException` catch around `CancellationTokenSource.Token` (narrow teardown race, mirrors the pre-extraction code) |
 
+### New code introduced in the registration-list DockFactory slice (2026-06-15)
+
+> Measured with `dotnet test src/Arbor.HttpClient.Desktop.E2E.Tests/... -- --coverage --coverage-output-format cobertura` (full suite, Microsoft.Testing.Extensions.CodeCoverage).
+
+| Class | Line coverage | Notes |
+|---|---|---|
+| `DockFactory` | **100%** ✅ | `CreateLayout` (left-tool/document grouping, ordering, `ActiveDockable`), `GetDockable<T>`, `UpdateLeftToolDock` — covered by new `DockFactoryRegistrationTests` |
+| `LeftPanelDockRegistration`, `OptionsDockRegistration`, `EnvironmentsDockRegistration`, `LogPanelDockRegistration`, `CookieJarDockRegistration`, `LayoutManagementDockRegistration`, `RequestDockRegistration` | **100%** ✅ | One-line wrapper constructors, exercised via `MainWindowViewModel` construction in the existing `MainWindow*UiTests` |
+
 ### New code introduced in UX idea 1.3 + Kestrel integration tests
 
 | Class | Line coverage | Notes |
