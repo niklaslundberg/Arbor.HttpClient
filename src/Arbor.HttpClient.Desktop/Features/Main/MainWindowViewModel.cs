@@ -73,7 +73,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     private CollectionsWorkflow _collectionsWorkflow = null!;
     private CollectionsManagementCoordinator _collectionsManagementCoordinator = null!;
     private readonly ScheduledJobService _scheduledJobService;
-    private readonly ScheduledJobsWorkflow _scheduledJobsWorkflow;
+    private readonly ScheduledJobsPanelViewModel _scheduledJobsPanel;
     private readonly LogWindowViewModel _logWindowViewModel;
     private readonly VariableResolver _variableResolver;
     private readonly ApplicationOptionsStore? _applicationOptionsStore;
@@ -220,8 +220,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     System.Windows.Input.ICommand ILeftPanelContext.SetCollectionSortByCommand => SetCollectionSortByCommand;
     System.Windows.Input.ICommand ILeftPanelContext.SetCollectionDisplayModeCommand => SetCollectionDisplayModeCommand;
     System.Windows.Input.ICommand ILeftPanelContext.ToggleCollectionTreeViewCommand => ToggleCollectionTreeViewCommand;
-    System.Windows.Input.ICommand ILeftPanelContext.AddScheduledJobCommand => AddScheduledJobCommand;
-    System.Windows.Input.ICommand ILeftPanelContext.RemoveScheduledJobCommand => RemoveScheduledJobCommand;
 
     // ── IRequestPanelContext explicit command implementations ─────────────────
     // All bound properties and sub-view-models (RequestTabs, ActiveRequestTab, RequestEditor,
@@ -679,7 +677,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _messageBus = messageBus ?? new MessageBus();
         _collectionRepository = collectionRepository;
         _scheduledJobService = scheduledJobService;
-        _scheduledJobsWorkflow = new ScheduledJobsWorkflow(scheduledJobRepository, scheduledJobService);
         _logWindowViewModel = logWindowViewModel;
         _variableResolver = new VariableResolver();
         _collectionRequestEditorProjectionWorkflow = new CollectionRequestEditorProjectionWorkflow(_variableResolver);
@@ -692,6 +689,14 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _httpRequestsLogger = appLogger.ForContext("LogTab", LogTab.HttpRequests);
         _draftWorkflow = new DraftWorkflow(draftPersistenceService, _debugLogger);
         _historyPanel = new HistoryPanelViewModel(requestHistoryRepository, _messageBus, appLogger);
+        _scheduledJobsPanel = new ScheduledJobsPanelViewModel(
+            scheduledJobRepository,
+            scheduledJobService,
+            () => DefaultScheduledJobIntervalSeconds,
+            () => FollowHttpRedirects,
+            () => AutoStartScheduledJobsOnLaunch,
+            onJobAdded: () => LeftPanelTab = "ScheduledJobs",
+            appLogger);
 
         _collectionInheritedHeadersWorkflow = new CollectionInheritedHeadersWorkflow(
             _collectionRepository,
@@ -1107,7 +1112,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
     public ObservableCollection<CollectionGroupViewModel> CollectionGroups { get; }
     public ObservableCollection<RequestEnvironment> Environments => _environmentsViewModel.Environments;
     public ObservableCollection<EnvironmentVariableViewModel> ActiveEnvironmentVariables => _environmentsViewModel.ActiveEnvironmentVariables;
-    public ObservableCollection<ScheduledJobViewModel> ScheduledJobs => _scheduledJobsWorkflow.Jobs;
+    public ScheduledJobsPanelViewModel ScheduledJobsPanel => _scheduledJobsPanel;
 
     /// <summary>The layout-management dockable; owns the saved-layout collection and layout commands.</summary>
     public LayoutManagementViewModel LayoutManagement => _layoutManagementViewModel;
@@ -1345,17 +1350,6 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _layoutManagementViewModel.LoadFromOptions(layouts);
         ApplyLayoutSnapshot(layouts?.CurrentLayout);
     }
-
-    [ReactiveCommand]
-    private void AddScheduledJob()
-    {
-        _scheduledJobsWorkflow.AddJob(DefaultScheduledJobIntervalSeconds, FollowHttpRedirects);
-        LeftPanelTab = "ScheduledJobs";
-    }
-
-    [ReactiveCommand]
-    private Task RemoveScheduledJobAsync(ScheduledJobViewModel? job) =>
-        _scheduledJobsWorkflow.RemoveJobAsync(job);
 
     [ReactiveCommand]
     private void ShowHistoryTab()
@@ -2014,7 +2008,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
         _draftWorkflow.Dispose();
         _draftWorkflow.ClearPersistedDraft();
         _scheduledJobService.Dispose();
-        _scheduledJobsWorkflow.Dispose();
+        _scheduledJobsPanel.Dispose();
         _requestBodyExternalEditWorkflow.Dispose();
         _streamingCts?.Cancel();
         _streamingCts?.Dispose();
@@ -2145,7 +2139,7 @@ public partial class MainWindowViewModel : ReactiveViewModelBase, IResponseActio
             _historyPanel.ReloadAsync(cancellationToken),
             LoadCollectionsAsync(cancellationToken),
             _environmentsViewModel.LoadEnvironmentsAsync(cancellationToken),
-            _scheduledJobsWorkflow.LoadJobsAsync(AutoStartScheduledJobsOnLaunch, FollowHttpRedirects, cancellationToken)).ConfigureAwait(false);
+            _scheduledJobsPanel.LoadAsync(cancellationToken)).ConfigureAwait(false);
 
         var demoSeedResult = await SeedDemoDataAsync(cancellationToken).ConfigureAwait(false);
         if (demoSeedResult.SeededCollectionId is { } newCollectionId)

@@ -19,6 +19,7 @@ using Arbor.HttpClient.Desktop.Features.Sse;
 using Arbor.HttpClient.Desktop.Features.WebSocket;
 using Arbor.HttpClient.Testing.Repositories;
 using ReactiveUI;
+using Serilog;
 
 namespace Arbor.HttpClient.Desktop.E2E.Tests;
 
@@ -73,7 +74,7 @@ public class DockableViewModelDecouplingTests
         dockable.App.Should().BeSameAs(context);
         dockable.Id.Should().Be("left-panel");
         dockable.Title.Should().Be("Explorer");
-        dockable.RemoveScheduledJobCommand.Should().BeSameAs(context.RemoveScheduledJobCommand);
+        dockable.RemoveScheduledJobCommand.Should().BeSameAs(context.ScheduledJobsPanel.RemoveJobCommand);
     }
 
     [Fact]
@@ -142,9 +143,14 @@ public class DockableViewModelDecouplingTests
         public ICommand SetCollectionDisplayModeCommand => NoOp;
         public ICommand ToggleCollectionTreeViewCommand => NoOp;
 
-        public ObservableCollection<ScheduledJobViewModel> ScheduledJobs { get; } = [];
-        public ICommand AddScheduledJobCommand => NoOp;
-        public ICommand RemoveScheduledJobCommand { get; } = ReactiveCommand.Create<ScheduledJobViewModel?>(_ => { });
+        public ScheduledJobsPanelViewModel ScheduledJobsPanel { get; } = new(
+            new InMemoryScheduledJobRepository(),
+            new ScheduledJobService(
+                new HttpRequestService(new System.Net.Http.HttpClient(), new InMemoryRequestHistoryRepository()),
+                new LoggerConfiguration().CreateLogger()),
+            defaultIntervalSeconds: () => 60,
+            followRedirects: () => false,
+            autoStartOnLaunch: () => false);
 
         public RequestEditorViewModel RequestEditor => null!;
         public ResponseActionsViewModel ResponseActions => null!;

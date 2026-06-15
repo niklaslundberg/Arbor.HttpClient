@@ -65,10 +65,8 @@ public interface ILeftPanelContext : IVariableAutoCompleteHost
     ICommand SetCollectionDisplayModeCommand { get; }
     ICommand ToggleCollectionTreeViewCommand { get; }
 
-    // Scheduled jobs tab
-    ObservableCollection<ScheduledJobViewModel> ScheduledJobs { get; }
-    ICommand AddScheduledJobCommand { get; }
-    ICommand RemoveScheduledJobCommand { get; }
+    // Scheduled jobs tab — owns its own state (job list, add/remove commands)
+    ScheduledJobsPanelViewModel ScheduledJobsPanel { get; }
 
     // Sub-view-models the item templates bind into
     RequestEditorViewModel RequestEditor { get; }

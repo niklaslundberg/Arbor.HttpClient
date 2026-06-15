@@ -370,7 +370,7 @@ public class ScreenshotGenerator
             IntervalSeconds = 60,
             AutoStart = true
         };
-        viewModel.ScheduledJobs.Add(jobVm);
+        viewModel.ScheduledJobsPanel.Jobs.Add(jobVm);
         viewModel.LeftPanelTab = "ScheduledJobs";
 
         window.Show();
@@ -397,7 +397,7 @@ public class ScreenshotGenerator
 
         viewModel.RequestEditor.FollowRedirectsForRequest = false;
         viewModel.LeftPanelTab = "ScheduledJobs";
-        viewModel.ScheduledJobs.Add(new ScheduledJobViewModel(new InMemoryScheduledJobRepo(), new ScheduledJobService(
+        viewModel.ScheduledJobsPanel.Jobs.Add(new ScheduledJobViewModel(new InMemoryScheduledJobRepo(), new ScheduledJobService(
             new HttpRequestService(new System.Net.Http.HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), new InMemoryHistoryRepo()),
             new LoggerConfiguration().WriteTo.Sink(new InMemorySink()).CreateLogger()))
         {

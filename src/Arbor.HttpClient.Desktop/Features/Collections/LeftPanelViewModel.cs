@@ -16,5 +16,5 @@ public sealed class LeftPanelViewModel : Tool
 
     // Proxy needed inside the ScheduledJobs item-template (DataContext = ScheduledJobViewModel)
     public ICommand RemoveScheduledJobCommand =>
-        App.RemoveScheduledJobCommand;
+        App.ScheduledJobsPanel.RemoveJobCommand;
 }
